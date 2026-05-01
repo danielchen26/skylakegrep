@@ -5,176 +5,298 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="local-mgrep is a free local semantic code search CLI powered by Ollama, SQLite, hybrid ranking, and agent-ready JSON."
+      content="Professional documentation for local-mgrep: free local semantic code search powered by Ollama, SQLite, hybrid ranking, and agent-ready JSON."
     />
-    <meta name="theme-color" content="#020617" />
-    <title>local-mgrep Documentation</title>
+    <meta name="theme-color" content="#0b1120" />
+    <title>local-mgrep Docs</title>
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="site-header">
-      <a class="brand" href="#top" aria-label="local-mgrep documentation home">
+    <header class="topbar">
+      <a class="brand" href="#overview" aria-label="local-mgrep docs home">
         <span class="brand-mark">⌁</span>
-        <span>local-mgrep</span>
+        <span class="brand-text">local-mgrep</span>
+        <span class="version">v0.2.0</span>
       </a>
-      <nav class="nav" aria-label="Primary navigation">
-        <a href="#start">Start</a>
-        <a href="#capabilities">Capabilities</a>
-        <a href="#architecture">Architecture</a>
-        <a href="#benchmarks">Benchmarks</a>
-        <a href="#reference">Reference</a>
-        <a class="nav-cta" href="https://github.com/danielchen26/local-mgrep">GitHub</a>
+      <nav class="topnav" aria-label="External links">
+        <a href="https://pypi.org/project/local-mgrep/">PyPI</a>
+        <a href="https://github.com/danielchen26/local-mgrep">GitHub</a>
+        <a class="topnav-cta" href="#quickstart">Quickstart</a>
       </nav>
     </header>
 
-    <main id="top">
-      <section class="hero section-shell">
-        <div class="hero-copy">
-          <p class="eyebrow">Free · Local · Agent-ready</p>
-          <h1>Semantic code search without sending your code to the cloud.</h1>
-          <p class="hero-text">
-            Ask a repository questions in natural language. Retrieve compact,
-            source-cited context for humans, scripts, and coding agents. Powered
-            by local Ollama embeddings, SQLite vectors, hybrid ranking, and
-            diversified top-k retrieval.
+    <div class="docs-shell">
+      <aside class="sidebar" aria-label="Documentation navigation">
+        <div class="sidebar-title">Documentation</div>
+        <nav>
+          <div class="nav-section">
+            <p>Start</p>
+            <a href="#overview">Overview</a>
+            <a href="#quickstart">Quickstart</a>
+            <a href="#install">Installation</a>
+          </div>
+          <div class="nav-section">
+            <p>Core concepts</p>
+            <a href="#why">Why local-mgrep</a>
+            <a href="#privacy">Local privacy model</a>
+            <a href="#agent-context">Agent context</a>
+          </div>
+          <div class="nav-section">
+            <p>Capabilities</p>
+            <a href="#capabilities">Capability matrix</a>
+            <a href="#search">Search behavior</a>
+            <a href="#answer-agentic">Answer & agentic modes</a>
+          </div>
+          <div class="nav-section">
+            <p>System</p>
+            <a href="#architecture">Architecture</a>
+            <a href="#configuration">Configuration</a>
+            <a href="#cli">CLI reference</a>
+          </div>
+          <div class="nav-section">
+            <p>Evidence</p>
+            <a href="#benchmarks">Benchmarks</a>
+            <a href="#limitations">Limitations</a>
+            <a href="#roadmap">Roadmap</a>
+          </div>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <section id="overview" class="doc-hero">
+          <p class="eyebrow">Free local semantic code search</p>
+          <h1>Find the right code by meaning, without sending your repo to the cloud.</h1>
+          <p class="lead">
+            `local-mgrep` is a local-first semantic search CLI for developers and
+            coding agents. It indexes a repository locally, retrieves compact
+            source-cited snippets, and returns context that agents can use before
+            expensive file reads.
           </p>
           <div class="hero-actions">
-            <a class="button primary" href="#start">Get started</a>
-            <a class="button ghost" href="https://github.com/danielchen26/local-mgrep">View on GitHub</a>
+            <a class="button primary" href="#quickstart">Start in 60 seconds</a>
+            <a class="button secondary" href="https://github.com/danielchen26/local-mgrep">View repository</a>
           </div>
-          <div class="metric-row" aria-label="Headline metrics">
-            <div><strong>30/30</strong><span>top-k 10 recall</span></div>
-            <div><strong>2.00×</strong><span>estimated token reduction</span></div>
-            <div><strong>0</strong><span>cloud calls for core search</span></div>
+          <div class="stats-grid" aria-label="Headline benchmark stats">
+            <div><strong>30/30</strong><span>top-k 10 expected-file recall</span></div>
+            <div><strong>2.00×</strong><span>estimated total-token reduction</span></div>
+            <div><strong>0</strong><span>required cloud calls for core search</span></div>
           </div>
-        </div>
-        <div class="hero-panel" aria-label="Example search result">
-          <div class="terminal-bar"><span></span><span></span><span></span><em>terminal</em></div>
-          <pre><code>$ mgrep search "where is token refresh implemented?" -m 10 --json
+        </section>
 
-local_mgrep/src/cli.py:124-145
-  agentic query decomposition → merged results
-
-local_mgrep/src/storage.py:197-271
-  semantic + lexical + diversified top-k
-
-output: stable JSON with path, line range, score, snippet</code></pre>
-        </div>
-      </section>
-
-      <section id="start" class="section-shell split">
-        <div>
-          <p class="eyebrow">Quick start</p>
-          <h2>Install, index, search.</h2>
-          <p>
-            The core workflow needs Python 3.9+, Ollama, and one local embedding
-            model. No hosted account, API key, organization setup, or remote code
-            upload is required.
-          </p>
-        </div>
-        <div class="code-card">
-          <pre><code>pip install local-mgrep
+        <section id="quickstart" class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">Quickstart</p>
+            <h2>Install, index, search.</h2>
+          </div>
+          <div class="code-window">
+            <div class="window-dots"><span></span><span></span><span></span></div>
+            <pre><code>pip install local-mgrep
 ollama pull mxbai-embed-large
 
 mgrep index /path/to/repo --reset
-mgrep search "how does auth work?" -m 10 --json</code></pre>
-        </div>
-      </section>
+mgrep search "where is token refresh implemented?" -m 10 --json</code></pre>
+          </div>
+        </section>
 
-      <section id="capabilities" class="section-shell">
-        <p class="eyebrow">Capabilities</p>
-        <h2>Built for private repos and coding-agent context.</h2>
-        <div class="card-grid">
-          <article class="card">
-            <span class="icon">🔎</span>
-            <h3>Semantic search</h3>
-            <p>Search by intent instead of exact keywords, using local Ollama embeddings.</p>
-          </article>
-          <article class="card">
-            <span class="icon">🧠</span>
-            <h3>Hybrid ranking</h3>
-            <p>Blend vector similarity with exact lexical code-term matches for practical ranking.</p>
-          </article>
-          <article class="card">
-            <span class="icon">🧩</span>
-            <h3>Diversified top-k</h3>
-            <p>Cap repeated chunks from the same file so more relevant files fit in context.</p>
-          </article>
-          <article class="card">
-            <span class="icon">📦</span>
-            <h3>Agent-ready JSON</h3>
-            <p>Return path, line range, language, score, and snippet for scripts and agents.</p>
-          </article>
-          <article class="card">
-            <span class="icon">🛡️</span>
-            <h3>Local privacy boundary</h3>
-            <p>Keep source scanning, vectors, retrieval, and optional answers on your workstation.</p>
-          </article>
-          <article class="card">
-            <span class="icon">⚡</span>
-            <h3>Watch mode</h3>
-            <p>Keep the index warm while editing with incremental add, update, and delete handling.</p>
-          </article>
-        </div>
-      </section>
+        <section id="install" class="doc-section two-column">
+          <div>
+            <p class="eyebrow">Installation</p>
+            <h2>Two install paths.</h2>
+            <p>Use PyPI for normal usage or source install for development.</p>
+          </div>
+          <div class="stacked-cards">
+            <article class="mini-card">
+              <h3>From PyPI</h3>
+              <pre><code>pip install local-mgrep</code></pre>
+            </article>
+            <article class="mini-card">
+              <h3>From source</h3>
+              <pre><code>git clone https://github.com/danielchen26/local-mgrep.git
+cd local-mgrep
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .</code></pre>
+            </article>
+          </div>
+        </section>
 
-      <section id="architecture" class="section-shell visual-section">
-        <div>
+        <section id="why" class="doc-section">
+          <p class="eyebrow">Why it exists</p>
+          <h2>Agents need better first context.</h2>
+          <p>
+            Coding agents often start by reading broad files or repeating exact
+            searches. `local-mgrep` gives them a compact ranked context pack:
+            path, line range, language, score, and snippet. Humans can inspect it;
+            agents can cite it; scripts can consume it as JSON.
+          </p>
+          <div class="comparison-grid">
+            <div class="comparison-card muted-card">
+              <h3>Without local-mgrep</h3>
+              <ul>
+                <li>Repeated grep searches</li>
+                <li>Large file reads</li>
+                <li>More context tokens</li>
+                <li>Harder provenance tracking</li>
+              </ul>
+            </div>
+            <div class="comparison-card accent-card">
+              <h3>With local-mgrep</h3>
+              <ul>
+                <li>One semantic retrieval pass</li>
+                <li>Source-cited snippets</li>
+                <li>Diversified top-k context</li>
+                <li>Stable JSON for agents</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="privacy" class="doc-section callout-section">
+          <p class="eyebrow">Local privacy model</p>
+          <h2>No hosted account. No cloud index. No source upload.</h2>
+          <p>
+            The core workflow runs on your workstation: source scanning, chunking,
+            embeddings, SQLite storage, ranking, result diversification, and
+            optional answer synthesis through local Ollama models.
+          </p>
+        </section>
+
+        <section id="agent-context" class="doc-section">
+          <p class="eyebrow">Agent context</p>
+          <h2>Designed for machine-readable retrieval.</h2>
+          <pre><code>mgrep search "where is the SQLite schema initialized?" --json -m 10</code></pre>
+          <p>The JSON shape is stable for agents and scripts:</p>
+          <pre><code>[
+  {
+    "path": "local_mgrep/src/storage.py",
+    "start_line": 31,
+    "end_line": 47,
+    "language": "python",
+    "score": 0.824,
+    "snippet": "CREATE TABLE IF NOT EXISTS chunks ..."
+  }
+]</code></pre>
+        </section>
+
+        <section id="capabilities" class="doc-section">
+          <p class="eyebrow">Capabilities</p>
+          <h2>What is implemented today.</h2>
+          <div class="capability-table" role="table" aria-label="Capability matrix">
+            <div role="row"><strong>Semantic code search</strong><span>Local Ollama embeddings</span><em>Implemented</em></div>
+            <div role="row"><strong>Tree-sitter chunking</strong><span>Syntax-aware chunks with fallback splitter</span><em>Implemented</em></div>
+            <div role="row"><strong>Ignore hygiene</strong><span>.gitignore, .mgrepignore, vendor/cache skips</span><em>Implemented</em></div>
+            <div role="row"><strong>Hybrid ranking</strong><span>Semantic similarity + lexical code-term boost</span><em>Implemented</em></div>
+            <div role="row"><strong>Result diversification</strong><span>Caps repeated chunks per file before final top-k</span><em>Implemented</em></div>
+            <div role="row"><strong>Answer mode</strong><span>Local Ollama synthesis from retrieved snippets</span><em>Implemented</em></div>
+            <div role="row"><strong>Agentic mode</strong><span>Bounded local subquery decomposition</span><em>Implemented</em></div>
+          </div>
+        </section>
+
+        <section id="search" class="doc-section">
+          <p class="eyebrow">Search behavior</p>
+          <h2>Semantic-first, practical at ranking time.</h2>
+          <ol class="steps">
+            <li><strong>Embed query locally.</strong> Search intent is converted through the configured Ollama embedding model.</li>
+            <li><strong>Score vectors.</strong> NumPy vector scoring ranks chunks by semantic similarity.</li>
+            <li><strong>Boost exact code terms.</strong> Lexical reranking helps queries with identifiers and path terms.</li>
+            <li><strong>Deduplicate spans.</strong> Logical duplicate source spans are removed.</li>
+            <li><strong>Diversify final top-k.</strong> Repeated chunks from the same file are capped before filling remaining slots.</li>
+          </ol>
+        </section>
+
+        <section id="answer-agentic" class="doc-section two-column">
+          <div>
+            <p class="eyebrow">Answer & agentic modes</p>
+            <h2>Optional local synthesis.</h2>
+            <p>
+              Answer mode synthesizes from retrieved snippets. Agentic mode uses
+              a local model to split broad questions into bounded subqueries.
+            </p>
+          </div>
+          <div class="stacked-cards">
+            <article class="mini-card"><h3>Answer</h3><pre><code>mgrep search "how is indexing cleaned?" --answer</code></pre></article>
+            <article class="mini-card"><h3>Agentic</h3><pre><code>mgrep search "token lifecycle" --agentic --max-subqueries 3</code></pre></article>
+          </div>
+        </section>
+
+        <section id="architecture" class="doc-section visual-doc">
           <p class="eyebrow">Architecture</p>
-          <h2>A small local pipeline you can inspect.</h2>
-          <p>
-            Files flow through ignore rules, tree-sitter-aware chunking, Ollama
-            embeddings, SQLite storage, local ranking, and source-cited output.
-          </p>
-        </div>
-        <img src="assets/architecture.svg" alt="local-mgrep architecture diagram" />
-      </section>
+          <h2>The local pipeline.</h2>
+          <img src="assets/architecture.svg" alt="local-mgrep local architecture diagram" />
+        </section>
 
-      <section id="benchmarks" class="section-shell visual-section dark-card">
-        <div>
+        <section id="configuration" class="doc-section">
+          <p class="eyebrow">Configuration</p>
+          <h2>Environment variables.</h2>
+          <div class="config-list">
+            <div><code>OLLAMA_URL</code><span>Default: http://localhost:11434</span></div>
+            <div><code>OLLAMA_EMBED_MODEL</code><span>Default: mxbai-embed-large</span></div>
+            <div><code>OLLAMA_LLM_MODEL</code><span>Default: qwen2.5:3b</span></div>
+            <div><code>MGREP_DB_PATH</code><span>Default: ~/.local-mgrep/index.db</span></div>
+          </div>
+        </section>
+
+        <section id="cli" class="doc-section">
+          <p class="eyebrow">CLI reference</p>
+          <h2>Commands and flags.</h2>
+          <div class="command-list">
+            <article><code>mgrep index [PATH] [--reset] [--incremental/--full]</code><p>Build or refresh the SQLite vector index.</p></article>
+            <article><code>mgrep search QUERY [OPTIONS]</code><p>Retrieve semantic results. Supports <code>-m</code>, <code>--json</code>, <code>--answer</code>, <code>--language</code>, <code>--include</code>, <code>--exclude</code>, <code>--semantic-only</code>, and <code>--agentic</code>.</p></article>
+            <article><code>mgrep stats</code><p>Show total chunks and indexed files.</p></article>
+            <article><code>mgrep watch [PATH] --interval 5</code><p>Refresh the index while the repository changes.</p></article>
+          </div>
+        </section>
+
+        <section id="benchmarks" class="doc-section visual-doc">
           <p class="eyebrow">Benchmark evidence</p>
-          <h2>2.00× estimated token reduction at equal expected-file recall.</h2>
+          <h2>Reproducible local benchmark, not billing data.</h2>
+          <img src="assets/benchmark.svg" alt="local-mgrep benchmark chart" />
           <p>
-            In the deterministic local context-gathering benchmark, top-k 10
-            reaches 30/30 expected-file recall with 2.90× context-token reduction
-            and 2.00× estimated total-token reduction versus a grep-agent simulation.
+            At top-k 10 on the deterministic repository navigation benchmark,
+            local-mgrep reaches <strong>30/30 expected-file recall</strong> with
+            <strong>2.00× estimated total-token reduction</strong> and
+            <strong>2.90× context-token reduction</strong> versus a grep-agent simulation.
           </p>
-          <p class="note">
-            This is not provider billing data or a full answer-quality rubric. It
-            is a reproducible local benchmark included in the repository.
-          </p>
-        </div>
-        <img src="assets/benchmark.svg" alt="local-mgrep benchmark chart" />
-      </section>
+          <pre><code>.venv/bin/python benchmarks/agent_context_benchmark.py --top-k 10 --summary-only</code></pre>
+        </section>
 
-      <section id="reference" class="section-shell">
-        <p class="eyebrow">Documentation</p>
-        <h2>Reference and source docs.</h2>
-        <div class="doc-grid">
-          <a class="doc-card" href="#start">
-            <strong>Installation</strong>
-            <span>Install from PyPI or source and configure Ollama.</span>
-          </a>
-          <a class="doc-card" href="#capabilities">
-            <strong>CLI reference</strong>
-            <span>Index, search, stats, watch, filters, JSON, answer, and agentic flags.</span>
-          </a>
-          <a class="doc-card" href="https://github.com/danielchen26/local-mgrep/blob/master/docs/local-mgrep-0.2.0.md">
-            <strong>Capability guide</strong>
-            <span>Deep Markdown reference for every implemented feature and the local-first product boundary.</span>
-          </a>
-          <a class="doc-card" href="https://github.com/danielchen26/local-mgrep/blob/master/docs/token-benchmarking.md">
-            <strong>Benchmark report</strong>
-            <span>Full methodology, top-k tradeoffs, caveats, and next quality targets.</span>
-          </a>
-        </div>
-      </section>
-    </main>
+        <section id="limitations" class="doc-section">
+          <p class="eyebrow">Limitations</p>
+          <h2>What not to overclaim.</h2>
+          <ul>
+            <li>The benchmark is deterministic local context gathering, not provider billing data.</li>
+            <li>Answer quality still requires a full rubric-based agent benchmark.</li>
+            <li>Cloud-grade reranking is intentionally absent; future work can add local rerankers.</li>
+            <li>Hosted accounts, cloud stores, organization switching, and paid web search are intentionally out of scope.</li>
+          </ul>
+        </section>
 
-    <footer class="footer">
-      <span>local-mgrep · MIT · Free local semantic code search</span>
-      <a href="https://github.com/danielchen26/local-mgrep">github.com/danielchen26/local-mgrep</a>
-    </footer>
+        <section id="roadmap" class="doc-section final-section">
+          <p class="eyebrow">Roadmap</p>
+          <h2>Next local-first improvements.</h2>
+          <div class="roadmap-grid">
+            <span>MCP / editor integration</span>
+            <span>Larger benchmark suite</span>
+            <span>Configurable local reranking</span>
+            <span>Richer ignore semantics</span>
+          </div>
+          <div class="final-actions">
+            <a class="button primary" href="https://github.com/danielchen26/local-mgrep">Open GitHub repo</a>
+            <a class="button secondary" href="https://github.com/danielchen26/local-mgrep/blob/master/docs/token-benchmarking.md">Read benchmark protocol</a>
+          </div>
+        </section>
+      </main>
+
+      <aside class="toc" aria-label="On this page">
+        <p>On this page</p>
+        <a href="#overview">Overview</a>
+        <a href="#quickstart">Quickstart</a>
+        <a href="#capabilities">Capabilities</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#benchmarks">Benchmarks</a>
+        <a href="#roadmap">Roadmap</a>
+      </aside>
+    </div>
   </body>
 </html>
