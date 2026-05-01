@@ -12,6 +12,29 @@
 
 <h3 align="center">Semantic code search for people and coding agents — fully local, free, and private.</h3>
 
+<p align="center">
+  <a href="docs/README.md">
+    <img alt="Open Documentation" src="https://img.shields.io/badge/Documentation-Open%20the%20docs-0f766e?style=for-the-badge&logo=readthedocs&logoColor=white">
+  </a>
+</p>
+
+<table>
+  <tr>
+    <td width="33%" align="center">
+      <a href="docs/README.md"><strong>📚 Documentation</strong></a><br>
+      <sub>Guides, CLI reference, architecture, benchmarks, and roadmap.</sub>
+    </td>
+    <td width="33%" align="center">
+      <a href="docs/local-mgrep-0.2.0.md"><strong>⚙️ Capability Guide</strong></a><br>
+      <sub>Everything currently implemented and how the local-first system works.</sub>
+    </td>
+    <td width="33%" align="center">
+      <a href="docs/token-benchmarking.md"><strong>📊 Benchmark Report</strong></a><br>
+      <sub>Token methodology, current results, and honest limitations.</sub>
+    </td>
+  </tr>
+</table>
+
 `local-mgrep` is a local-first semantic code search CLI. It lets you ask a
 repository questions in natural language, retrieves the relevant code snippets,
 and returns line-level provenance for humans, scripts, and coding agents.
