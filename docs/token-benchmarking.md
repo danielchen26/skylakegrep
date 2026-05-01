@@ -71,18 +71,19 @@ Current local benchmark snapshot on this repository:
 
 | mgrep top-k | mgrep hit rate | Estimated total token reduction | Context token reduction | Notes |
 | --- | --- | --- | --- | --- |
-| 5 | 25/30 | 2.68x | 5.60x | Very token efficient, but misses too many expected files. |
-| 10 | 27/30 | 2.03x | 2.98x | Closest current analogue to the hosted mgrep ~2x claim, but recall is not yet equal to grep. |
-| 20 | 29/30 | 1.33x | 1.48x | Higher recall, lower savings. |
-| 50 | 30/30 | 0.65x | 0.59x | Full recall, but more tokens than grep; not useful as an efficiency default. |
+| 5 | 28/30 | 2.66x | 5.53x | Very token efficient; still misses two expected files. |
+| 10 | 30/30 | 2.00x | 2.90x | Best current default: equal expected-file recall to grep with about 2x estimated total-token reduction. |
+| 20 | 30/30 | 1.36x | 1.53x | Full recall with lower savings than top-k 10. |
+| 50 | 30/30 | 0.67x | 0.60x | Full recall, but more tokens than grep; not useful as an efficiency default. |
 
-The current honest conclusion is: local-mgrep already demonstrates original-like
-token reduction at top-k 10, but not yet at equal recall. Closing that gap is the
-next quality target.
+The current honest conclusion is: with local per-file result diversification,
+local-mgrep demonstrates original-like token reduction at top-k 10 while matching
+grep's expected-file recall on this deterministic task set. This is still not a
+provider billing benchmark or a full answer-quality rubric.
 
 ## 3. Closing the local quality gap
 
-The misses in the deterministic benchmark come from three local-version gaps:
+Remaining gaps before making a broader original-mgrep-style claim:
 
 1. **No cross-encoder/cloud-grade reranker.** The first semantic retrieval pass
    can rank semantically adjacent files above the exact expected file. A local
@@ -91,26 +92,25 @@ The misses in the deterministic benchmark come from three local-version gaps:
    - a lightweight lexical/BM25 score blended with vector similarity,
    - a local Ollama rerank prompt over the top 20-50 snippets,
    - or a small local cross-encoder if a suitable open model is available.
-2. **Weak result diversification.** Current results can include many chunks from
-   the same file, which wastes context and hides other useful files. A local fix
-   should add MMR-style diversification or per-file caps before returning final
-   top-k results.
-3. **No agent integration policy.** Original mgrep benefits from being installed
-   into coding agents. A local plugin should teach agents when to call
+2. **Agent integration policy is still missing.** Original mgrep benefits from
+   being installed into coding agents. A local plugin should teach agents when to call
    `local-mgrep`, when to follow up with file reads, and when to fall back to
    exact grep.
 
+The earlier weak result-diversification gap is now addressed with a
+local per-file cap before final top-k output. That keeps high-scoring chunks while
+avoiding context waste from repeated same-file results.
+
 Recommended implementation order:
 
-1. **Diversity layer first** — cheapest and most likely to improve hit rate per
-   token. Add a `--diversify` default that limits repeated chunks per file and
-   favors source/test/doc variety.
-2. **Local hybrid reranker second** — extend current lexical+semantic scoring
+1. **Diversity layer** — done locally with a default per-file cap before final
+   output.
+2. **Local hybrid reranker** — extend current lexical+semantic scoring
    into a configurable reranking pipeline over a larger candidate pool.
-3. **Agent integration third** — provide OpenCode/Claude/Codex instructions or
+3. **Agent integration** — provide OpenCode/Claude/Codex instructions or
    plugin installers that force a high-recall workflow: `mgrep search -> read the
    top files -> answer with citations`.
-4. **Full 50-task benchmark fourth** — once recall matches grep at useful top-k,
+4. **Full 50-task benchmark** — once recall matches grep at useful top-k,
    run the benchmark with an actual agent and provider token accounting.
 
 Success criteria for claiming parity with the original-style token result:
@@ -123,7 +123,7 @@ quality rubric score >= grep baseline
 
 Until then, the correct claim is narrower: local-mgrep has demonstrated local
 retrieval compression and a deterministic agent-context benchmark showing about
-2x estimated token reduction at top-k 10 with 27/30 expected-file recall.
+2x estimated token reduction at top-k 10 with 30/30 expected-file recall.
 
 ### Task set
 
