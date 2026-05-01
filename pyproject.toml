@@ -27,7 +27,7 @@ mgrep = "local_mgrep.src.cli:main"
 Homepage = "https://github.com/danielchen26/local-mgrep"
 Repository = "https://github.com/danielchen26/local-mgrep"
 Issues = "https://github.com/danielchen26/local-mgrep/issues"
-Documentation = "https://github.com/danielchen26/local-mgrep/tree/master/docs"
+Documentation = "https://danielchen26.github.io/local-mgrep/"
 
 [tool.setuptools.packages.find]
 where = ["."]

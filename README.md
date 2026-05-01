@@ -13,23 +13,23 @@
 <h3 align="center">Semantic code search for people and coding agents — fully local, free, and private.</h3>
 
 <p align="center">
-  <a href="docs/README.md">
-    <img alt="Open Documentation" src="https://img.shields.io/badge/Documentation-Open%20the%20docs-0f766e?style=for-the-badge&logo=readthedocs&logoColor=white">
+  <a href="https://danielchen26.github.io/local-mgrep/">
+    <img alt="Open Documentation Website" src="https://img.shields.io/badge/Documentation-Open%20the%20website-0f766e?style=for-the-badge&logo=readthedocs&logoColor=white">
   </a>
 </p>
 
 <table>
   <tr>
     <td width="33%" align="center">
-      <a href="docs/README.md"><strong>📚 Documentation</strong></a><br>
-      <sub>Guides, CLI reference, architecture, benchmarks, and roadmap.</sub>
+      <a href="https://danielchen26.github.io/local-mgrep/"><strong>📚 Documentation Website</strong></a><br>
+      <sub>Professional web docs with guides, architecture, benchmarks, and roadmap.</sub>
     </td>
     <td width="33%" align="center">
-      <a href="docs/local-mgrep-0.2.0.md"><strong>⚙️ Capability Guide</strong></a><br>
+      <a href="https://danielchen26.github.io/local-mgrep/#capabilities"><strong>⚙️ Capabilities</strong></a><br>
       <sub>Everything currently implemented and how the local-first system works.</sub>
     </td>
     <td width="33%" align="center">
-      <a href="docs/token-benchmarking.md"><strong>📊 Benchmark Report</strong></a><br>
+      <a href="https://danielchen26.github.io/local-mgrep/#benchmarks"><strong>📊 Benchmarks</strong></a><br>
       <sub>Token methodology, current results, and honest limitations.</sub>
     </td>
   </tr>
