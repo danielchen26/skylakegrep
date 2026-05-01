@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="local-mgrep favicon">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#34D399"/>
+      <stop offset="1" stop-color="#67E8F9"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="18" fill="#020617"/>
+  <path d="M18 20C18 16.686 20.686 14 24 14H40C43.314 14 46 16.686 46 20V44C46 47.314 43.314 50 40 50H24C20.686 50 18 47.314 18 44V20Z" fill="url(#g)" opacity="0.16"/>
+  <path d="M24 21L18 27L24 33" fill="none" stroke="url(#g)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M40 21L46 27L40 33" fill="none" stroke="url(#g)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M24 42H40" stroke="#F8FAFC" stroke-width="4.5" stroke-linecap="round"/>
+</svg>

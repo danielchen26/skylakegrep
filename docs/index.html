@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="local-mgrep is a free local semantic code search CLI powered by Ollama, SQLite, hybrid ranking, and agent-ready JSON."
+    />
+    <meta name="theme-color" content="#020617" />
+    <title>local-mgrep Documentation</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="local-mgrep documentation home">
+        <span class="brand-mark">⌁</span>
+        <span>local-mgrep</span>
+      </a>
+      <nav class="nav" aria-label="Primary navigation">
+        <a href="#start">Start</a>
+        <a href="#capabilities">Capabilities</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#benchmarks">Benchmarks</a>
+        <a href="#reference">Reference</a>
+        <a class="nav-cta" href="https://github.com/danielchen26/local-mgrep">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero section-shell">
+        <div class="hero-copy">
+          <p class="eyebrow">Free · Local · Agent-ready</p>
+          <h1>Semantic code search without sending your code to the cloud.</h1>
+          <p class="hero-text">
+            Ask a repository questions in natural language. Retrieve compact,
+            source-cited context for humans, scripts, and coding agents. Powered
+            by local Ollama embeddings, SQLite vectors, hybrid ranking, and
+            diversified top-k retrieval.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#start">Get started</a>
+            <a class="button ghost" href="https://github.com/danielchen26/local-mgrep">View on GitHub</a>
+          </div>
+          <div class="metric-row" aria-label="Headline metrics">
+            <div><strong>30/30</strong><span>top-k 10 recall</span></div>
+            <div><strong>2.00×</strong><span>estimated token reduction</span></div>
+            <div><strong>0</strong><span>cloud calls for core search</span></div>
+          </div>
+        </div>
+        <div class="hero-panel" aria-label="Example search result">
+          <div class="terminal-bar"><span></span><span></span><span></span><em>terminal</em></div>
+          <pre><code>$ mgrep search "where is token refresh implemented?" -m 10 --json
+
+local_mgrep/src/cli.py:124-145
+  agentic query decomposition → merged results
+
+local_mgrep/src/storage.py:197-271
+  semantic + lexical + diversified top-k
+
+output: stable JSON with path, line range, score, snippet</code></pre>
+        </div>
+      </section>
+
+      <section id="start" class="section-shell split">
+        <div>
+          <p class="eyebrow">Quick start</p>
+          <h2>Install, index, search.</h2>
+          <p>
+            The core workflow needs Python 3.9+, Ollama, and one local embedding
+            model. No hosted account, API key, organization setup, or remote code
+            upload is required.
+          </p>
+        </div>
+        <div class="code-card">
+          <pre><code>pip install local-mgrep
+ollama pull mxbai-embed-large
+
+mgrep index /path/to/repo --reset
+mgrep search "how does auth work?" -m 10 --json</code></pre>
+        </div>
+      </section>
+
+      <section id="capabilities" class="section-shell">
+        <p class="eyebrow">Capabilities</p>
+        <h2>Built for private repos and coding-agent context.</h2>
+        <div class="card-grid">
+          <article class="card">
+            <span class="icon">🔎</span>
+            <h3>Semantic search</h3>
+            <p>Search by intent instead of exact keywords, using local Ollama embeddings.</p>
+          </article>
+          <article class="card">
+            <span class="icon">🧠</span>
+            <h3>Hybrid ranking</h3>
+            <p>Blend vector similarity with exact lexical code-term matches for practical ranking.</p>
+          </article>
+          <article class="card">
+            <span class="icon">🧩</span>
+            <h3>Diversified top-k</h3>
+            <p>Cap repeated chunks from the same file so more relevant files fit in context.</p>
+          </article>
+          <article class="card">
+            <span class="icon">📦</span>
+            <h3>Agent-ready JSON</h3>
+            <p>Return path, line range, language, score, and snippet for scripts and agents.</p>
+          </article>
+          <article class="card">
+            <span class="icon">🛡️</span>
+            <h3>Local privacy boundary</h3>
+            <p>Keep source scanning, vectors, retrieval, and optional answers on your workstation.</p>
+          </article>
+          <article class="card">
+            <span class="icon">⚡</span>
+            <h3>Watch mode</h3>
+            <p>Keep the index warm while editing with incremental add, update, and delete handling.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="architecture" class="section-shell visual-section">
+        <div>
+          <p class="eyebrow">Architecture</p>
+          <h2>A small local pipeline you can inspect.</h2>
+          <p>
+            Files flow through ignore rules, tree-sitter-aware chunking, Ollama
+            embeddings, SQLite storage, local ranking, and source-cited output.
+          </p>
+        </div>
+        <img src="assets/architecture.svg" alt="local-mgrep architecture diagram" />
+      </section>
+
+      <section id="benchmarks" class="section-shell visual-section dark-card">
+        <div>
+          <p class="eyebrow">Benchmark evidence</p>
+          <h2>2.00× estimated token reduction at equal expected-file recall.</h2>
+          <p>
+            In the deterministic local context-gathering benchmark, top-k 10
+            reaches 30/30 expected-file recall with 2.90× context-token reduction
+            and 2.00× estimated total-token reduction versus a grep-agent simulation.
+          </p>
+          <p class="note">
+            This is not provider billing data or a full answer-quality rubric. It
+            is a reproducible local benchmark included in the repository.
+          </p>
+        </div>
+        <img src="assets/benchmark.svg" alt="local-mgrep benchmark chart" />
+      </section>
+
+      <section id="reference" class="section-shell">
+        <p class="eyebrow">Documentation</p>
+        <h2>Reference and source docs.</h2>
+        <div class="doc-grid">
+          <a class="doc-card" href="#start">
+            <strong>Installation</strong>
+            <span>Install from PyPI or source and configure Ollama.</span>
+          </a>
+          <a class="doc-card" href="#capabilities">
+            <strong>CLI reference</strong>
+            <span>Index, search, stats, watch, filters, JSON, answer, and agentic flags.</span>
+          </a>
+          <a class="doc-card" href="https://github.com/danielchen26/local-mgrep/blob/master/docs/local-mgrep-0.2.0.md">
+            <strong>Capability guide</strong>
+            <span>Deep Markdown reference for every implemented feature and the local-first product boundary.</span>
+          </a>
+          <a class="doc-card" href="https://github.com/danielchen26/local-mgrep/blob/master/docs/token-benchmarking.md">
+            <strong>Benchmark report</strong>
+            <span>Full methodology, top-k tradeoffs, caveats, and next quality targets.</span>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>local-mgrep · MIT · Free local semantic code search</span>
+      <a href="https://github.com/danielchen26/local-mgrep">github.com/danielchen26/local-mgrep</a>
+    </footer>
+  </body>
+</html>
