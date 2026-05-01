@@ -3,6 +3,25 @@
 `local-mgrep` can be evaluated at two different levels. Keeping these separate
 prevents over-claiming.
 
+![local-mgrep benchmark summary](assets/benchmark.svg)
+
+## Current headline result
+
+On this repository's deterministic context-gathering benchmark, top-k 10 is the
+current recommended default:
+
+```text
+mgrep hit rate:                       30/30
+grep hit rate:                        30/30
+estimated total-token reduction:      2.00x
+context-token reduction:              2.90x
+mgrep tool calls:                     30
+grep-agent tool calls:                227
+```
+
+This result is useful because it is reproducible and local. It is still not the
+same as production billing data from a hosted coding-agent run.
+
 ## 1. Retrieval-layer context compression
 
 This is what `benchmarks/token_savings.py` measures.
@@ -93,9 +112,9 @@ Remaining gaps before making a broader original-mgrep-style claim:
    - a local Ollama rerank prompt over the top 20-50 snippets,
    - or a small local cross-encoder if a suitable open model is available.
 2. **Agent integration policy is still missing.** Original mgrep benefits from
-   being installed into coding agents. A local plugin should teach agents when to call
-   `local-mgrep`, when to follow up with file reads, and when to fall back to
-   exact grep.
+   being installed into coding agents. A local plugin should teach agents when to
+   call `local-mgrep`, when to follow up with file reads, and when to fall back
+   to exact grep.
 
 The earlier weak result-diversification gap is now addressed with a
 local per-file cap before final top-k output. That keeps high-scoring chunks while
