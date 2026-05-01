@@ -4,6 +4,24 @@
 capture the highest-value workflow ideas from the original Mixedbread `mgrep`
 without requiring a hosted account, paid API, cloud index, or remote code upload.
 
+![local-mgrep local architecture](assets/architecture.svg)
+
+## Public positioning
+
+Use `local-mgrep` when you want a private, zero-subscription semantic search
+layer for codebases and coding agents. The project is optimized for three public
+promises that are easy to verify from the code:
+
+1. **Local privacy boundary:** source files, vectors, retrieval, and optional
+   answer synthesis stay on the workstation.
+2. **Agent-ready context:** search output can be stable JSON with path, line
+   range, language, score, and snippet.
+3. **Honest performance evidence:** the repository includes deterministic
+   benchmark harnesses and documents the limits of the results.
+
+It should not be described as a hosted `mgrep` clone. It is a local replacement
+for the core semantic repository-search workflow.
+
 ## Local-first scope
 
 The project intentionally keeps all core work on the user's machine:
@@ -27,6 +45,13 @@ mgrep search QUERY [OPTIONS]
 mgrep stats
 mgrep watch [PATH] [--interval N]
 ```
+
+| Command | Production use |
+| --- | --- |
+| `mgrep index` | Build or refresh the local SQLite vector index. |
+| `mgrep search` | Retrieve ranked snippets by natural-language intent. |
+| `mgrep stats` | Inspect current index size. |
+| `mgrep watch` | Keep the local index warm during development. |
 
 ## Indexing behavior
 
@@ -146,6 +171,20 @@ The current implementation improves both indexing and query-time behavior:
 These changes move `local-mgrep` much closer to a daily-driver local search tool,
 especially for repeated searches over an existing index.
 
+## Benchmark evidence
+
+![local-mgrep benchmark](assets/benchmark.svg)
+
+The current deterministic context-gathering benchmark compares a grep-agent
+simulation against one local-mgrep semantic search per task over 30 repository
+navigation questions. At top-k 10, local-mgrep reaches `30/30` expected-file
+recall with `2.00x` estimated total-token reduction and `2.90x` context-token
+reduction.
+
+This is intentionally framed as a local deterministic benchmark, not provider
+billing data. See [`token-benchmarking.md`](token-benchmarking.md) for the exact
+protocol and caveats.
+
 ## Configuration
 
 | Variable | Default | Description |
@@ -193,3 +232,4 @@ Still valuable future local-first work:
 - Larger benchmark suite for big repositories
 - Local PDF/image indexing
 - More complete `.gitignore` edge-case semantics
+- Configurable local reranking over larger candidate pools
