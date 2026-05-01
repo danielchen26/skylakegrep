@@ -1,7 +1,14 @@
-import numpy as np
-import sqlite3
 import fnmatch
+import re
+import sqlite3
 from pathlib import Path
+from typing import Optional
+
+import numpy as np
+
+
+LEXICAL_WEIGHT = 0.2
+TOKEN_RE = re.compile(r"[a-z0-9]+")
 
 
 CHUNK_METADATA_COLUMNS = {
@@ -123,6 +130,31 @@ def get_file_mtime(conn, file: str) -> float:
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-8)
 
+
+def tokenize_search_text(text: str) -> list[str]:
+    camel_spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", text)
+    return TOKEN_RE.findall(camel_spaced.lower())
+
+
+def lexical_score(query_text: str, path: str, chunk: str) -> float:
+    query_tokens = tokenize_search_text(query_text)
+    if not query_tokens:
+        return 0.0
+    query_terms = list(dict.fromkeys(query_tokens))
+    target_tokens = tokenize_search_text(f"{path} {chunk}")
+    target_terms = set(target_tokens)
+    if not target_terms:
+        return 0.0
+    term_score = sum(1 for term in query_terms if term in target_terms) / len(query_terms)
+    normalized_query = " ".join(query_tokens)
+    normalized_target = " ".join(target_tokens)
+    phrase_score = 1.0 if normalized_query and normalized_query in normalized_target else 0.0
+    return min(1.0, (term_score * 0.75) + (phrase_score * 0.25))
+
+
+def combine_scores(semantic_score: float, lexical_score_value: float) -> float:
+    return (semantic_score * (1.0 - LEXICAL_WEIGHT)) + (lexical_score_value * LEXICAL_WEIGHT)
+
 def path_matches(path: str, include_patterns: tuple[str, ...], exclude_patterns: tuple[str, ...]) -> bool:
     basename = Path(path).name
     if include_patterns and not any(
@@ -145,6 +177,8 @@ def search(
     languages: tuple[str, ...] = (),
     include_patterns: tuple[str, ...] = (),
     exclude_patterns: tuple[str, ...] = (),
+    query_text: Optional[str] = None,
+    semantic_only: bool = False,
 ) -> list[dict]:
     query_vec = np.array(query_embedding, dtype=np.float32)
     params = []
@@ -171,7 +205,21 @@ def search(
         return []
     matrix = np.vstack([np.frombuffer(row[8], dtype=np.float32) for row in rows])
     denom = np.linalg.norm(matrix, axis=1) * np.linalg.norm(query_vec) + 1e-8
-    scores = matrix @ query_vec / denom
+    semantic_scores = matrix @ query_vec / denom
+    lexical_scores = np.zeros(len(rows), dtype=np.float32)
+    scores = semantic_scores
+    if query_text and not semantic_only:
+        lexical_scores = np.array(
+            [lexical_score(query_text, row[1], row[2]) for row in rows],
+            dtype=np.float32,
+        )
+        scores = np.array(
+            [
+                combine_scores(float(semantic), float(lexical))
+                for semantic, lexical in zip(semantic_scores, lexical_scores)
+            ],
+            dtype=np.float32,
+        )
     ordered_indices = np.argsort(-scores)
     deduped = []
     seen = set()
@@ -193,6 +241,8 @@ def search(
             "start_byte": chunk[6],
             "end_byte": chunk[7],
             "score": float(scores[int(index)]),
+            "semantic_score": float(semantic_scores[int(index)]),
+            "lexical_score": float(lexical_scores[int(index)]),
         })
         if len(deduped) >= top_k:
             break

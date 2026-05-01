@@ -101,6 +101,7 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--exclude", "exclude_patterns", multiple=True, help="Exclude matching paths")
 @click.option("--agentic", is_flag=True, help="Use local Ollama to split the query into bounded subqueries")
 @click.option("--max-subqueries", default=3, help="Maximum local agentic subqueries")
+@click.option("--semantic-only", is_flag=True, help="Disable local lexical reranking and use pure vector similarity")
 def search_cmd(
     query: str,
     top: int,
@@ -112,6 +113,7 @@ def search_cmd(
     exclude_patterns: tuple[str, ...],
     agentic: bool,
     max_subqueries: int,
+    semantic_only: bool,
 ):
     cfg = get_config()
     conn = sqlite3.connect(cfg["db_path"])
@@ -136,6 +138,8 @@ def search_cmd(
                 languages=tuple(language),
                 include_patterns=tuple(include_patterns),
                 exclude_patterns=tuple(exclude_patterns),
+                query_text=item,
+                semantic_only=semantic_only,
             )
         )
     results = merge_results(result_groups, top)
