@@ -1,11 +1,38 @@
 import click
+import json
 import sqlite3
 import time
 from pathlib import Path
-from .indexer import prepare_file_chunks, batch_embed, SUPPORTED_EXTENSIONS
+from .answerer import get_answerer
+from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
 from .embeddings import get_embedder
-from .storage import init_db, store_chunks_batch, search, delete_file_chunks, get_indexed_files, get_file_mtime
+from .storage import delete_file_chunks, delete_missing_files, get_indexed_files, init_db, search, store_chunks_batch
 from .config import get_config
+
+
+def merge_results(result_groups: list[list[dict]], top: int) -> list[dict]:
+    merged = {}
+    for results in result_groups:
+        for result in results:
+            key = (result["path"], result.get("start_line"), result.get("end_line"), result["snippet"])
+            if key not in merged or result["score"] > merged[key]["score"]:
+                merged[key] = result
+    return sorted(merged.values(), key=lambda item: item["score"], reverse=True)[:top]
+
+
+def render_json_results(results: list[dict]) -> str:
+    payload = [
+        {
+            "path": r["path"],
+            "start_line": r["start_line"],
+            "end_line": r["end_line"],
+            "language": r["language"],
+            "score": float(r["score"]),
+            "snippet": r["snippet"],
+        }
+        for r in results
+    ]
+    return json.dumps(payload, indent=2)
 
 @click.group()
 def cli():
@@ -23,14 +50,14 @@ def index(path: str, reset: bool, incremental: bool):
     conn = init_db(db_path)
     embedder = get_embedder()
 
-    files = []
-    for ext in SUPPORTED_EXTENSIONS:
-        files.extend(Path(path).rglob(f"*{ext}"))
+    root = Path(path)
+    files = collect_indexable_files(root)
 
     click.echo(f"Found {len(files)} files to index")
 
     if incremental and not reset:
         indexed_files = get_indexed_files(conn)
+        deleted_files = delete_missing_files(conn, {str(f) for f in files}, root)
         to_index = []
         to_reindex = []
         for f in files:
@@ -39,7 +66,7 @@ def index(path: str, reset: bool, incremental: bool):
                 to_index.append(f)
             elif f.stat().st_mtime > indexed_files[f_str]:
                 to_reindex.append(f)
-        click.echo(f"Incremental: {len(to_index)} new, {len(to_reindex)} changed")
+        click.echo(f"Incremental: {len(to_index)} new, {len(to_reindex)} changed, {len(deleted_files)} deleted")
         files_to_process = to_index + to_reindex
     else:
         files_to_process = files
@@ -65,18 +92,77 @@ def index(path: str, reset: bool, incremental: bool):
 
 @cli.command()
 @click.argument("query")
-@click.option("--top", "-n", default=5, help="Number of results")
-def search_cmd(query: str, top: int):
+@click.option("--top", "-n", "-m", default=5, help="Number of results")
+@click.option("--json", "json_output", is_flag=True, help="Emit stable JSON results")
+@click.option("--answer", is_flag=True, help="Synthesize a local Ollama answer from search results")
+@click.option("--content/--no-content", default=True, help="Show or hide matched snippets")
+@click.option("--language", multiple=True, help="Restrict results to language(s)")
+@click.option("--include", "include_patterns", multiple=True, help="Include only matching paths")
+@click.option("--exclude", "exclude_patterns", multiple=True, help="Exclude matching paths")
+@click.option("--agentic", is_flag=True, help="Use local Ollama to split the query into bounded subqueries")
+@click.option("--max-subqueries", default=3, help="Maximum local agentic subqueries")
+def search_cmd(
+    query: str,
+    top: int,
+    json_output: bool,
+    answer: bool,
+    content: bool,
+    language: tuple[str, ...],
+    include_patterns: tuple[str, ...],
+    exclude_patterns: tuple[str, ...],
+    agentic: bool,
+    max_subqueries: int,
+):
     cfg = get_config()
     conn = sqlite3.connect(cfg["db_path"])
     embedder = get_embedder()
     start = time.time()
-    query_embedding = embedder.embed(query)
-    results = search(conn, query_embedding, top)
+    queries = [query]
+    answerer = None
+    if agentic:
+        answerer = get_answerer()
+        subqueries = answerer.decompose(query, max_queries=max_subqueries)
+        for subquery in subqueries:
+            if subquery not in queries:
+                queries.append(subquery)
+    result_groups = []
+    for item in queries:
+        query_embedding = embedder.embed(item)
+        result_groups.append(
+            search(
+                conn,
+                query_embedding,
+                max(top, top * 2),
+                languages=tuple(language),
+                include_patterns=tuple(include_patterns),
+                exclude_patterns=tuple(exclude_patterns),
+            )
+        )
+    results = merge_results(result_groups, top)
     elapsed = time.time() - start
+    if json_output:
+        click.echo(render_json_results(results))
+        return
+    if answer:
+        if answerer is None:
+            answerer = get_answerer()
+        synthesized = answerer.answer(query, results)
+        click.echo(synthesized)
+        click.echo("\nSources:")
+        for result in results:
+            line_range = ""
+            if result.get("start_line") and result.get("end_line"):
+                line_range = f":{result['start_line']}-{result['end_line']}"
+            click.echo(f"- {result['path']}{line_range} (score: {result['score']:.3f})")
+        click.echo(f"\n[Answer completed in {elapsed:.3f}s]")
+        return
     for r in results:
-        click.echo(f"\n=== {r['file']} (score: {r['score']:.3f}) ===")
-        click.echo(r["chunk"][:500])
+        line_range = ""
+        if r.get("start_line") and r.get("end_line"):
+            line_range = f":{r['start_line']}-{r['end_line']}"
+        click.echo(f"\n=== {r['path']}{line_range} (score: {r['score']:.3f}) ===")
+        if content:
+            click.echo(r["snippet"][:500])
     click.echo(f"\n[Search completed in {elapsed:.3f}s]")
 
 @cli.command()
@@ -93,9 +179,12 @@ def watch(path: str, interval: int):
 
     while True:
         try:
-            files = []
-            for ext in SUPPORTED_EXTENSIONS:
-                files.extend(Path(path).rglob(f"*{ext}"))
+            root = Path(path)
+            files = collect_indexable_files(root)
+            deleted_files = delete_missing_files(conn, {str(f) for f in files}, root)
+            for deleted_file in deleted_files:
+                indexed_files.pop(deleted_file, None)
+                click.echo(f"  Deleted: {deleted_file}")
 
             for f in files:
                 f_str = str(f)

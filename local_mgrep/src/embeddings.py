@@ -20,4 +20,16 @@ class OllamaEmbedder:
         return resp.json()["embedding"]
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        try:
+            resp = requests.post(
+                f"{self.base_url}/api/embed",
+                json={"model": self.model, "input": texts},
+                timeout=120
+            )
+            resp.raise_for_status()
+            embeddings = resp.json().get("embeddings")
+            if isinstance(embeddings, list) and len(embeddings) == len(texts):
+                return embeddings
+        except requests.RequestException:
+            return [self.embed(t) for t in texts]
         return [self.embed(t) for t in texts]
