@@ -49,9 +49,11 @@ Index hygiene is a first-class feature:
 
 ## Search behavior
 
-Search is semantic: users describe intent rather than exact code text. Results are
-ranked by local embedding similarity, deduplicated by logical source span, and
-rendered with provenance.
+Search is semantic-first: users describe intent rather than exact code text.
+Results are ranked by local embedding similarity plus a local lexical reranking
+boost for exact code terms, deduplicated by logical source span, and rendered
+with provenance. Use `--semantic-only` when you want pure vector ordering without
+the lexical boost.
 
 Human output includes file path, line range, score, and snippet by default:
 
@@ -90,6 +92,7 @@ mgrep search "auth token" --no-content
 mgrep search "auth token" --language python
 mgrep search "auth token" --include "src/*"
 mgrep search "auth token" --exclude "*_test.py"
+mgrep search "auth token" --semantic-only
 ```
 
 These flags are applied before final ranking output where practical, reducing
@@ -135,6 +138,7 @@ The current implementation improves both indexing and query-time behavior:
   back to single-text `/api/embeddings` calls.
 - Search loads chunk metadata and vectors in one joined query.
 - Vector scoring uses NumPy matrix operations instead of a pure Python loop.
+- Hybrid reranking boosts exact local code-term hits without using a remote API.
 - Language/path filters reduce candidate rows before ranking output.
 
 These changes move `local-mgrep` much closer to a daily-driver local search tool,
@@ -168,6 +172,7 @@ Implemented locally:
 - Content/no-content output
 - JSON output
 - Ignore files
+- Hybrid lexical + semantic reranking
 - Answer synthesis
 - Agentic query decomposition
 - Local-only indexing and storage
@@ -182,7 +187,6 @@ Intentionally not implemented because they depend on hosted/product features:
 Still valuable future local-first work:
 
 - MCP server for local agent integrations
-- Hybrid lexical + semantic reranking
 - Larger benchmark suite for big repositories
 - Local PDF/image indexing
 - More complete `.gitignore` edge-case semantics
