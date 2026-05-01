@@ -8,6 +8,7 @@ import numpy as np
 
 
 LEXICAL_WEIGHT = 0.2
+MAX_RESULTS_PER_FILE = 2
 TOKEN_RE = re.compile(r"[a-z0-9]+")
 
 
@@ -155,6 +156,29 @@ def lexical_score(query_text: str, path: str, chunk: str) -> float:
 def combine_scores(semantic_score: float, lexical_score_value: float) -> float:
     return (semantic_score * (1.0 - LEXICAL_WEIGHT)) + (lexical_score_value * LEXICAL_WEIGHT)
 
+
+def diversify_results(candidates: list[dict], top_k: int, max_per_file: int = MAX_RESULTS_PER_FILE) -> list[dict]:
+    if top_k <= 0:
+        return []
+    selected = []
+    overflow = []
+    file_counts = {}
+    for candidate in candidates:
+        path = candidate["path"]
+        if file_counts.get(path, 0) < max_per_file:
+            selected.append(candidate)
+            file_counts[path] = file_counts.get(path, 0) + 1
+            if len(selected) >= top_k:
+                return selected
+        else:
+            overflow.append(candidate)
+    for candidate in overflow:
+        selected.append(candidate)
+        if len(selected) >= top_k:
+            break
+    return selected
+
+
 def path_matches(path: str, include_patterns: tuple[str, ...], exclude_patterns: tuple[str, ...]) -> bool:
     basename = Path(path).name
     if include_patterns and not any(
@@ -221,7 +245,7 @@ def search(
             dtype=np.float32,
         )
     ordered_indices = np.argsort(-scores)
-    deduped = []
+    candidates = []
     seen = set()
     for index in ordered_indices:
         chunk = rows[int(index)]
@@ -229,7 +253,7 @@ def search(
         if key in seen:
             continue
         seen.add(key)
-        deduped.append({
+        candidates.append({
             "id": chunk[0],
             "file": chunk[1],
             "path": chunk[1],
@@ -244,9 +268,7 @@ def search(
             "semantic_score": float(semantic_scores[int(index)]),
             "lexical_score": float(lexical_scores[int(index)]),
         })
-        if len(deduped) >= top_k:
-            break
-    return deduped
+    return diversify_results(candidates, top_k)
 
 def get_indexed_files(conn) -> dict:
     cursor = conn.execute("SELECT file, MAX(file_mtime) as mtime FROM chunks GROUP BY file")

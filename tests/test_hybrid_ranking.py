@@ -105,6 +105,67 @@ class HybridRankingTests(unittest.TestCase):
         payload = json.loads(result.output)
         self.assertEqual(payload[0]["path"], "semantic.py")
 
+    def test_search_diversifies_results_before_repeating_same_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            conn = init_db(Path(temp_dir) / "index.db")
+            store_chunks_batch(
+                conn,
+                [
+                    {
+                        "file": "auth.py",
+                        "chunk": "def validate_token(token):\n    return token.startswith('token-')",
+                        "language": "python",
+                        "chunk_index": 0,
+                        "file_mtime": 1.0,
+                        "start_line": 1,
+                        "end_line": 2,
+                        "start_byte": 0,
+                        "end_byte": 60,
+                        "embedding": [1.0, 0.0],
+                    },
+                    {
+                        "file": "auth.py",
+                        "chunk": "def refresh_token(token):\n    return token + '-new'",
+                        "language": "python",
+                        "chunk_index": 1,
+                        "file_mtime": 1.0,
+                        "start_line": 5,
+                        "end_line": 6,
+                        "start_byte": 100,
+                        "end_byte": 150,
+                        "embedding": [0.99, 0.01],
+                    },
+                    {
+                        "file": "auth.py",
+                        "chunk": "def revoke_token(token):\n    return token",
+                        "language": "python",
+                        "chunk_index": 2,
+                        "file_mtime": 1.0,
+                        "start_line": 9,
+                        "end_line": 10,
+                        "start_byte": 180,
+                        "end_byte": 220,
+                        "embedding": [0.98, 0.02],
+                    },
+                    {
+                        "file": "session.py",
+                        "chunk": "def create_session(user):\n    return {'token': user.id}",
+                        "language": "python",
+                        "chunk_index": 0,
+                        "file_mtime": 1.0,
+                        "start_line": 1,
+                        "end_line": 2,
+                        "start_byte": 0,
+                        "end_byte": 60,
+                        "embedding": [0.97, 0.03],
+                    },
+                ],
+            )
+
+            results = search(conn, [1.0, 0.0], top_k=3, semantic_only=True)
+
+        self.assertEqual([result["path"] for result in results], ["auth.py", "auth.py", "session.py"])
+
 
 if __name__ == "__main__":
     unittest.main()
