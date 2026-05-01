@@ -51,9 +51,9 @@ Index hygiene is a first-class feature:
 
 Search is semantic-first: users describe intent rather than exact code text.
 Results are ranked by local embedding similarity plus a local lexical reranking
-boost for exact code terms, deduplicated by logical source span, and rendered
-with provenance. Use `--semantic-only` when you want pure vector ordering without
-the lexical boost.
+boost for exact code terms, deduplicated by logical source span, diversified with
+a small per-file cap, and rendered with provenance. Use `--semantic-only` when
+you want pure vector scoring without the lexical boost.
 
 Human output includes file path, line range, score, and snippet by default:
 
@@ -139,6 +139,8 @@ The current implementation improves both indexing and query-time behavior:
 - Search loads chunk metadata and vectors in one joined query.
 - Vector scoring uses NumPy matrix operations instead of a pure Python loop.
 - Hybrid reranking boosts exact local code-term hits without using a remote API.
+- Final top-k selection diversifies repeated chunks from the same file before
+  filling with lower-ranked repeats, improving recall for coding-agent context.
 - Language/path filters reduce candidate rows before ranking output.
 
 These changes move `local-mgrep` much closer to a daily-driver local search tool,
@@ -173,6 +175,7 @@ Implemented locally:
 - JSON output
 - Ignore files
 - Hybrid lexical + semantic reranking
+- Result diversification with local per-file caps
 - Answer synthesis
 - Agentic query decomposition
 - Local-only indexing and storage

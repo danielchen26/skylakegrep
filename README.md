@@ -12,7 +12,8 @@ For the complete 0.2.0 capability guide and original-`mgrep` parity notes, see
 * **Fully local** – no API keys, no external quotas; only requires a running Ollama instance.  
 * **Incremental indexing** – only re‑indexes changed files.  
 * **Watch mode** – keep the index up‑to‑date while you edit.
-* **Hybrid ranking** – blends local semantic similarity with exact lexical code-term matches, with `--semantic-only` available for pure vector search.
+* **Hybrid ranking** – blends local semantic similarity with exact lexical code-term matches, with `--semantic-only` available for pure vector scoring.
+* **Result diversification** – caps repeated chunks from the same file before filling top-k, improving agent recall without a cloud reranker.
 * **Result provenance** – search output includes source line ranges, and JSON output is available for agents/scripts.
 * **Index hygiene** – respects `.gitignore`, `.mgrepignore`, and common generated/vendor directories such as `node_modules`, `dist`, `build`, and `.venv`.
 * **Local answer mode** – synthesize answers from local snippets with an Ollama model, no paid API required.
@@ -61,7 +62,7 @@ mgrep search "how does the authentication work"
 # Limit/filter output using original-mgrep-style local flags
 mgrep search "auth token" -m 10 --language python --include "src/*" --exclude "*_test.py"
 
-# Disable local lexical reranking when you want pure semantic/vector ordering
+# Disable local lexical reranking when you want pure semantic/vector scoring
 mgrep search "auth token" --semantic-only
 
 # Emit stable JSON for agents and scripts
