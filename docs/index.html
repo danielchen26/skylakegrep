@@ -35,6 +35,7 @@
             <a href="#overview">Overview</a>
             <a href="#quickstart">Quickstart</a>
             <a href="#install">Installation</a>
+            <a href="#workflow">Workflow</a>
           </div>
           <div class="nav-section">
             <p>Core concepts</p>
@@ -57,6 +58,7 @@
           <div class="nav-section">
             <p>Evidence</p>
             <a href="#benchmarks">Benchmarks</a>
+            <a href="#comparisons">Comparisons</a>
             <a href="#limitations">Limitations</a>
             <a href="#roadmap">Roadmap</a>
           </div>
@@ -68,10 +70,16 @@
           <p class="eyebrow">Free local semantic code search</p>
           <h1>Find the right code by meaning, without sending your repo to the cloud.</h1>
           <p class="lead">
-            `local-mgrep` is a local-first semantic search CLI for developers and
+            <code>local-mgrep</code> is a local-first semantic search CLI for developers and
             coding agents. It indexes a repository locally, retrieves compact
             source-cited snippets, and returns context that agents can use before
             expensive file reads.
+          </p>
+          <p class="section-intro">
+            The project is intentionally positioned as a local version of the
+            semantic-search workflow: no hosted workspace, no paid API key, no
+            remote source upload, and no cloud vector store required for the core
+            search loop.
           </p>
           <div class="hero-actions">
             <a class="button primary" href="#quickstart">Start in 60 seconds</a>
@@ -97,6 +105,12 @@ ollama pull mxbai-embed-large
 mgrep index /path/to/repo --reset
 mgrep search "where is token refresh implemented?" -m 10 --json</code></pre>
           </div>
+          <p class="section-intro">
+            The default path is deliberately short: install the CLI, pull a local
+            embedding model, build a local SQLite index, then ask repository
+            questions in natural language. Use <code>--json</code> when a coding
+            agent or script will consume the result.
+          </p>
         </section>
 
         <section id="install" class="doc-section two-column">
@@ -121,12 +135,52 @@ pip install -e .</code></pre>
           </div>
         </section>
 
+        <section id="workflow" class="doc-section">
+          <p class="eyebrow">Recommended workflow</p>
+          <h2>Use semantic retrieval as the first pass, then read files deeply.</h2>
+          <p class="section-intro">
+            <code>local-mgrep</code> is not meant to replace reading code. It is meant to make
+            the first move precise: locate the right files and line ranges before a
+            person or agent spends context on full-file reads.
+          </p>
+          <div class="workflow-grid" aria-label="Recommended local-mgrep workflow">
+            <article class="workflow-step">
+              <span>01</span>
+              <div>
+                <h3>Index the repository locally</h3>
+                <p>Run <code>mgrep index</code> once per repository, or use watch mode while editing. The index stores chunks, vectors, paths, and line ranges in SQLite.</p>
+              </div>
+            </article>
+            <article class="workflow-step">
+              <span>02</span>
+              <div>
+                <h3>Ask by intent, not just by token</h3>
+                <p>Search for behavior such as “where is token refresh implemented?” even when the exact identifier is unknown.</p>
+              </div>
+            </article>
+            <article class="workflow-step">
+              <span>03</span>
+              <div>
+                <h3>Inspect cited snippets</h3>
+                <p>Each result includes file path, line range, language, score, and snippet so you can verify provenance before changing code.</p>
+              </div>
+            </article>
+            <article class="workflow-step">
+              <span>04</span>
+              <div>
+                <h3>Hand compact context to an agent</h3>
+                <p>Use <code>--json</code> for machine-readable retrieval packs, then read only the files that the ranked snippets justify.</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
         <section id="why" class="doc-section">
           <p class="eyebrow">Why it exists</p>
           <h2>Agents need better first context.</h2>
           <p>
             Coding agents often start by reading broad files or repeating exact
-            searches. `local-mgrep` gives them a compact ranked context pack:
+            searches. <code>local-mgrep</code> gives them a compact ranked context pack:
             path, line range, language, score, and snippet. Humans can inspect it;
             agents can cite it; scripts can consume it as JSON.
           </p>
@@ -182,6 +236,11 @@ pip install -e .</code></pre>
         <section id="capabilities" class="doc-section">
           <p class="eyebrow">Capabilities</p>
           <h2>What is implemented today.</h2>
+          <p class="section-intro">
+            The current release focuses on practical local parity with the original
+            semantic-search experience: useful retrieval quality, stable agent
+            output, and local answer synthesis without requiring a hosted account.
+          </p>
           <div class="capability-table" role="table" aria-label="Capability matrix">
             <div role="row"><strong>Semantic code search</strong><span>Local Ollama embeddings</span><em>Implemented</em></div>
             <div role="row"><strong>Tree-sitter chunking</strong><span>Syntax-aware chunks with fallback splitter</span><em>Implemented</em></div>
@@ -196,6 +255,12 @@ pip install -e .</code></pre>
         <section id="search" class="doc-section">
           <p class="eyebrow">Search behavior</p>
           <h2>Semantic-first, practical at ranking time.</h2>
+          <p class="section-intro">
+            Pure vector similarity is good for intent, but code search also needs
+            exact identifiers, paths, and repeated-result control. The ranking
+            pipeline keeps semantic search as the base signal and adds local
+            deterministic adjustments for developer workflows.
+          </p>
           <ol class="steps">
             <li><strong>Embed query locally.</strong> Search intent is converted through the configured Ollama embedding model.</li>
             <li><strong>Score vectors.</strong> NumPy vector scoring ranks chunks by semantic similarity.</li>
@@ -223,12 +288,23 @@ pip install -e .</code></pre>
         <section id="architecture" class="doc-section visual-doc">
           <p class="eyebrow">Architecture</p>
           <h2>The local pipeline.</h2>
+          <p class="section-intro">
+            All core components run on the workstation. Source files are chunked,
+            embedded through Ollama, stored in SQLite, and ranked locally before
+            any optional answer synthesis occurs.
+          </p>
           <img src="assets/architecture.svg" alt="local-mgrep local architecture diagram" />
+          <p class="figure-caption">Figure: source files move through ignore handling, chunking, local embeddings, SQLite storage, ranking, and agent-ready output.</p>
         </section>
 
         <section id="configuration" class="doc-section">
           <p class="eyebrow">Configuration</p>
           <h2>Environment variables.</h2>
+          <p class="section-intro">
+            Defaults are chosen for a local Ollama setup. Override these variables
+            when you use a different model, a separate Ollama host, or a custom
+            index location per project.
+          </p>
           <div class="config-list">
             <div><code>OLLAMA_URL</code><span>Default: http://localhost:11434</span></div>
             <div><code>OLLAMA_EMBED_MODEL</code><span>Default: mxbai-embed-large</span></div>
@@ -240,6 +316,11 @@ pip install -e .</code></pre>
         <section id="cli" class="doc-section">
           <p class="eyebrow">CLI reference</p>
           <h2>Commands and flags.</h2>
+          <p class="section-intro">
+            The CLI is organized around four operations: build the index, retrieve
+            context, inspect index state, and keep the index updated while files
+            change.
+          </p>
           <div class="command-list">
             <article><code>mgrep index [PATH] [--reset] [--incremental/--full]</code><p>Build or refresh the SQLite vector index.</p></article>
             <article><code>mgrep search QUERY [OPTIONS]</code><p>Retrieve semantic results. Supports <code>-m</code>, <code>--json</code>, <code>--answer</code>, <code>--language</code>, <code>--include</code>, <code>--exclude</code>, <code>--semantic-only</code>, and <code>--agentic</code>.</p></article>
@@ -252,6 +333,7 @@ pip install -e .</code></pre>
           <p class="eyebrow">Benchmark evidence</p>
           <h2>Reproducible local benchmark, not billing data.</h2>
           <img src="assets/benchmark.svg" alt="local-mgrep benchmark chart" />
+          <p class="figure-caption">Figure: deterministic repository-navigation benchmark comparing local-mgrep context packs against a grep-agent style baseline.</p>
           <p>
             At top-k 10 on the deterministic repository navigation benchmark,
             local-mgrep reaches <strong>30/30 expected-file recall</strong> with
@@ -259,6 +341,28 @@ pip install -e .</code></pre>
             <strong>2.90× context-token reduction</strong> versus a grep-agent simulation.
           </p>
           <pre><code>.venv/bin/python benchmarks/agent_context_benchmark.py --top-k 10 --summary-only</code></pre>
+          <div class="note-box">
+            <p><strong>Important:</strong> the benchmark measures retrieved context and estimated token volume. It does not claim provider billing savings or full answer-quality superiority.</p>
+          </div>
+        </section>
+
+        <section id="comparisons" class="doc-section">
+          <p class="eyebrow">Comparisons</p>
+          <h2>What local-mgrep is, and what it intentionally is not.</h2>
+          <p class="section-intro">
+            The design is optimized for developers who want the semantic-search
+            workflow locally. The tradeoff is intentional: less hosted convenience,
+            more privacy, reproducibility, and zero required usage fee for core search.
+          </p>
+          <div class="comparison-table" role="table" aria-label="Comparison between local-mgrep, grep, and hosted semantic search">
+            <div role="row"><span>Dimension</span><span>local-mgrep</span><span>Alternative behavior</span></div>
+            <div role="row"><span>Cost model</span><span class="good">Free to run locally after installing Ollama and the CLI.</span><span class="warn">Hosted systems can require accounts, API keys, usage billing, or cloud storage.</span></div>
+            <div role="row"><span>Privacy</span><span class="good">Source files, vectors, and SQLite index stay on the workstation.</span><span class="warn">Cloud semantic search may upload source, embeddings, metadata, or query logs.</span></div>
+            <div role="row"><span>Search style</span><span class="good">Natural-language intent search with line-level snippets and JSON output.</span><span>Plain grep is exact-token only unless an agent performs repeated searches.</span></div>
+            <div role="row"><span>Ranking</span><span class="good">Hybrid semantic score, lexical boost, deduplication, and per-file diversification.</span><span>Basic grep gives matches, not a ranked semantic context pack.</span></div>
+            <div role="row"><span>Agent use</span><span class="good">Stable JSON gives agents compact, cited context before full-file reads.</span><span>Manual search often causes repeated broad reads and weaker provenance.</span></div>
+            <div role="row"><span>Tradeoff</span><span>Requires local model setup and local indexing time.</span><span class="warn">Hosted systems may be more turnkey but reduce local control.</span></div>
+          </div>
         </section>
 
         <section id="limitations" class="doc-section">
@@ -289,14 +393,16 @@ pip install -e .</code></pre>
       </main>
 
       <aside class="toc" aria-label="On this page">
-        <p>On this page</p>
-        <a href="#overview">Overview</a>
-        <a href="#quickstart">Quickstart</a>
-        <a href="#capabilities">Capabilities</a>
-        <a href="#architecture">Architecture</a>
-        <a href="#benchmarks">Benchmarks</a>
-        <a href="#roadmap">Roadmap</a>
-      </aside>
+          <p>On this page</p>
+          <a href="#overview">Overview</a>
+          <a href="#quickstart">Quickstart</a>
+          <a href="#workflow">Workflow</a>
+          <a href="#capabilities">Capabilities</a>
+          <a href="#architecture">Architecture</a>
+          <a href="#benchmarks">Benchmarks</a>
+          <a href="#comparisons">Comparisons</a>
+          <a href="#roadmap">Roadmap</a>
+        </aside>
     </div>
   </body>
 </html>
