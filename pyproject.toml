@@ -23,6 +23,12 @@ build-backend = "setuptools.build_meta"
 [project.scripts]
 mgrep = "local_mgrep.src.cli:main"
 
+[project.urls]
+Homepage = "https://github.com/danielchen26/local-mgrep"
+Repository = "https://github.com/danielchen26/local-mgrep"
+Issues = "https://github.com/danielchen26/local-mgrep/issues"
+Documentation = "https://github.com/danielchen26/local-mgrep#readme"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["local_mgrep*"]
