@@ -312,3 +312,11 @@ Design exploration added on 2026-04-29:
   `backgroundColor: "#00000000"`, no native shadow, and no large empty window
   bounds behind the capsule. Only the sharp black assistant capsule and active
   popover should be visible.
+- Published and advanced `local-mgrep` as a local-first semantic search package:
+  0.1.0 reached production PyPI, while the local 0.2.0 release artifacts add
+  `.mgrepignore`, stale index cleanup, line-provenance JSON, original-style
+  local flags (`-m`, content toggles, language/include/exclude filters), local
+  Ollama answer synthesis, bounded local agentic query decomposition, vectorized
+  SQLite/NumPy retrieval, and batch embedding. The capability guide now lives at
+  `docs/local-mgrep-0.2.0.md`; cloud/login/web-search parity remains explicitly
+  out of scope for the free local version.
