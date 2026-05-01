@@ -1,0 +1,58 @@
+import os
+from pathlib import Path
+from tree_sitter_languages import get_parser
+
+SUPPORTED_EXTENSIONS = {
+    ".py": "python", ".js": "javascript", ".ts": "typescript",
+    ".tsx": "tsx", ".jsx": "jsx", ".go": "go", ".rs": "rust",
+    ".java": "java", ".c": "c", ".cpp": "cpp", ".h": "c",
+    ".cs": "csharp", ".rb": "ruby", ".php": "php", ".swift": "swift",
+    ".kt": "kotlin", ".scala": "scala", ".vue": "vue", ".svelte": "svelte",
+}
+
+def extract_code_chunks(content: str, language: str, max_lines: int = 100) -> list[str]:
+    parser = get_parser(language)
+    tree = parser.parse(bytes(content, "utf8"))
+    chunks = []
+    def walk(node):
+        if node.start_point[0] - node.end_point[0] < max_lines:
+            chunk = content.encode()[node.start_byte:node.end_byte].decode("utf8")
+            if len(chunk.splitlines()) >= 3:
+                chunks.append(chunk)
+        for child in node.children:
+            walk(child)
+    walk(tree.root_node)
+    return chunks or [content[:2000]]
+
+def prepare_file_chunks(filepath: Path) -> list[dict]:
+    ext = filepath.suffix.lower()
+    if ext not in SUPPORTED_EXTENSIONS:
+        return []
+    try:
+        content = filepath.read_text(errors="ignore")
+    except Exception:
+        return []
+    lang = SUPPORTED_EXTENSIONS[ext]
+    chunks = extract_code_chunks(content, lang)
+    file_mtime = filepath.stat().st_mtime
+    results = []
+    for i, chunk in enumerate(chunks):
+        results.append({
+            "file": str(filepath),
+            "chunk": chunk,
+            "language": lang,
+            "chunk_index": i,
+            "file_mtime": file_mtime,
+            "embedding": None,
+        })
+    return results
+
+def batch_embed(chunks: list[dict], embedder, batch_size: int = 10) -> list[dict]:
+    results = []
+    for i in range(0, len(chunks), batch_size):
+        batch = chunks[i:i+batch_size]
+        for chunk in batch:
+            embedding = embedder.embed(chunk["chunk"])
+            chunk["embedding"] = embedding
+            results.append(chunk)
+    return results
