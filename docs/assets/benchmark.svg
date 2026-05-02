@@ -11,7 +11,20 @@
       <stop offset="0%"   stop-color="rgba(167,139,250,0.65)"/>
       <stop offset="100%" stop-color="rgba(124,58,237,0.50)"/>
     </linearGradient>
+    <radialGradient id="bench-orb-cy" cx="12%" cy="0%" r="55%">
+      <stop offset="0%"  stop-color="rgba(34,211,238,0.10)"/>
+      <stop offset="70%" stop-color="rgba(34,211,238,0)"/>
+    </radialGradient>
+    <radialGradient id="bench-orb-vi" cx="88%" cy="8%" r="48%">
+      <stop offset="0%"  stop-color="rgba(167,139,250,0.07)"/>
+      <stop offset="70%" stop-color="rgba(167,139,250,0)"/>
+    </radialGradient>
   </defs>
+
+  <!-- Self-contained dark surface so the SVG renders consistently on any host page -->
+  <rect width="1280" height="720" fill="#0a0d12"/>
+  <rect width="1280" height="720" fill="url(#bench-orb-cy)"/>
+  <rect width="1280" height="720" fill="url(#bench-orb-vi)"/>
 
   <!-- ===== Title block ===== -->
   <text x="60" y="48" font-size="22" font-weight="600" fill="#e4e4e7" letter-spacing="-0.015em">Context-gathering benchmark, by top-k</text>
