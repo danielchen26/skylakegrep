@@ -43,6 +43,39 @@ is favourable: the daily-driver tier now lands at **10/16 @ 8.1 s**, the
 accurate tier at **13/16 @ 25.3 s**, and the maximum-accuracy tier
 (disable multi-res) at **14/16 @ 54 s**.
 
+### Quantisation and device probe (Mac CPU / MPS)
+
+We added ``MGREP_RERANK_QUANTIZE=int8`` (torch dynamic quantisation of
+the cross-encoder Linear layers) and ``MGREP_RERANK_DEVICE=auto/mps/cpu``
+as knobs, then measured cold single-query latency for the
+2 B-parameter ``mxbai-rerank-large-v2`` model on this Mac:
+
+| Knob | cold single-query |
+| --- | :-: |
+| fp32 + cpu (baseline) | 27.0 s |
+| int8 dynamic quantisation | 28.1 s (**no improvement**) |
+| MPS (Apple GPU) | 27.1 s (**no improvement**) |
+| **switch to ``mxbai-rerank-base-v2`` (0.5 B params, fp32 + cpu)** | **14.4 s** |
+
+Two negative findings worth recording so future work doesn't repeat them:
+
+- ``torch.quantization.quantize_dynamic`` is optimised for x86_64 CPUs
+  with VNNI instructions. Apple Silicon CPUs do not have those, so the
+  quantised int8 kernels fall back to fp32-equivalent paths and we see no
+  net win. Quantisation is therefore left as an opt-in for x86_64
+  deployments via ``MGREP_RERANK_QUANTIZE=int8``.
+- MPS support in PyTorch is per-op; the Qwen2 cross-encoder used by
+  ``mxbai-rerank-large-v2`` includes ops without fast MPS kernels, which
+  forces tensors to round-trip to CPU per-layer. The result on this
+  hardware is no net speedup. ``MGREP_RERANK_DEVICE=auto`` (the default)
+  still picks MPS when available so we benefit on architectures or future
+  PyTorch versions where this is fixed.
+
+The lever that *does* shrink reranker latency on this hardware is the
+**model itself**: switching from large to base (3× fewer parameters) is a
+~2× cold-query speedup with the trade-offs documented in the table above
+(11/16 → 10/16 chunk-only, 13/16 → 10/16 multi-resolution).
+
 ### Daemon mode (single-query latency)
 
 The CLI loads the cross-encoder reranker on every short-lived ``mgrep
