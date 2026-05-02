@@ -1,17 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.svg">
-    <img alt="local-mgrep — semantic code search over a local index" src="docs/assets/hero-light.svg" width="100%">
-  </picture>
-</p>
-
-<h1 align="center">local-mgrep</h1>
-
-<p align="center">
-  <b>Semantic code search for any repository — fully local.</b><br>
-  Builds a SQLite vector index from your source files and answers
-  natural-language queries with line-cited snippets, powered by a local
-  Ollama embedding model.
+  <img alt="local-mgrep — semantic code search over a local index" src="docs/assets/hero-dark.svg" width="100%">
 </p>
 
 <p align="center">
@@ -91,10 +79,7 @@ Full CLI reference and configuration: <https://danielchen26.github.io/local-mgre
 ## Architecture
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture.svg">
-    <img alt="local-mgrep system architecture: three lanes for index time, storage, and query time" src="docs/assets/architecture-light.svg" width="100%">
-  </picture>
+  <img alt="local-mgrep system architecture: three lanes for index time, storage, and query time" src="docs/assets/architecture.svg" width="100%">
 </p>
 
 The index pipeline (`mgrep index`, `mgrep watch`) and the query pipeline
@@ -126,10 +111,7 @@ The full set of internal modules is documented at
 ## Benchmark
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/benchmark.svg">
-    <img alt="Bar chart: token reduction and recall vs grep-agent across top-k 5, 10, 20, 50" src="docs/assets/benchmark-light.svg" width="100%">
-  </picture>
+  <img alt="Bar chart: token reduction and recall vs grep-agent across top-k 5, 10, 20, 50" src="docs/assets/benchmark.svg" width="100%">
 </p>
 
 Deterministic local benchmark over 30 repository navigation tasks. Compares
