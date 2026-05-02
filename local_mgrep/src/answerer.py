@@ -24,6 +24,11 @@ class OllamaAnswerer:
         crate / module names) that bring the actual implementation chunk into
         the cosine top-k. Returns the original query when the LLM call fails
         so callers can wire this in unconditionally.
+
+        The Ollama generation is run with ``temperature=0`` and a fixed
+        ``seed`` so the same query produces the same hypothetical doc across
+        runs — this matters because HyDE feeds retrieval, and we cannot
+        compare benchmark numbers across runs if the generated doc varies.
         """
 
         lang_part = f" The codebase is written primarily in {language_hint}." if language_hint else ""
@@ -31,17 +36,24 @@ class OllamaAnswerer:
             "Given a natural-language code-search question, write a SHORT "
             "(5-15 lines) hypothetical code snippet — function signatures, "
             "type names, file path comment — that would directly answer it."
-            f"{lang_part} Output only the code, no explanation, no markdown "
-            "fences. Use realistic identifier names that an engineer would "
-            "write.\n\n"
+            f"{lang_part} Prefer concrete crate / module names that a typical "
+            "Rust workspace would use (e.g. ``crates/ai/``, ``crates/editor/``, "
+            "``crates/voice_input/``). Output only the code, no explanation, "
+            "no markdown fences. Use realistic identifier names that an "
+            "engineer would write.\n\n"
             f"Question: {query}\n\n"
             "Hypothetical code:"
         )
         try:
             response = requests.post(
                 f"{self.base_url}/api/generate",
-                json={"model": self.model, "prompt": prompt, "stream": False},
-                timeout=60,
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {"temperature": 0, "seed": 42, "num_predict": 256},
+                },
+                timeout=120,
             )
             response.raise_for_status()
             text = response.json().get("response", "").strip()

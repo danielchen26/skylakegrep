@@ -12,7 +12,13 @@ DEFAULT_LLM_MODEL = "qwen2.5:3b"
 DEFAULT_DB_PATH = Path.home() / ".local-mgrep" / "index.db"
 
 # Cross-encoder reranker (optional dep ``sentence-transformers``).
-DEFAULT_RERANK_MODEL = "mixedbread-ai/mxbai-rerank-base-v2"
+# ``mxbai-rerank-large-v2`` is Mixedbread's flagship reranker and the model
+# their cloud product uses internally. It is ~3× larger than the base variant
+# (568M vs 184M parameters, ~1.2GB on disk vs ~370MB) but lifts recall on
+# code-search benchmarks measurably and is what we need to match the cloud
+# product's accuracy. Override with ``MGREP_RERANK_MODEL`` if disk space or
+# CPU budget is tight.
+DEFAULT_RERANK_MODEL = "mixedbread-ai/mxbai-rerank-large-v2"
 DEFAULT_RERANK_POOL = 50
 
 # Asymmetric prefixes per embedding model. Empty string means the model
