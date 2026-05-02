@@ -6,7 +6,7 @@ from pathlib import Path
 from .answerer import get_answerer
 from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
 from .embeddings import get_embedder
-from .storage import delete_file_chunks, delete_missing_files, get_indexed_files, init_db, search, store_chunks_batch
+from .storage import delete_file_chunks, delete_missing_files, get_indexed_files, init_db, populate_file_embeddings, search, store_chunks_batch
 from .config import get_config
 
 
@@ -89,6 +89,8 @@ def index(path: str, reset: bool, incremental: bool):
             click.echo(f"  Indexed: {f} ({len(chunks)} chunks)")
 
     click.echo(f"Indexing complete! {total_chunks} chunks in {len(files_to_process)} files")
+    file_count = populate_file_embeddings(conn)
+    click.echo(f"File-level embeddings populated: {file_count} files (mean of chunk vectors)")
 
 @cli.command()
 @click.argument("query")
@@ -106,6 +108,8 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--rerank-pool", default=None, type=int, help="Candidate pool size before reranking (default 50, env MGREP_RERANK_POOL)")
 @click.option("--rerank-model", default=None, help="HuggingFace cross-encoder model id for reranking")
 @click.option("--hyde/--no-hyde", default=False, help="Use the local LLM to generate a hypothetical code answer for natural-language queries, then embed both the question and that doc (slower; helps recall on user-language queries)")
+@click.option("--multi-resolution/--no-multi-resolution", default=True, help="Two-stage retrieval: pick top-N files by file-level cosine first, then drill into their chunks (helps small canonical files compete against large consumer files)")
+@click.option("--file-top", default=30, type=int, help="Number of files surfaced by file-level retrieval before chunk-level scoring (only used with --multi-resolution)")
 def search_cmd(
     query: str,
     top: int,
@@ -122,6 +126,8 @@ def search_cmd(
     rerank_pool: int,
     rerank_model: str,
     hyde: bool,
+    multi_resolution: bool,
+    file_top: int,
 ):
     cfg = get_config()
     conn = sqlite3.connect(cfg["db_path"])
@@ -156,6 +162,8 @@ def search_cmd(
                 rerank=rerank,
                 rerank_pool=pool,
                 rerank_model=rerank_model,
+                multi_resolution=multi_resolution,
+                file_top=file_top,
             )
         )
     results = merge_results(result_groups, top)

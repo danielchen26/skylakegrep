@@ -205,6 +205,8 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             rerank=getattr(args, "rerank", True),
             rerank_pool=getattr(args, "rerank_pool", 50),
             hyde=getattr(args, "hyde", False),
+            multi_resolution=getattr(args, "multi_resolution", False),
+            file_top=getattr(args, "file_top", 30),
         )
         rg_total = (
             args.fixed_prompt_tokens
@@ -350,6 +352,20 @@ def parse_args() -> argparse.Namespace:
         action="store_false",
         help="Disable HyDE (default off)",
     )
+    parser.add_argument(
+        "--multi-resolution",
+        dest="multi_resolution",
+        action="store_true",
+        default=True,
+        help="Two-stage retrieval: file-level cosine top-N then chunk-level (default on)",
+    )
+    parser.add_argument(
+        "--no-multi-resolution",
+        dest="multi_resolution",
+        action="store_false",
+        help="Disable two-stage retrieval; chunk-level cosine over the whole index",
+    )
+    parser.add_argument("--file-top", dest="file_top", type=int, default=30, help="Number of files surfaced by the file-level stage")
     return parser.parse_args()
 
 

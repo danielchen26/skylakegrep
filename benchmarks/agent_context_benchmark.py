@@ -323,6 +323,8 @@ def mgrep_agent_context(
     rerank: bool = True,
     rerank_pool: int = 50,
     hyde: bool = False,
+    multi_resolution: bool = False,
+    file_top: int = 30,
 ) -> dict[str, object]:
     embedder = get_embedder(role="query") if "role" in get_embedder.__code__.co_varnames else get_embedder()
     started = time.perf_counter()
@@ -341,6 +343,8 @@ def mgrep_agent_context(
         query_text=question,
         rerank=rerank,
         rerank_pool=rerank_pool,
+        multi_resolution=multi_resolution,
+        file_top=file_top,
     )
     payload = render_json_results(results)
     return {
@@ -413,6 +417,8 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             rerank=getattr(args, "rerank", True),
             rerank_pool=getattr(args, "rerank_pool", 50),
             hyde=getattr(args, "hyde", False),
+            multi_resolution=getattr(args, "multi_resolution", False),
+            file_top=getattr(args, "file_top", 30),
         )
         grep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(grep_result["context_tokens"])
         mgrep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(mgrep_result["context_tokens"])
@@ -523,6 +529,20 @@ def parse_args() -> argparse.Namespace:
         action="store_false",
         help="Disable HyDE (default off)",
     )
+    parser.add_argument(
+        "--multi-resolution",
+        dest="multi_resolution",
+        action="store_true",
+        default=True,
+        help="Two-stage retrieval: file-level cosine top-N then chunk-level (default on)",
+    )
+    parser.add_argument(
+        "--no-multi-resolution",
+        dest="multi_resolution",
+        action="store_false",
+        help="Disable two-stage retrieval; chunk-level cosine over the whole index",
+    )
+    parser.add_argument("--file-top", dest="file_top", type=int, default=30, help="Number of files surfaced by the file-level stage")
     return parser.parse_args()
 
 
