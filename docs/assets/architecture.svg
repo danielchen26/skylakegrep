@@ -9,7 +9,20 @@
     <marker id="arr-cy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/>
     </marker>
+    <radialGradient id="arch-orb-cy" cx="14%" cy="0%" r="55%">
+      <stop offset="0%"  stop-color="rgba(34,211,238,0.10)"/>
+      <stop offset="70%" stop-color="rgba(34,211,238,0)"/>
+    </radialGradient>
+    <radialGradient id="arch-orb-vi" cx="86%" cy="6%" r="48%">
+      <stop offset="0%"  stop-color="rgba(167,139,250,0.07)"/>
+      <stop offset="70%" stop-color="rgba(167,139,250,0)"/>
+    </radialGradient>
   </defs>
+
+  <!-- Self-contained dark surface so the SVG renders consistently on any host page -->
+  <rect width="1280" height="820" fill="#0a0d12"/>
+  <rect width="1280" height="820" fill="url(#arch-orb-cy)"/>
+  <rect width="1280" height="820" fill="url(#arch-orb-vi)"/>
 
   <!-- subtle horizontal lane dividers -->
   <g stroke="rgba(255,255,255,0.05)" stroke-width="1">
