@@ -1,0 +1,18 @@
+[
+  {"id": "ai-001",              "question": "Where does the assistant call a language model backend to answer a user question?",                                  "expected": "crates/ai/"},
+  {"id": "computer-use-001",    "question": "Where is the screenshot-and-click tool that lets the model interact with the desktop?",                              "expected": "crates/computer_use/"},
+  {"id": "editor-001",          "question": "How does the in-line text editor handle cursor movement and keystroke input?",                                       "expected": "crates/editor/"},
+  {"id": "lsp-001",              "question": "Where are language server protocol messages serialized and dispatched to and from a child process?",                "expected": "crates/lsp/"},
+  {"id": "vim-001",              "question": "How are vim normal-mode commands like h, j, k, l interpreted into editor actions?",                                  "expected": "crates/vim/"},
+  {"id": "voice-001",            "question": "Where is microphone audio captured and sent for speech-to-text transcription?",                                      "expected": "crates/voice_input/"},
+  {"id": "completer-001",        "question": "How does shell command autocompletion generate suggestions while the user is typing?",                              "expected": "crates/warp_completer/"},
+  {"id": "fuzzy-001",            "question": "Where is the ranking algorithm that scores fuzzy matches between a query and candidate entries?",                   "expected": "crates/fuzzy_match/"},
+  {"id": "settings-001",         "question": "How are user preferences persisted between sessions and reloaded at startup?",                                       "expected": "crates/settings/"},
+  {"id": "websocket-001",        "question": "Where does the client establish a websocket connection to the server and reconnect after a drop?",                  "expected": "crates/websocket/"},
+  {"id": "secrets-001",          "question": "How are sensitive credentials encrypted before they are written to disk?",                                            "expected": "crates/managed_secrets/"},
+  {"id": "markdown-001",         "question": "Where is markdown rendered into formatted terminal output blocks?",                                                  "expected": "crates/markdown_parser/"},
+  {"id": "command-palette-001", "question": "Where is the keyboard-shortcut driven command palette opened and ranked?",                                            "expected": "app/src/command_palette.rs"},
+  {"id": "auth-001",             "question": "How does the application sign a user in and store their session token?",                                              "expected": "app/src/auth/"},
+  {"id": "billing-001",          "question": "Where is the user's subscription tier checked before unlocking paid features?",                                       "expected": "app/src/billing/"},
+  {"id": "code-review-001",      "question": "Where is the inline code review UI that lets the user comment on a diff?",                                            "expected": "app/src/code_review/"}
+]

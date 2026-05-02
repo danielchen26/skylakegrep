@@ -3,11 +3,19 @@
 This document defines what the included benchmarks measure, how they are run,
 and what they explicitly do not measure.
 
+> **See also:** [`docs/parity-benchmarks.md`](parity-benchmarks.md) consolidates
+> the headline numbers, including the real-ripgrep comparison and the
+> cross-repo (warp) results, in a single table.
+
 The benchmarks live in `benchmarks/` in the project root:
 
 - `benchmarks/token_savings.py` — retrieval-layer context compression.
 - `benchmarks/agent_context_benchmark.py` — agent-style context-gathering
-  comparison against a grep-agent simulation.
+  comparison against a *simulated* grep-agent baseline.
+- `benchmarks/parity_vs_ripgrep.py` — same comparison against a *real*
+  `rg` baseline; supports cross-repo task lists via `--tasks`.
+- `benchmarks/parity_vs_mixedbread.py` — Mixedbread cloud parity harness;
+  requires interactive `mgrep login` and is not run by CI.
 
 ## Headline result
 
