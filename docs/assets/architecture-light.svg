@@ -1,0 +1,240 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 820" role="img" aria-labelledby="arch-title arch-desc" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
+  <title id="arch-title">local-mgrep system architecture</title>
+  <desc id="arch-desc">Three-lane schematic: index time pipeline writes chunks and vectors to a SQLite database; query time pipeline reads from the same database and emits ranked results, optional JSON, optional locally synthesized answers.</desc>
+
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="rgba(0,0,0,0.55)"/>
+    </marker>
+    <marker id="arr-cy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0891b2"/>
+    </marker>
+  </defs>
+
+  <!-- subtle horizontal lane dividers -->
+  <g stroke="rgba(0,0,0,0.05)" stroke-width="1">
+    <path d="M0 230 H1280"/>
+    <path d="M0 358 H1280"/>
+    <path d="M0 580 H1280"/>
+  </g>
+
+  <!-- ===== Lane labels ===== -->
+  <g font-size="11" font-weight="700" letter-spacing="2" fill="#0891b2">
+    <text x="48" y="52">INDEX TIME</text>
+    <text x="48" y="354">STORAGE</text>
+    <text x="48" y="566">QUERY TIME</text>
+  </g>
+  <g font-size="12" fill="#52525b">
+    <text x="166" y="52">offline · invoked by <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0e7490">mgrep index</tspan> and <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0e7490">mgrep watch</tspan></text>
+    <text x="138" y="354">on-disk SQLite at <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0e7490">$MGREP_DB_PATH</tspan> · default <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0e7490">~/.local-mgrep/index.db</tspan></text>
+    <text x="170" y="566">per call · invoked by <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0e7490">mgrep search</tspan></text>
+  </g>
+
+  <!-- ===== INDEX TIME lane ===== -->
+  <g>
+    <!-- 1. Discover -->
+    <g transform="translate(48 88)">
+      <rect width="200" height="120" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#18181b">1. Discover files</text>
+      <line x1="14" y1="34" x2="186" y2="34" stroke="#e5e7eb"/>
+      <text x="14" y="55" font-size="11" fill="#52525b">walk repository,</text>
+      <text x="14" y="71" font-size="11" fill="#52525b">apply <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#27272a">.gitignore</tspan>,</text>
+      <text x="14" y="87" font-size="11" fill="#52525b"><tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#27272a">.mgrepignore</tspan>, default skips</text>
+      <text x="14" y="107" font-size="10.5" fill="#0e7490" font-family="ui-monospace, Menlo, Consolas, monospace">indexer.collect_indexable_files</text>
+    </g>
+
+    <!-- 2. Chunk -->
+    <g transform="translate(280 88)">
+      <rect width="200" height="120" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#18181b">2. Chunk</text>
+      <line x1="14" y1="34" x2="186" y2="34" stroke="#e5e7eb"/>
+      <text x="14" y="55" font-size="11" fill="#52525b">tree-sitter AST nodes</text>
+      <text x="14" y="71" font-size="11" fill="#52525b">≤ 50 lines / 1000 chars,</text>
+      <text x="14" y="87" font-size="11" fill="#52525b">line-window fallback</text>
+      <text x="14" y="107" font-size="10.5" fill="#0e7490" font-family="ui-monospace, Menlo, Consolas, monospace">indexer.extract_code_chunks</text>
+    </g>
+
+    <!-- 3. Embed -->
+    <g transform="translate(512 88)">
+      <rect width="200" height="120" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#18181b">3. Embed</text>
+      <line x1="14" y1="34" x2="186" y2="34" stroke="#e5e7eb"/>
+      <text x="14" y="55" font-size="11" fill="#52525b">POST <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#27272a">/api/embed</tspan> (batch),</text>
+      <text x="14" y="71" font-size="11" fill="#52525b">fallback <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#27272a">/api/embeddings</tspan></text>
+      <text x="14" y="87" font-size="11" fill="#52525b">to local Ollama server</text>
+      <text x="14" y="107" font-size="10.5" fill="#0e7490" font-family="ui-monospace, Menlo, Consolas, monospace">embeddings.OllamaEmbedder</text>
+    </g>
+
+    <!-- 4. Persist -->
+    <g transform="translate(744 88)">
+      <rect width="200" height="120" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#18181b">4. Persist</text>
+      <line x1="14" y1="34" x2="186" y2="34" stroke="#e5e7eb"/>
+      <text x="14" y="55" font-size="11" fill="#52525b">batched INSERT into</text>
+      <text x="14" y="71" font-size="11" fill="#52525b">chunks + vectors,</text>
+      <text x="14" y="87" font-size="11" fill="#52525b">embedding as float32 BLOB</text>
+      <text x="14" y="107" font-size="10.5" fill="#0e7490" font-family="ui-monospace, Menlo, Consolas, monospace">storage.store_chunks_batch</text>
+    </g>
+
+    <!-- 5. Reconcile -->
+    <g transform="translate(976 88)">
+      <rect width="200" height="120" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#18181b">5. Reconcile</text>
+      <line x1="14" y1="34" x2="186" y2="34" stroke="#e5e7eb"/>
+      <text x="14" y="55" font-size="11" fill="#52525b">incremental on mtime,</text>
+      <text x="14" y="71" font-size="11" fill="#52525b">delete rows for files</text>
+      <text x="14" y="87" font-size="11" fill="#52525b">removed from disk</text>
+      <text x="14" y="107" font-size="10.5" fill="#0e7490" font-family="ui-monospace, Menlo, Consolas, monospace">storage.delete_missing_files</text>
+    </g>
+
+    <!-- arrows between index boxes -->
+    <g stroke="rgba(0,0,0,0.40)" stroke-width="1.25" fill="none" marker-end="url(#arr)">
+      <line x1="248" y1="148" x2="280" y2="148"/>
+      <line x1="480" y1="148" x2="512" y2="148"/>
+      <line x1="712" y1="148" x2="744" y2="148"/>
+      <line x1="944" y1="148" x2="976" y2="148"/>
+    </g>
+  </g>
+
+  <!-- arrow from index lane down into storage -->
+  <g stroke="rgba(0,0,0,0.40)" stroke-width="1.25" fill="none" marker-end="url(#arr)">
+    <path d="M844 208 V 376"/>
+  </g>
+  <text x="852" y="294" font-size="11" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">writes</text>
+
+  <!-- arrow from storage up out (read by query lane) -->
+  <g stroke="rgba(0,0,0,0.40)" stroke-width="1.25" fill="none" marker-end="url(#arr)">
+    <path d="M436 504 V 644 H 488"/>
+  </g>
+  <text x="444" y="554" font-size="11" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">reads</text>
+
+  <!-- ===== STORAGE lane ===== -->
+  <!-- chunks table -->
+  <g transform="translate(280 388)">
+    <rect width="408" height="180" rx="10" fill="#fafafa" stroke="#e5e7eb" stroke-width="1"/>
+    <rect width="408" height="32" rx="10" fill="rgba(8,145,178,0.08)"/>
+    <rect y="26" width="408" height="6" fill="rgba(8,145,178,0.08)"/>
+    <text x="16" y="21" font-size="13" font-weight="600" fill="#0e7490" font-family="ui-monospace, Menlo, Consolas, monospace">TABLE chunks</text>
+    <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12" fill="#18181b">
+      <text x="16" y="56">id</text><text x="180" y="56" fill="#52525b">INTEGER PRIMARY KEY</text>
+      <text x="16" y="76">file</text><text x="180" y="76" fill="#52525b">TEXT</text>
+      <text x="16" y="96">chunk</text><text x="180" y="96" fill="#52525b">TEXT</text>
+      <text x="16" y="116">language</text><text x="180" y="116" fill="#52525b">TEXT</text>
+      <text x="16" y="136">start_line, end_line</text><text x="240" y="136" fill="#52525b">INTEGER</text>
+      <text x="16" y="156">start_byte, end_byte</text><text x="240" y="156" fill="#52525b">INTEGER</text>
+      <text x="16" y="176">file_mtime</text><text x="180" y="176" fill="#52525b">REAL</text>
+    </g>
+  </g>
+
+  <!-- vectors table -->
+  <g transform="translate(720 388)">
+    <rect width="320" height="120" rx="10" fill="#fafafa" stroke="#e5e7eb" stroke-width="1"/>
+    <rect width="320" height="32" rx="10" fill="rgba(8,145,178,0.08)"/>
+    <rect y="26" width="320" height="6" fill="rgba(8,145,178,0.08)"/>
+    <text x="16" y="21" font-size="13" font-weight="600" fill="#0e7490" font-family="ui-monospace, Menlo, Consolas, monospace">TABLE vectors</text>
+    <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12" fill="#18181b">
+      <text x="16" y="56">id</text><text x="180" y="56" fill="#52525b">INTEGER (→ chunks.id)</text>
+      <text x="16" y="76">embedding</text><text x="180" y="76" fill="#52525b">BLOB · float32[d]</text>
+    </g>
+    <text x="16" y="106" font-size="11" fill="#71717a">d = embedding model dimension</text>
+  </g>
+
+  <!-- 1:1 link between tables -->
+  <g stroke="rgba(8,145,178,0.40)" stroke-width="1" fill="none" stroke-dasharray="3 3">
+    <line x1="688" y1="430" x2="720" y2="430"/>
+  </g>
+  <text x="695" y="424" font-size="10" fill="#0891b2" font-family="ui-monospace, Menlo, Consolas, monospace">1:1</text>
+
+  <!-- index list note -->
+  <g transform="translate(720 528)" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#52525b">
+    <text x="0" y="0">CREATE INDEX idx_file        ON chunks(file)</text>
+    <text x="0" y="16">CREATE INDEX idx_file_mtime  ON chunks(file, file_mtime)</text>
+  </g>
+
+  <!-- ===== QUERY TIME lane ===== -->
+  <g>
+    <!-- 1. Query -->
+    <g transform="translate(48 600)">
+      <rect width="172" height="120" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#18181b">1. Query</text>
+      <line x1="14" y1="34" x2="158" y2="34" stroke="#e5e7eb"/>
+      <text x="14" y="55" font-size="11" fill="#52525b">natural-language text</text>
+      <text x="14" y="71" font-size="11" fill="#52525b">+ filters: language,</text>
+      <text x="14" y="87" font-size="11" fill="#52525b">--include / --exclude</text>
+      <text x="14" y="107" font-size="10.5" fill="#0e7490" font-family="ui-monospace, Menlo, Consolas, monospace">cli.search_cmd</text>
+    </g>
+
+    <!-- 2. Embed query -->
+    <g transform="translate(252 600)">
+      <rect width="172" height="120" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#18181b">2. Embed query</text>
+      <line x1="14" y1="34" x2="158" y2="34" stroke="#e5e7eb"/>
+      <text x="14" y="55" font-size="11" fill="#52525b">same Ollama model</text>
+      <text x="14" y="71" font-size="11" fill="#52525b">used for indexing</text>
+      <text x="14" y="87" font-size="11" fill="#52525b">single vector q ∈ ℝᵈ</text>
+      <text x="14" y="107" font-size="10.5" fill="#0e7490" font-family="ui-monospace, Menlo, Consolas, monospace">OllamaEmbedder.embed</text>
+    </g>
+
+    <!-- 3. Cosine -->
+    <g transform="translate(456 600)">
+      <rect width="172" height="120" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#18181b">3. Score</text>
+      <line x1="14" y1="34" x2="158" y2="34" stroke="#e5e7eb"/>
+      <text x="14" y="55" font-size="11" fill="#52525b">cosine over full</text>
+      <text x="14" y="71" font-size="11" fill="#52525b">candidate matrix</text>
+      <text x="14" y="87" font-size="11" fill="#52525b">(NumPy, single pass)</text>
+      <text x="14" y="107" font-size="10.5" fill="#0e7490" font-family="ui-monospace, Menlo, Consolas, monospace">storage.search</text>
+    </g>
+
+    <!-- 4. Hybrid -->
+    <g transform="translate(660 600)">
+      <rect width="172" height="120" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#18181b">4. Hybrid score</text>
+      <line x1="14" y1="34" x2="158" y2="34" stroke="#e5e7eb"/>
+      <text x="14" y="55" font-size="11" fill="#52525b">0.8·cosine + 0.2·lexical</text>
+      <text x="14" y="71" font-size="11" fill="#52525b">(camelCase-aware</text>
+      <text x="14" y="87" font-size="11" fill="#52525b">token + phrase match)</text>
+      <text x="14" y="107" font-size="10.5" fill="#0e7490" font-family="ui-monospace, Menlo, Consolas, monospace">storage.combine_scores</text>
+    </g>
+
+    <!-- 5. Diversify -->
+    <g transform="translate(864 600)">
+      <rect width="172" height="120" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#18181b">5. Diversify</text>
+      <line x1="14" y1="34" x2="158" y2="34" stroke="#e5e7eb"/>
+      <text x="14" y="55" font-size="11" fill="#52525b">dedup logical span,</text>
+      <text x="14" y="71" font-size="11" fill="#52525b">cap ≤ 2 chunks/file,</text>
+      <text x="14" y="87" font-size="11" fill="#52525b">backfill if short</text>
+      <text x="14" y="107" font-size="10.5" fill="#0e7490" font-family="ui-monospace, Menlo, Consolas, monospace">diversify_results</text>
+    </g>
+
+    <!-- 6. Output (highlight) -->
+    <g transform="translate(1068 600)">
+      <rect width="172" height="120" rx="10" fill="rgba(8,145,178,0.06)" stroke="rgba(8,145,178,0.40)" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#0e7490">6. Output</text>
+      <line x1="14" y1="34" x2="158" y2="34" stroke="rgba(8,145,178,0.20)"/>
+      <text x="14" y="55" font-size="11" fill="#475569">text snippets, or</text>
+      <text x="14" y="71" font-size="11" fill="#475569">--json for agents, or</text>
+      <text x="14" y="87" font-size="11" fill="#475569">--answer (Ollama gen)</text>
+      <text x="14" y="107" font-size="10.5" fill="#0e7490" font-family="ui-monospace, Menlo, Consolas, monospace">render_json_results</text>
+    </g>
+
+    <!-- arrows between query boxes -->
+    <g stroke="rgba(0,0,0,0.40)" stroke-width="1.25" fill="none" marker-end="url(#arr)">
+      <line x1="220" y1="660" x2="252" y2="660"/>
+      <line x1="424" y1="660" x2="456" y2="660"/>
+      <line x1="628" y1="660" x2="660" y2="660"/>
+      <line x1="832" y1="660" x2="864" y2="660"/>
+    </g>
+    <g stroke="rgba(8,145,178,0.55)" stroke-width="1.25" fill="none" marker-end="url(#arr-cy)">
+      <line x1="1036" y1="660" x2="1068" y2="660"/>
+    </g>
+  </g>
+
+  <!-- Optional agentic side path -->
+  <g transform="translate(48 768)">
+    <rect width="1190" height="36" rx="8" fill="none" stroke="rgba(0,0,0,0.18)" stroke-width="1" stroke-dasharray="4 4"/>
+    <text x="14" y="22" font-size="11.5" fill="#52525b">Optional <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0e7490">--agentic</tspan>: a local Ollama LLM decomposes the question into ≤ N subqueries, each runs through steps 2–5; results merge by score before output.</text>
+    <text x="990" y="22" font-size="10.5" fill="#0e7490" font-family="ui-monospace, Menlo, Consolas, monospace">answerer.decompose</text>
+  </g>
+</svg>
