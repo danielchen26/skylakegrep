@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 600" role="img" aria-labelledby="rank-title rank-desc" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
+  <title id="rank-title">local-mgrep ranking pipeline</title>
+  <desc id="rank-desc">Ranking math at search time: a semantic cosine score and a lexical token+phrase score are combined with a fixed weight, then candidates are sorted, span-deduplicated, and diversified per file before final top-k.</desc>
+
+  <defs>
+    <marker id="rank-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0f172a"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="600" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="60" y="48" font-size="20" font-weight="700" fill="#0f172a">Ranking pipeline</text>
+  <text x="60" y="74" font-size="13" fill="#475569">
+    Defined in <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">local_mgrep/src/storage.py</tspan>. Lexical reranking is bypassed when <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">--semantic-only</tspan> is set or the query embedding is provided without text.
+  </text>
+
+  <!-- ===== Semantic score box ===== -->
+  <g transform="translate(60 116)">
+    <rect width="380" height="160" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
+    <text x="20" y="30" font-size="13" font-weight="700" fill="#0f172a">Semantic score s<tspan font-size="10" baseline-shift="-30%">sem</tspan></text>
+    <line x1="20" y1="40" x2="360" y2="40" stroke="#e2e8f0"/>
+    <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="13" fill="#0f172a">
+      <text x="20" y="68">M ∈ ℝⁿˣᵈ   candidate embedding matrix</text>
+      <text x="20" y="90">q ∈ ℝᵈ      query embedding</text>
+      <text x="20" y="118">s_sem = (M · q) / (‖M‖₂ · ‖q‖₂ + 1e-8)</text>
+    </g>
+    <text x="20" y="146" font-size="11" fill="#64748b">vectorized in NumPy across all candidates in a single pass</text>
+  </g>
+
+  <!-- ===== Lexical score box ===== -->
+  <g transform="translate(60 304)">
+    <rect width="380" height="208" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
+    <text x="20" y="30" font-size="13" font-weight="700" fill="#0f172a">Lexical score s<tspan font-size="10" baseline-shift="-30%">lex</tspan></text>
+    <line x1="20" y1="40" x2="360" y2="40" stroke="#e2e8f0"/>
+    <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12.5" fill="#0f172a">
+      <text x="20" y="64">qₜ = tokenize(query)</text>
+      <text x="20" y="84">cₜ = tokenize(path + chunk)</text>
+      <text x="20" y="112">term  = |{t ∈ qₜ : t ∈ cₜ}| / |qₜ|</text>
+      <text x="20" y="132">phrase = 1 if join(qₜ) ⊑ join(cₜ) else 0</text>
+      <text x="20" y="160">s_lex = min(1, 0.75·term + 0.25·phrase)</text>
+    </g>
+    <text x="20" y="186" font-size="11" fill="#64748b">tokenizer splits camelCase and lowercases:</text>
+    <text x="20" y="200" font-size="11" font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">  TOKEN_RE = r"[a-z0-9]+"</text>
+  </g>
+
+  <!-- arrows from semantic and lexical into combine -->
+  <g stroke="#0f172a" stroke-width="1.25" fill="none" marker-end="url(#rank-arr)">
+    <path d="M440 196 H 530"/>
+    <path d="M440 408 C 480 408 500 286 530 286"/>
+  </g>
+
+  <!-- ===== Combine box ===== -->
+  <g transform="translate(530 220)">
+    <rect width="280" height="148" rx="6" fill="#0f172a" stroke="#0f172a"/>
+    <text x="20" y="30" font-size="13" font-weight="700" fill="#ffffff">Combined score s</text>
+    <line x1="20" y1="40" x2="260" y2="40" stroke="#334155"/>
+    <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="13" fill="#e2e8f0">
+      <text x="20" y="68">λ = LEXICAL_WEIGHT = 0.2</text>
+      <text x="20" y="100">s = (1 − λ)·s_sem + λ·s_lex</text>
+      <text x="20" y="124">  = 0.8·s_sem + 0.2·s_lex</text>
+    </g>
+  </g>
+
+  <!-- arrow from combine to post-processing chain -->
+  <g stroke="#0f172a" stroke-width="1.25" fill="none" marker-end="url(#rank-arr)">
+    <path d="M810 294 H 870"/>
+  </g>
+
+  <!-- ===== Post-processing chain ===== -->
+  <!-- Each box 168x100, gap 24 between -->
+  <g>
+    <!-- argsort -->
+    <g transform="translate(870 244)">
+      <rect width="168" height="100" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
+      <text x="14" y="26" font-size="12" font-weight="700" fill="#0f172a">argsort −s</text>
+      <line x1="14" y1="34" x2="154" y2="34" stroke="#e2e8f0"/>
+      <text x="14" y="55" font-size="11" fill="#475569">order by descending</text>
+      <text x="14" y="71" font-size="11" fill="#475569">combined score</text>
+      <text x="14" y="91" font-size="10.5" fill="#0f766e" font-family="ui-monospace, Menlo, Consolas, monospace">np.argsort(−scores)</text>
+    </g>
+
+    <!-- dedup -->
+    <g transform="translate(1062 244)">
+      <rect width="168" height="100" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
+      <text x="14" y="26" font-size="12" font-weight="700" fill="#0f172a">dedup span</text>
+      <line x1="14" y1="34" x2="154" y2="34" stroke="#e2e8f0"/>
+      <text x="14" y="55" font-size="11" fill="#475569">drop repeats keyed</text>
+      <text x="14" y="71" font-size="11" fill="#475569">by (file, lines, text)</text>
+      <text x="14" y="91" font-size="10.5" fill="#0f766e" font-family="ui-monospace, Menlo, Consolas, monospace">storage.search</text>
+    </g>
+
+    <!-- arrows -->
+    <g stroke="#0f172a" stroke-width="1.25" fill="none" marker-end="url(#rank-arr)">
+      <line x1="1038" y1="294" x2="1062" y2="294"/>
+    </g>
+  </g>
+
+  <!-- second row: diversify and final top-k -->
+  <g>
+    <!-- diversify -->
+    <g transform="translate(870 396)">
+      <rect width="168" height="100" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
+      <text x="14" y="26" font-size="12" font-weight="700" fill="#0f172a">diversify</text>
+      <line x1="14" y1="34" x2="154" y2="34" stroke="#e2e8f0"/>
+      <text x="14" y="55" font-size="11" fill="#475569">≤ 2 chunks per file,</text>
+      <text x="14" y="71" font-size="11" fill="#475569">backfill if short</text>
+      <text x="14" y="91" font-size="10.5" fill="#0f766e" font-family="ui-monospace, Menlo, Consolas, monospace">diversify_results</text>
+    </g>
+
+    <!-- final top-k -->
+    <g transform="translate(1062 396)">
+      <rect width="168" height="100" rx="6" fill="#0f172a" stroke="#0f172a" stroke-width="1.25"/>
+      <text x="14" y="26" font-size="12" font-weight="700" fill="#ffffff">return top-k</text>
+      <line x1="14" y1="34" x2="154" y2="34" stroke="#334155"/>
+      <text x="14" y="55" font-size="11" fill="#cbd5e1">selected by --top / -m</text>
+      <text x="14" y="71" font-size="11" fill="#cbd5e1">passed to renderer</text>
+      <text x="14" y="91" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">cli.search_cmd</text>
+    </g>
+
+    <!-- connecting arrows -->
+    <g stroke="#0f172a" stroke-width="1.25" fill="none" marker-end="url(#rank-arr)">
+      <path d="M1146 344 V 396"/>
+      <line x1="1038" y1="446" x2="1062" y2="446"/>
+    </g>
+  </g>
+
+  <!-- ===== Defaults footer ===== -->
+  <g transform="translate(60 532)">
+    <rect width="1170" height="48" rx="4" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+    <text x="20" y="22" font-size="12" font-weight="700" fill="#475569" letter-spacing="1.2">DEFAULTS</text>
+    <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12" fill="#0f172a">
+      <text x="120" y="22">LEXICAL_WEIGHT = 0.2</text>
+      <text x="320" y="22">MAX_RESULTS_PER_FILE = 2</text>
+      <text x="560" y="22">term/phrase weights = 0.75 / 0.25</text>
+      <text x="860" y="22">cosine epsilon = 1e-8</text>
+    </g>
+    <text x="20" y="40" font-size="11" fill="#64748b">All four constants live as module-level names in storage.py and are not yet exposed via CLI flags.</text>
+  </g>
+</svg>

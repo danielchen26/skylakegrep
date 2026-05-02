@@ -1,76 +1,43 @@
-# local-mgrep Documentation
+# Documentation
 
-<p align="center">
-  <img src="assets/architecture.svg" alt="local-mgrep local-first architecture" width="100%">
-</p>
+This directory contains the documentation site for `local-mgrep`. The
+[`index.html`](index.html) file is the rendered site published to GitHub Pages.
+The Markdown files here are reference companions to that site.
 
-<h3 align="center">The public documentation hub for local-first semantic code search.</h3>
+## Contents
 
-This is the professional documentation entry point for `local-mgrep`. Start here
-when you want to install it, understand what it can do, verify the benchmark
-claims, or integrate it into a local coding-agent workflow.
-
-<table>
-  <tr>
-    <td width="50%">
-      <h3>🚀 Start here</h3>
-      <p>Install Ollama, install the CLI, index a repository, and run your first semantic search.</p>
-      <p><a href="../README.md#installation"><strong>Open installation guide →</strong></a></p>
-    </td>
-    <td width="50%">
-      <h3>⚙️ Capability Guide</h3>
-      <p>See every implemented feature: indexing, watch mode, hybrid ranking, JSON, answer mode, and agentic search.</p>
-      <p><a href="local-mgrep-0.2.0.md"><strong>Open capability guide →</strong></a></p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <h3>📊 Benchmark Report</h3>
-      <p>Review the deterministic token benchmark, methodology, top-k tradeoffs, and limitations.</p>
-      <p><a href="token-benchmarking.md"><strong>Open benchmark report →</strong></a></p>
-    </td>
-    <td width="50%">
-      <h3>🏗️ Architecture</h3>
-      <p>Understand the local pipeline: source files → ignore rules → chunking → Ollama embeddings → SQLite vectors → ranked context.</p>
-      <p><a href="local-mgrep-0.2.0.md#search-behavior"><strong>Open architecture notes →</strong></a></p>
-    </td>
-  </tr>
-</table>
-
-## Quick navigation
-
-| Topic | Link |
+| File | Purpose |
 | --- | --- |
-| Project landing page | [`../README.md`](../README.md) |
-| Installation | [`../README.md#installation`](../README.md#installation) |
-| CLI reference | [`../README.md#cli-reference`](../README.md#cli-reference) |
-| Capability matrix | [`../README.md#capability-matrix`](../README.md#capability-matrix) |
-| 0.2.0 capability guide | [`local-mgrep-0.2.0.md`](local-mgrep-0.2.0.md) |
-| Token benchmarking | [`token-benchmarking.md`](token-benchmarking.md) |
+| [`index.html`](index.html) | Rendered documentation site (published as <https://danielchen26.github.io/local-mgrep/>). |
+| [`local-mgrep-0.2.0.md`](local-mgrep-0.2.0.md) | Capability guide for the 0.2.0 release: indexing, ranking, output modes, configuration. |
+| [`token-benchmarking.md`](token-benchmarking.md) | Methodology and full results for the deterministic context-gathering benchmark. |
+| [`assets/`](assets) | SVG figures referenced by the site and the project README. |
 
-## Current headline benchmark
+## Reading order
 
-At top-k 10 on the deterministic repository navigation benchmark:
+1. The [project README](../README.md) for installation and a one-page summary.
+2. [`local-mgrep-0.2.0.md`](local-mgrep-0.2.0.md) for what the 0.2.0 release
+   implements and how each component is invoked.
+3. [`token-benchmarking.md`](token-benchmarking.md) for the benchmark protocol,
+   limitations, and the conditions under which the published numbers are valid.
 
-```text
-mgrep hit rate:                       30/30
-grep hit rate:                        30/30
-estimated total-token reduction:      2.00x
-context-token reduction:              2.90x
+## Architecture at a glance
+
+![local-mgrep system architecture](assets/architecture.svg)
+
+`local-mgrep` is organized as two pipelines that meet at a single SQLite
+database. The index pipeline (`mgrep index`, `mgrep watch`) discovers source
+files, chunks them, embeds them through a local Ollama server, and writes the
+result to disk. The query pipeline (`mgrep search`) reads from the same
+database, scores candidates with a hybrid cosine + lexical formula, applies
+span deduplication and per-file diversification, and returns the top-k as text,
+JSON, or a synthesized answer.
+
+## Reproducing the published benchmark
+
+```bash
+.venv/bin/python benchmarks/agent_context_benchmark.py --top-k 10 --summary-only
 ```
 
-This is a local deterministic benchmark, not hosted provider billing data. See
-[`token-benchmarking.md`](token-benchmarking.md) for the exact protocol.
-
-## Local-first promise
-
-`local-mgrep` keeps the core search workflow on your workstation:
-
-- local source scanning,
-- local Ollama embeddings,
-- local SQLite vector storage,
-- local ranking and result diversification,
-- optional local answer synthesis.
-
-No hosted account, cloud index, source upload, or paid model API is required for
-the core workflow.
+See [`token-benchmarking.md`](token-benchmarking.md) for definitions, the full
+results table, and an explicit list of what the benchmark does not measure.

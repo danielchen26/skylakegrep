@@ -1,75 +1,136 @@
-<svg width="1200" height="520" viewBox="0 0 1200 520" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">local-mgrep hero graphic</title>
-  <desc id="desc">A polished dark hero graphic showing local semantic code search powered by Ollama, SQLite, hybrid ranking, and agent-ready output.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 480" role="img" aria-labelledby="hero-title hero-desc" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
+  <title id="hero-title">Semantic retrieval over a local code index</title>
+  <desc id="hero-desc">Conceptual diagram. Left: a 2D embedding-space scatter where each dot is a code chunk; a query vector and its top-k nearest neighbors are highlighted. Right: the corresponding ranked snippets returned by mgrep search.</desc>
+
   <defs>
-    <radialGradient id="glowA" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(252 113) rotate(42) scale(620 350)">
-      <stop stop-color="#37F7C4" stop-opacity="0.58"/>
-      <stop offset="0.48" stop-color="#377DFF" stop-opacity="0.18"/>
-      <stop offset="1" stop-color="#020617" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="glowB" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1030 442) rotate(-148) scale(560 300)">
-      <stop stop-color="#F7C948" stop-opacity="0.38"/>
-      <stop offset="0.52" stop-color="#37F7C4" stop-opacity="0.12"/>
-      <stop offset="1" stop-color="#020617" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="card" x1="113" y1="80" x2="1058" y2="484" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0F172A"/>
-      <stop offset="1" stop-color="#030712"/>
-    </linearGradient>
-    <linearGradient id="stroke" x1="102" y1="55" x2="1099" y2="489" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#67E8F9" stop-opacity="0.76"/>
-      <stop offset="0.42" stop-color="#34D399" stop-opacity="0.38"/>
-      <stop offset="1" stop-color="#FDE68A" stop-opacity="0.42"/>
-    </linearGradient>
-    <filter id="shadow" x="45" y="38" width="1110" height="474" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="30" stdDeviation="34" flood-color="#000" flood-opacity="0.48"/>
-    </filter>
+    <marker id="hero-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0f172a"/>
+    </marker>
   </defs>
-  <rect width="1200" height="520" rx="38" fill="#020617"/>
-  <rect width="1200" height="520" rx="38" fill="url(#glowA)"/>
-  <rect width="1200" height="520" rx="38" fill="url(#glowB)"/>
-  <g opacity="0.18">
-    <path d="M0 96H1200M0 192H1200M0 288H1200M0 384H1200" stroke="#94A3B8"/>
-    <path d="M120 0V520M240 0V520M360 0V520M480 0V520M600 0V520M720 0V520M840 0V520M960 0V520M1080 0V520" stroke="#94A3B8"/>
-  </g>
-  <rect x="70" y="58" width="1060" height="404" rx="34" fill="url(#card)" filter="url(#shadow)"/>
-  <rect x="70.75" y="58.75" width="1058.5" height="402.5" rx="33.25" stroke="url(#stroke)" stroke-width="1.5"/>
-  <g transform="translate(108 104)">
-    <rect x="0" y="0" width="456" height="312" rx="22" fill="#020617" stroke="#1E293B"/>
-    <rect x="0" y="0" width="456" height="48" rx="22" fill="#0B1120"/>
-    <circle cx="28" cy="24" r="6" fill="#FB7185"/>
-    <circle cx="50" cy="24" r="6" fill="#FBBF24"/>
-    <circle cx="72" cy="24" r="6" fill="#34D399"/>
-    <text x="104" y="30" fill="#94A3B8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13">terminal</text>
-    <text x="28" y="86" fill="#E2E8F0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16">$ mgrep search <tspan fill="#67E8F9">"how are tokens refreshed?"</tspan></text>
-    <text x="28" y="126" fill="#34D399" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14">local_mgrep/src/cli.py:124-145</text>
-    <text x="28" y="152" fill="#CBD5E1" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14">agentic query decomposition → merged results</text>
-    <text x="28" y="194" fill="#34D399" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14">local_mgrep/src/storage.py:197-271</text>
-    <text x="28" y="220" fill="#CBD5E1" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14">semantic + lexical + diversified top-k</text>
-    <rect x="28" y="254" width="166" height="32" rx="16" fill="#042F2E" stroke="#0F766E"/>
-    <text x="48" y="275" fill="#99F6E4" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13">100% local</text>
-    <rect x="208" y="254" width="190" height="32" rx="16" fill="#172554" stroke="#2563EB"/>
-    <text x="228" y="275" fill="#BFDBFE" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13">agent-ready JSON</text>
-  </g>
-  <g transform="translate(620 104)">
-    <text x="0" y="30" fill="#F8FAFC" font-family="Georgia, 'Times New Roman', serif" font-size="46" font-weight="700">local-mgrep</text>
-    <text x="0" y="68" fill="#A7F3D0" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18" font-weight="700" letter-spacing="2.8">FREE LOCAL SEMANTIC CODE SEARCH</text>
-    <text x="0" y="114" fill="#CBD5E1" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22">Describe what you need. Retrieve the right code.</text>
-    <text x="0" y="146" fill="#CBD5E1" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22">No account. No API bill. No source upload.</text>
-    <g transform="translate(0 194)">
-      <rect width="154" height="92" rx="18" fill="#0B1120" stroke="#1E293B"/>
-      <text x="22" y="36" fill="#F8FAFC" font-family="ui-sans-serif, system-ui" font-size="29" font-weight="800">30/30</text>
-      <text x="22" y="64" fill="#94A3B8" font-family="ui-sans-serif, system-ui" font-size="13">top-k 10 recall</text>
+
+  <!-- background -->
+  <rect width="1280" height="480" fill="#ffffff"/>
+
+  <!-- ===== Left panel: embedding-space scatter ===== -->
+  <g transform="translate(48 60)">
+    <!-- panel frame -->
+    <rect width="560" height="380" rx="6" fill="#fafafa" stroke="#e5e7eb" stroke-width="1"/>
+    <text x="20" y="28" font-size="11" font-weight="700" letter-spacing="2" fill="#475569">EMBEDDING SPACE (illustrative · 2-D projection)</text>
+
+    <!-- axes frame (subtle) -->
+    <rect x="36" y="48" width="492" height="304" fill="#ffffff" stroke="#cbd5e1" stroke-width="0.75"/>
+
+    <!-- background scatter (chunks) - slate dots -->
+    <g fill="#94a3b8">
+      <circle cx="92" cy="120" r="4"/>
+      <circle cx="76" cy="170" r="4"/>
+      <circle cx="118" cy="92" r="4"/>
+      <circle cx="148" cy="148" r="4"/>
+      <circle cx="180" cy="100" r="4"/>
+      <circle cx="64" cy="232" r="4"/>
+      <circle cx="98" cy="276" r="4"/>
+      <circle cx="146" cy="252" r="4"/>
+      <circle cx="200" cy="220" r="4"/>
+      <circle cx="232" cy="270" r="4"/>
+      <circle cx="180" cy="320" r="4"/>
+      <circle cx="120" cy="320" r="4"/>
+      <circle cx="62" cy="318" r="4"/>
+      <circle cx="280" cy="98" r="4"/>
+      <circle cx="316" cy="138" r="4"/>
+      <circle cx="252" cy="172" r="4"/>
+      <circle cx="276" cy="222" r="4"/>
+      <circle cx="320" cy="252" r="4"/>
+      <circle cx="270" cy="306" r="4"/>
+      <circle cx="332" cy="324" r="4"/>
+      <circle cx="392" cy="86" r="4"/>
+      <circle cx="362" cy="104" r="4"/>
+      <circle cx="402" cy="178" r="4"/>
+      <circle cx="448" cy="204" r="4"/>
+      <circle cx="492" cy="120" r="4"/>
+      <circle cx="478" cy="232" r="4"/>
+      <circle cx="464" cy="296" r="4"/>
+      <circle cx="424" cy="318" r="4"/>
+      <circle cx="380" cy="316" r="4"/>
+      <circle cx="500" cy="312" r="4"/>
     </g>
-    <g transform="translate(176 194)">
-      <rect width="154" height="92" rx="18" fill="#0B1120" stroke="#1E293B"/>
-      <text x="22" y="36" fill="#F8FAFC" font-family="ui-sans-serif, system-ui" font-size="29" font-weight="800">2.00×</text>
-      <text x="22" y="64" fill="#94A3B8" font-family="ui-sans-serif, system-ui" font-size="13">estimated tokens</text>
+
+    <!-- top-k radius circle around query -->
+    <circle cx="216" cy="186" r="62" fill="#0f766e" fill-opacity="0.06" stroke="#0f766e" stroke-width="1" stroke-dasharray="5 3"/>
+
+    <!-- top-k chunks (highlighted as deep teal) -->
+    <g fill="#0f766e">
+      <circle cx="200" cy="220" r="5.5"/>
+      <circle cx="252" cy="172" r="5.5"/>
+      <circle cx="180" cy="148" r="0"/>
+      <circle cx="232" cy="216" r="5.5"/>
+      <circle cx="186" cy="232" r="5.5"/>
+      <circle cx="248" cy="148" r="5.5"/>
     </g>
-    <g transform="translate(352 194)">
-      <rect width="154" height="92" rx="18" fill="#0B1120" stroke="#1E293B"/>
-      <text x="22" y="36" fill="#F8FAFC" font-family="ui-sans-serif, system-ui" font-size="29" font-weight="800">0</text>
-      <text x="22" y="64" fill="#94A3B8" font-family="ui-sans-serif, system-ui" font-size="13">cloud calls</text>
+
+    <!-- query marker (cross) -->
+    <g stroke="#0f172a" stroke-width="2.25" stroke-linecap="round">
+      <line x1="208" y1="186" x2="224" y2="186"/>
+      <line x1="216" y1="178" x2="216" y2="194"/>
+    </g>
+    <circle cx="216" cy="186" r="3.5" fill="#0f172a"/>
+
+    <!-- annotations -->
+    <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#0f172a">
+      <text x="226" y="180">q  query embedding</text>
+      <text x="280" y="106">·  indexed code chunk</text>
+      <text x="280" y="130" fill="#0f766e">●  top-k nearest by cosine</text>
+    </g>
+
+    <!-- caption -->
+    <text x="20" y="372" font-size="11" fill="#64748b">A query is embedded with the same Ollama model used at index time; cosine similarity ranks all candidates in one NumPy pass.</text>
+  </g>
+
+  <!-- arrow connecting panels -->
+  <g stroke="#0f172a" stroke-width="1.25" fill="none" marker-end="url(#hero-arr)">
+    <line x1="616" y1="250" x2="676" y2="250"/>
+  </g>
+  <text x="646" y="240" font-size="11" fill="#475569" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">rerank · diversify</text>
+
+  <!-- ===== Right panel: ranked results ===== -->
+  <g transform="translate(688 60)">
+    <rect width="544" height="380" rx="6" fill="#0f172a" stroke="#0f172a"/>
+    <text x="20" y="28" font-size="11" font-weight="700" letter-spacing="2" fill="#94a3b8" font-family="ui-sans-serif, system-ui">RANKED CONTEXT (top-5)</text>
+
+    <!-- result rows -->
+    <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12" fill="#e2e8f0">
+      <!-- row 1 -->
+      <g transform="translate(20 56)">
+        <rect width="504" height="56" rx="4" fill="#1e293b" stroke="#334155"/>
+        <text x="14" y="22" fill="#67e8f9">local_mgrep/src/storage.py:197-271</text>
+        <text x="14" y="42" fill="#94a3b8">def search(conn, query_embedding, top_k=10, …)</text>
+        <text x="490" y="22" text-anchor="end" fill="#5eead4">0.824</text>
+      </g>
+      <!-- row 2 -->
+      <g transform="translate(20 124)">
+        <rect width="504" height="56" rx="4" fill="#1e293b" stroke="#334155"/>
+        <text x="14" y="22" fill="#67e8f9">local_mgrep/src/storage.py:131-153</text>
+        <text x="14" y="42" fill="#94a3b8">def lexical_score(query_text, path, chunk) → float</text>
+        <text x="490" y="22" text-anchor="end" fill="#5eead4">0.781</text>
+      </g>
+      <!-- row 3 -->
+      <g transform="translate(20 192)">
+        <rect width="504" height="56" rx="4" fill="#1e293b" stroke="#334155"/>
+        <text x="14" y="22" fill="#67e8f9">local_mgrep/src/cli.py:105-145</text>
+        <text x="14" y="42" fill="#94a3b8">@cli.command() def search_cmd(query, top, …)</text>
+        <text x="490" y="22" text-anchor="end" fill="#5eead4">0.742</text>
+      </g>
+      <!-- row 4 -->
+      <g transform="translate(20 260)">
+        <rect width="504" height="56" rx="4" fill="#1e293b" stroke="#334155"/>
+        <text x="14" y="22" fill="#67e8f9">local_mgrep/src/storage.py:160-179</text>
+        <text x="14" y="42" fill="#94a3b8">def diversify_results(candidates, top_k, max_per_file)</text>
+        <text x="490" y="22" text-anchor="end" fill="#5eead4">0.706</text>
+      </g>
+      <!-- row 5 -->
+      <g transform="translate(20 328)">
+        <rect width="504" height="40" rx="4" fill="#1e293b" stroke="#334155"/>
+        <text x="14" y="26" fill="#94a3b8">… 1 more · render with --json or --answer</text>
+      </g>
     </g>
   </g>
 </svg>

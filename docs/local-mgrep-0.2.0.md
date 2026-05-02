@@ -1,235 +1,176 @@
-# local-mgrep 0.2.0 Capability Guide
+# local-mgrep 0.2.0 — capability guide
 
-`local-mgrep` is a free, local-first semantic code search CLI. It is designed to
-capture the highest-value workflow ideas from the original Mixedbread `mgrep`
-without requiring a hosted account, paid API, cloud index, or remote code upload.
+This document describes what the 0.2.0 release implements. It complements the
+[CLI reference](../README.md#cli-reference) in the project README and the
+[benchmark protocol](token-benchmarking.md).
 
-![local-mgrep local architecture](assets/architecture.svg)
+## Scope
 
-## Public positioning
+`local-mgrep` is a command-line tool that builds a SQLite vector index from a
+repository's source files and answers natural-language queries with line-cited
+snippets. Indexing, retrieval, lexical reranking, span deduplication, per-file
+diversification, and optional answer synthesis run in process against a local
+Ollama server. No network calls outside Ollama are made by the core
+workflow.
 
-Use `local-mgrep` when you want a private, zero-subscription semantic search
-layer for codebases and coding agents. The project is optimized for three public
-promises that are easy to verify from the code:
+The 0.2.0 release does not implement hosted account management, a remote
+index, or paid web search; these are out of scope rather than deferred work.
 
-1. **Local privacy boundary:** source files, vectors, retrieval, and optional
-   answer synthesis stay on the workstation.
-2. **Agent-ready context:** search output can be stable JSON with path, line
-   range, language, score, and snippet.
-3. **Honest performance evidence:** the repository includes deterministic
-   benchmark harnesses and documents the limits of the results.
+## Component overview
 
-It should not be described as a hosted `mgrep` clone. It is a local replacement
-for the core semantic repository-search workflow.
+![architecture](assets/architecture.svg)
 
-## Local-first scope
-
-The project intentionally keeps all core work on the user's machine:
-
-- **Embeddings:** generated through a local Ollama embedding model.
-- **Search index:** stored in a local SQLite database.
-- **Answer synthesis:** optional local Ollama text-generation model.
-- **Agentic search:** optional local Ollama query decomposition.
-- **No cloud dependency:** no login, organization switch, hosted store, or paid web
-  search is required.
-
-This means `local-mgrep` is not a one-to-one clone of the original hosted product.
-It aims to be a strong local replacement for semantic repo search and local agent
-workflows.
-
-## Installed commands
-
-```bash
-mgrep index [PATH] [--reset] [--incremental/--full]
-mgrep search QUERY [OPTIONS]
-mgrep stats
-mgrep watch [PATH] [--interval N]
-```
-
-| Command | Production use |
+| Module | Responsibility |
 | --- | --- |
-| `mgrep index` | Build or refresh the local SQLite vector index. |
-| `mgrep search` | Retrieve ranked snippets by natural-language intent. |
-| `mgrep stats` | Inspect current index size. |
-| `mgrep watch` | Keep the local index warm during development. |
+| `local_mgrep/src/cli.py` | Click-based CLI entry points (`index`, `search`, `stats`, `watch`) and result rendering. |
+| `local_mgrep/src/indexer.py` | File discovery, ignore-rule application, tree-sitter / fallback chunking. |
+| `local_mgrep/src/embeddings.py` | HTTP client for the Ollama embeddings API (batch and single-text endpoints). |
+| `local_mgrep/src/storage.py` | SQLite schema, vectorized cosine search, lexical reranker, diversification. |
+| `local_mgrep/src/answerer.py` | HTTP client for the Ollama generation API used by `--answer` and `--agentic`. |
+| `local_mgrep/src/config.py` | Environment-variable configuration. |
 
-## Indexing behavior
+## Indexing
 
-`mgrep index` scans supported source files, chunks them, embeds the chunks through
-Ollama, and writes vectors plus source metadata to SQLite.
+`mgrep index` performs five operations on the given path:
 
-Supported source extensions include Python, JavaScript, TypeScript, TSX/JSX, Go,
-Rust, Java, C/C++, C#, Ruby, PHP, Swift, Kotlin, Scala, Vue, and Svelte.
+1. **Discover.** Walk the path for files whose extension is in
+   `SUPPORTED_EXTENSIONS` (Python, JavaScript, TypeScript, TSX/JSX, Go, Rust,
+   Java, C/C++, C#, Ruby, PHP, Swift, Kotlin, Scala, Vue, Svelte). Apply
+   `.gitignore`, `.mgrepignore`, and a built-in skip-set covering `.git`,
+   `.venv`, `node_modules`, `dist`, `build`, `target`, `vendor`, and similar
+   directories.
+2. **Chunk.** Where a tree-sitter grammar is installed for the detected
+   language, walk the AST and emit nodes whose span is below 50 lines and
+   1000 characters and whose body contains at least 3 lines. When no grammar
+   is available the file is split with a deterministic line-window splitter.
+3. **Embed.** Send chunks to Ollama in batches of 10. The client first attempts
+   `POST /api/embed` and falls back to per-chunk `POST /api/embeddings` if the
+   batch endpoint is unavailable for the running model.
+4. **Persist.** For each chunk, insert one row into `chunks` (file, language,
+   line and byte ranges, file mtime) and one row into `vectors` (the embedding
+   as a contiguous float32 BLOB). The two rows share an `id`.
+5. **Reconcile.** When `--incremental` is set (the default), reindex only files
+   whose disk mtime is newer than the stored `file_mtime`, and call
+   `delete_missing_files` to drop rows whose source file no longer exists
+   beneath the indexed root. Pass `--full` to reindex every discovered file
+   without the mtime check; pass `--reset` to delete the database file before
+   indexing.
 
-Index hygiene is a first-class feature:
+`mgrep watch` repeats the same logic on a polling interval (default 5 seconds)
+until interrupted.
 
-- `.gitignore` is respected.
-- `.mgrepignore` is respected.
-- Common generated/vendor/cache directories are skipped by default, including
-  `.git`, `.venv`, `node_modules`, `dist`, `build`, `target`, `vendor`, and
-  `__pycache__`.
-- Incremental indexing removes stale rows for deleted files under the indexed
-  root, so old results do not continue to appear after files are removed.
-- `watch` mode adds, updates, and deletes index entries as the project changes.
+## Storage
 
-## Search behavior
+![SQLite schema](assets/schema.svg)
 
-Search is semantic-first: users describe intent rather than exact code text.
-Results are ranked by local embedding similarity plus a local lexical reranking
-boost for exact code terms, deduplicated by logical source span, diversified with
-a small per-file cap, and rendered with provenance. Use `--semantic-only` when
-you want pure vector scoring without the lexical boost.
+Two tables share a primary key. `chunks` stores everything required to display
+a result and to filter candidates before scoring. `vectors` stores the
+embedding as a raw float32 buffer, read with
+`numpy.frombuffer(..., dtype=float32)` at query time. There is no declared
+foreign key; the join is enforced by `storage.store_chunks_batch` and
+`storage.delete_file_chunks`.
 
-Human output includes file path, line range, score, and snippet by default:
+Two B-tree indexes accelerate file-level operations:
 
-```bash
-mgrep search "where is token validation implemented"
-```
+- `idx_file (file)` — used by `delete_file_chunks` and `get_indexed_files`.
+- `idx_file_mtime (file, file_mtime)` — used during incremental reconciliation.
 
-JSON output is stable for scripts and agents:
+## Querying
 
-```bash
-mgrep search "where is token validation implemented" --json
-```
+`mgrep search` runs the query through five stages:
 
-Each JSON result contains:
+![ranking pipeline](assets/ranking.svg)
 
-```json
-{
-  "path": "src/auth.py",
-  "start_line": 10,
-  "end_line": 14,
-  "language": "python",
-  "score": 0.82,
-  "snippet": "def validate_token(...): ..."
-}
-```
+1. **Embed.** The query text is embedded with the same model used at index
+   time. Mismatched embedding models are not detected automatically; reindex
+   with `--reset` after changing `OLLAMA_EMBED_MODEL`.
+2. **Cosine.** The candidate matrix is loaded with one joined SQL fetch.
+   Cosine similarity against the query vector is computed across all rows in
+   a single NumPy pass.
+3. **Lexical adjustment.** When the query text is provided and
+   `--semantic-only` is not set, a token-and-phrase overlap score is computed
+   against `path + chunk` and combined as
+   `0.8 · cosine + 0.2 · lexical`. The tokenizer splits camelCase and lowercases.
+4. **Span deduplication.** Candidates whose `(file, start_line, end_line, text)`
+   tuple has already been seen are skipped.
+5. **Diversification.** A linear pass admits up to two candidates per file;
+   the remaining slots are filled from the overflow.
 
-## Local parity flags
+Filters (`--language`, `--include`, `--exclude`) are applied either as a
+`WHERE` clause (for language) or as a Python-side path-pattern filter (for
+include/exclude globs) before scoring.
 
-The 0.2.0 CLI adds the highest-value original-style flags that make sense in a
-local tool:
+### Result shape
 
-```bash
-mgrep search "auth token" -m 10
-mgrep search "auth token" --content
-mgrep search "auth token" --no-content
-mgrep search "auth token" --language python
-mgrep search "auth token" --include "src/*"
-mgrep search "auth token" --exclude "*_test.py"
-mgrep search "auth token" --semantic-only
-```
+| Field | Type | Notes |
+| --- | --- | --- |
+| `path` | string | Absolute file path on the indexing host. |
+| `start_line`, `end_line` | integer | Inclusive 1-based line range. |
+| `language` | string | Tree-sitter language key or extension-derived key. |
+| `score` | float | Combined score from step 3. |
+| `snippet` | string | Verbatim source text of the chunk. |
 
-These flags are applied before final ranking output where practical, reducing
-noise and making the tool more scriptable.
+`--json` renders this as a JSON array with `indent=2`. The same dictionary
+structure is used internally by `--answer` and `--agentic`.
 
-## Local answer mode
+## Optional answer and agentic modes
 
-`--answer` uses a local Ollama generation model to synthesize an answer from the
-retrieved local snippets only:
+`--answer` passes the ranked snippets as context to a local Ollama generation
+model. The fixed system prompt instructs the model to cite file paths and line
+ranges, to say so when an answer is not present in the snippets, and not to
+ask follow-up questions. The original ranked sources are still printed below
+the synthesized answer.
 
-```bash
-OLLAMA_LLM_MODEL=qwen2.5:3b mgrep search "how is token validation implemented" --answer
-```
+`--agentic` precedes the search with a generation step that decomposes the
+query into up to `--max-subqueries` related queries (default 3). Each
+subquery is searched independently; results are merged by score before
+rendering. `--agentic` and `--answer` can be combined.
 
-The answer includes source citations so users can inspect the exact local file and
-line range. No external API is used.
-
-## Local agentic mode
-
-`--agentic` uses the local answer model to split a broad question into bounded
-subqueries, searches each subquery locally, then merges and deduplicates the
-results:
-
-```bash
-mgrep search "how are access tokens created, validated, and refreshed" --agentic --json -m 10
-mgrep search "how are access tokens created, validated, and refreshed" --agentic --answer
-```
-
-The default cap is 3 generated subqueries, configurable with:
-
-```bash
-mgrep search "token lifecycle" --agentic --max-subqueries 5
-```
-
-The bound prevents local LLM decomposition from exploding runtime on large repos.
-
-## Performance improvements in 0.2.0
-
-The current implementation improves both indexing and query-time behavior:
-
-- Indexing uses `embed_batch` when the embedder provides it.
-- Ollama embedding attempts the local `/api/embed` batch endpoint before falling
-  back to single-text `/api/embeddings` calls.
-- Search loads chunk metadata and vectors in one joined query.
-- Vector scoring uses NumPy matrix operations instead of a pure Python loop.
-- Hybrid reranking boosts exact local code-term hits without using a remote API.
-- Final top-k selection diversifies repeated chunks from the same file before
-  filling with lower-ranked repeats, improving recall for coding-agent context.
-- Language/path filters reduce candidate rows before ranking output.
-
-These changes move `local-mgrep` much closer to a daily-driver local search tool,
-especially for repeated searches over an existing index.
-
-## Benchmark evidence
-
-![local-mgrep benchmark](assets/benchmark.svg)
-
-The current deterministic context-gathering benchmark compares a grep-agent
-simulation against one local-mgrep semantic search per task over 30 repository
-navigation questions. At top-k 10, local-mgrep reaches `30/30` expected-file
-recall with `2.00x` estimated total-token reduction and `2.90x` context-token
-reduction.
-
-This is intentionally framed as a local deterministic benchmark, not provider
-billing data. See [`token-benchmarking.md`](token-benchmarking.md) for the exact
-protocol and caveats.
+Neither mode is invoked unless the corresponding flag is set; the core
+retrieval workflow does not depend on a generation model.
 
 ## Configuration
 
-| Variable | Default | Description |
+Configuration is read from environment variables on every invocation; there
+is no config file.
+
+| Variable | Default | Effect |
 | --- | --- | --- |
-| `OLLAMA_URL` | `http://localhost:11434` | Local Ollama server URL |
-| `OLLAMA_EMBED_MODEL` | `mxbai-embed-large` | Local embedding model |
-| `OLLAMA_LLM_MODEL` | `qwen2.5:3b` | Local generation model for `--answer` and `--agentic` |
-| `MGREP_DB_PATH` | `~/.local-mgrep/index.db` | SQLite index location |
+| `OLLAMA_URL` | `http://localhost:11434` | Base URL of the Ollama server. |
+| `OLLAMA_EMBED_MODEL` | `mxbai-embed-large` | Embedding model used at index time and query time. |
+| `OLLAMA_LLM_MODEL` | `qwen2.5:3b` | Generation model used by `--answer` and `--agentic`. |
+| `MGREP_DB_PATH` | `~/.local-mgrep/index.db` | SQLite index location. |
 
-Recommended fully local setup:
+For per-project indexes, set `MGREP_DB_PATH` to a project-local file before
+invoking `mgrep`.
 
-```bash
-ollama pull nomic-embed-text
-ollama pull qwen2.5:3b
-pip install local-mgrep
-OLLAMA_EMBED_MODEL=nomic-embed-text mgrep index /path/to/repo --reset
-```
+## Performance characteristics observed in 0.2.0
 
-## Comparison with original mgrep
+The following changes were made between 0.1.0 and 0.2.0. They are listed for
+reference; their effect on a specific workload depends on repository size and
+the embedding model.
 
-Implemented locally:
+- Indexing uses `embed_batch` when the embedder exposes it.
+- Cosine scoring uses a NumPy matrix multiplication against the candidate
+  matrix instead of a per-row Python loop.
+- A single joined SQL fetch replaces two round-trips per chunk.
+- A lexical token + phrase reranker is blended with the cosine score; pure
+  vector scoring remains available via `--semantic-only`.
+- The result selection step caps repeated chunks from the same file at two
+  before filling the remaining top-k slots.
+- `--language`, `--include`, and `--exclude` reduce the candidate set before
+  scoring.
 
-- Semantic repo search
-- Watch mode
-- Result count flag
-- Content/no-content output
-- JSON output
-- Ignore files
-- Hybrid lexical + semantic reranking
-- Result diversification with local per-file caps
-- Answer synthesis
-- Agentic query decomposition
-- Local-only indexing and storage
+## Benchmark
 
-Intentionally not implemented because they depend on hosted/product features:
+The current deterministic benchmark on this repository, at top-k 10, is:
 
-- Login/logout and organization switching
-- Cloud-hosted stores and synchronization
-- Paid/web search integration
-- Hosted agent/plugin marketplace behavior
+| Metric | local-mgrep | grep-agent baseline |
+| --- | --- | --- |
+| Expected-file recall | 30 / 30 | 30 / 30 |
+| Tool calls | 30 | 227 |
+| Estimated total-token reduction | 2.00× | (baseline) |
+| Context-token reduction | 2.90× | (baseline) |
 
-Still valuable future local-first work:
-
-- MCP server for local agent integrations
-- Larger benchmark suite for big repositories
-- Local PDF/image indexing
-- More complete `.gitignore` edge-case semantics
-- Configurable local reranking over larger candidate pools
+See [`token-benchmarking.md`](token-benchmarking.md) for the full results
+table, the protocol, and explicit limitations.
