@@ -15,6 +15,25 @@ self-contained and reproducible from a fresh clone.
 | 3b | warp cross-repo, **after P1** (P0 + chunk path/symbol prefix + chunker dedup) | 10/16 vs 16/16 | **528×** | 650× | `--rerank --reuse-index` after re-indexing |
 | 3c | warp cross-repo, **after P2-F (HyDE)** mean across 3 runs | **12/16 mean** (11-13/16 range) vs 16/16 | **524×** | 644× | `--rerank --hyde --reuse-index`; LLM is non-deterministic |
 | 3d | warp cross-repo, **after deterministic HyDE + `mxbai-rerank-large-v2`** | **14/16** vs 16/16 | ~525× | ~640× | same script with deterministic LLM seed and the larger reranker; 2 misses remain (websocket / billing) |
+| 3e | warp cross-repo, **daily-driver mode** (`mxbai-rerank-base-v2`, no HyDE) | **10/16** vs 16/16 | ~525× | ~640× | the practical default: ~12.7 s avg per query on Mac CPU, no LLM call, base reranker only |
+
+### Latency × recall trade-off curve on warp (Mac CPU, no daemon, cold reranker load amortised over 16 tasks)
+
+| Config | recall | avg latency / query | use case |
+| --- | :-: | :-: | --- |
+| raw cosine + lexical (no rerank, no HyDE) | 8/16 | 3.3 s | fastest baseline, no extra dep |
+| **base rerank + no HyDE** ⭐ | **10/16** | **12.7 s** | **daily-driver default** — best speed-recall point |
+| large rerank pool 20 + no HyDE | 7/16 | 11.4 s | rejected — pool too small reorders wrongly |
+| large rerank pool 50 + no HyDE | 11/16 | 35.0 s | "accurate-light" tier |
+| large rerank + deterministic HyDE | 14/16 | 54.1 s | maximum accuracy, opt-in via `--hyde` |
+| ripgrep 15.1.0 raw recall | 16/16 | 0.1 s | literal-match ceiling, ~58 M context tokens |
+
+The dominant cost above 3 s is the cross-encoder reranker on Mac CPU: large-v2
+is ~2 B parameters and scores 50 query-passage pairs per query. Mixedbread's
+cloud product runs the same reranker on A100 (0.89 s per query per their
+model card); we lose this round to hardware, not algorithm. The next phases
+on the roadmap (daemon-mode model retention, int8 quantization,
+multi-resolution file-level retrieval) target this latency directly.
 | 4 | local-mgrep vs **Mixedbread cloud mgrep** | not run (requires manual `mgrep login`) | n/a | n/a | `benchmarks/parity_vs_mixedbread.py` |
 
 ### P0–P2 ablation on warp (top-k = 10, pool = 50 unless noted)
