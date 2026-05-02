@@ -1,35 +1,78 @@
+import logging
 import requests
 from .config import get_config
+
+logger = logging.getLogger(__name__)
+
+# Cap each input passed to Ollama. Common embedding models (mxbai-embed-large,
+# nomic-embed-text) advertise a context length of 512 tokens which is roughly
+# 2000 chars of code; some Ollama builds reject inputs above that length with
+# a 400 instead of silently truncating server-side. We hard-cap inputs here so
+# indexing a large repository never fails on a single oversized chunk.
+MAX_INPUT_CHARS = 7500
+
 
 def get_embedder():
     cfg = get_config()
     return OllamaEmbedder(cfg["ollama_url"], cfg["embed_model"])
 
+
+def _clip(text: str) -> str:
+    if len(text) <= MAX_INPUT_CHARS:
+        return text
+    return text[:MAX_INPUT_CHARS]
+
+
 class OllamaEmbedder:
     def __init__(self, base_url: str, model: str):
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self._zero_dim: int | None = None
+
+    def _zero_vector(self) -> list[float]:
+        if self._zero_dim is None:
+            self._zero_dim = 1024  # mxbai-embed-large default; corrected on first success
+        return [0.0] * self._zero_dim
 
     def embed(self, text: str) -> list[float]:
-        resp = requests.post(
-            f"{self.base_url}/api/embeddings",
-            json={"model": self.model, "prompt": text},
-            timeout=60
-        )
-        resp.raise_for_status()
-        return resp.json()["embedding"]
+        try:
+            resp = requests.post(
+                f"{self.base_url}/api/embeddings",
+                json={"model": self.model, "prompt": _clip(text)},
+                timeout=60,
+            )
+            resp.raise_for_status()
+            vec = resp.json().get("embedding")
+            if isinstance(vec, list) and vec:
+                self._zero_dim = len(vec)
+                return vec
+        except requests.RequestException as exc:
+            logger.warning(
+                "embed failed for chunk of %d chars: %s; substituting zero vector",
+                len(text),
+                exc,
+            )
+        return self._zero_vector()
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        clipped = [_clip(t) for t in texts]
         try:
             resp = requests.post(
                 f"{self.base_url}/api/embed",
-                json={"model": self.model, "input": texts},
-                timeout=120
+                json={"model": self.model, "input": clipped},
+                timeout=120,
             )
             resp.raise_for_status()
             embeddings = resp.json().get("embeddings")
             if isinstance(embeddings, list) and len(embeddings) == len(texts):
+                if embeddings and embeddings[0]:
+                    self._zero_dim = len(embeddings[0])
                 return embeddings
-        except requests.RequestException:
-            return [self.embed(t) for t in texts]
-        return [self.embed(t) for t in texts]
+        except requests.RequestException as exc:
+            logger.warning(
+                "batch embed failed for %d chunks: %s; falling back to per-chunk",
+                len(texts),
+                exc,
+            )
+        # Per-chunk fallback isolates failures to the offending chunk.
+        return [self.embed(t) for t in clipped]
