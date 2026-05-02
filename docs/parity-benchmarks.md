@@ -19,14 +19,29 @@ self-contained and reproducible from a fresh clone.
 
 ### Latency × recall trade-off curve on warp (Mac CPU, no daemon, cold reranker load amortised over 16 tasks)
 
-| Config | recall | avg latency / query | use case |
-| --- | :-: | :-: | --- |
-| raw cosine + lexical (no rerank, no HyDE) | 8/16 | 3.3 s | fastest baseline, no extra dep |
-| **base rerank + no HyDE** ⭐ | **10/16** | **12.7 s** | **daily-driver default** — best speed-recall point |
-| large rerank pool 20 + no HyDE | 7/16 | 11.4 s | rejected — pool too small reorders wrongly |
-| large rerank pool 50 + no HyDE | 11/16 | 35.0 s | "accurate-light" tier |
-| large rerank + deterministic HyDE | 14/16 | 54.1 s | maximum accuracy, opt-in via `--hyde` |
-| ripgrep 15.1.0 raw recall | 16/16 | 0.1 s | literal-match ceiling, ~58 M context tokens |
+Two retrieval modes: **chunk-only** (single-stage cosine over all chunks)
+and **multi-resolution** (file-level cosine top-30 first, then chunk-level
+within those 30 files). Multi-resolution is the default; disable with
+`--no-multi-resolution`.
+
+| Config | mode | recall | avg latency / query |
+| --- | --- | :-: | :-: |
+| raw cosine + lexical (no rerank, no HyDE) | chunk-only | 8/16 | 3.3 s |
+| base rerank + no HyDE | chunk-only | 10/16 | 12.7 s |
+| **base rerank + no HyDE + multi-resolution** ⭐ | multi-res | **10/16** | **8.1 s** |
+| large rerank + no HyDE | chunk-only | 11/16 | 35.0 s |
+| large rerank + no HyDE + multi-resolution | multi-res | 10/16 | 19.5 s |
+| large rerank + HyDE | chunk-only | **14/16** | 54.1 s |
+| **large rerank + HyDE + multi-resolution** | multi-res | **13/16** | **25.3 s** |
+| large rerank + HyDE + multi-resolution (file-top 50) | multi-res | 13/16 | 25.3 s |
+| ripgrep 15.1.0 raw recall | n/a | 16/16 | 0.1 s |
+
+Multi-resolution makes every config ~2× faster while losing 0–1 / 16 recall.
+The lost task is a query whose canonical file's chunk-mean vector lands
+outside file-level top-50, so widening that pool does not help. The trade
+is favourable: the daily-driver tier now lands at **10/16 @ 8.1 s**, the
+accurate tier at **13/16 @ 25.3 s**, and the maximum-accuracy tier
+(disable multi-res) at **14/16 @ 54 s**.
 
 The dominant cost above 3 s is the cross-encoder reranker on Mac CPU: large-v2
 is ~2 B parameters and scores 50 query-passage pairs per query. Mixedbread's

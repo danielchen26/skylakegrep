@@ -73,8 +73,80 @@ def init_db(db_path: Path):
     conn.execute("CREATE TABLE IF NOT EXISTS vectors (id INTEGER, embedding BLOB)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_file ON chunks(file)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_file_mtime ON chunks(file, file_mtime)")
+    # File-level embedding cache for multi-resolution retrieval. The vector
+    # is the mean of all chunk vectors of that file — built at index time
+    # from the chunks table, no extra Ollama calls. Storing it lets the
+    # search path do file-level retrieval first (small canonical files
+    # compete fairly against large consumer files) before drilling into
+    # chunks of the top-N files.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS files (
+            file TEXT PRIMARY KEY,
+            chunk_count INTEGER,
+            embedding BLOB
+        )
+    """)
     conn.commit()
     return conn
+
+
+def populate_file_embeddings(conn) -> int:
+    """Rebuild the ``files`` table from current ``chunks`` + ``vectors``.
+
+    For each file, computes the L2-normalised mean of its chunk vectors and
+    stores it as the file-level embedding. Returns the number of files
+    populated. Idempotent — drop and rebuild on every call so re-indexing
+    leaves a consistent file aggregate. Skips zero-vectors silently.
+    """
+
+    files: dict[str, list[np.ndarray]] = {}
+    rows = conn.execute(
+        "SELECT chunks.file, vectors.embedding "
+        "FROM chunks JOIN vectors ON vectors.id = chunks.id"
+    ).fetchall()
+    for file_path, blob in rows:
+        vec = np.frombuffer(blob, dtype=np.float32)
+        norm = float(np.linalg.norm(vec))
+        if norm == 0.0:
+            continue
+        files.setdefault(file_path, []).append(vec / norm)
+    conn.execute("DELETE FROM files")
+    for file_path, vectors in files.items():
+        mean = np.mean(np.vstack(vectors), axis=0).astype(np.float32)
+        mean_norm = float(np.linalg.norm(mean))
+        if mean_norm > 0.0:
+            mean = mean / mean_norm
+        conn.execute(
+            "INSERT INTO files (file, chunk_count, embedding) VALUES (?, ?, ?)",
+            (file_path, len(vectors), mean.tobytes()),
+        )
+    conn.commit()
+    return len(files)
+
+
+def file_level_search(
+    conn,
+    query_embedding: np.ndarray,
+    top_files: int = 30,
+) -> list[str]:
+    """Return the top-N file paths by cosine similarity of file-level embeddings.
+
+    Returns an empty list when the ``files`` table is unpopulated, which is
+    the signal to the caller that multi-resolution mode is unavailable for
+    this index and chunk-only search should be used.
+    """
+
+    rows = conn.execute("SELECT file, embedding FROM files").fetchall()
+    if not rows:
+        return []
+    matrix = np.vstack([np.frombuffer(blob, dtype=np.float32) for _, blob in rows])
+    if matrix.shape[1] != query_embedding.shape[0]:
+        return []
+    qn = float(np.linalg.norm(query_embedding))
+    denom = np.linalg.norm(matrix, axis=1) * qn + 1e-8
+    scores = matrix @ query_embedding / denom
+    order = np.argsort(-scores)[:top_files]
+    return [rows[int(i)][0] for i in order]
 
 def store_chunk(
     conn,
@@ -235,6 +307,8 @@ def search(
     rerank: bool = False,
     rerank_pool: int = DEFAULT_RERANK_POOL,
     rerank_model: Optional[str] = None,
+    multi_resolution: bool = False,
+    file_top: int = 30,
 ) -> list[dict]:
     """Hybrid retrieval with optional cross-encoder rerank.
 
@@ -252,6 +326,18 @@ def search(
         placeholders = ",".join("?" * len(languages))
         where.append(f"chunks.language IN ({placeholders})")
         params.extend(languages)
+    # Multi-resolution stage 1: pick the top-N files by file-level cosine,
+    # then restrict chunk-level retrieval to those files only. This stops
+    # large consumer files (50 chunks of partial matches) from drowning out
+    # small canonical files (1 chunk in `crates/X/lib.rs`) at the chunk
+    # stage. The file-level vector is the L2-normalised mean of chunk
+    # vectors, computed once at index time by ``populate_file_embeddings``.
+    if multi_resolution:
+        top_files = file_level_search(conn, query_vec, top_files=file_top)
+        if top_files:
+            placeholders = ",".join("?" * len(top_files))
+            where.append(f"chunks.file IN ({placeholders})")
+            params.extend(top_files)
     where_clause = f"WHERE {' AND '.join(where)}" if where else ""
     rows = conn.execute(
         f"""
