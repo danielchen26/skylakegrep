@@ -4,95 +4,91 @@
 
   <defs>
     <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#0f172a"/>
+      <path d="M0,0 L10,5 L0,10 z" fill="rgba(255,255,255,0.45)"/>
     </marker>
-    <marker id="arr-mute" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#475569"/>
+    <marker id="arr-cy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/>
     </marker>
   </defs>
 
-  <!-- background -->
-  <rect width="1280" height="820" fill="#ffffff"/>
-
-  <!-- subtle grid for technical feel -->
-  <g stroke="#f1f5f9" stroke-width="1">
-    <path d="M0 200 H1280"/>
-    <path d="M0 400 H1280"/>
-    <path d="M0 600 H1280"/>
+  <!-- subtle horizontal lane dividers -->
+  <g stroke="rgba(255,255,255,0.05)" stroke-width="1">
+    <path d="M0 230 H1280"/>
+    <path d="M0 358 H1280"/>
+    <path d="M0 580 H1280"/>
   </g>
 
   <!-- ===== Lane labels ===== -->
-  <g font-size="11" font-weight="700" letter-spacing="2" fill="#0f172a">
+  <g font-size="11" font-weight="700" letter-spacing="2" fill="#22d3ee">
     <text x="48" y="52">INDEX TIME</text>
     <text x="48" y="354">STORAGE</text>
     <text x="48" y="566">QUERY TIME</text>
   </g>
-  <g font-size="12" fill="#64748b">
-    <text x="166" y="52">offline · invoked by <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">mgrep index</tspan> and <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">mgrep watch</tspan></text>
-    <text x="138" y="354">on-disk SQLite at <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">$MGREP_DB_PATH</tspan> · default <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">~/.local-mgrep/index.db</tspan></text>
-    <text x="170" y="566">per call · invoked by <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">mgrep search</tspan></text>
+  <g font-size="12" fill="#a1a1aa">
+    <text x="166" y="52">offline · invoked by <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">mgrep index</tspan> and <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">mgrep watch</tspan></text>
+    <text x="138" y="354">on-disk SQLite at <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">$MGREP_DB_PATH</tspan> · default <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">~/.local-mgrep/index.db</tspan></text>
+    <text x="170" y="566">per call · invoked by <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">mgrep search</tspan></text>
   </g>
 
   <!-- ===== INDEX TIME lane ===== -->
-  <!-- Boxes are width=200 height=120 with 32px gaps, starting at x=48, y=88 -->
   <g>
     <!-- 1. Discover -->
     <g transform="translate(48 88)">
-      <rect width="200" height="120" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
-      <text x="14" y="26" font-size="13" font-weight="700" fill="#0f172a">1. Discover files</text>
-      <line x1="14" y1="34" x2="186" y2="34" stroke="#e2e8f0"/>
-      <text x="14" y="55" font-size="11" fill="#475569">walk repository,</text>
-      <text x="14" y="71" font-size="11" fill="#475569">apply <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">.gitignore</tspan>,</text>
-      <text x="14" y="87" font-size="11" fill="#475569"><tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">.mgrepignore</tspan>, default skips</text>
-      <text x="14" y="107" font-size="10.5" fill="#0f766e" font-family="ui-monospace, Menlo, Consolas, monospace">indexer.collect_indexable_files</text>
+      <rect width="200" height="120" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#e4e4e7">1. Discover files</text>
+      <line x1="14" y1="34" x2="186" y2="34" stroke="rgba(255,255,255,0.07)"/>
+      <text x="14" y="55" font-size="11" fill="#a1a1aa">walk repository,</text>
+      <text x="14" y="71" font-size="11" fill="#a1a1aa">apply <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#d4d4d8">.gitignore</tspan>,</text>
+      <text x="14" y="87" font-size="11" fill="#a1a1aa"><tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#d4d4d8">.mgrepignore</tspan>, default skips</text>
+      <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">indexer.collect_indexable_files</text>
     </g>
 
     <!-- 2. Chunk -->
     <g transform="translate(280 88)">
-      <rect width="200" height="120" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
-      <text x="14" y="26" font-size="13" font-weight="700" fill="#0f172a">2. Chunk</text>
-      <line x1="14" y1="34" x2="186" y2="34" stroke="#e2e8f0"/>
-      <text x="14" y="55" font-size="11" fill="#475569">tree-sitter AST nodes</text>
-      <text x="14" y="71" font-size="11" fill="#475569">≤ 50 lines / 1000 chars,</text>
-      <text x="14" y="87" font-size="11" fill="#475569">line-window fallback</text>
-      <text x="14" y="107" font-size="10.5" fill="#0f766e" font-family="ui-monospace, Menlo, Consolas, monospace">indexer.extract_code_chunks</text>
+      <rect width="200" height="120" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#e4e4e7">2. Chunk</text>
+      <line x1="14" y1="34" x2="186" y2="34" stroke="rgba(255,255,255,0.07)"/>
+      <text x="14" y="55" font-size="11" fill="#a1a1aa">tree-sitter AST nodes</text>
+      <text x="14" y="71" font-size="11" fill="#a1a1aa">≤ 50 lines / 1000 chars,</text>
+      <text x="14" y="87" font-size="11" fill="#a1a1aa">line-window fallback</text>
+      <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">indexer.extract_code_chunks</text>
     </g>
 
     <!-- 3. Embed -->
     <g transform="translate(512 88)">
-      <rect width="200" height="120" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
-      <text x="14" y="26" font-size="13" font-weight="700" fill="#0f172a">3. Embed</text>
-      <line x1="14" y1="34" x2="186" y2="34" stroke="#e2e8f0"/>
-      <text x="14" y="55" font-size="11" fill="#475569">POST <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">/api/embed</tspan> (batch),</text>
-      <text x="14" y="71" font-size="11" fill="#475569">fallback <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">/api/embeddings</tspan></text>
-      <text x="14" y="87" font-size="11" fill="#475569">to local Ollama server</text>
-      <text x="14" y="107" font-size="10.5" fill="#0f766e" font-family="ui-monospace, Menlo, Consolas, monospace">embeddings.OllamaEmbedder</text>
+      <rect width="200" height="120" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#e4e4e7">3. Embed</text>
+      <line x1="14" y1="34" x2="186" y2="34" stroke="rgba(255,255,255,0.07)"/>
+      <text x="14" y="55" font-size="11" fill="#a1a1aa">POST <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#d4d4d8">/api/embed</tspan> (batch),</text>
+      <text x="14" y="71" font-size="11" fill="#a1a1aa">fallback <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#d4d4d8">/api/embeddings</tspan></text>
+      <text x="14" y="87" font-size="11" fill="#a1a1aa">to local Ollama server</text>
+      <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">embeddings.OllamaEmbedder</text>
     </g>
 
     <!-- 4. Persist -->
     <g transform="translate(744 88)">
-      <rect width="200" height="120" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
-      <text x="14" y="26" font-size="13" font-weight="700" fill="#0f172a">4. Persist</text>
-      <line x1="14" y1="34" x2="186" y2="34" stroke="#e2e8f0"/>
-      <text x="14" y="55" font-size="11" fill="#475569">batched INSERT into</text>
-      <text x="14" y="71" font-size="11" fill="#475569">chunks + vectors,</text>
-      <text x="14" y="87" font-size="11" fill="#475569">embedding as float32 BLOB</text>
-      <text x="14" y="107" font-size="10.5" fill="#0f766e" font-family="ui-monospace, Menlo, Consolas, monospace">storage.store_chunks_batch</text>
+      <rect width="200" height="120" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#e4e4e7">4. Persist</text>
+      <line x1="14" y1="34" x2="186" y2="34" stroke="rgba(255,255,255,0.07)"/>
+      <text x="14" y="55" font-size="11" fill="#a1a1aa">batched INSERT into</text>
+      <text x="14" y="71" font-size="11" fill="#a1a1aa">chunks + vectors,</text>
+      <text x="14" y="87" font-size="11" fill="#a1a1aa">embedding as float32 BLOB</text>
+      <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">storage.store_chunks_batch</text>
     </g>
 
     <!-- 5. Reconcile -->
     <g transform="translate(976 88)">
-      <rect width="200" height="120" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
-      <text x="14" y="26" font-size="13" font-weight="700" fill="#0f172a">5. Reconcile</text>
-      <line x1="14" y1="34" x2="186" y2="34" stroke="#e2e8f0"/>
-      <text x="14" y="55" font-size="11" fill="#475569">incremental on mtime,</text>
-      <text x="14" y="71" font-size="11" fill="#475569">delete rows for files</text>
-      <text x="14" y="87" font-size="11" fill="#475569">removed from disk</text>
-      <text x="14" y="107" font-size="10.5" fill="#0f766e" font-family="ui-monospace, Menlo, Consolas, monospace">storage.delete_missing_files</text>
+      <rect width="200" height="120" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#e4e4e7">5. Reconcile</text>
+      <line x1="14" y1="34" x2="186" y2="34" stroke="rgba(255,255,255,0.07)"/>
+      <text x="14" y="55" font-size="11" fill="#a1a1aa">incremental on mtime,</text>
+      <text x="14" y="71" font-size="11" fill="#a1a1aa">delete rows for files</text>
+      <text x="14" y="87" font-size="11" fill="#a1a1aa">removed from disk</text>
+      <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">storage.delete_missing_files</text>
     </g>
 
     <!-- arrows between index boxes -->
-    <g stroke="#0f172a" stroke-width="1.25" fill="none" marker-end="url(#arr)">
+    <g stroke="rgba(255,255,255,0.30)" stroke-width="1.25" fill="none" marker-end="url(#arr)">
       <line x1="248" y1="148" x2="280" y2="148"/>
       <line x1="480" y1="148" x2="512" y2="148"/>
       <line x1="712" y1="148" x2="744" y2="148"/>
@@ -101,123 +97,122 @@
   </g>
 
   <!-- arrow from index lane down into storage -->
-  <g stroke="#0f172a" stroke-width="1.25" fill="none" marker-end="url(#arr)">
+  <g stroke="rgba(255,255,255,0.30)" stroke-width="1.25" fill="none" marker-end="url(#arr)">
     <path d="M844 208 V 376"/>
   </g>
-  <text x="852" y="294" font-size="11" fill="#475569" font-family="ui-monospace, Menlo, Consolas, monospace">writes</text>
+  <text x="852" y="294" font-size="11" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">writes</text>
 
   <!-- arrow from storage up out (read by query lane) -->
-  <g stroke="#0f172a" stroke-width="1.25" fill="none" marker-end="url(#arr)">
+  <g stroke="rgba(255,255,255,0.30)" stroke-width="1.25" fill="none" marker-end="url(#arr)">
     <path d="M436 504 V 644 H 488"/>
   </g>
-  <text x="444" y="554" font-size="11" fill="#475569" font-family="ui-monospace, Menlo, Consolas, monospace">reads</text>
+  <text x="444" y="554" font-size="11" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">reads</text>
 
   <!-- ===== STORAGE lane ===== -->
   <!-- chunks table -->
   <g transform="translate(280 388)">
-    <rect width="408" height="180" rx="6" fill="#f8fafc" stroke="#0f172a" stroke-width="1.25"/>
-    <rect width="408" height="32" rx="6" fill="#0f172a"/>
-    <rect y="26" width="408" height="6" fill="#0f172a"/>
-    <text x="16" y="21" font-size="13" font-weight="700" fill="#ffffff" font-family="ui-monospace, Menlo, Consolas, monospace">TABLE chunks</text>
-    <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12" fill="#0f172a">
-      <text x="16" y="56">id</text><text x="180" y="56" fill="#475569">INTEGER PRIMARY KEY</text>
-      <text x="16" y="76">file</text><text x="180" y="76" fill="#475569">TEXT</text>
-      <text x="16" y="96">chunk</text><text x="180" y="96" fill="#475569">TEXT</text>
-      <text x="16" y="116">language</text><text x="180" y="116" fill="#475569">TEXT</text>
-      <text x="16" y="136">start_line, end_line</text><text x="240" y="136" fill="#475569">INTEGER</text>
-      <text x="16" y="156">start_byte, end_byte</text><text x="240" y="156" fill="#475569">INTEGER</text>
-      <text x="16" y="176">file_mtime</text><text x="180" y="176" fill="#475569">REAL</text>
+    <rect width="408" height="180" rx="10" fill="rgba(255,255,255,0.025)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+    <rect width="408" height="32" rx="10" fill="rgba(34,211,238,0.10)"/>
+    <rect y="26" width="408" height="6" fill="rgba(34,211,238,0.10)"/>
+    <text x="16" y="21" font-size="13" font-weight="600" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">TABLE chunks</text>
+    <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12" fill="#e4e4e7">
+      <text x="16" y="56">id</text><text x="180" y="56" fill="#a1a1aa">INTEGER PRIMARY KEY</text>
+      <text x="16" y="76">file</text><text x="180" y="76" fill="#a1a1aa">TEXT</text>
+      <text x="16" y="96">chunk</text><text x="180" y="96" fill="#a1a1aa">TEXT</text>
+      <text x="16" y="116">language</text><text x="180" y="116" fill="#a1a1aa">TEXT</text>
+      <text x="16" y="136">start_line, end_line</text><text x="240" y="136" fill="#a1a1aa">INTEGER</text>
+      <text x="16" y="156">start_byte, end_byte</text><text x="240" y="156" fill="#a1a1aa">INTEGER</text>
+      <text x="16" y="176">file_mtime</text><text x="180" y="176" fill="#a1a1aa">REAL</text>
     </g>
   </g>
 
   <!-- vectors table -->
   <g transform="translate(720 388)">
-    <rect width="320" height="120" rx="6" fill="#f8fafc" stroke="#0f172a" stroke-width="1.25"/>
-    <rect width="320" height="32" rx="6" fill="#0f172a"/>
-    <rect y="26" width="320" height="6" fill="#0f172a"/>
-    <text x="16" y="21" font-size="13" font-weight="700" fill="#ffffff" font-family="ui-monospace, Menlo, Consolas, monospace">TABLE vectors</text>
-    <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12" fill="#0f172a">
-      <text x="16" y="56">id</text><text x="180" y="56" fill="#475569">INTEGER (→ chunks.id)</text>
-      <text x="16" y="76">embedding</text><text x="180" y="76" fill="#475569">BLOB · float32[d]</text>
+    <rect width="320" height="120" rx="10" fill="rgba(255,255,255,0.025)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+    <rect width="320" height="32" rx="10" fill="rgba(34,211,238,0.10)"/>
+    <rect y="26" width="320" height="6" fill="rgba(34,211,238,0.10)"/>
+    <text x="16" y="21" font-size="13" font-weight="600" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">TABLE vectors</text>
+    <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12" fill="#e4e4e7">
+      <text x="16" y="56">id</text><text x="180" y="56" fill="#a1a1aa">INTEGER (→ chunks.id)</text>
+      <text x="16" y="76">embedding</text><text x="180" y="76" fill="#a1a1aa">BLOB · float32[d]</text>
     </g>
-    <text x="16" y="106" font-size="11" fill="#475569">d = embedding model dimension</text>
+    <text x="16" y="106" font-size="11" fill="#71717a">d = embedding model dimension</text>
   </g>
 
   <!-- 1:1 link between tables -->
-  <g stroke="#475569" stroke-width="1" fill="none" stroke-dasharray="3 3">
+  <g stroke="rgba(34,211,238,0.40)" stroke-width="1" fill="none" stroke-dasharray="3 3">
     <line x1="688" y1="430" x2="720" y2="430"/>
   </g>
-  <text x="695" y="424" font-size="10" fill="#64748b" font-family="ui-monospace, Menlo, Consolas, monospace">1:1</text>
+  <text x="695" y="424" font-size="10" fill="#22d3ee" font-family="ui-monospace, Menlo, Consolas, monospace">1:1</text>
 
   <!-- index list note -->
-  <g transform="translate(720 528)" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#475569">
+  <g transform="translate(720 528)" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#a1a1aa">
     <text x="0" y="0">CREATE INDEX idx_file        ON chunks(file)</text>
     <text x="0" y="16">CREATE INDEX idx_file_mtime  ON chunks(file, file_mtime)</text>
   </g>
 
   <!-- ===== QUERY TIME lane ===== -->
-  <!-- 6 boxes: query, embed, cosine, lexical, dedup+diversify, output -->
   <g>
     <!-- 1. Query -->
     <g transform="translate(48 600)">
-      <rect width="172" height="120" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
-      <text x="14" y="26" font-size="13" font-weight="700" fill="#0f172a">1. Query</text>
-      <line x1="14" y1="34" x2="158" y2="34" stroke="#e2e8f0"/>
-      <text x="14" y="55" font-size="11" fill="#475569">natural-language text</text>
-      <text x="14" y="71" font-size="11" fill="#475569">+ filters: language,</text>
-      <text x="14" y="87" font-size="11" fill="#475569">--include / --exclude</text>
-      <text x="14" y="107" font-size="10.5" fill="#0f766e" font-family="ui-monospace, Menlo, Consolas, monospace">cli.search_cmd</text>
+      <rect width="172" height="120" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#e4e4e7">1. Query</text>
+      <line x1="14" y1="34" x2="158" y2="34" stroke="rgba(255,255,255,0.07)"/>
+      <text x="14" y="55" font-size="11" fill="#a1a1aa">natural-language text</text>
+      <text x="14" y="71" font-size="11" fill="#a1a1aa">+ filters: language,</text>
+      <text x="14" y="87" font-size="11" fill="#a1a1aa">--include / --exclude</text>
+      <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">cli.search_cmd</text>
     </g>
 
     <!-- 2. Embed query -->
     <g transform="translate(252 600)">
-      <rect width="172" height="120" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
-      <text x="14" y="26" font-size="13" font-weight="700" fill="#0f172a">2. Embed query</text>
-      <line x1="14" y1="34" x2="158" y2="34" stroke="#e2e8f0"/>
-      <text x="14" y="55" font-size="11" fill="#475569">same Ollama model</text>
-      <text x="14" y="71" font-size="11" fill="#475569">used for indexing</text>
-      <text x="14" y="87" font-size="11" fill="#475569">single vector q ∈ ℝᵈ</text>
-      <text x="14" y="107" font-size="10.5" fill="#0f766e" font-family="ui-monospace, Menlo, Consolas, monospace">OllamaEmbedder.embed</text>
+      <rect width="172" height="120" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#e4e4e7">2. Embed query</text>
+      <line x1="14" y1="34" x2="158" y2="34" stroke="rgba(255,255,255,0.07)"/>
+      <text x="14" y="55" font-size="11" fill="#a1a1aa">same Ollama model</text>
+      <text x="14" y="71" font-size="11" fill="#a1a1aa">used for indexing</text>
+      <text x="14" y="87" font-size="11" fill="#a1a1aa">single vector q ∈ ℝᵈ</text>
+      <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">OllamaEmbedder.embed</text>
     </g>
 
     <!-- 3. Cosine -->
     <g transform="translate(456 600)">
-      <rect width="172" height="120" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
-      <text x="14" y="26" font-size="13" font-weight="700" fill="#0f172a">3. Score</text>
-      <line x1="14" y1="34" x2="158" y2="34" stroke="#e2e8f0"/>
-      <text x="14" y="55" font-size="11" fill="#475569">cosine over full</text>
-      <text x="14" y="71" font-size="11" fill="#475569">candidate matrix</text>
-      <text x="14" y="87" font-size="11" fill="#475569">(NumPy, single pass)</text>
-      <text x="14" y="107" font-size="10.5" fill="#0f766e" font-family="ui-monospace, Menlo, Consolas, monospace">storage.search</text>
+      <rect width="172" height="120" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#e4e4e7">3. Score</text>
+      <line x1="14" y1="34" x2="158" y2="34" stroke="rgba(255,255,255,0.07)"/>
+      <text x="14" y="55" font-size="11" fill="#a1a1aa">cosine over full</text>
+      <text x="14" y="71" font-size="11" fill="#a1a1aa">candidate matrix</text>
+      <text x="14" y="87" font-size="11" fill="#a1a1aa">(NumPy, single pass)</text>
+      <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">storage.search</text>
     </g>
 
     <!-- 4. Hybrid -->
     <g transform="translate(660 600)">
-      <rect width="172" height="120" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
-      <text x="14" y="26" font-size="13" font-weight="700" fill="#0f172a">4. Hybrid score</text>
-      <line x1="14" y1="34" x2="158" y2="34" stroke="#e2e8f0"/>
-      <text x="14" y="55" font-size="11" fill="#475569">0.8·cosine + 0.2·lexical</text>
-      <text x="14" y="71" font-size="11" fill="#475569">(camelCase-aware</text>
-      <text x="14" y="87" font-size="11" fill="#475569">token + phrase match)</text>
-      <text x="14" y="107" font-size="10.5" fill="#0f766e" font-family="ui-monospace, Menlo, Consolas, monospace">storage.combine_scores</text>
+      <rect width="172" height="120" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#e4e4e7">4. Hybrid score</text>
+      <line x1="14" y1="34" x2="158" y2="34" stroke="rgba(255,255,255,0.07)"/>
+      <text x="14" y="55" font-size="11" fill="#a1a1aa">0.8·cosine + 0.2·lexical</text>
+      <text x="14" y="71" font-size="11" fill="#a1a1aa">(camelCase-aware</text>
+      <text x="14" y="87" font-size="11" fill="#a1a1aa">token + phrase match)</text>
+      <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">storage.combine_scores</text>
     </g>
 
     <!-- 5. Diversify -->
     <g transform="translate(864 600)">
-      <rect width="172" height="120" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
-      <text x="14" y="26" font-size="13" font-weight="700" fill="#0f172a">5. Diversify</text>
-      <line x1="14" y1="34" x2="158" y2="34" stroke="#e2e8f0"/>
-      <text x="14" y="55" font-size="11" fill="#475569">dedup logical span,</text>
-      <text x="14" y="71" font-size="11" fill="#475569">cap ≤ 2 chunks/file,</text>
-      <text x="14" y="87" font-size="11" fill="#475569">backfill if short</text>
-      <text x="14" y="107" font-size="10.5" fill="#0f766e" font-family="ui-monospace, Menlo, Consolas, monospace">diversify_results</text>
+      <rect width="172" height="120" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#e4e4e7">5. Diversify</text>
+      <line x1="14" y1="34" x2="158" y2="34" stroke="rgba(255,255,255,0.07)"/>
+      <text x="14" y="55" font-size="11" fill="#a1a1aa">dedup logical span,</text>
+      <text x="14" y="71" font-size="11" fill="#a1a1aa">cap ≤ 2 chunks/file,</text>
+      <text x="14" y="87" font-size="11" fill="#a1a1aa">backfill if short</text>
+      <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">diversify_results</text>
     </g>
 
-    <!-- 6. Output -->
+    <!-- 6. Output (highlight) -->
     <g transform="translate(1068 600)">
-      <rect width="172" height="120" rx="6" fill="#0f172a" stroke="#0f172a" stroke-width="1.25"/>
-      <text x="14" y="26" font-size="13" font-weight="700" fill="#ffffff">6. Output</text>
-      <line x1="14" y1="34" x2="158" y2="34" stroke="#334155"/>
+      <rect width="172" height="120" rx="10" fill="rgba(34,211,238,0.08)" stroke="rgba(34,211,238,0.40)" stroke-width="1"/>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#67e8f9">6. Output</text>
+      <line x1="14" y1="34" x2="158" y2="34" stroke="rgba(34,211,238,0.20)"/>
       <text x="14" y="55" font-size="11" fill="#cbd5e1">text snippets, or</text>
       <text x="14" y="71" font-size="11" fill="#cbd5e1">--json for agents, or</text>
       <text x="14" y="87" font-size="11" fill="#cbd5e1">--answer (Ollama gen)</text>
@@ -225,19 +220,21 @@
     </g>
 
     <!-- arrows between query boxes -->
-    <g stroke="#0f172a" stroke-width="1.25" fill="none" marker-end="url(#arr)">
+    <g stroke="rgba(255,255,255,0.30)" stroke-width="1.25" fill="none" marker-end="url(#arr)">
       <line x1="220" y1="660" x2="252" y2="660"/>
       <line x1="424" y1="660" x2="456" y2="660"/>
       <line x1="628" y1="660" x2="660" y2="660"/>
       <line x1="832" y1="660" x2="864" y2="660"/>
+    </g>
+    <g stroke="rgba(34,211,238,0.55)" stroke-width="1.25" fill="none" marker-end="url(#arr-cy)">
       <line x1="1036" y1="660" x2="1068" y2="660"/>
     </g>
   </g>
 
   <!-- Optional agentic side path -->
   <g transform="translate(48 768)">
-    <rect width="1190" height="36" rx="6" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4 4"/>
-    <text x="14" y="22" font-size="11.5" fill="#475569">Optional <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">--agentic</tspan>: a local Ollama LLM decomposes the question into ≤ N subqueries, each runs through steps 2–5; results merge by score before output.</text>
-    <text x="990" y="22" font-size="10.5" fill="#0f766e" font-family="ui-monospace, Menlo, Consolas, monospace">answerer.decompose</text>
+    <rect width="1190" height="36" rx="8" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1" stroke-dasharray="4 4"/>
+    <text x="14" y="22" font-size="11.5" fill="#a1a1aa">Optional <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">--agentic</tspan>: a local Ollama LLM decomposes the question into ≤ N subqueries, each runs through steps 2–5; results merge by score before output.</text>
+    <text x="990" y="22" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">answerer.decompose</text>
   </g>
 </svg>
