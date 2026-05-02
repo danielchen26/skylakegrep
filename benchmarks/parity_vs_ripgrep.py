@@ -207,6 +207,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             hyde=getattr(args, "hyde", False),
             multi_resolution=getattr(args, "multi_resolution", False),
             file_top=getattr(args, "file_top", 30),
+            daemon_url=getattr(args, "daemon_url", None),
         )
         rg_total = (
             args.fixed_prompt_tokens
@@ -366,6 +367,7 @@ def parse_args() -> argparse.Namespace:
         help="Disable two-stage retrieval; chunk-level cosine over the whole index",
     )
     parser.add_argument("--file-top", dest="file_top", type=int, default=30, help="Number of files surfaced by the file-level stage")
+    parser.add_argument("--daemon-url", dest="daemon_url", default=None, help="If set, route every mgrep search through a running mgrep daemon at this URL (skips per-query reranker cold load)")
     return parser.parse_args()
 
 

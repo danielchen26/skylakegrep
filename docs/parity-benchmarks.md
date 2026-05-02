@@ -43,6 +43,32 @@ is favourable: the daily-driver tier now lands at **10/16 @ 8.1 s**, the
 accurate tier at **13/16 @ 25.3 s**, and the maximum-accuracy tier
 (disable multi-res) at **14/16 @ 54 s**.
 
+### Daemon mode (single-query latency)
+
+The CLI loads the cross-encoder reranker on every short-lived ``mgrep
+search`` invocation, paying ~5–10 s of model load per call. The new
+``mgrep serve`` daemon eliminates that:
+
+| Single query | latency |
+| --- | :-: |
+| in-process cold (load + inference) | 27.0 s |
+| daemon warm (inference only) | 21.4 s |
+
+The daemon saves the load step (~5–6 s) but the dominant cost is the
+~20 s of cross-encoder inference itself on Mac CPU for 50 query/passage
+pairs against the 2 B-parameter reranker. Daemon mode is an unambiguous
+win for interactive multi-query usage (every subsequent query in the
+session is the same warm cost) but does not by itself reach Mixedbread
+cloud's ~250 ms latency — that gap is closed by reranker quantization,
+not by removing the load step.
+
+Use:
+
+```
+.venv/bin/mgrep serve --port 7878
+.venv/bin/mgrep search "..." --daemon-url http://127.0.0.1:7878
+```
+
 The dominant cost above 3 s is the cross-encoder reranker on Mac CPU: large-v2
 is ~2 B parameters and scores 50 query-passage pairs per query. Mixedbread's
 cloud product runs the same reranker on A100 (0.89 s per query per their

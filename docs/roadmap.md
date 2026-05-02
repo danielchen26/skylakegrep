@@ -20,6 +20,7 @@ concrete code change, expected lift, and verification step.
 | P2-F+ (deterministic HyDE seed, ``mxbai-rerank-large-v2``, non-canonical path penalty) | **14/16** stable | **DONE** — 2 misses remain (websocket / billing) |
 | P2-Latency (measure daily-driver tradeoff) | base rerank + no HyDE = **10/16 @ 12.7 s** ; raw = 8/16 @ 3.3 s | **DONE** — speed × recall curve in `docs/parity-benchmarks.md` |
 | P2-MR (multi-resolution: file-level cosine top-30 → chunk-level) | every config ~2× faster, loses 0-1 / 16 recall. Daily = **10/16 @ 8.1 s**, accurate = **13/16 @ 25.3 s**, max = 14/16 @ 54 s with `--no-multi-resolution` | **DONE** — default on |
+| P2-D (daemon mode: ``mgrep serve`` + ``--daemon-url``) | single-query latency 27 s → 21 s; the dominant remaining cost is per-query rerank inference, not model load. Useful for interactive multi-query sessions | **DONE** — opt-in |
 | P2-G (asymmetric query/document prefixes) | folded into P0-B | **DONE** |
 | P2-H (configurable max-per-file / rerank-pool) | exposed as CLI flags | **DONE** |
 | P3-I (ColBERT late interaction) | not started | future |
