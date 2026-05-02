@@ -14,6 +14,46 @@ class OllamaAnswerer:
         self.base_url = base_url.rstrip("/")
         self.model = model
 
+    def hyde(self, query: str, language_hint: str = "") -> str:
+        """Generate a hypothetical code answer for ``query`` (HyDE).
+
+        The query embedding is then computed over this hypothetical code rather
+        than the natural-language question. For natural-language queries
+        ("where is microphone audio captured"), the hypothetical doc usually
+        contains the right identifiers (``capture_audio``, ``AudioStream``,
+        crate / module names) that bring the actual implementation chunk into
+        the cosine top-k. Returns the original query when the LLM call fails
+        so callers can wire this in unconditionally.
+        """
+
+        lang_part = f" The codebase is written primarily in {language_hint}." if language_hint else ""
+        prompt = (
+            "Given a natural-language code-search question, write a SHORT "
+            "(5-15 lines) hypothetical code snippet — function signatures, "
+            "type names, file path comment — that would directly answer it."
+            f"{lang_part} Output only the code, no explanation, no markdown "
+            "fences. Use realistic identifier names that an engineer would "
+            "write.\n\n"
+            f"Question: {query}\n\n"
+            "Hypothetical code:"
+        )
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/generate",
+                json={"model": self.model, "prompt": prompt, "stream": False},
+                timeout=60,
+            )
+            response.raise_for_status()
+            text = response.json().get("response", "").strip()
+            if not text:
+                return query
+            # Combine the question and the hypothetical doc; the embedding then
+            # benefits from both surface-language anchors and the synthesized
+            # identifier vocabulary.
+            return f"{query}\n\n{text}"
+        except requests.RequestException:
+            return query
+
     def decompose(self, query: str, max_queries: int = 3) -> list[str]:
         prompt = (
             "Break this code-search question into up to "

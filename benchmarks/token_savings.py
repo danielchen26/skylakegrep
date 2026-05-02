@@ -107,7 +107,26 @@ def is_benchmark_ignored(path: Path, root: Path) -> bool:
     return any(part in DEFAULT_IGNORED_PARTS for part in relative.parts)
 
 
-def build_index(root: Path, db_path: Path, batch_size: int) -> tuple[sqlite3.Connection, float]:
+def build_index(
+    root: Path,
+    db_path: Path,
+    batch_size: int,
+    reuse_existing: bool = False,
+) -> tuple[sqlite3.Connection, float]:
+    """Build (or reuse) a chunk index at ``db_path``.
+
+    With ``reuse_existing=True`` and a non-empty index already at ``db_path``,
+    skip the embed loop and return a connection to the existing index. This
+    lets long-running benchmarks (e.g. warp) be re-run against a pre-built
+    index without paying the multi-minute re-embed cost on every invocation.
+    """
+
+    if reuse_existing and db_path.exists():
+        conn = sqlite3.connect(db_path)
+        existing = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
+        if existing > 0:
+            return conn, 0.0
+        conn.close()
     if db_path.exists():
         db_path.unlink()
     conn = init_db(db_path)
@@ -117,7 +136,7 @@ def build_index(root: Path, db_path: Path, batch_size: int) -> tuple[sqlite3.Con
 
     started = time.perf_counter()
     for path in files:
-        chunks = prepare_file_chunks(path)
+        chunks = prepare_file_chunks(path, root=root)
         if not chunks:
             continue
         relative = path.relative_to(root).as_posix()

@@ -1,4 +1,5 @@
 import fnmatch
+import logging
 import re
 import sqlite3
 from pathlib import Path
@@ -6,10 +7,16 @@ from typing import Optional
 
 import numpy as np
 
+from .reranker import DEFAULT_RERANK_POOL, rerank as cross_encoder_rerank
+
+
+logger = logging.getLogger(__name__)
+
 
 LEXICAL_WEIGHT = 0.2
 MAX_RESULTS_PER_FILE = 2
 TOKEN_RE = re.compile(r"[a-z0-9]+")
+_dim_warning_emitted = False
 
 
 CHUNK_METADATA_COLUMNS = {
@@ -203,7 +210,19 @@ def search(
     exclude_patterns: tuple[str, ...] = (),
     query_text: Optional[str] = None,
     semantic_only: bool = False,
+    rerank: bool = False,
+    rerank_pool: int = DEFAULT_RERANK_POOL,
+    rerank_model: Optional[str] = None,
 ) -> list[dict]:
+    """Hybrid retrieval with optional cross-encoder rerank.
+
+    When ``rerank`` is True and ``query_text`` is provided, the cosine + lexical
+    blend selects a wider candidate pool of size ``rerank_pool`` (default 50),
+    which is then re-ordered by a cross-encoder reranker. The reranker is
+    skipped silently if the optional dep ``sentence-transformers`` is missing.
+    """
+
+    global _dim_warning_emitted
     query_vec = np.array(query_embedding, dtype=np.float32)
     params = []
     where = []
@@ -228,6 +247,16 @@ def search(
     if not rows:
         return []
     matrix = np.vstack([np.frombuffer(row[8], dtype=np.float32) for row in rows])
+    if matrix.shape[1] != query_vec.shape[0] and not _dim_warning_emitted:
+        logger.warning(
+            "embedding dim mismatch: query is %d-d but the index stores %d-d "
+            "vectors. The current results will be wrong. Re-index with the "
+            "current model: mgrep index <repo> --reset",
+            query_vec.shape[0],
+            matrix.shape[1],
+        )
+        _dim_warning_emitted = True
+        return []
     denom = np.linalg.norm(matrix, axis=1) * np.linalg.norm(query_vec) + 1e-8
     semantic_scores = matrix @ query_vec / denom
     lexical_scores = np.zeros(len(rows), dtype=np.float32)
@@ -268,6 +297,19 @@ def search(
             "semantic_score": float(semantic_scores[int(index)]),
             "lexical_score": float(lexical_scores[int(index)]),
         })
+
+    if rerank and query_text and candidates:
+        # The reranker re-orders the top ``rerank_pool`` and overwrites
+        # ``score`` with the cross-encoder relevance score. Diversification
+        # then runs on the reranked order, so the per-file cap still applies.
+        candidates = cross_encoder_rerank(
+            query_text,
+            candidates,
+            pool=rerank_pool,
+            top_k=None,
+            model_name=rerank_model,
+        )
+
     return diversify_results(candidates, top_k)
 
 def get_indexed_files(conn) -> dict:

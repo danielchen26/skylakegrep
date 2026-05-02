@@ -16,6 +16,11 @@ dependencies = [
     "tree-sitter-typescript>=0.23",
 ]
 
+[project.optional-dependencies]
+rerank = [
+    "sentence-transformers>=3.0",
+]
+
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"

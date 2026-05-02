@@ -320,10 +320,28 @@ def mgrep_agent_context(
     question: str,
     top_k: int,
     chars_per_token: int,
+    rerank: bool = True,
+    rerank_pool: int = 50,
+    hyde: bool = False,
 ) -> dict[str, object]:
-    embedder = get_embedder()
+    embedder = get_embedder(role="query") if "role" in get_embedder.__code__.co_varnames else get_embedder()
     started = time.perf_counter()
-    results = search(conn, embedder.embed(question), top_k=top_k, query_text=question)
+    if hyde:
+        try:
+            from local_mgrep.src.answerer import get_answerer
+            embed_input = get_answerer().hyde(question)
+        except Exception:
+            embed_input = question
+    else:
+        embed_input = question
+    results = search(
+        conn,
+        embedder.embed(embed_input),
+        top_k=top_k,
+        query_text=question,
+        rerank=rerank,
+        rerank_pool=rerank_pool,
+    )
     payload = render_json_results(results)
     return {
         "tool_calls": 1,
@@ -346,6 +364,18 @@ def safe_ratio(numerator: float, denominator: float) -> float:
     return round(numerator / denominator, 2)
 
 
+def _expected_hit(expected: str, paths: list[str]) -> bool:
+    """Substring match between an ``expected`` path and the returned paths.
+
+    Returned paths may be absolute (from ``mgrep index``) or repo-relative
+    (from the bench's own ``build_index`` rewrite); ``expected`` is repo-
+    relative. A substring check covers both cases and matches the convention
+    used by ``parity_vs_ripgrep.expected_hit``.
+    """
+
+    return any(expected in path for path in paths)
+
+
 def benchmark(args: argparse.Namespace) -> dict[str, object]:
     root = Path(args.root).resolve()
     db_path = Path(args.db_path) if args.db_path else Path(tempfile.gettempdir()) / "local-mgrep-agent-benchmark.sqlite"
@@ -355,7 +385,12 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
         args.chars_per_token,
     )
     indexed_corpus = count_files(indexed_files, args.chars_per_token)
-    conn, index_seconds = build_index(root, db_path, batch_size=args.batch_size)
+    conn, index_seconds = build_index(
+        root,
+        db_path,
+        batch_size=args.batch_size,
+        reuse_existing=getattr(args, "reuse_index", False),
+    )
     chunks, indexed_db_files = conn.execute("SELECT COUNT(*), COUNT(DISTINCT file) FROM chunks").fetchone()
 
     rows = []
@@ -375,6 +410,9 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             task["question"],
             top_k=args.top_k,
             chars_per_token=args.chars_per_token,
+            rerank=getattr(args, "rerank", True),
+            rerank_pool=getattr(args, "rerank_pool", 50),
+            hyde=getattr(args, "hyde", False),
         )
         grep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(grep_result["context_tokens"])
         mgrep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(mgrep_result["context_tokens"])
@@ -385,12 +423,12 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
                 "expected": expected,
                 "grep": {
                     **grep_result,
-                    "hit": expected in grep_result["paths"],
+                    "hit": _expected_hit(expected, grep_result["paths"]),
                     "estimated_total_tokens": grep_total,
                 },
                 "mgrep": {
                     **mgrep_result,
-                    "hit": expected in mgrep_result["paths"],
+                    "hit": _expected_hit(expected, mgrep_result["paths"]),
                     "estimated_total_tokens": mgrep_total,
                 },
                 "context_token_reduction_x": safe_ratio(
@@ -464,6 +502,27 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fixed-prompt-tokens", type=int, default=1000)
     parser.add_argument("--final-answer-tokens", type=int, default=300)
     parser.add_argument("--summary-only", action="store_true", help="Only print definition, parameters, index, and summary")
+    parser.add_argument("--rerank", dest="rerank", action="store_true", default=True, help="Apply cross-encoder rerank as second stage (default on)")
+    parser.add_argument("--no-rerank", dest="rerank", action="store_false", help="Disable cross-encoder rerank (cosine + lexical only)")
+    parser.add_argument("--rerank-pool", type=int, default=50, help="Candidate pool size before reranking")
+    parser.add_argument(
+        "--reuse-index",
+        action="store_true",
+        help="Reuse the existing DB at --db-path instead of rebuilding (skips re-embedding)",
+    )
+    parser.add_argument(
+        "--hyde",
+        dest="hyde",
+        action="store_true",
+        default=False,
+        help="HyDE: generate a hypothetical code answer with the local LLM and embed that instead of the raw question",
+    )
+    parser.add_argument(
+        "--no-hyde",
+        dest="hyde",
+        action="store_false",
+        help="Disable HyDE (default off)",
+    )
     return parser.parse_args()
 
 

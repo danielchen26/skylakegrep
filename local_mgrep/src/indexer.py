@@ -136,6 +136,61 @@ def collect_indexable_files(path: Path) -> list[Path]:
     return sorted(files)
 
 
+# Regex used by ``extract_symbol`` to recover a representative symbol name
+# from the first lines of a chunk. The patterns are deliberately broad —
+# matching is best-effort and feeds an embedding prefix, not anything that
+# parses code. The first non-empty captured group wins.
+import re as _re
+
+_SYMBOL_RE = _re.compile(
+    r"(?:^|\s)(?:"
+    r"fn\s+([A-Za-z_]\w*)"            # rust fn
+    r"|def\s+([A-Za-z_]\w*)"          # python def
+    r"|function\s+([A-Za-z_]\w*)"     # js / php function
+    r"|class\s+([A-Za-z_]\w*)"        # python / js / ts / java class
+    r"|struct\s+([A-Za-z_]\w*)"       # rust / go struct
+    r"|trait\s+([A-Za-z_]\w*)"        # rust trait
+    r"|impl\s+(?:[\w<>]+\s+for\s+)?([\w<>]+)"  # rust impl
+    r"|enum\s+([A-Za-z_]\w*)"         # rust / ts enum
+    r"|interface\s+([A-Za-z_]\w*)"    # ts / java interface
+    r"|mod\s+([A-Za-z_]\w*)"          # rust mod
+    r"|type\s+([A-Za-z_]\w*)"         # go / ts type
+    r")"
+)
+
+
+def extract_symbol(chunk_text: str) -> str:
+    """Return a short symbol name found in the first lines of ``chunk_text``.
+
+    Used as the ``[symbol: ...]`` field in the chunk-text prefix. Best-effort
+    only; an empty string is fine and just omits the symbol field.
+    """
+
+    for line in chunk_text.splitlines()[:25]:
+        match = _SYMBOL_RE.search(line)
+        if not match:
+            continue
+        for group in match.groups():
+            if group:
+                return group
+    return ""
+
+
+def make_chunk_prefix(relative_path: str, language: str, symbol: str) -> str:
+    """Build the ``[file: ...] [lang: ...] [symbol: ...]`` prefix.
+
+    The prefix is prepended to chunk text before embedding so the embedder
+    can see the path / filename / enclosing symbol — words that frequently
+    bridge the gap between user-language queries (``microphone audio``) and
+    code-vocabulary chunk bodies (``AudioInput::start``).
+    """
+
+    parts = [f"[file: {relative_path}]", f"[lang: {language}]"]
+    if symbol:
+        parts.append(f"[symbol: {symbol}]")
+    return " ".join(parts) + "\n\n"
+
+
 def split_text_chunks(content: str, max_lines: int = 50, max_chars: int = 1000) -> list[dict]:
     chunks = []
     current_lines = []
@@ -179,7 +234,20 @@ def split_text_chunks(content: str, max_lines: int = 50, max_chars: int = 1000) 
         "end_byte": min(len(content.encode("utf8")), max_chars),
     }]
 
-def extract_code_chunks(content: str, language: str, max_lines: int = 50, max_chars: int = 1000) -> list[dict]:
+def extract_code_chunks(content: str, language: str, max_lines: int = 80, max_chars: int = 2000) -> list[dict]:
+    """Emit non-overlapping tree-sitter chunks, preferring the largest fitting node.
+
+    The previous implementation walked the tree unconditionally, so an ``impl``
+    block, every ``fn`` it contained, and large expressions inside those
+    functions were all emitted as separate chunks. Top-k retrieval was then
+    forced to apply a hard ``MAX_RESULTS_PER_FILE = 2`` cap to compensate.
+
+    This walker emits a node only if it fits in ``max_lines`` and ``max_chars``
+    AND ``returns`` rather than recursing — so descendants of an emitted node
+    are skipped. ``max_chars`` is bumped from 1000 → 2000 so we use closer to
+    the embedding model's 512-token (~2000 char) capacity.
+    """
+
     parser = get_parser(language)
     if parser is None:
         return split_text_chunks(content, max_lines=max_lines, max_chars=max_chars)
@@ -188,12 +256,13 @@ def extract_code_chunks(content: str, language: str, max_lines: int = 50, max_ch
     except ValueError:
         return split_text_chunks(content, max_lines=max_lines, max_chars=max_chars)
     chunks = []
+    encoded = content.encode("utf8")
+
     def walk(node):
-        # Check both line count and character count
         line_count = node.end_point[0] - node.start_point[0]
         char_count = node.end_byte - node.start_byte
         if line_count < max_lines and char_count < max_chars:
-            chunk = content.encode()[node.start_byte:node.end_byte].decode("utf8")
+            chunk = encoded[node.start_byte:node.end_byte].decode("utf8", errors="ignore")
             if len(chunk.splitlines()) >= 3:
                 chunks.append({
                     "chunk": chunk,
@@ -202,12 +271,28 @@ def extract_code_chunks(content: str, language: str, max_lines: int = 50, max_ch
                     "start_byte": node.start_byte,
                     "end_byte": node.end_byte,
                 })
+                return  # Largest-fit emit: do not recurse into descendants.
         for child in node.children:
             walk(child)
+
     walk(tree.root_node)
     return chunks or split_text_chunks(content, max_lines=max_lines, max_chars=max_chars)
 
-def prepare_file_chunks(filepath: Path) -> list[dict]:
+def prepare_file_chunks(filepath: Path, root: Path | None = None) -> list[dict]:
+    """Chunk ``filepath`` and prepend a path / language / symbol prefix to each.
+
+    The prefix is the ``[file: …] [lang: …] [symbol: …]`` header from
+    ``make_chunk_prefix``. It is stored as part of the chunk text and sent
+    through the embedder, so a question phrased in user-language can match
+    via the path / filename / symbol tokens even when the chunk body itself
+    uses code-vocabulary that doesn't surface-overlap.
+
+    ``root`` is used to compute the relative path that ends up in the prefix.
+    When ``root`` is ``None`` we fall back to the file's basename, which keeps
+    backward compatibility (existing call sites that don't pass ``root`` still
+    work and still benefit from a partial prefix).
+    """
+
     ext = filepath.suffix.lower()
     if ext not in SUPPORTED_EXTENSIONS:
         return []
@@ -218,11 +303,21 @@ def prepare_file_chunks(filepath: Path) -> list[dict]:
     lang = SUPPORTED_EXTENSIONS[ext]
     chunks = extract_code_chunks(content, lang)
     file_mtime = filepath.stat().st_mtime
+    if root is not None:
+        try:
+            relative_path = filepath.resolve().relative_to(root.resolve()).as_posix()
+        except ValueError:
+            relative_path = filepath.name
+    else:
+        relative_path = filepath.name
     results = []
     for i, chunk in enumerate(chunks):
+        body = chunk["chunk"]
+        symbol = extract_symbol(body)
+        prefix = make_chunk_prefix(relative_path, lang, symbol)
         results.append({
             "file": str(filepath),
-            "chunk": chunk["chunk"],
+            "chunk": prefix + body,
             "language": lang,
             "chunk_index": i,
             "file_mtime": file_mtime,

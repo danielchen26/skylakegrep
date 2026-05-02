@@ -10,8 +10,43 @@ self-contained and reproducible from a fresh clone.
 |---|---|:---:|:---:|:---:|---|
 | 1 | local-mgrep self-test vs **simulated grep-agent** | 30/30 vs 30/30 | **2.00×** | 2.90× | `benchmarks/agent_context_benchmark.py` |
 | 2 | local-mgrep self-test vs **real ripgrep 15.1.0** | 30/30 vs 30/30 | **17.71×** | 32.80× | `benchmarks/parity_vs_ripgrep.py` |
-| 3 | warp cross-repo vs **real ripgrep 15.1.0** | 8/16 vs 16/16 | **868.6×** | 1256.98× | `benchmarks/parity_vs_ripgrep.py --tasks benchmarks/cross_repo/warp.json` |
+| 3 | warp cross-repo vs **real ripgrep 15.1.0**, pre-P0 | 8/16 vs 16/16 | **868.6×** | 1256.98× | `benchmarks/parity_vs_ripgrep.py --tasks benchmarks/cross_repo/warp.json` |
+| 3a | warp cross-repo, **after P0** (nomic-embed-text + cross-encoder rerank) | 9/16 vs 16/16 | **860.4×** | 1239.87× | same script with `--rerank` (default on) |
+| 3b | warp cross-repo, **after P1** (P0 + chunk path/symbol prefix + chunker dedup) | 10/16 vs 16/16 | **528×** | 650× | `--rerank --reuse-index` after re-indexing |
+| 3c | warp cross-repo, **after P2-F (HyDE)** mean across 3 runs | **12/16 mean** (11-13/16 range) vs 16/16 | **524×** | 644× | `--rerank --hyde --reuse-index`; LLM is non-deterministic |
 | 4 | local-mgrep vs **Mixedbread cloud mgrep** | not run (requires manual `mgrep login`) | n/a | n/a | `benchmarks/parity_vs_mixedbread.py` |
+
+### P0–P2 ablation on warp (top-k = 10, pool = 50 unless noted)
+
+| Config | mgrep recall | Notes |
+| --- | :-: | --- |
+| pre-P0: mxbai-embed-large + cosine + token-overlap lexical | 8/16 | benchmark #3 above |
+| P0-B alone: nomic-embed-text + cosine + lexical, no rerank | 9/16 | embedding swap contributes +1 |
+| P0-A + P0-B: nomic-embed-text + cross-encoder rerank, pool 50 | 9/16 | rerank contributes **0** at this pool size |
+| P0-A + P0-B with rerank pool 200 | 9/16 | wider pool does not surface missing answers |
+| P0 + P1-C + P1-E (chunk path/symbol prefix + tree-sitter dedup, max_chars 2000) | **10/16** | path tokens now visible to embedder |
+| P0 + P1 + P2-F (HyDE), 3 runs | **11 / 12 / 13** | LLM-driven hypothetical doc; mean ≈ 12/16, best 13/16 |
+
+**Reading the P0 row.** The rerank stage cannot help when the right file is
+not in the top-N cosine candidate pool to begin with. Inspecting the failing
+queries shows the question is phrased in user-language ("microphone audio
+captured", "subscription tier checked") while the chunk body uses
+code-vocabulary (`AudioInput`, `TierGuard`) with no surface overlap. The
+path / filename carries the only word-level bridge — and the embedder never
+sees it because the chunk text we store is the raw code only.
+
+**Reading the P1 row.** Once each chunk's text is prefixed with
+`[file: …] [lang: …] [symbol: …]`, the embedder finally has a path-token
+anchor and recall lifts to 10/16. The chunker dedup change halves the
+indexed-chunk count (53 382 → 26 454 on warp) without losing recall, because
+emit-and-stop on the largest fitting node prevents redundant nested chunks.
+
+**Reading the P2 row.** HyDE generates a short hypothetical code answer with
+the local LLM (qwen2.5:3b) and combines it with the original question before
+embedding. On warp this lifts mean recall to ~12/16 (best 13/16) but introduces
+non-determinism — the same query can land in a different top-10 across runs
+because the hypothetical doc varies. Switching to a deterministic LLM seed
+or a larger code-aware reasoning model would tighten this.
 
 All benchmarks fix top-k = 10, embedding model = `mxbai-embed-large` (Ollama),
 and chars-per-token = 4. Token reductions are
@@ -188,6 +223,19 @@ embedding model (Mixedbread's hosted embedder + reranker) to a local one
 (Ollama `mxbai-embed-large`, no reranker yet). Until that run exists, this
 repository makes **no claim** of accuracy parity with the original cloud
 mgrep.
+
+## Closing the recall gap — see the roadmap
+
+The 50% warp recall gap above is being addressed by the structured plan in
+[`docs/roadmap.md`](roadmap.md). The first phase (P0) introduces a
+cross-encoder reranker as a second-stage scorer and switches the default
+embedding model to `nomic-embed-text`. Subsequent phases add path / symbol
+chunk prefixes (P1-C), BM25 lexical with column weighting (P1-D), tree-sitter
+chunker dedup (P1-E), HyDE for natural-language queries (P2-F), and an
+asymmetric query / passage prefix lookup (P2-G).
+
+Each phase appends a new row to the headline table above so the recall and
+token-reduction trade-off curve is visible in version control.
 
 ## Limitations and what is intentionally not measured
 
