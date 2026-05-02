@@ -17,6 +17,7 @@ concrete code change, expected lift, and verification step.
 | P1-C (chunk path/symbol prefix) + P1-E (tree-sitter dedup + max_chars 2000) | 10/16 | **DONE** |
 | P1-D (BM25 + path-segment-exact bonus) | 10/16 (no net lift; reverted) | **ABANDONED** — surface-token shape on warp doesn't reward this; LLM-driven HyDE is the better lever |
 | P2-F (HyDE) | 11–13/16 (mean ~12/16) | **DONE** |
+| P2-F+ (deterministic HyDE seed, ``mxbai-rerank-large-v2``, non-canonical path penalty) | **14/16** stable | **DONE** — 2 misses remain (websocket / billing) |
 | P2-G (asymmetric query/document prefixes) | folded into P0-B | **DONE** |
 | P2-H (configurable max-per-file / rerank-pool) | exposed as CLI flags | **DONE** |
 | P3-I (ColBERT late interaction) | not started | future |

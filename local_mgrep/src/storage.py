@@ -16,7 +16,29 @@ logger = logging.getLogger(__name__)
 LEXICAL_WEIGHT = 0.2
 MAX_RESULTS_PER_FILE = 2
 TOKEN_RE = re.compile(r"[a-z0-9]+")
+
+# Path patterns that almost always indicate a non-canonical file: tests,
+# test fixtures, AI safety blocklists, integration helpers, generated bundles.
+# A query like "where is X implemented" wants the implementation, not the
+# tests of X or the blocklist that gates X. Matching these paths multiplies
+# the final score by ``NON_CANONICAL_PATH_FACTOR`` so the penalty scales
+# with the score's magnitude (cross-encoder scores can be 5-15, while cosine
+# scores are 0-1; an absolute subtraction would over-penalise the latter
+# and under-penalise the former).
+_NON_CANONICAL_PATH_PATTERNS = (
+    "_test.rs", "_tests.rs", "_test.py", "_tests.py",
+    "/tests/", "/test/", "_test/", "_tests/",
+    "/blocklist/", "/integration_testing/",
+    "/__tests__/",
+)
+NON_CANONICAL_PATH_FACTOR = 0.5
+
 _dim_warning_emitted = False
+
+
+def _is_non_canonical(path: str) -> bool:
+    lower = path.lower()
+    return any(marker in lower for marker in _NON_CANONICAL_PATH_PATTERNS)
 
 
 CHUNK_METADATA_COLUMNS = {
@@ -309,6 +331,30 @@ def search(
             top_k=None,
             model_name=rerank_model,
         )
+
+    # Non-canonical-path penalty: a multiplicative factor applied AFTER any
+    # rerank step so it composes with both the cosine and the cross-encoder
+    # signals. Files matching ``_test.rs`` / ``/blocklist/`` / etc. are rarely
+    # the canonical answer to "where is X implemented", and removing them
+    # from the top of the result list directly closes the recall gap on
+    # warp queries where the tests of X consistently outranked the
+    # implementation of X.
+    penalised = False
+    for candidate in candidates:
+        if _is_non_canonical(candidate.get("path", "")):
+            current = float(candidate.get("score", 0.0))
+            # Multiplicative on positives, additive shift on negatives so a
+            # negative cross-encoder score still moves further down rather
+            # than closer to zero (which would *raise* its rank).
+            candidate["score"] = (
+                current * NON_CANONICAL_PATH_FACTOR
+                if current >= 0
+                else current - 1.0
+            )
+            candidate["non_canonical"] = True
+            penalised = True
+    if penalised:
+        candidates.sort(key=lambda c: c.get("score", 0.0), reverse=True)
 
     return diversify_results(candidates, top_k)
 

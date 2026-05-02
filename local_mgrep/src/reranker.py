@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 DEFAULT_RERANK_MODEL = os.environ.get(
-    "MGREP_RERANK_MODEL", "mixedbread-ai/mxbai-rerank-base-v2"
+    "MGREP_RERANK_MODEL", "mixedbread-ai/mxbai-rerank-large-v2"
 )
 DEFAULT_RERANK_POOL = int(os.environ.get("MGREP_RERANK_POOL", "50"))
 

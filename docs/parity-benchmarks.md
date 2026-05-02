@@ -14,6 +14,7 @@ self-contained and reproducible from a fresh clone.
 | 3a | warp cross-repo, **after P0** (nomic-embed-text + cross-encoder rerank) | 9/16 vs 16/16 | **860.4×** | 1239.87× | same script with `--rerank` (default on) |
 | 3b | warp cross-repo, **after P1** (P0 + chunk path/symbol prefix + chunker dedup) | 10/16 vs 16/16 | **528×** | 650× | `--rerank --reuse-index` after re-indexing |
 | 3c | warp cross-repo, **after P2-F (HyDE)** mean across 3 runs | **12/16 mean** (11-13/16 range) vs 16/16 | **524×** | 644× | `--rerank --hyde --reuse-index`; LLM is non-deterministic |
+| 3d | warp cross-repo, **after deterministic HyDE + `mxbai-rerank-large-v2`** | **14/16** vs 16/16 | ~525× | ~640× | same script with deterministic LLM seed and the larger reranker; 2 misses remain (websocket / billing) |
 | 4 | local-mgrep vs **Mixedbread cloud mgrep** | not run (requires manual `mgrep login`) | n/a | n/a | `benchmarks/parity_vs_mixedbread.py` |
 
 ### P0–P2 ablation on warp (top-k = 10, pool = 50 unless noted)
@@ -26,6 +27,9 @@ self-contained and reproducible from a fresh clone.
 | P0-A + P0-B with rerank pool 200 | 9/16 | wider pool does not surface missing answers |
 | P0 + P1-C + P1-E (chunk path/symbol prefix + tree-sitter dedup, max_chars 2000) | **10/16** | path tokens now visible to embedder |
 | P0 + P1 + P2-F (HyDE), 3 runs | **11 / 12 / 13** | LLM-driven hypothetical doc; mean ≈ 12/16, best 13/16 |
+| above + deterministic HyDE seed (qwen2.5:3b, temperature 0) | **11/16** stable | non-determinism removed; reproducible runs |
+| above + `mxbai-rerank-large-v2` (Mixedbread cloud's flagship reranker) | **14/16** stable | +3 over deterministic base reranker; same model the cloud product uses |
+| above + non-canonical-path penalty (`/blocklist/`, `_test.rs`, etc., × 0.5) | 14/16 | no measurable lift on warp's task set; kept in code as a small principled guard |
 
 **Reading the P0 row.** The rerank stage cannot help when the right file is
 not in the top-N cosine candidate pool to begin with. Inspecting the failing
