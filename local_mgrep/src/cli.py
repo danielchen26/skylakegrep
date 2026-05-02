@@ -110,6 +110,7 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--hyde/--no-hyde", default=False, help="Use the local LLM to generate a hypothetical code answer for natural-language queries, then embed both the question and that doc (slower; helps recall on user-language queries)")
 @click.option("--multi-resolution/--no-multi-resolution", default=True, help="Two-stage retrieval: pick top-N files by file-level cosine first, then drill into their chunks (helps small canonical files compete against large consumer files)")
 @click.option("--file-top", default=30, type=int, help="Number of files surfaced by file-level retrieval before chunk-level scoring (only used with --multi-resolution)")
+@click.option("--daemon-url", default=None, help="If set, send the search to a running mgrep daemon instead of loading the reranker in-process (eliminates cold-load latency)")
 def search_cmd(
     query: str,
     top: int,
@@ -128,8 +129,44 @@ def search_cmd(
     hyde: bool,
     multi_resolution: bool,
     file_top: int,
+    daemon_url: str,
 ):
     cfg = get_config()
+    if daemon_url:
+        from .server import daemon_search
+
+        start = time.time()
+        try:
+            payload = daemon_search(
+                daemon_url,
+                query,
+                top_k=top,
+                rerank=rerank,
+                rerank_pool=rerank_pool if rerank_pool is not None else cfg["rerank_pool"],
+                multi_resolution=multi_resolution,
+                file_top=file_top,
+                hyde=hyde,
+                languages=tuple(language),
+                include_patterns=tuple(include_patterns),
+                exclude_patterns=tuple(exclude_patterns),
+            )
+        except Exception as exc:
+            click.echo(f"daemon error: {exc}; falling back to in-process search", err=True)
+        else:
+            elapsed = time.time() - start
+            results = payload.get("results", [])
+            if json_output:
+                click.echo(render_json_results(results))
+                return
+            for r in results:
+                line_range = ""
+                if r.get("start_line") and r.get("end_line"):
+                    line_range = f":{r['start_line']}-{r['end_line']}"
+                click.echo(f"\n=== {r['path']}{line_range} (score: {r['score']:.3f}) ===")
+                if content:
+                    click.echo(r["snippet"][:500])
+            click.echo(f"\n[Daemon search completed in {elapsed:.3f}s; daemon-side {payload.get('latency_seconds')}s]")
+            return
     conn = sqlite3.connect(cfg["db_path"])
     embedder = get_embedder(role="query")
     start = time.time()
@@ -239,6 +276,24 @@ def watch(path: str, interval: int):
         except KeyboardInterrupt:
             click.echo("\nStopping watch mode")
             break
+
+@cli.command()
+@click.option("--host", default="127.0.0.1", help="Host to bind the daemon on")
+@click.option("--port", default=7878, type=int, help="Port to bind the daemon on")
+def serve(host: str, port: int):
+    """Run a long-running daemon that holds the reranker + embedder warm.
+
+    A short-lived ``mgrep search`` invocation pays the cross-encoder cold
+    load on every call (~30 s for the large reranker on Mac CPU). This
+    daemon eliminates that cost: start it once, point ``mgrep search
+    --daemon-url http://127.0.0.1:7878`` at it, and per-query latency
+    drops to inference-only (~1-3 s on this hardware).
+    """
+
+    from .server import serve as _serve
+
+    _serve(host=host, port=port)
+
 
 @cli.command()
 def stats():

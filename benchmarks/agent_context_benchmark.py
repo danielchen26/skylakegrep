@@ -325,7 +325,33 @@ def mgrep_agent_context(
     hyde: bool = False,
     multi_resolution: bool = False,
     file_top: int = 30,
+    daemon_url: str | None = None,
 ) -> dict[str, object]:
+    if daemon_url:
+        from local_mgrep.src.server import daemon_search
+
+        started = time.perf_counter()
+        resp = daemon_search(
+            daemon_url,
+            question,
+            top_k=top_k,
+            rerank=rerank,
+            rerank_pool=rerank_pool,
+            multi_resolution=multi_resolution,
+            file_top=file_top,
+            hyde=hyde,
+        )
+        results = resp.get("results", [])
+        payload = json.dumps(results, indent=2)
+        latency = time.perf_counter() - started
+        return {
+            "tool_calls": 1,
+            "paths": [r["path"] for r in results],
+            "context_chars": len(payload),
+            "context_tokens": approximate_tokens(payload, chars_per_token),
+            "latency_seconds": round(latency, 3),
+        }
+
     embedder = get_embedder(role="query") if "role" in get_embedder.__code__.co_varnames else get_embedder()
     started = time.perf_counter()
     if hyde:
@@ -419,6 +445,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             hyde=getattr(args, "hyde", False),
             multi_resolution=getattr(args, "multi_resolution", False),
             file_top=getattr(args, "file_top", 30),
+            daemon_url=getattr(args, "daemon_url", None),
         )
         grep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(grep_result["context_tokens"])
         mgrep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(mgrep_result["context_tokens"])
@@ -543,6 +570,7 @@ def parse_args() -> argparse.Namespace:
         help="Disable two-stage retrieval; chunk-level cosine over the whole index",
     )
     parser.add_argument("--file-top", dest="file_top", type=int, default=30, help="Number of files surfaced by the file-level stage")
+    parser.add_argument("--daemon-url", dest="daemon_url", default=None, help="If set, route every mgrep search through a running mgrep daemon at this URL (skips per-query reranker cold load)")
     return parser.parse_args()
 
 
