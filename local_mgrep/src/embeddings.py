@@ -12,9 +12,18 @@ logger = logging.getLogger(__name__)
 MAX_INPUT_CHARS = 7500
 
 
-def get_embedder():
+def get_embedder(role: str = "document"):
+    """Return an embedder configured for query or document side.
+
+    Models like ``nomic-embed-text`` use asymmetric prefixes
+    (``search_query:`` vs ``search_document:``); they are looked up from
+    ``config.EMBED_PREFIXES``. Models without a documented prefix (e.g.
+    ``mxbai-embed-large``) get an empty prefix and behave as before.
+    """
+
     cfg = get_config()
-    return OllamaEmbedder(cfg["ollama_url"], cfg["embed_model"])
+    prefix = cfg["embed_prefixes"].get(role, "")
+    return OllamaEmbedder(cfg["ollama_url"], cfg["embed_model"], prefix=prefix)
 
 
 def _clip(text: str) -> str:
@@ -24,21 +33,25 @@ def _clip(text: str) -> str:
 
 
 class OllamaEmbedder:
-    def __init__(self, base_url: str, model: str):
+    def __init__(self, base_url: str, model: str, prefix: str = ""):
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self.prefix = prefix
         self._zero_dim: int | None = None
+
+    def _prep(self, text: str) -> str:
+        return f"{self.prefix}{_clip(text)}" if self.prefix else _clip(text)
 
     def _zero_vector(self) -> list[float]:
         if self._zero_dim is None:
-            self._zero_dim = 1024  # mxbai-embed-large default; corrected on first success
+            self._zero_dim = 768  # nomic-embed-text default; corrected on first success
         return [0.0] * self._zero_dim
 
     def embed(self, text: str) -> list[float]:
         try:
             resp = requests.post(
                 f"{self.base_url}/api/embeddings",
-                json={"model": self.model, "prompt": _clip(text)},
+                json={"model": self.model, "prompt": self._prep(text)},
                 timeout=60,
             )
             resp.raise_for_status()
@@ -55,11 +68,11 @@ class OllamaEmbedder:
         return self._zero_vector()
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        clipped = [_clip(t) for t in texts]
+        prepped = [self._prep(t) for t in texts]
         try:
             resp = requests.post(
                 f"{self.base_url}/api/embed",
-                json={"model": self.model, "input": clipped},
+                json={"model": self.model, "input": prepped},
                 timeout=120,
             )
             resp.raise_for_status()
@@ -75,4 +88,4 @@ class OllamaEmbedder:
                 exc,
             )
         # Per-chunk fallback isolates failures to the offending chunk.
-        return [self.embed(t) for t in clipped]
+        return [self.embed(t) for t in texts]

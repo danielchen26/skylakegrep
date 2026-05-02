@@ -79,7 +79,7 @@ def index(path: str, reset: bool, incremental: bool):
     total_chunks = 0
 
     for f in files_to_process:
-        chunks = prepare_file_chunks(f)
+        chunks = prepare_file_chunks(f, root=root)
         if chunks:
             chunks = batch_embed(chunks, embedder, batch_size=10)
             for c in chunks:
@@ -102,6 +102,10 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--agentic", is_flag=True, help="Use local Ollama to split the query into bounded subqueries")
 @click.option("--max-subqueries", default=3, help="Maximum local agentic subqueries")
 @click.option("--semantic-only", is_flag=True, help="Disable local lexical reranking and use pure vector similarity")
+@click.option("--rerank/--no-rerank", default=True, help="Apply cross-encoder reranking (requires sentence-transformers; install with pip install 'local-mgrep[rerank]')")
+@click.option("--rerank-pool", default=None, type=int, help="Candidate pool size before reranking (default 50, env MGREP_RERANK_POOL)")
+@click.option("--rerank-model", default=None, help="HuggingFace cross-encoder model id for reranking")
+@click.option("--hyde/--no-hyde", default=False, help="Use the local LLM to generate a hypothetical code answer for natural-language queries, then embed both the question and that doc (slower; helps recall on user-language queries)")
 def search_cmd(
     query: str,
     top: int,
@@ -114,10 +118,14 @@ def search_cmd(
     agentic: bool,
     max_subqueries: int,
     semantic_only: bool,
+    rerank: bool,
+    rerank_pool: int,
+    rerank_model: str,
+    hyde: bool,
 ):
     cfg = get_config()
     conn = sqlite3.connect(cfg["db_path"])
-    embedder = get_embedder()
+    embedder = get_embedder(role="query")
     start = time.time()
     queries = [query]
     answerer = None
@@ -127,6 +135,11 @@ def search_cmd(
         for subquery in subqueries:
             if subquery not in queries:
                 queries.append(subquery)
+    pool = rerank_pool if rerank_pool is not None else cfg["rerank_pool"]
+    if hyde:
+        if answerer is None:
+            answerer = get_answerer()
+        queries = [answerer.hyde(item) for item in queries]
     result_groups = []
     for item in queries:
         query_embedding = embedder.embed(item)
@@ -140,6 +153,9 @@ def search_cmd(
                 exclude_patterns=tuple(exclude_patterns),
                 query_text=item,
                 semantic_only=semantic_only,
+                rerank=rerank,
+                rerank_pool=pool,
+                rerank_model=rerank_model,
             )
         )
     results = merge_results(result_groups, top)
@@ -195,7 +211,7 @@ def watch(path: str, interval: int):
                 current_mtime = f.stat().st_mtime
                 if f_str in indexed_files:
                     if current_mtime > indexed_files[f_str]:
-                        chunks = prepare_file_chunks(f)
+                        chunks = prepare_file_chunks(f, root=root)
                         if chunks:
                             chunks = batch_embed(chunks, embedder, batch_size=10)
                             for c in chunks:
@@ -204,7 +220,7 @@ def watch(path: str, interval: int):
                             indexed_files[f_str] = current_mtime
                             click.echo(f"  Updated: {f}")
                 else:
-                    chunks = prepare_file_chunks(f)
+                    chunks = prepare_file_chunks(f, root=root)
                     if chunks:
                         chunks = batch_embed(chunks, embedder, batch_size=10)
                         store_chunks_batch(conn, chunks)
@@ -227,3 +243,7 @@ def stats():
 
 def main():
     cli()
+
+
+if __name__ == "__main__":
+    main()

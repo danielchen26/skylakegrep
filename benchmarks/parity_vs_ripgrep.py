@@ -175,7 +175,12 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
         args.chars_per_token,
     )
 
-    conn, index_seconds = build_index(root, db_path, batch_size=args.batch_size)
+    conn, index_seconds = build_index(
+        root,
+        db_path,
+        batch_size=args.batch_size,
+        reuse_existing=getattr(args, "reuse_index", False),
+    )
     chunks, indexed_db_files = conn.execute(
         "SELECT COUNT(*), COUNT(DISTINCT file) FROM chunks"
     ).fetchone()
@@ -197,6 +202,9 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             task["question"],
             top_k=args.top_k,
             chars_per_token=args.chars_per_token,
+            rerank=getattr(args, "rerank", True),
+            rerank_pool=getattr(args, "rerank_pool", 50),
+            hyde=getattr(args, "hyde", False),
         )
         rg_total = (
             args.fixed_prompt_tokens
@@ -257,6 +265,8 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             "rg_context_lines": args.rg_context_lines,
             "fixed_prompt_tokens": args.fixed_prompt_tokens,
             "final_answer_tokens": args.final_answer_tokens,
+            "rerank": getattr(args, "rerank", True),
+            "rerank_pool": getattr(args, "rerank_pool", 50),
         },
         "index": {
             "seconds": round(index_seconds, 3),
@@ -307,6 +317,38 @@ def parse_args() -> argparse.Namespace:
         "--summary-only",
         action="store_true",
         help="Only print definition, parameters, index, and summary",
+    )
+    parser.add_argument(
+        "--rerank",
+        dest="rerank",
+        action="store_true",
+        default=True,
+        help="Apply cross-encoder rerank as second stage (default on)",
+    )
+    parser.add_argument(
+        "--no-rerank",
+        dest="rerank",
+        action="store_false",
+        help="Disable cross-encoder rerank (cosine + lexical only)",
+    )
+    parser.add_argument("--rerank-pool", type=int, default=50, help="Candidate pool size before reranking")
+    parser.add_argument(
+        "--reuse-index",
+        action="store_true",
+        help="Reuse the existing DB at --db-path instead of rebuilding (skips re-embedding)",
+    )
+    parser.add_argument(
+        "--hyde",
+        dest="hyde",
+        action="store_true",
+        default=False,
+        help="HyDE: generate a hypothetical code answer with the local LLM and embed that instead of the raw question",
+    )
+    parser.add_argument(
+        "--no-hyde",
+        dest="hyde",
+        action="store_false",
+        help="Disable HyDE (default off)",
     )
     return parser.parse_args()
 
