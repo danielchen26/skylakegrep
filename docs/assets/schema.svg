@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 580" role="img" aria-labelledby="schema-title schema-desc" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
+  <title id="schema-title">local-mgrep SQLite schema</title>
+  <desc id="schema-desc">Two tables, chunks and vectors, joined 1-to-1 on id. Chunks holds source location and content; vectors holds the dense embedding as a binary BLOB. Two indexes accelerate file lookups.</desc>
+
+  <rect width="1280" height="580" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="60" y="48" font-size="20" font-weight="700" fill="#0f172a">SQLite schema</text>
+  <text x="60" y="74" font-size="13" fill="#475569">
+    File <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">~/.local-mgrep/index.db</tspan> · created by
+    <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">storage.init_db</tspan> ·
+    overridable via <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">$MGREP_DB_PATH</tspan>.
+  </text>
+
+  <!-- ======================== chunks table ======================== -->
+  <g transform="translate(60 110)">
+    <!-- frame -->
+    <rect width="600" height="380" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
+    <!-- header band -->
+    <rect width="600" height="38" rx="6" fill="#0f172a"/>
+    <rect y="32" width="600" height="6" fill="#0f172a"/>
+    <text x="20" y="25" font-size="14" font-weight="700" fill="#ffffff" font-family="ui-monospace, Menlo, Consolas, monospace">chunks</text>
+    <text x="588" y="25" text-anchor="end" font-size="11" fill="#94a3b8">one row per code chunk</text>
+
+    <!-- column headers -->
+    <g font-size="11" fill="#475569" font-weight="700" letter-spacing="1.2">
+      <text x="20" y="62">COLUMN</text>
+      <text x="200" y="62">TYPE</text>
+      <text x="320" y="62">PURPOSE</text>
+    </g>
+    <line x1="0" y1="72" x2="600" y2="72" stroke="#e5e7eb"/>
+
+    <!-- rows -->
+    <g font-size="12" fill="#0f172a" font-family="ui-monospace, Menlo, Consolas, monospace">
+      <text x="20" y="96">id</text>
+      <text x="200" y="96" fill="#475569">INTEGER PK</text>
+      <text x="320" y="96" fill="#0f172a" font-family="ui-sans-serif, system-ui">primary key, joined to vectors.id</text>
+      <line x1="0" y1="108" x2="600" y2="108" stroke="#f1f5f9"/>
+
+      <text x="20" y="128">file</text>
+      <text x="200" y="128" fill="#475569">TEXT</text>
+      <text x="320" y="128" fill="#0f172a" font-family="ui-sans-serif, system-ui">absolute path on the indexing host</text>
+      <line x1="0" y1="140" x2="600" y2="140" stroke="#f1f5f9"/>
+
+      <text x="20" y="160">chunk</text>
+      <text x="200" y="160" fill="#475569">TEXT</text>
+      <text x="320" y="160" fill="#0f172a" font-family="ui-sans-serif, system-ui">verbatim source text returned to the user</text>
+      <line x1="0" y1="172" x2="600" y2="172" stroke="#f1f5f9"/>
+
+      <text x="20" y="192">language</text>
+      <text x="200" y="192" fill="#475569">TEXT</text>
+      <text x="320" y="192" fill="#0f172a" font-family="ui-sans-serif, system-ui">filter and tree-sitter parser key (python, rust, …)</text>
+      <line x1="0" y1="204" x2="600" y2="204" stroke="#f1f5f9"/>
+
+      <text x="20" y="224">chunk_index</text>
+      <text x="200" y="224" fill="#475569">INTEGER</text>
+      <text x="320" y="224" fill="#0f172a" font-family="ui-sans-serif, system-ui">ordinal of chunk within its source file</text>
+      <line x1="0" y1="236" x2="600" y2="236" stroke="#f1f5f9"/>
+
+      <text x="20" y="256">file_mtime</text>
+      <text x="200" y="256" fill="#475569">REAL</text>
+      <text x="320" y="256" fill="#0f172a" font-family="ui-sans-serif, system-ui">file modification time, drives incremental rebuild</text>
+      <line x1="0" y1="268" x2="600" y2="268" stroke="#f1f5f9"/>
+
+      <text x="20" y="288">start_line, end_line</text>
+      <text x="200" y="288" fill="#475569">INTEGER</text>
+      <text x="320" y="288" fill="#0f172a" font-family="ui-sans-serif, system-ui">1-based line range, surfaced in CLI output</text>
+      <line x1="0" y1="300" x2="600" y2="300" stroke="#f1f5f9"/>
+
+      <text x="20" y="320">start_byte, end_byte</text>
+      <text x="200" y="320" fill="#475569">INTEGER</text>
+      <text x="320" y="320" fill="#0f172a" font-family="ui-sans-serif, system-ui">byte offsets, useful for downstream re-extraction</text>
+    </g>
+
+    <!-- index footer -->
+    <rect x="0" y="340" width="600" height="40" rx="0" fill="#f8fafc"/>
+    <text x="20" y="358" font-size="11" font-weight="700" fill="#475569" letter-spacing="1.2">INDEXES</text>
+    <text x="20" y="374" font-size="11.5" fill="#0f172a" font-family="ui-monospace, Menlo, Consolas, monospace">idx_file (file)  ·  idx_file_mtime (file, file_mtime)</text>
+  </g>
+
+  <!-- ======================== vectors table ======================== -->
+  <g transform="translate(720 110)">
+    <rect width="500" height="220" rx="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.25"/>
+    <rect width="500" height="38" rx="6" fill="#0f172a"/>
+    <rect y="32" width="500" height="6" fill="#0f172a"/>
+    <text x="20" y="25" font-size="14" font-weight="700" fill="#ffffff" font-family="ui-monospace, Menlo, Consolas, monospace">vectors</text>
+    <text x="488" y="25" text-anchor="end" font-size="11" fill="#94a3b8">one row per chunk embedding</text>
+
+    <g font-size="11" fill="#475569" font-weight="700" letter-spacing="1.2">
+      <text x="20" y="62">COLUMN</text>
+      <text x="160" y="62">TYPE</text>
+      <text x="280" y="62">PURPOSE</text>
+    </g>
+    <line x1="0" y1="72" x2="500" y2="72" stroke="#e5e7eb"/>
+
+    <g font-size="12" fill="#0f172a" font-family="ui-monospace, Menlo, Consolas, monospace">
+      <text x="20" y="96">id</text>
+      <text x="160" y="96" fill="#475569">INTEGER</text>
+      <text x="280" y="96" fill="#0f172a" font-family="ui-sans-serif, system-ui">references chunks.id (no FK constraint)</text>
+      <line x1="0" y1="108" x2="500" y2="108" stroke="#f1f5f9"/>
+
+      <text x="20" y="128">embedding</text>
+      <text x="160" y="128" fill="#475569">BLOB</text>
+      <text x="280" y="128" fill="#0f172a" font-family="ui-sans-serif, system-ui">contiguous float32 vector of the chunk</text>
+    </g>
+
+    <g font-size="11" fill="#64748b">
+      <text x="20" y="170">Stored via <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">numpy.ndarray.tobytes()</tspan>;</text>
+      <text x="20" y="186">read with <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">numpy.frombuffer(... , dtype=float32)</tspan>.</text>
+      <text x="20" y="204">Vector dimension d is determined by the embedding</text>
+      <text x="20" y="218">model: 1024 for <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">mxbai-embed-large</tspan>.</text>
+    </g>
+  </g>
+
+  <!-- 1:1 join indicator between tables -->
+  <g>
+    <line x1="660" y1="148" x2="720" y2="148" stroke="#0f172a" stroke-width="1.25" stroke-dasharray="4 3"/>
+    <text x="690" y="142" text-anchor="middle" font-size="11" fill="#0f172a" font-family="ui-monospace, Menlo, Consolas, monospace">1 : 1</text>
+    <text x="690" y="160" text-anchor="middle" font-size="10" fill="#64748b" font-family="ui-monospace, Menlo, Consolas, monospace">JOIN ON id</text>
+  </g>
+
+  <!-- ======================== Read path note ======================== -->
+  <g transform="translate(720 360)">
+    <rect width="500" height="148" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+    <text x="20" y="28" font-size="12" font-weight="700" fill="#475569" letter-spacing="1.2">READ PATH</text>
+    <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11.5" fill="#0f172a">
+      <text x="20" y="54">SELECT chunks.id, file, chunk, language,</text>
+      <text x="20" y="70">       start_line, end_line,</text>
+      <text x="20" y="86">       start_byte, end_byte, embedding</text>
+      <text x="20" y="102">  FROM chunks JOIN vectors ON vectors.id = chunks.id</text>
+      <text x="20" y="118">  [WHERE chunks.language IN (...)]</text>
+    </g>
+    <text x="20" y="138" font-size="11" fill="#64748b">A single joined fetch; cosine, lexical scoring, and diversification all run in process.</text>
+  </g>
+
+  <!-- ======================== Write path note ======================== -->
+  <g transform="translate(60 510)">
+    <rect width="1160" height="40" rx="4" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+    <text x="20" y="26" font-size="12" fill="#0f172a">
+      <tspan font-weight="700" letter-spacing="1.2" fill="#475569">WRITE PATH  </tspan>
+      <tspan font-family="ui-monospace, Menlo, Consolas, monospace">store_chunks_batch</tspan>
+      <tspan> inserts a chunks row, then a parallel vectors row keyed by </tspan>
+      <tspan font-family="ui-monospace, Menlo, Consolas, monospace">cursor.lastrowid</tspan>
+      <tspan>; reindex calls </tspan>
+      <tspan font-family="ui-monospace, Menlo, Consolas, monospace">delete_file_chunks</tspan>
+      <tspan> first to keep the join consistent.</tspan>
+    </text>
+  </g>
+</svg>

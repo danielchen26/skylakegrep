@@ -1,76 +1,158 @@
-<svg width="1200" height="560" viewBox="0 0 1200 560" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">local-mgrep benchmark chart</title>
-  <desc id="desc">Benchmark chart showing top-k 10 local-mgrep reached 30 out of 30 expected-file recall and 2.00x estimated total token reduction in a deterministic local context-gathering benchmark.</desc>
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="560" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0B1120"/>
-      <stop offset="1" stop-color="#111827"/>
-    </linearGradient>
-    <linearGradient id="green" x1="0" y1="0" x2="1" y2="0">
-      <stop stop-color="#34D399"/>
-      <stop offset="1" stop-color="#67E8F9"/>
-    </linearGradient>
-    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
-      <stop stop-color="#FDE68A"/>
-      <stop offset="1" stop-color="#F59E0B"/>
-    </linearGradient>
-  </defs>
-  <rect width="1200" height="560" rx="30" fill="url(#bg)"/>
-  <text x="72" y="70" fill="#F8FAFC" font-family="Georgia, 'Times New Roman', serif" font-size="36" font-weight="700">Deterministic local benchmark</text>
-  <text x="72" y="104" fill="#CBD5E1" font-family="ui-sans-serif, system-ui" font-size="17">grep-agent simulation vs one local-mgrep semantic search per task · 30 navigation tasks · tokens approximated as chars/4.</text>
-  <g transform="translate(72 150)" font-family="ui-sans-serif, system-ui">
-    <rect width="320" height="142" rx="24" fill="#0F172A" stroke="#1E293B"/>
-    <text x="26" y="42" fill="#94A3B8" font-size="14" font-weight="700" letter-spacing="1.5">QUALITY</text>
-    <text x="26" y="88" fill="#F8FAFC" font-size="42" font-weight="900">30/30</text>
-    <text x="26" y="118" fill="#CBD5E1" font-size="16">expected-file recall at top-k 10</text>
-    <rect x="230" y="38" width="58" height="58" rx="18" fill="#064E3B"/>
-    <path d="M244 68L255 79L276 53" stroke="#A7F3D0" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="bench-title bench-desc" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
+  <title id="bench-title">local-mgrep deterministic context benchmark</title>
+  <desc id="bench-desc">Combined chart comparing local-mgrep against a grep-agent baseline across top-k values 5, 10, 20, and 50. Bars show estimated total-token reduction and context-token reduction; markers show expected-file recall on a separate right axis.</desc>
+
+  <!-- background -->
+  <rect width="1280" height="720" fill="#ffffff"/>
+
+  <!-- ===== Title block ===== -->
+  <text x="60" y="48" font-size="22" font-weight="700" fill="#0f172a">Context-gathering benchmark, by top-k</text>
+  <text x="60" y="76" font-size="14" fill="#475569">30 repository-navigation tasks · grep-agent simulation as baseline · token volumes estimated as <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">chars / 4</tspan>.</text>
+
+  <!-- ===== Plot frame ===== -->
+  <!-- plot area: x 120..1140, y 130..540 -->
+  <rect x="120" y="130" width="1020" height="410" fill="#ffffff" stroke="#0f172a" stroke-width="1"/>
+
+  <!-- gridlines (token-reduction scale 0..6) -->
+  <g stroke="#e5e7eb" stroke-width="1">
+    <line x1="120" y1="471.67" x2="1140" y2="471.67"/>
+    <line x1="120" y1="403.33" x2="1140" y2="403.33"/>
+    <line x1="120" y1="335.00" x2="1140" y2="335.00"/>
+    <line x1="120" y1="266.67" x2="1140" y2="266.67"/>
+    <line x1="120" y1="198.33" x2="1140" y2="198.33"/>
+    <line x1="120" y1="130.00" x2="1140" y2="130.00"/>
   </g>
-  <g transform="translate(440 150)" font-family="ui-sans-serif, system-ui">
-    <rect width="320" height="142" rx="24" fill="#0F172A" stroke="#1E293B"/>
-    <text x="26" y="42" fill="#94A3B8" font-size="14" font-weight="700" letter-spacing="1.5">EFFICIENCY</text>
-    <text x="26" y="88" fill="#F8FAFC" font-size="42" font-weight="900">2.00×</text>
-    <text x="26" y="118" fill="#CBD5E1" font-size="16">estimated total-token reduction</text>
-    <rect x="226" y="38" width="64" height="58" rx="18" fill="#164E63"/>
-    <text x="242" y="75" fill="#CFFAFE" font-size="30" font-weight="900">×</text>
+
+  <!-- Y-axis left: token reduction -->
+  <g font-size="12" fill="#0f172a" text-anchor="end" font-family="ui-monospace, Menlo, Consolas, monospace">
+    <text x="112" y="544">0×</text>
+    <text x="112" y="475">1×</text>
+    <text x="112" y="407">2×</text>
+    <text x="112" y="339">3×</text>
+    <text x="112" y="270">4×</text>
+    <text x="112" y="202">5×</text>
+    <text x="112" y="134">6×</text>
   </g>
-  <g transform="translate(808 150)" font-family="ui-sans-serif, system-ui">
-    <rect width="320" height="142" rx="24" fill="#0F172A" stroke="#1E293B"/>
-    <text x="26" y="42" fill="#94A3B8" font-size="14" font-weight="700" letter-spacing="1.5">TOOL CALLS</text>
-    <text x="26" y="88" fill="#F8FAFC" font-size="42" font-weight="900">30</text>
-    <text x="94" y="88" fill="#64748B" font-size="30" font-weight="800">vs</text>
-    <text x="148" y="88" fill="#F8FAFC" font-size="42" font-weight="900">227</text>
-    <text x="26" y="118" fill="#CBD5E1" font-size="16">mgrep-agent vs grep-agent</text>
+  <text x="48" y="335" font-size="12" font-weight="700" fill="#0f172a" transform="rotate(-90 48 335)" text-anchor="middle">Token reduction vs grep-agent (×)</text>
+
+  <!-- Y-axis right: recall (0..30) -->
+  <g font-size="12" fill="#0f172a" text-anchor="start" font-family="ui-monospace, Menlo, Consolas, monospace">
+    <text x="1148" y="544">0</text>
+    <text x="1148" y="475">5</text>
+    <text x="1148" y="407">10</text>
+    <text x="1148" y="339">15</text>
+    <text x="1148" y="270">20</text>
+    <text x="1148" y="202">25</text>
+    <text x="1148" y="134">30</text>
   </g>
-  <g transform="translate(90 340)" font-family="ui-sans-serif, system-ui">
-    <text x="0" y="0" fill="#E2E8F0" font-size="18" font-weight="800">Recall / savings by top-k</text>
-    <g transform="translate(0 36)">
-      <text x="0" y="18" fill="#94A3B8" font-size="14">k=5</text>
-      <rect x="78" y="2" width="448" height="22" rx="11" fill="#1E293B"/>
-      <rect x="78" y="2" width="418" height="22" rx="11" fill="url(#green)"/>
-      <text x="548" y="19" fill="#E2E8F0" font-size="14">28/30 recall</text>
-      <rect x="726" y="2" width="260" height="22" rx="11" fill="#1E293B"/>
-      <rect x="726" y="2" width="260" height="22" rx="11" fill="url(#gold)"/>
-      <text x="1008" y="19" fill="#E2E8F0" font-size="14">2.66×</text>
-    </g>
-    <g transform="translate(0 82)">
-      <text x="0" y="18" fill="#94A3B8" font-size="14">k=10</text>
-      <rect x="78" y="2" width="448" height="22" rx="11" fill="#1E293B"/>
-      <rect x="78" y="2" width="448" height="22" rx="11" fill="url(#green)"/>
-      <text x="548" y="19" fill="#E2E8F0" font-size="14">30/30 recall</text>
-      <rect x="726" y="2" width="260" height="22" rx="11" fill="#1E293B"/>
-      <rect x="726" y="2" width="195" height="22" rx="11" fill="url(#gold)"/>
-      <text x="1008" y="19" fill="#E2E8F0" font-size="14">2.00×</text>
-    </g>
-    <g transform="translate(0 128)">
-      <text x="0" y="18" fill="#94A3B8" font-size="14">k=20</text>
-      <rect x="78" y="2" width="448" height="22" rx="11" fill="#1E293B"/>
-      <rect x="78" y="2" width="448" height="22" rx="11" fill="url(#green)"/>
-      <text x="548" y="19" fill="#E2E8F0" font-size="14">30/30 recall</text>
-      <rect x="726" y="2" width="260" height="22" rx="11" fill="#1E293B"/>
-      <rect x="726" y="2" width="133" height="22" rx="11" fill="url(#gold)"/>
-      <text x="1008" y="19" fill="#E2E8F0" font-size="14">1.36×</text>
-    </g>
+  <text x="1228" y="335" font-size="12" font-weight="700" fill="#0f172a" transform="rotate(90 1228 335)" text-anchor="middle">Expected-file recall (out of 30)</text>
+
+  <!-- ===== Reference lines ===== -->
+  <!-- 1× parity line (token reduction) -->
+  <line x1="120" y1="471.67" x2="1140" y2="471.67" stroke="#dc2626" stroke-width="1.25" stroke-dasharray="6 4"/>
+  <text x="1140" y="465" text-anchor="end" font-size="11" font-weight="700" fill="#dc2626" font-family="ui-monospace, Menlo, Consolas, monospace">1× parity</text>
+
+  <!-- 30/30 recall ceiling -->
+  <line x1="120" y1="130" x2="1140" y2="130" stroke="#0f766e" stroke-width="1.25" stroke-dasharray="6 4"/>
+  <text x="1140" y="124" text-anchor="end" font-size="11" font-weight="700" fill="#0f766e" font-family="ui-monospace, Menlo, Consolas, monospace">30/30 ceiling</text>
+
+  <!-- ===== Bars =====
+       4 categories at slot centers x = 247.5, 502.5, 757.5, 1012.5
+       Each slot has two bars: width 60, gap 8, so offsets -64..-4 and +4..+64 from center.
+       Heights: pixel = (value / 6) * 410
+       Plot bottom y = 540
+  -->
+
+  <!-- k=5 -->
+  <!-- total = 2.66 → 181.77 → top = 358.23 -->
+  <rect x="183.5" y="358.23" width="60" height="181.77" fill="#0f172a"/>
+  <text x="213.5" y="350" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a" font-family="ui-monospace, Menlo, Consolas, monospace">2.66×</text>
+  <!-- context = 5.53 → 377.88 → top = 162.12 -->
+  <rect x="251.5" y="162.12" width="60" height="377.88" fill="#94a3b8"/>
+  <text x="281.5" y="154" text-anchor="middle" font-size="12" font-weight="700" fill="#475569" font-family="ui-monospace, Menlo, Consolas, monospace">5.53×</text>
+
+  <!-- k=10 -->
+  <!-- total = 2.00 → 136.67 → top = 403.33 -->
+  <rect x="438.5" y="403.33" width="60" height="136.67" fill="#0f172a"/>
+  <text x="468.5" y="395" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a" font-family="ui-monospace, Menlo, Consolas, monospace">2.00×</text>
+  <!-- context = 2.90 → 198.17 → top = 341.83 -->
+  <rect x="506.5" y="341.83" width="60" height="198.17" fill="#94a3b8"/>
+  <text x="536.5" y="333" text-anchor="middle" font-size="12" font-weight="700" fill="#475569" font-family="ui-monospace, Menlo, Consolas, monospace">2.90×</text>
+
+  <!-- k=20 -->
+  <!-- total = 1.36 → 92.93 → top = 447.07 -->
+  <rect x="693.5" y="447.07" width="60" height="92.93" fill="#0f172a"/>
+  <text x="723.5" y="439" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a" font-family="ui-monospace, Menlo, Consolas, monospace">1.36×</text>
+  <!-- context = 1.53 → 104.55 → top = 435.45 -->
+  <rect x="761.5" y="435.45" width="60" height="104.55" fill="#94a3b8"/>
+  <text x="791.5" y="427" text-anchor="middle" font-size="12" font-weight="700" fill="#475569" font-family="ui-monospace, Menlo, Consolas, monospace">1.53×</text>
+
+  <!-- k=50 -->
+  <!-- total = 0.67 → 45.78 → top = 494.22 -->
+  <rect x="948.5" y="494.22" width="60" height="45.78" fill="#0f172a"/>
+  <text x="978.5" y="486" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a" font-family="ui-monospace, Menlo, Consolas, monospace">0.67×</text>
+  <!-- context = 0.60 → 41.00 → top = 499.00 -->
+  <rect x="1016.5" y="499.00" width="60" height="41.00" fill="#94a3b8"/>
+  <text x="1046.5" y="491" text-anchor="middle" font-size="12" font-weight="700" fill="#475569" font-family="ui-monospace, Menlo, Consolas, monospace">0.60×</text>
+
+  <!-- ===== Recall markers (right scale) =====
+       recall pixel y = 540 - (recall / 30) * 410
+       k=5  recall 28 → 540 - 382.67 = 157.33
+       k=10 recall 30 → 540 - 410    = 130
+       k=20 recall 30 → 130
+       k=50 recall 30 → 130
+  -->
+  <g fill="#0f766e">
+    <circle cx="247.5" cy="157.33" r="6"/>
+    <circle cx="502.5" cy="130" r="6"/>
+    <circle cx="757.5" cy="130" r="6"/>
+    <circle cx="1012.5" cy="130" r="6"/>
   </g>
-  <text x="72" y="526" fill="#94A3B8" font-family="ui-sans-serif, system-ui" font-size="13">Note: benchmark is deterministic and local. It is not provider billing data or a full answer-quality evaluation.</text>
+  <!-- connecting line between recall points -->
+  <polyline points="247.5,157.33 502.5,130 757.5,130 1012.5,130" fill="none" stroke="#0f766e" stroke-width="1.5"/>
+  <!-- recall labels -->
+  <g font-size="11" font-weight="700" fill="#0f766e" font-family="ui-monospace, Menlo, Consolas, monospace" text-anchor="middle">
+    <text x="247.5" y="146">28/30</text>
+    <text x="502.5" y="119">30/30</text>
+    <text x="757.5" y="119">30/30</text>
+    <text x="1012.5" y="119">30/30</text>
+  </g>
+
+  <!-- ===== X-axis labels ===== -->
+  <g font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">
+    <text x="247.5" y="566">k = 5</text>
+    <text x="502.5" y="566">k = 10</text>
+    <text x="757.5" y="566">k = 20</text>
+    <text x="1012.5" y="566">k = 50</text>
+  </g>
+  <text x="630" y="592" font-size="12" fill="#475569" text-anchor="middle">top-k retrieved chunks per query</text>
+
+  <!-- recommended-default annotation under k=10 -->
+  <g transform="translate(450 600)">
+    <rect width="105" height="20" rx="3" fill="#0f172a"/>
+    <text x="52.5" y="14" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">current default</text>
+  </g>
+
+  <!-- ===== Legend ===== -->
+  <g transform="translate(160 638)" font-size="12" fill="#0f172a">
+    <rect width="14" height="14" fill="#0f172a"/>
+    <text x="22" y="11">Estimated total-token reduction</text>
+
+    <rect x="280" width="14" height="14" fill="#94a3b8"/>
+    <text x="302" y="11">Context-token reduction (top-k JSON only)</text>
+
+    <circle cx="640" cy="7" r="6" fill="#0f766e"/>
+    <text x="654" y="11">Expected-file recall (right axis, /30)</text>
+
+    <line x1="940" y1="7" x2="970" y2="7" stroke="#dc2626" stroke-width="1.25" stroke-dasharray="6 4"/>
+    <text x="978" y="11">parity reference (1×)</text>
+  </g>
+
+  <!-- ===== Footnote ===== -->
+  <text x="60" y="688" font-size="11.5" fill="#64748b">
+    Source: <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#0f172a">benchmarks/agent_context_benchmark.py --top-k {5,10,20,50} --summary-only</tspan>, run on the local-mgrep repository at v0.2.0.
+  </text>
+  <text x="60" y="706" font-size="11.5" fill="#64748b">
+    Total-token reduction includes a fixed grep-agent prompt-and-overhead estimate; context-token reduction counts retrieved JSON only. This is a deterministic local benchmark, not provider billing data.
+  </text>
 </svg>
