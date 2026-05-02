@@ -35,12 +35,12 @@
   <g font-size="11" font-weight="700" letter-spacing="2" fill="#22d3ee">
     <text x="48" y="52">INDEX TIME</text>
     <text x="48" y="354">STORAGE</text>
-    <text x="48" y="566">QUERY TIME</text>
+    <text x="48" y="596">QUERY TIME</text>
   </g>
   <g font-size="12" fill="#a1a1aa">
     <text x="166" y="52">offline · invoked by <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">mgrep index</tspan> and <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">mgrep watch</tspan></text>
     <text x="138" y="354">on-disk SQLite at <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">$MGREP_DB_PATH</tspan> · default <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">~/.local-mgrep/index.db</tspan></text>
-    <text x="170" y="566">per call · invoked by <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">mgrep search</tspan></text>
+    <text x="170" y="596">per call · invoked by <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">mgrep search</tspan></text>
   </g>
 
   <!-- ===== INDEX TIME lane ===== -->
@@ -115,11 +115,12 @@
   </g>
   <text x="852" y="294" font-size="11" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">writes</text>
 
-  <!-- arrow from storage up out (read by query lane) -->
+  <!-- arrow from storage down into query lane (mirrors the "writes" arrow:
+       starts at the chunks table bottom edge and ends at the top of the Score box) -->
   <g stroke="rgba(255,255,255,0.30)" stroke-width="1.25" fill="none" marker-end="url(#arr)">
-    <path d="M436 504 V 644 H 488"/>
+    <path d="M484 568 V 600"/>
   </g>
-  <text x="444" y="554" font-size="11" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">reads</text>
+  <text x="496" y="592" font-size="11" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">reads</text>
 
   <!-- ===== STORAGE lane ===== -->
   <!-- chunks table -->
