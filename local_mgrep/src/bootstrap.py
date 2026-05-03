@@ -79,13 +79,18 @@ def list_local_models(base_url: str, timeout: float = 5.0) -> list[str]:
 
 
 def _model_present(installed: Iterable[str], wanted: str) -> bool:
-    """Match ``nomic-embed-text`` against ``nomic-embed-text:latest``."""
-    wanted_base = wanted.split(":", 1)[0]
-    for m in installed:
-        base = m.split(":", 1)[0]
-        if m == wanted or base == wanted_base:
-            return True
-    return False
+    """Tag-aware match: ``nomic-embed-text`` matches
+    ``nomic-embed-text:latest``, but ``qwen2.5:1.5b`` does NOT match
+    ``qwen2.5:3b`` because Ollama treats those as separate model files.
+
+    Rule: if ``wanted`` carries an explicit tag, require an exact name
+    match. If ``wanted`` is bare (no colon), accept either an exact match
+    or ``<wanted>:latest`` since Ollama's API treats those equivalently.
+    """
+    if ":" in wanted:
+        return wanted in installed
+    target_latest = f"{wanted}:latest"
+    return wanted in installed or target_latest in installed
 
 
 def pull_model(model: str, *, base_url: str | None = None, stream: bool = True) -> bool:

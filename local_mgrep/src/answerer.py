@@ -4,6 +4,28 @@ import requests
 from .config import get_config
 
 
+def _coerce_keep_alive(v):
+    """Convert a config-provided keep_alive value into the JSON shape
+    Ollama actually accepts. Ollama wants either an integer (seconds;
+    negative = keep forever, 0 = unload immediately) or a duration
+    string (``"5m"``, ``"1h"``). Strings that are pure numbers
+    (e.g. ``"-1"``) are 400 Bad Request, so we coerce them to int.
+    Returns ``None`` for empty / ``None`` so the caller can omit the
+    key and let Ollama use its default (~5 min).
+    """
+    if v is None:
+        return None
+    if isinstance(v, int):
+        return v
+    s = str(v).strip()
+    if not s:
+        return None
+    try:
+        return int(s)
+    except ValueError:
+        return s
+
+
 def get_answerer():
     cfg = get_config()
     return OllamaAnswerer(
@@ -42,8 +64,9 @@ class OllamaAnswerer:
             "stream": False,
             "options": options if options is not None else self._options(),
         }
-        if self.keep_alive is not None and self.keep_alive != "":
-            payload["keep_alive"] = self.keep_alive
+        ka = _coerce_keep_alive(self.keep_alive)
+        if ka is not None:
+            payload["keep_alive"] = ka
         return payload
 
     def hyde(self, query: str, language_hint: str = "") -> str:

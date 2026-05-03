@@ -11,13 +11,15 @@ DEFAULT_OLLAMA_URL = "http://localhost:11434"
 # search time and require ``mgrep index <repo> --reset``.
 DEFAULT_EMBED_MODEL = "nomic-embed-text"
 DEFAULT_LLM_MODEL = "qwen2.5:3b"
-# HyDE / cascade-escalation use a smaller model by default — the LLM job is
-# "write a short plausible code snippet matching the question's intent",
-# which a 1.5B-class model handles competently and 3-5× faster on Mac CPU
-# than the 3B used for ``--answer``. Override with ``OLLAMA_HYDE_MODEL`` to
-# pin a specific model. If the configured model is missing locally the
-# answerer falls back transparently to ``llm_model``.
-DEFAULT_HYDE_MODEL = "qwen2.5:1.5b"
+# HyDE / cascade-escalation default. We keep the same 3B model used by
+# ``--answer`` because empirical <repo-D> 16-task benchmarking showed that
+# smaller (qwen2.5:1.5b) drops recall by 1 task (the
+# ``app/src/command_palette.rs`` query: HyDE-generated keystroke /
+# command-palette identifiers are less plausible from the smaller
+# model). Users who prefer faster cascade-escalations can set
+# ``OLLAMA_HYDE_MODEL=qwen2.5:1.5b`` explicitly: ~30 % per-query
+# speedup at the cost of one task on <repo-D>.
+DEFAULT_HYDE_MODEL = "qwen2.5:3b"
 # Ollama keep-alive: -1 keeps a model resident indefinitely after the first
 # load, which is what we want for an interactive CLI — the next query in
 # the same shell session no longer pays a 5-10 s cold-load. Override with a

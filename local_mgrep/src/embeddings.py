@@ -1,5 +1,6 @@
 import logging
 import requests
+from .answerer import _coerce_keep_alive
 from .config import get_config
 
 logger = logging.getLogger(__name__)
@@ -64,8 +65,9 @@ class OllamaEmbedder:
         return [0.0] * self._zero_dim
 
     def _maybe_keep_alive(self, payload: dict) -> dict:
-        if self.keep_alive:
-            payload["keep_alive"] = self.keep_alive
+        ka = _coerce_keep_alive(self.keep_alive)
+        if ka is not None:
+            payload["keep_alive"] = ka
         return payload
 
     def embed(self, text: str) -> list[float]:

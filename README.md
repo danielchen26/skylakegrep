@@ -11,219 +11,194 @@
 </p>
 
 <p align="center">
-  <a href="https://danielchen26.github.io/local-mgrep/"><b>Documentation</b></a>
-  &nbsp;·&nbsp;
   <a href="#quickstart"><b>Quickstart</b></a>
   &nbsp;·&nbsp;
-  <a href="#architecture"><b>Architecture</b></a>
+  <a href="#in-30-seconds"><b>30s demo</b></a>
   &nbsp;·&nbsp;
-  <a href="#benchmark"><b>Benchmark</b></a>
+  <a href="#performance"><b>Performance</b></a>
+  &nbsp;·&nbsp;
+  <a href="#how-it-works"><b>How it works</b></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/danielchen26/local-mgrep/releases"><b>Releases</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/danielchen26/local-mgrep/issues"><b>Issues</b></a>
+  <a href="https://danielchen26.github.io/local-mgrep/"><b>Docs</b></a>
 </p>
 
 ---
 
-## Overview
+`mgrep` is a fully-offline semantic code-search CLI for natural-language
+questions about your codebase. **Ask in plain English, get the right file
+and line range.** Indexing, retrieval, and optional answer synthesis all
+run locally against your own Ollama server. No remote service, no
+subscription, no data leaves your machine.
 
-`local-mgrep` is an offline semantic code-search CLI built around a four-stage
-retrieval pipeline:
+## In 30 seconds
 
-1. **Lexical prefilter (ripgrep).** Up to eight literal tokens are extracted
-   from the natural-language query and ripgrep narrows the corpus to files
-   containing any of them. Typically reduces the chunk scan ~100×.
-2. **Multi-resolution cosine.** A file-level embedding (mean of chunk
-   vectors, computed at index time) picks the top files; chunk-level cosine
-   then runs only inside those files.
-3. **Confidence-gated cascade (default).** When the cheap file-mean
-   retrieval has a clear top-1, we return immediately. Only uncertain
-   queries pay the LLM-driven escalation (cosine + file-rank ∪
-   HyDE-rewritten cosine + file-rank, score-preserved union). Pass
-   `--no-cascade` to fall back to the chunk-only path.
-4. **Optional cross-encoder rerank.** On the non-cascade path, an
-   `mxbai-rerank-*-v2` cross-encoder reorders the top candidate pool;
-   non-canonical paths (tests, blocklists) get a multiplicative penalty.
+```console
+$ pip install local-mgrep
+$ ollama pull nomic-embed-text qwen2.5:1.5b qwen2.5:3b   # one-time
+$ cd ~/your-project
 
-A first-time query against a project completes in well under a second
-via a ripgrep fallback while a detached background process builds the
-semantic index. Subsequent queries hit the full cascade with an
-mtime-based incremental refresh on every search (throttled, so back-to-
-back queries don't pay it). Indexing, retrieval, optional answer
-synthesis (`--answer`), and optional agentic decomposition (`--agentic`)
-all run on the local host against a local Ollama server. No remote service
-is required for the core workflow.
+$ mgrep "where is the cascade tau threshold defined?"
+=== local_mgrep/src/storage.py:578-602 (score: 0.781) ===
+CASCADE_DEFAULT_TAU = 0.015
 
-Each result carries the file path, an inclusive 1-based line range, the
-detected language, the score, and the verbatim source text — rendered as
-text, JSON (`--json`), or as a synthesized answer over the local Ollama
-generation model.
+def cascade_search(...
+[0.51s · cascade=cheap (gap=0.020 τ=0.015) · index 20s ago · 36 files · L2 symbols on · graph prior on]
+```
 
-Latest stable release notes: [v0.6.0](https://github.com/danielchen26/local-mgrep/releases/latest) — smaller default HyDE model + `keep_alive=-1` drop average <repo-D> latency from ~3 s/q to ~1 s/q on Mac CPU at unchanged 16/16 recall.
+That is the entire happy path. **First query in a fresh project completes
+in under 1 s** via a ripgrep fallback while a background process builds
+the semantic index. Every query after that uses the full cascade with a
+local LLM kept warm in memory.
 
 ## Quickstart
 
 ```bash
 pip install local-mgrep
+ollama pull nomic-embed-text qwen2.5:1.5b qwen2.5:3b   # ~3 GB total
+cd /your/project
 
-# Ask. First query in a fresh project: < 1 s via ripgrep fallback.
-# A detached background process builds the semantic index in parallel.
-mgrep "where is the auth token refreshed?"
-
-# A minute later, the next query uses the full semantic cascade.
-mgrep "..."
+mgrep "<your question>"
+mgrep doctor                # verify runtime + models + index
+mgrep stats                 # show current project's index info
 ```
 
-That is the entire happy path. `mgrep` derives the project root from `git
-rev-parse --show-toplevel` (falling back to the current working directory),
-maintains a per-project index under `~/.local-mgrep/repos/`, and runs the
-confidence-gated cascade by default for retrieval. The first query in any
-project never blocks: while the semantic index builds in the background,
-ripgrep returns top files immediately and the status line tells you which
-mode produced the results. If Ollama is not yet installed or the embedding
-model is missing, the CLI prints an actionable one-line setup hint instead
-of failing silently.
+`mgrep` derives the project root from `git rev-parse --show-toplevel`
+(falling back to the working directory) and keeps a per-project index
+under `~/.local-mgrep/repos/`. Subcommand names (`index`, `doctor`,
+`stats`, `watch`, `serve`) take precedence — anything else is treated as
+a query, so `mgrep "stats and metrics"` (quoted) is unambiguous.
 
-Health-check the setup at any time:
+## Performance
 
-```bash
-mgrep doctor
+Measured on a Mac M-series CPU, no GPU, against the
+`<repo-D>-terminal/<repo-D>` Rust workspace (≈3 K files, ≈26 K chunks). Recall
+counts a query as a hit when at least one of the top-10 returned chunks
+matches the canonical answer dirs. See
+[`docs/parity-benchmarks.md`](docs/parity-benchmarks.md) for the full
+methodology and `benchmarks/cross_repo/<repo-D>.json` for the labels.
+
+| Tier | What it does | Recall (<repo-D> 16) | Cold first query | Warm avg s/q |
+| --- | --- | :-: | :-: | :-: |
+| **cascade** ⭐ default | rg prefilter → file-mean cosine → escalate to HyDE only when uncertain | **16 / 16** | ~10 s (Ollama loads) | **2.0 s** |
+| cascade-cheap | early-exit only, no LLM call | 11 / 16 | <1 s | <0.2 s |
+| cascade + small HyDE (`OLLAMA_HYDE_MODEL=qwen2.5:1.5b`) | uses 1.5 B for HyDE — faster, slightly lower recall | 15 / 16 | ~5 s | **2.0 s** |
+| chunk + rerank | classic chunk cosine + cross-encoder rerank | 11 / 16 | ~10 s + 30 s reranker load | ~10 s |
+| ripgrep raw | `rg -il -F` token-OR (file membership only) | 16 / 16 | <1 s | <1 s |
+
+The cascade is bimodal by design: ~80 % of queries take the cheap path
+(file-mean cosine, no LLM call) and complete in under 200 ms warm; the
+remaining ~20 % escalate to a HyDE-augmented retrieval and complete in
+the 1–2 s band. With Ollama models kept resident in memory
+(`OLLAMA_KEEP_ALIVE=-1`, the 0.6.0 default) the second query in a shell
+session no longer pays the 5–10 s Ollama cold-load.
+
+A second [self-test benchmark](docs/token-benchmarking.md) compares
+`mgrep` against a simulated grep agent over 30 navigation tasks against
+this repo: 30 / 30 recall at top-k 10 with **2× total-token reduction**
+and **2.9× context-token reduction** vs the agent baseline.
+
+## How it works
+
+```
+your query
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 1.  ripgrep prefilter      Fast surface-token narrowing          │
+│ 2.  file-mean cosine       Rank files by mean of chunk vectors   │
+│ 3.  cascade decision       Confident? return cheap. Else escalate│
+│ 4.  HyDE escalation        LLM rewrites query → cosine union     │
+│ 5.  symbol + graph         Tree-sitter symbol boost + PageRank   │
+│     (L2 + L4)              tiebreaker on near-tied candidates    │
+└─────────────────────────────────────────────────────────────────┘
+    │
+    ▼
+top-K chunks (path · line range · score · snippet)
 ```
 
-Common follow-ups:
+Each layer is **offline-paid and query-time-free where possible**:
+embeddings are precomputed at index time, symbol extraction runs once
+per project, the file-export PageRank is one regex pass over the corpus.
+Only the cascade's HyDE-escalation path makes a query-time LLM call, and
+it only runs on the ~20 % of queries the cheap path is uncertain about.
 
-```bash
-mgrep "where is the SQLite schema initialized?" --json    # machine-readable
-mgrep "how does indexing remove deleted files?" --answer  # local Ollama answer
-mgrep "..." --agentic --max-subqueries 3 --answer         # bounded subquery decomposition
-mgrep "..." --no-cascade --rerank                         # legacy chunk + rerank path
-mgrep stats                                               # current project's index info
-mgrep index .                                             # explicit reindex (rarely needed)
-mgrep serve &                                             # warm-reranker daemon
-mgrep "..." --daemon-url http://127.0.0.1:7878            # query against the daemon
-```
+The full architecture diagram and module-by-module walk-through is at
+[`docs/local-mgrep-0.6.0.md`](docs/local-mgrep-0.6.0.md) and
+[`docs/roadmap.md`](docs/roadmap.md).
 
-Full CLI reference and configuration: <https://danielchen26.github.io/local-mgrep/>.
+## When to use what
 
-## Architecture
+| You want | Use |
+| --- | --- |
+| Find code by concept ("how does X work?") | `mgrep "<query>"` |
+| Find code with a known token | `rg <token>` (it's faster, no setup) |
+| Synthesize an answer with citations | `mgrep "<query>" --answer` |
+| Decompose a broad question | `mgrep "<query>" --agentic --max-subqueries 3 --answer` |
+| Machine-readable output for an agent | `mgrep "<query>" --json` |
+| Re-rank candidates with a cross-encoder | `mgrep "<query>" --no-cascade --rerank` |
+| Continuously index a watched dir | `mgrep watch /path` |
+| Keep the cross-encoder warm across queries | `mgrep serve & ; mgrep "<q>" --daemon-url http://127.0.0.1:7878` |
 
-<p align="center">
-  <img alt="local-mgrep system architecture: three lanes for index time, storage, and query time" src="docs/assets/architecture.svg" width="100%">
-</p>
+## Configuration
 
-The index pipeline (`mgrep index`, `mgrep watch`) and the query pipeline
-(`mgrep search`) communicate only through a SQLite database stored at
-`$MGREP_DB_PATH`. The two pipelines share no in-process state and can run
-on different hosts as long as they point at the same database file. The
-index pipeline additionally populates a `files` table at index time
-(L2-normalised mean of chunk vectors per file) so the query path can do
-file-level retrieval without re-scanning chunks.
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `OLLAMA_URL` | `http://localhost:11434` | Ollama server URL. |
+| `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Embedding model. Switching requires `mgrep index --reset`. |
+| `OLLAMA_LLM_MODEL` | `qwen2.5:3b` | Used for `--answer` and `--agentic`. |
+| `OLLAMA_HYDE_MODEL` | `qwen2.5:3b` | Used for cascade-escalation HyDE. Falls back to `OLLAMA_LLM_MODEL` if not installed. Set to `qwen2.5:1.5b` for ~30 % speedup at the cost of 1 task on <repo-D> 16-task. |
+| `OLLAMA_KEEP_ALIVE` | `-1` | Passed to every Ollama call. `-1` keeps models resident indefinitely (recommended). |
+| `MGREP_DB_PATH` | per-project | When set, mgrep treats the index as curated and disables auto-mutation. |
+| `MGREP_AUTO_PULL` | unset | Set `yes` to auto-`ollama pull` missing models without prompting. |
+| `MGREP_AUTO_REFRESH_THROTTLE_SECONDS` | `30` | Skip the mtime scan if the previous refresh ran more recently. |
+| `MGREP_RERANK_MODEL` | `mixedbread-ai/mxbai-rerank-large-v2` | Cross-encoder for `--rerank`. |
+| `MGREP_RERANK_POOL` | `50` | Candidate pool before reranking. |
 
-Three retrieval tiers are exposed:
+## Releases
 
-| Tier | Command | Recall (<repo-D> 16) | Avg s/q (Mac CPU) | Notes |
-| --- | --- | :-: | :-: | --- |
-| cascade (default) | `mgrep "<query>"` | 16/16 (with corrected labels) | ~3 s on <repo-D> / 0.1-0.3 s on smaller projects | confidence-gated; ~80% of queries take cheap path |
-| chunk + rerank | `mgrep "<query>" --no-cascade --rerank` | 11/16 | 9.5 | adds `mxbai-rerank-base-v2` cross-encoder |
-| chunk-only | `mgrep "<query>" --no-cascade --no-rerank` | 9/16 | 0.52 | rg prefilter + cosine + file-rank only |
+Each release ships with comprehensive notes covering the architecture
+change, benchmark deltas, compatibility notes, and download artifacts.
+Browse them at
+<https://github.com/danielchen26/local-mgrep/releases> — the latest is
+also [installable from PyPI](https://pypi.org/project/local-mgrep/).
 
-The full set of internal modules is documented at
-<https://danielchen26.github.io/local-mgrep/#architecture>.
+The full sequence so far:
 
-## Capability matrix
-
-| Capability | Status | Since | Notes |
-| --- | --- | --- | --- |
-| Semantic code search via local Ollama | implemented | 0.1.0 | No remote service required. |
-| Tree-sitter chunking | implemented | 0.2.0 | Languages with installed grammars; line-window fallback otherwise. |
-| `.gitignore` / `.mgrepignore` hygiene | implemented | 0.2.0 | Plus a built-in skip-set for common build/cache directories. |
-| Incremental indexing | implemented | 0.2.0 | mtime-based; reindexes new and changed files. |
-| Stale row cleanup | implemented | 0.2.0 | Removes rows for files no longer present beneath the indexed root. |
-| Watch mode | implemented | 0.2.0 | Polling loop; default interval 5 seconds. |
-| Hybrid lexical + semantic ranking | implemented | 0.2.0 | Disable with `--semantic-only` for pure cosine. |
-| Stable JSON output | implemented | 0.2.0 | See [JSON schema](https://danielchen26.github.io/local-mgrep/#json-schema). |
-| Local answer mode | implemented | 0.2.0 | Uses local Ollama generation model. |
-| Local agentic decomposition | implemented | 0.2.0 | Bounded subquery expansion via Ollama. |
-| Cross-encoder rerank | implemented | 0.3.0 | `--rerank` (default on); models: `mxbai-rerank-base-v2` (default), `mxbai-rerank-large-v2` (`MGREP_RERANK_MODEL`). |
-| Asymmetric query/document prefixes | implemented | 0.3.0 | Auto-applied for `nomic-embed-text` and similar. |
-| HyDE query rewriting | implemented | 0.3.0 | `--hyde`; deterministic seed, single Ollama generation. |
-| Multi-resolution retrieval | implemented | 0.3.0 | File-level cosine top-N → chunk-level inside those files (default on). |
-| Lexical prefilter (ripgrep first stage) | implemented | 0.3.0 | `--lexical-prefilter` (default on); `--lexical-root`, `--lexical-min-candidates`. |
-| File-rank (one chunk per file) | implemented | 0.3.0 | `--rank-by file`; collapses results so small canonical files compete fairly. |
-| Daemon mode (warm reranker) | implemented | 0.3.0 | `mgrep serve` + `--daemon-url`; eliminates ~5–10 s cold-load per call. |
-| Quantisation / device knobs | implemented | 0.3.0 | `MGREP_RERANK_QUANTIZE=int8`, `MGREP_RERANK_DEVICE=auto/mps/cpu`. |
-| Confidence-gated cascade | implemented | 0.3.0 (default in 0.4.0) | Default on; gates expensive escalation on a top-1 / top-2 score gap. `--no-cascade` to disable. See [Benchmark](#benchmark). |
-| Bare-form invocation (`mgrep "<q>"`) | implemented | 0.4.0 | Routes to `search` automatically; subcommand names still win for `index/watch/serve/stats/doctor`. |
-| Per-project auto-index | implemented | 0.4.0 | First query in a project triggers one-time index; subsequent queries do mtime-based incremental refresh (30 s throttle). Set `MGREP_DB_PATH` to opt out. |
-| Ripgrep fallback for the first query | implemented | 0.4.1 | Fresh-project query returns ~0.7 s rg results while semantic indexer runs detached in the background. |
-| Symbol-aware indexing | implemented | 0.5.0 | Tree-sitter extracts function/struct/class/module names; query terms that match symbol identifiers add a small additive boost. CamelCase split lets natural-language queries hit PascalCase identifiers. |
-| doc2query chunk enrichment | implemented | 0.5.0 | Opt-in `mgrep enrich` runs a one-time background LLM pass that adds a one-sentence high-level description per chunk; the description is folded into the chunk's embedding so query-time HyDE becomes unnecessary. Resumable via the `enriched_at` column. |
-| File-export PageRank tiebreaker | implemented | 0.5.0 | Per-file in-degree / out-degree / PageRank populated from regex-parsed imports across Rust / Python / TS / JS. Applied at query time **only** when the top-1 and top-2 final scores are within ε; clear winners are never flipped. |
-| Bootstrap probes (`mgrep doctor`) | implemented | 0.4.0 | Health check of Ollama runtime, embed/LLM model presence, project index state, optional reranker. |
-| Hosted account / cloud index | out of scope | — | Not planned. |
-| Paid web search | out of scope | — | Not planned. |
-
-## Benchmark
-
-Two reproducible benchmarks ship in this repository.
-
-### 1. <repo-D> 16-task cross-repo benchmark (the headline)
-
-Measured on Mac CPU, no daemon, cold reranker amortised over 16 tasks. The
-test set is a held-out collection of natural-language queries against the
-`<repo-D>-terminal/<repo-D>` Rust workspace; the canonical answers are subdirectory
-paths (e.g. `crates/voice_input/`). Recall counts a query as a hit when at
-least one returned chunk lives under the canonical subdirectory.
-
-| Tier | Command | Recall | Avg s/q |
-| --- | --- | :-: | :-: |
-| ultra-fast | `mgrep "..." --cascade-tau 0.0` | 11/16 | 0.10 |
-| chunk-only | `mgrep "..." --no-cascade --no-rerank` | 9/16 | 0.52 |
-| chunk + rerank | `mgrep "..." --no-cascade --rerank` | 11/16 | 9.5 |
-| cascade (default) | `mgrep "..."` | 14/16 | 1.49 |
-| ripgrep raw recall | `rg -il -F` token-OR | 16/16 | 0.1 |
-
-At the default τ=0.015 the cascade's cheap file-mean path handles ~81% of
-queries; the remaining ~19% pay the HyDE-union escalation. Two queries
-(`crates/ai/`, `app/src/billing/`) currently miss across every tested
-configuration — hard semantic-disambiguation cases discussed in
-[`docs/roadmap.md`](docs/roadmap.md). Full τ sweep, methodology, and the
-ablation tables (including the abandoned LLM-arbitration, code-graph, and
-multi-HyDE experiments) live in
-[`docs/parity-benchmarks.md`](docs/parity-benchmarks.md).
-
-### 2. local-mgrep self-test (regression guard)
-
-<p align="center">
-  <img alt="Bar chart: token reduction and recall vs grep-agent across top-k 5, 10, 20, 50" src="docs/assets/benchmark.svg" width="100%">
-</p>
-
-Deterministic local benchmark over 30 repository-navigation tasks. Compares
-a single `mgrep search` call against a grep-agent simulation. Token volumes
-are estimated as `chars / 4`.
-
-| top-k | recall (mgrep) | recall (grep) | total-token reduction | context-token reduction |
-| ----: | :------------- | :------------ | :-------------------- | :---------------------- |
-| 5     | 28 / 30        | 30 / 30       | 2.66×                 | 5.53×                   |
-| **10** | **30 / 30**    | **30 / 30**   | **2.00×**             | **2.90×**               |
-| 20    | 30 / 30        | 30 / 30       | 1.36×                 | 1.53×                   |
-| 50    | 30 / 30        | 30 / 30       | 0.67×                 | 0.60×                   |
-
-This is the regression guard — every release is verified to keep 30/30 at
-top-k 10. Full methodology and limitations are in
-[`docs/token-benchmarking.md`](docs/token-benchmarking.md).
+  - **0.6.1** — Ollama `keep_alive=-1` correctness fix (was sending
+    string ``"-1"`` causing 400 Bad Request); HyDE default model
+    reverted to ``qwen2.5:3b`` after the <repo-D> benchmark showed
+    ``qwen2.5:1.5b`` cost 1 task in recall; tag-aware model presence
+    check in ``mgrep doctor`` (no more false-positives when only
+    a different tag of the same base name is installed).
+  - **0.6.0** — introduced ``OLLAMA_HYDE_MODEL`` and Ollama
+    ``keep_alive`` plumbing; superseded by 0.6.1 for default
+    correctness.
+  - **0.5.1** — cascade file-mean cosine corpus-wide; <repo-D> benchmark
+    relabeled to acceptable-alternatives form (16/16 with corrected
+    labels).
+  - **0.5.0** — symbol-aware indexing, doc2query enrichment, file-export
+    PageRank tiebreaker.
+  - **0.4.1** — ripgrep fallback for the first query in a fresh project.
+  - **0.4.0** — bare-form `mgrep "<query>"`, per-project auto-index,
+    `mgrep doctor`, cascade default.
+  - **0.3.0–0.3.1** — confidence-gated cascade.
+  - **0.2.0** — vectorized retrieval, lexical reranker, agentic
+    decomposition.
+  - **0.1.0** — initial release.
 
 ## CLI reference
 
-```bash
-mgrep        QUERY  [OPTIONS]                            # bare-form search (default)
-mgrep search QUERY  [OPTIONS]                            # explicit search
-mgrep doctor                                             # runtime + model + index health check
-mgrep stats                                              # print chunk and file counts
-mgrep index  [PATH] [--reset] [--incremental/--full]    # explicit reindex (auto on first query)
-mgrep watch  [PATH] --interval N                        # poll for changes (default 5s)
-mgrep serve  [--host H] [--port P]                      # run daemon (keeps reranker warm)
+```
+mgrep "<query>" [OPTIONS]                 # bare-form search
+mgrep search   "<query>" [OPTIONS]        # explicit search
+mgrep doctor                              # health check
+mgrep stats                               # project index info
+mgrep index    [PATH] [--reset]           # explicit reindex
+mgrep watch    [PATH] --interval N        # poll for changes
+mgrep serve    [--host H] [--port P]      # warm-reranker daemon
+mgrep enrich   [--max N] [--batch B]      # opt-in doc2query enrichment
 ```
 
 <details>
@@ -238,51 +213,64 @@ mgrep serve  [--host H] [--port P]                      # run daemon (keeps rera
 | `--answer` | off | Synthesize an answer from retrieved snippets via Ollama. |
 | `--content / --no-content` | on | Show or hide snippet bodies in human output. |
 | `--language` | — | Restrict to one or more language keys; repeatable. |
-| `--include` | — | Glob; only paths matching at least one pattern are kept; repeatable. |
-| `--exclude` | — | Glob; paths matching any pattern are dropped; repeatable. |
-| `--semantic-only` | off | Skip lexical reranking; rank by cosine alone. |
-| `--rerank / --no-rerank` | on | Apply cross-encoder rerank when `sentence-transformers` is installed. |
-| `--rerank-pool` | 50 | Candidate pool size before reranking (env `MGREP_RERANK_POOL`). |
-| `--rerank-model` | env or default | HuggingFace cross-encoder id (env `MGREP_RERANK_MODEL`). |
-| `--hyde / --no-hyde` | off | Generate a hypothetical-document via local Ollama LLM and embed both the query and the doc. |
-| `--multi-resolution / --no-multi-resolution` | on | Two-stage retrieval: file-level cosine top-N, then chunk-level inside those. |
-| `--file-top` | 30 | Number of files surfaced by file-level retrieval before chunk-level scoring. |
-| `--lexical-prefilter / --no-lexical-prefilter` | on | Use ripgrep to narrow the candidate file set before cosine + rerank. |
-| `--lexical-root` | cwd | Root directory ripgrep scans for the lexical prefilter. |
+| `--include` / `--exclude` | — | Glob filter (repeatable). |
+| `--cascade / --no-cascade` | on | Confidence-gated retrieval. Off = chunk-only legacy path. |
+| `--cascade-tau` | 0.015 | Top-1 / top-2 file-mean cosine gap above which to early-exit. |
+| `--rerank / --no-rerank` | on | Cross-encoder rerank on the non-cascade path. |
+| `--rerank-pool` | 50 | Candidate pool before reranking. |
+| `--rerank-model` | env or default | HuggingFace cross-encoder id. |
+| `--hyde / --no-hyde` | off | Force HyDE outside the cascade (rare; cascade decides per query). |
+| `--multi-resolution / --no-multi-resolution` | on | File-level cosine top-N → chunk-level inside those files. |
+| `--file-top` | 30 | Files surfaced by file-level retrieval. |
+| `--lexical-prefilter / --no-lexical-prefilter` | on | Use ripgrep to narrow the candidate file set. |
+| `--lexical-root` | cwd / git toplevel | Root directory ripgrep scans. |
 | `--lexical-min-candidates` | 2 | Fall back to corpus-wide cosine when ripgrep returns fewer files. |
-| `--rank-by` | `chunk` | `chunk` (per-file diversity cap) or `file` (one best chunk per file, sorted by score). |
-| `--cascade / --no-cascade` | on | Confidence-gated retrieval (cheap path + HyDE-union escalation). On by default since 0.4.0. |
-| `--cascade-tau` | 0.015 | Confidence threshold (top-1 minus top-2 file-mean cosine). |
-| `--auto-index / --no-auto-index` | on | Auto-build the index on first query and refresh on mtime change. Off when `MGREP_DB_PATH` is set externally. |
-| `--daemon-url` | — | Send the search to a running `mgrep serve` daemon (warm reranker). |
-| `--agentic` | off | Decompose the query into subqueries via Ollama before search. |
+| `--rank-by` | `chunk` | `chunk` (per-file diversity cap) or `file` (one chunk per file). |
+| `--auto-index / --no-auto-index` | on | Auto-build the index on first query and refresh on mtime change. |
+| `--daemon-url` | — | Send the search to a running `mgrep serve` daemon. |
+| `--agentic` | off | Decompose into subqueries via Ollama before search. |
 | `--max-subqueries` | 3 | Upper bound on agentic subqueries. |
+| `--semantic-only` | off | Skip lexical reranking; rank by cosine alone. |
 
 </details>
 
-## Configuration
+<details>
+<summary><b>Capability matrix (every feature, when introduced)</b></summary>
 
-| Variable | Default | Effect |
-| --- | --- | --- |
-| `OLLAMA_URL` | `http://localhost:11434` | Base URL of the Ollama server. |
-| `OLLAMA_EMBED_MODEL` | `mxbai-embed-large` | Embedding model used at index time and query time. `nomic-embed-text` is the recommended alternative for code. |
-| `OLLAMA_LLM_MODEL` | `qwen2.5:3b` | Generation model used by `--answer`, `--agentic`, `--hyde`, and the cascade escalation. |
-| `MGREP_DB_PATH` | `~/.local-mgrep/index.db` | SQLite index location. |
-| `MGREP_RERANK_MODEL` | `mixedbread-ai/mxbai-rerank-base-v2` | Cross-encoder model id. Try `mxbai-rerank-large-v2` for +1 recall at ~2× latency. |
-| `MGREP_RERANK_POOL` | 50 | Candidate pool size before reranking. |
-| `MGREP_RERANK_QUANTIZE` | — | Set `int8` for x86_64 CPUs with VNNI; no benefit on Apple Silicon. |
-| `MGREP_RERANK_DEVICE` | `auto` | `auto`, `mps`, or `cpu`. |
+<br>
 
-> **Note.** Switching `OLLAMA_EMBED_MODEL` after indexing produces a
-> dimension or semantic mismatch. Reindex with `--reset` after changing the
-> embedding model.
+| Capability | Since |
+| --- | --- |
+| Semantic code search via local Ollama | 0.1.0 |
+| Tree-sitter chunking + line-window fallback | 0.2.0 |
+| `.gitignore` / `.mgrepignore` hygiene | 0.2.0 |
+| Incremental indexing (mtime-based) | 0.2.0 |
+| Stale row cleanup | 0.2.0 |
+| Watch mode | 0.2.0 |
+| Hybrid lexical + semantic ranking | 0.2.0 |
+| Stable JSON output | 0.2.0 |
+| Local answer mode | 0.2.0 |
+| Local agentic decomposition | 0.2.0 |
+| Cross-encoder rerank | 0.3.0 |
+| Asymmetric query/document embedding prefixes | 0.3.0 |
+| HyDE query rewriting | 0.3.0 |
+| Multi-resolution retrieval | 0.3.0 |
+| Lexical prefilter (ripgrep first stage) | 0.3.0 |
+| File-rank (one chunk per file) | 0.3.0 |
+| Daemon mode | 0.3.0 |
+| Quantisation / device knobs | 0.3.0 |
+| Confidence-gated cascade | 0.3.0 (default in 0.4.0) |
+| Bare-form invocation `mgrep "<q>"` | 0.4.0 |
+| Per-project auto-index | 0.4.0 |
+| `mgrep doctor` health check | 0.4.0 |
+| Ripgrep fallback for first query | 0.4.1 |
+| Symbol-aware indexing (L2) | 0.5.0 |
+| doc2query enrichment (L3, opt-in via `mgrep enrich`) | 0.5.0 |
+| File-export PageRank tiebreaker (L4) | 0.5.0 |
+| Cascade file-mean cosine corpus-wide | 0.5.1 |
+| Smaller default HyDE model + `keep_alive=-1` | 0.6.0 |
 
-## Releases
-
-Every released version has a comprehensive entry on the
-[GitHub Releases page](https://github.com/danielchen26/local-mgrep/releases)
-covering architecture changes, benchmark deltas, and compatibility notes.
-Each release is also published to PyPI.
+</details>
 
 ## Development
 
@@ -309,6 +297,6 @@ MIT — see [`LICENSE`](LICENSE).
 - [Ollama](https://ollama.com/) for the local embedding and generation runtime.
 - [tree-sitter](https://tree-sitter.github.io/tree-sitter/) for syntax-aware parsing.
 - [ripgrep](https://github.com/BurntSushi/ripgrep) for the lexical prefilter stage.
-- [Mixedbread](https://www.mixedbread.com/) for the open-source `mxbai-rerank-*-v2`
-  cross-encoder family used by `--rerank`.
+- [Mixedbread](https://www.mixedbread.com/) for the open-source `mxbai-rerank-*-v2` cross-encoder family.
+- [nomic-embed-text](https://www.nomic.ai/blog/posts/nomic-embed-text-v1) for the embedding model.
 - Click, NumPy, and SQLite for the core runtime dependencies.
