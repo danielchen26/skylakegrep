@@ -326,6 +326,9 @@ def mgrep_agent_context(
     multi_resolution: bool = False,
     file_top: int = 30,
     daemon_url: str | None = None,
+    lexical_prefilter: bool = True,
+    lexical_root: Path | None = None,
+    lexical_min_candidates: int = 2,
 ) -> dict[str, object]:
     if daemon_url:
         from local_mgrep.src.server import daemon_search
@@ -362,6 +365,13 @@ def mgrep_agent_context(
             embed_input = question
     else:
         embed_input = question
+    candidate_paths = None
+    if lexical_prefilter and lexical_root is not None:
+        from local_mgrep.src.hybrid import lexical_candidate_paths
+
+        cands = lexical_candidate_paths(question, lexical_root)
+        if len(cands) >= lexical_min_candidates:
+            candidate_paths = cands
     results = search(
         conn,
         embedder.embed(embed_input),
@@ -371,6 +381,7 @@ def mgrep_agent_context(
         rerank_pool=rerank_pool,
         multi_resolution=multi_resolution,
         file_top=file_top,
+        candidate_paths=candidate_paths,
     )
     payload = render_json_results(results)
     return {
@@ -446,6 +457,9 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             multi_resolution=getattr(args, "multi_resolution", False),
             file_top=getattr(args, "file_top", 30),
             daemon_url=getattr(args, "daemon_url", None),
+            lexical_prefilter=getattr(args, "lexical_prefilter", True),
+            lexical_root=Path(args.root).resolve() if getattr(args, "lexical_prefilter", True) else None,
+            lexical_min_candidates=getattr(args, "lexical_min_candidates", 2),
         )
         grep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(grep_result["context_tokens"])
         mgrep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(mgrep_result["context_tokens"])
@@ -571,6 +585,20 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--file-top", dest="file_top", type=int, default=30, help="Number of files surfaced by the file-level stage")
     parser.add_argument("--daemon-url", dest="daemon_url", default=None, help="If set, route every mgrep search through a running mgrep daemon at this URL (skips per-query reranker cold load)")
+    parser.add_argument(
+        "--lexical-prefilter",
+        dest="lexical_prefilter",
+        action="store_true",
+        default=True,
+        help="Use ripgrep to narrow the candidate file set before cosine + rerank (default on)",
+    )
+    parser.add_argument(
+        "--no-lexical-prefilter",
+        dest="lexical_prefilter",
+        action="store_false",
+        help="Disable the ripgrep prefilter; cosine over the full corpus",
+    )
+    parser.add_argument("--lexical-min-candidates", dest="lexical_min_candidates", type=int, default=2, help="Fall back to corpus-wide cosine when ripgrep returns fewer than this many candidate files")
     return parser.parse_args()
 
 

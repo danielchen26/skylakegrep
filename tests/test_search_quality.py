@@ -123,7 +123,7 @@ class SearchQualityTests(unittest.TestCase):
             os.environ["MGREP_DB_PATH"] = str(db_path)
             try:
                 with patch.object(cli_module, "get_embedder", return_value=StaticEmbedder()):
-                    result = runner.invoke(cli_module.cli, ["search", "token", "--json", "--no-rerank"])
+                    result = runner.invoke(cli_module.cli, ["search", "--no-lexical-prefilter", "token", "--json", "--no-rerank"])
             finally:
                 if old_db_path is None:
                     os.environ.pop("MGREP_DB_PATH", None)

@@ -43,6 +43,52 @@ is favourable: the daily-driver tier now lands at **10/16 @ 8.1 s**, the
 accurate tier at **13/16 @ 25.3 s**, and the maximum-accuracy tier
 (disable multi-res) at **14/16 @ 54 s**.
 
+### Lexical prefilter (the new default first stage)
+
+The architecture was redrawn so that ripgrep is now the **first** stage of
+the pipeline, not just a benchmark baseline. ``mgrep search`` extracts up
+to 8 literal tokens from the query, asks ``rg -il -F`` for files
+containing any of them, and restricts the cosine + rerank stages to chunks
+of those files only. Empirically on warp:
+
+| Config (with ``--lexical-prefilter`` on, multi-resolution intersected) | recall | avg latency / query |
+| --- | :-: | :-: |
+| **cosine + no rerank** ⭐ | **9/16** | **0.52 s** |
+| cosine + ``mxbai-rerank-base-v2`` | 10/16 | 7.4 s |
+| cosine + ``mxbai-rerank-large-v2`` + HyDE | 13/16 | 23.0 s |
+
+For comparison, the old chunk-only architecture (no prefilter) on the same
+machine and index hit:
+
+| Config (no prefilter) | recall | avg latency / query |
+| --- | :-: | :-: |
+| multi-resolution + base + no HyDE | 10/16 | 8.1 s |
+| multi-resolution + large + HyDE | 13/16 | 25.3 s |
+| chunk-only + large + HyDE | 14 / 16 | 54 s |
+
+**The big win is the daily-driver tier dropping from 8 s to 0.5 s (16×
+faster) at one fewer recall point**. For workflows that do many short
+queries against a large index, this is the relevant change. The
+maximum-accuracy tier still pays cross-encoder + LLM time and stays at
+13–14 / 16; the prefilter doesn't free those configs much because the
+remaining cost is rerank inference, not corpus scan.
+
+**Why the prefilter doesn't reach 16/16.** ripgrep alone in raw output
+already gets 16/16 file-set membership (its 0.43 s is the recall ceiling
+on this task set), but the search pipeline still has to compress that
+file set down to 10 chunk-level results, and on some queries the
+canonical file's chunks rank below other rg-candidate chunks under
+cosine. This is a chunk-ranking issue inside the prefilter set, not a
+prefilter recall failure. Closing it requires either reranking the file
+set instead of chunks (so each canonical file gets at least one slot) or
+using BM25 over the prefilter set rather than cosine.
+
+The prefilter is on by default (``--no-lexical-prefilter`` to disable);
+the candidate root defaults to the working directory and can be set with
+``--lexical-root``. When ripgrep returns fewer than ``--lexical-min-candidates``
+files (default 2), the search falls back to corpus-wide cosine — the
+escape hatch for queries with no usable surface-level overlap.
+
 ### Quantisation and device probe (Mac CPU / MPS)
 
 We added ``MGREP_RERANK_QUANTIZE=int8`` (torch dynamic quantisation of
