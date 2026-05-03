@@ -9,6 +9,7 @@ The Markdown files here are reference companions to that site.
 | File | Purpose |
 | --- | --- |
 | [`index.html`](index.html) | Rendered documentation site (published as <https://danielchen26.github.io/local-mgrep/>). |
+| [`local-mgrep-0.3.0.md`](local-mgrep-0.3.0.md) | Release notes for 0.3.0: confidence-gated cascade (`--cascade`), benchmark sweep, null-result findings. |
 | [`local-mgrep-0.2.0.md`](local-mgrep-0.2.0.md) | Capability guide for the 0.2.0 release: indexing, ranking, output modes, configuration. |
 | [`token-benchmarking.md`](token-benchmarking.md) | Methodology and full results for the deterministic context-gathering benchmark. |
 | [`assets/`](assets) | SVG figures referenced by the site and the project README. |
@@ -16,9 +17,11 @@ The Markdown files here are reference companions to that site.
 ## Reading order
 
 1. The [project README](../README.md) for installation and a one-page summary.
-2. [`local-mgrep-0.2.0.md`](local-mgrep-0.2.0.md) for what the 0.2.0 release
+2. [`local-mgrep-0.3.0.md`](local-mgrep-0.3.0.md) for the latest release
+   notes (`--cascade` retrieval, benchmark deltas, null-result findings).
+3. [`local-mgrep-0.2.0.md`](local-mgrep-0.2.0.md) for what the 0.2.0 release
    implements and how each component is invoked.
-3. [`token-benchmarking.md`](token-benchmarking.md) for the benchmark protocol,
+4. [`token-benchmarking.md`](token-benchmarking.md) for the benchmark protocol,
    limitations, and the conditions under which the published numbers are valid.
 
 ## Architecture at a glance
