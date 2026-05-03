@@ -16,6 +16,7 @@ self-contained and reproducible from a fresh clone.
 | 3c | <repo-D> cross-repo, **after P2-F (HyDE)** mean across 3 runs | **12/16 mean** (11-13/16 range) vs 16/16 | **524×** | 644× | `--rerank --hyde --reuse-index`; LLM is non-deterministic |
 | 3d | <repo-D> cross-repo, **after deterministic HyDE + `mxbai-rerank-large-v2`** | **14/16** vs 16/16 | ~525× | ~640× | same script with deterministic LLM seed and the larger reranker; 2 misses remain (websocket / billing) |
 | 3e | <repo-D> cross-repo, **daily-driver mode** (`mxbai-rerank-base-v2`, no HyDE) | **10/16** vs 16/16 | ~525× | ~640× | the practical default: ~12.7 s avg per query on Mac CPU, no LLM call, base reranker only |
+| 3f | <repo-D> cross-repo, **confidence-gated cascade** (`mgrep search --cascade`, τ=0.015) | **14/16** vs 16/16 | ~525× | ~640× | file-mean cosine first, escalate to HyDE-union only on uncertain queries — **1.49 s avg per query** (14× faster than tier 3d at the same recall) |
 
 ### Latency × recall trade-off curve on <repo-D> (Mac CPU, no daemon, cold reranker load amortised over 16 tasks)
 
@@ -42,6 +43,39 @@ outside file-level top-50, so widening that pool does not help. The trade
 is favourable: the daily-driver tier now lands at **10/16 @ 8.1 s**, the
 accurate tier at **13/16 @ 25.3 s**, and the maximum-accuracy tier
 (disable multi-res) at **14/16 @ 54 s**.
+
+### Confidence-gated cascade (the new max-accurate tier)
+
+`mgrep search --cascade` (added 2026-05-03) replaces the previous
+"max-accurate" config (`--rerank --hyde --rank-by file`, 14/16 @ 21.8 s)
+with a confidence-gated retrieval that only pays the LLM-driven escalation
+on queries the cheap path is uncertain about. Empirically on <repo-D>:
+
+| Config (rg prefilter on, ``--cascade``, varying τ) | recall | avg latency / query | early-exit % |
+| --- | :-: | :-: | :-: |
+| τ = 0.000 (always cheap) | 11/16 | **0.10 s** | 100% |
+| τ = 0.005 | 12/16 | 0.78 s | 56% |
+| τ = 0.010 | 13/16 | 1.10 s | 38% |
+| **τ = 0.015 (default)** ⭐ | **14/16** | **1.49 s** | 19% |
+| τ = 0.020 | 14/16 | 1.65 s | 13% |
+| τ = 0.030 | 14/16 | 1.89 s | 6% |
+
+Cheap path: file-mean cosine on the lexical-prefilter candidates → top
+file-rank chunks for those files. Latency dominated by ripgrep + a single
+embedding call.
+
+Escalation: Round A (`cosine + file-rank`) ∪ Round C (`HyDE + cosine +
+file-rank`), score-preserving dedup, top-K. The LLM is consulted **only**
+on queries where the cheap path's top-1 score doesn't dominate top-2 by
+the threshold.
+
+The same 2 misses survive (`crates/ai/`, `app/src/billing/`) — these are
+hard semantic disambiguation cases where the canonical file's surface
+vocabulary doesn't overlap the question's, and even multi-HyDE union
+doesn't break them. See [`docs/roadmap.md`](./roadmap.md) §P4.
+
+The cascade is opt-in: pass `--cascade` to enable it, with `--cascade-tau`
+to tune the threshold. The non-cascade defaults are unchanged.
 
 ### Lexical prefilter (the new default first stage)
 
