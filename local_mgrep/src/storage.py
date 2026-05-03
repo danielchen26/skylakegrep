@@ -309,6 +309,24 @@ def path_matches(path: str, include_patterns: tuple[str, ...], exclude_patterns:
     return True
 
 
+def _file_rank(candidates: list[dict], top_k: int) -> list[dict]:
+    """Return one best-scoring chunk per file, sorted by that score.
+
+    Each file contributes exactly one slot to the result list. Within a file
+    the chunk with the highest ``score`` wins. Files are then ordered by their
+    best-chunk score and the top-K are returned.
+
+    This is the ``rank_by="file"`` path in ``search()``.
+    """
+    best: dict[str, dict] = {}
+    for candidate in candidates:
+        path = candidate["path"]
+        if path not in best or candidate["score"] > best[path]["score"]:
+            best[path] = candidate
+    ranked = sorted(best.values(), key=lambda c: c["score"], reverse=True)
+    return ranked[:top_k]
+
+
 def search(
     conn,
     query_embedding: list[float],
@@ -324,13 +342,22 @@ def search(
     multi_resolution: bool = False,
     file_top: int = 30,
     candidate_paths: Optional[set[str]] = None,
+    rank_by: str = "chunk",
 ) -> list[dict]:
-    """Hybrid retrieval with optional cross-encoder rerank.
+    """Hybrid retrieval with optional cross-encoder rerank and file ranking.
 
     When ``rerank`` is True and ``query_text`` is provided, the cosine + lexical
     blend selects a wider candidate pool of size ``rerank_pool`` (default 50),
     which is then re-ordered by a cross-encoder reranker. The reranker is
     skipped silently if the optional dep ``sentence-transformers`` is missing.
+
+    When ``rank_by="file"``, after all scoring and reranking each file
+    contributes exactly one slot (its highest-scoring chunk) to the final
+    result. Files are then sorted by that best-chunk score and the top-K
+    are returned. This prevents files with many chunks from dominating
+    top-K and improves recall for small canonical files. When
+    ``rank_by="chunk"`` (the default), the existing diversify_results
+    path is used unchanged.
     """
 
     global _dim_warning_emitted
@@ -473,6 +500,8 @@ def search(
     if penalised:
         candidates.sort(key=lambda c: c.get("score", 0.0), reverse=True)
 
+    if rank_by == "file":
+        return _file_rank(candidates, top_k)
     return diversify_results(candidates, top_k)
 
 def get_indexed_files(conn) -> dict:

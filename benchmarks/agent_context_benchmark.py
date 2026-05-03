@@ -329,6 +329,7 @@ def mgrep_agent_context(
     lexical_prefilter: bool = True,
     lexical_root: Path | None = None,
     lexical_min_candidates: int = 2,
+    rank_by: str = "chunk",
 ) -> dict[str, object]:
     if daemon_url:
         from local_mgrep.src.server import daemon_search
@@ -382,6 +383,7 @@ def mgrep_agent_context(
         multi_resolution=multi_resolution,
         file_top=file_top,
         candidate_paths=candidate_paths,
+        rank_by=rank_by,
     )
     payload = render_json_results(results)
     return {
@@ -460,6 +462,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             lexical_prefilter=getattr(args, "lexical_prefilter", True),
             lexical_root=Path(args.root).resolve() if getattr(args, "lexical_prefilter", True) else None,
             lexical_min_candidates=getattr(args, "lexical_min_candidates", 2),
+            rank_by=getattr(args, "rank_by", "chunk"),
         )
         grep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(grep_result["context_tokens"])
         mgrep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(mgrep_result["context_tokens"])
@@ -599,6 +602,7 @@ def parse_args() -> argparse.Namespace:
         help="Disable the ripgrep prefilter; cosine over the full corpus",
     )
     parser.add_argument("--lexical-min-candidates", dest="lexical_min_candidates", type=int, default=2, help="Fall back to corpus-wide cosine when ripgrep returns fewer than this many candidate files")
+    parser.add_argument("--rank-by", dest="rank_by", default="chunk", choices=["chunk", "file"], help="Ranking strategy: 'chunk' (default) uses per-file diversity cap; 'file' returns one best chunk per file")
     return parser.parse_args()
 
 

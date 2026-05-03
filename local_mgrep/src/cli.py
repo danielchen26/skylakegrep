@@ -114,6 +114,7 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--lexical-root", default=None, help="Root directory ripgrep scans for the lexical prefilter (defaults to the working directory)")
 @click.option("--lexical-min-candidates", default=2, type=int, help="If ripgrep returns fewer than this many candidate files we fall back to corpus-wide cosine retrieval")
 @click.option("--daemon-url", default=None, help="If set, send the search to a running mgrep daemon instead of loading the reranker in-process (eliminates cold-load latency)")
+@click.option("--rank-by", default="chunk", type=click.Choice(["chunk", "file"]), help="Ranking strategy: 'chunk' (default) returns top-K chunks with per-file diversity cap; 'file' returns one best chunk per file, sorted by that score")
 def search_cmd(
     query: str,
     top: int,
@@ -136,6 +137,7 @@ def search_cmd(
     lexical_root: str,
     lexical_min_candidates: int,
     daemon_url: str,
+    rank_by: str,
 ):
     cfg = get_config()
     if daemon_url:
@@ -219,6 +221,7 @@ def search_cmd(
                 multi_resolution=multi_resolution,
                 file_top=file_top,
                 candidate_paths=candidate_paths,
+                rank_by=rank_by,
             )
         )
     results = merge_results(result_groups, top)

@@ -51,11 +51,19 @@ to 8 literal tokens from the query, asks ``rg -il -F`` for files
 containing any of them, and restricts the cosine + rerank stages to chunks
 of those files only. Empirically on <repo-D>:
 
-| Config (with ``--lexical-prefilter`` on, multi-resolution intersected) | recall | avg latency / query |
+| Config (with ``--lexical-prefilter`` on, multi-resolution intersected, ``--rank-by file``) | recall | avg latency / query |
 | --- | :-: | :-: |
-| **cosine + no rerank** ⭐ | **9/16** | **0.52 s** |
-| cosine + ``mxbai-rerank-base-v2`` | 10/16 | 7.4 s |
-| cosine + ``mxbai-rerank-large-v2`` + HyDE | 13/16 | 23.0 s |
+| **cosine + no rerank** | **9/16** | **0.52 s** ⭐ daily-driver |
+| cosine + ``mxbai-rerank-base-v2`` | **11/16** | **9.5 s** |
+| **cosine + ``mxbai-rerank-large-v2`` + HyDE** | **14/16** | **21.8 s** ⭐ max recall |
+
+The ``--rank-by file`` flag (added 2026-05-03) collapses the result list so
+each candidate file contributes exactly one slot — its highest-scoring
+chunk. This stops large consumer files from drowning out small canonical
+files at the chunk stage, and unlocks the **14/16 ceiling at 21.8 s**: the
+same peak recall the chunk-only ``no-MR + no-prefilter + HyDE`` config
+required 54 s to reach. With ``--rank-by chunk`` (the legacy default), the
+same config still tops out at 13/16.
 
 For comparison, the old chunk-only architecture (no prefilter) on the same
 machine and index hit:

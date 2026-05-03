@@ -211,6 +211,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             lexical_prefilter=getattr(args, "lexical_prefilter", True),
             lexical_root=root if getattr(args, "lexical_prefilter", True) else None,
             lexical_min_candidates=getattr(args, "lexical_min_candidates", 2),
+            rank_by=getattr(args, "rank_by", "chunk"),
         )
         rg_total = (
             args.fixed_prompt_tokens
@@ -385,6 +386,7 @@ def parse_args() -> argparse.Namespace:
         help="Disable the ripgrep prefilter; cosine over the full corpus",
     )
     parser.add_argument("--lexical-min-candidates", dest="lexical_min_candidates", type=int, default=2, help="Fall back to corpus-wide cosine when ripgrep returns fewer than this many candidate files")
+    parser.add_argument("--rank-by", dest="rank_by", default="chunk", choices=["chunk", "file"], help="Ranking strategy: 'chunk' (default) uses per-file diversity cap; 'file' returns one best chunk per file")
     return parser.parse_args()
 
 
