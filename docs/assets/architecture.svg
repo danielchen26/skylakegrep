@@ -189,37 +189,37 @@
       <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">OllamaEmbedder.embed</text>
     </g>
 
-    <!-- 3. Cosine -->
+    <!-- 3. Lexical prefilter (rg) -->
     <g transform="translate(456 600)">
       <rect width="172" height="120" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
-      <text x="14" y="26" font-size="13" font-weight="600" fill="#e4e4e7">3. Score</text>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#e4e4e7">3. rg prefilter</text>
       <line x1="14" y1="34" x2="158" y2="34" stroke="rgba(255,255,255,0.07)"/>
-      <text x="14" y="55" font-size="11" fill="#a1a1aa">cosine over full</text>
-      <text x="14" y="71" font-size="11" fill="#a1a1aa">candidate matrix</text>
-      <text x="14" y="87" font-size="11" fill="#a1a1aa">(NumPy, single pass)</text>
-      <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">storage.search</text>
+      <text x="14" y="55" font-size="11" fill="#a1a1aa">extract literal tokens,</text>
+      <text x="14" y="71" font-size="11" fill="#a1a1aa">rg -il -F → candidate</text>
+      <text x="14" y="87" font-size="11" fill="#a1a1aa">file set (~100× narrow)</text>
+      <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">hybrid.lexical_candidate_paths</text>
     </g>
 
-    <!-- 4. Hybrid -->
+    <!-- 4. Multi-res cosine -->
     <g transform="translate(660 600)">
       <rect width="172" height="120" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
-      <text x="14" y="26" font-size="13" font-weight="600" fill="#e4e4e7">4. Hybrid score</text>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#e4e4e7">4. Multi-res cosine</text>
       <line x1="14" y1="34" x2="158" y2="34" stroke="rgba(255,255,255,0.07)"/>
-      <text x="14" y="55" font-size="11" fill="#a1a1aa">0.8·cosine + 0.2·lexical</text>
-      <text x="14" y="71" font-size="11" fill="#a1a1aa">(camelCase-aware</text>
-      <text x="14" y="87" font-size="11" fill="#a1a1aa">token + phrase match)</text>
-      <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">storage.combine_scores</text>
+      <text x="14" y="55" font-size="11" fill="#a1a1aa">file-level top-N,</text>
+      <text x="14" y="71" font-size="11" fill="#a1a1aa">chunk cosine inside,</text>
+      <text x="14" y="87" font-size="11" fill="#a1a1aa">file-rank: 1 chunk/file</text>
+      <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">storage.search / file_level_search</text>
     </g>
 
-    <!-- 5. Diversify -->
+    <!-- 5. Rerank / cascade -->
     <g transform="translate(864 600)">
       <rect width="172" height="120" rx="10" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
-      <text x="14" y="26" font-size="13" font-weight="600" fill="#e4e4e7">5. Diversify</text>
+      <text x="14" y="26" font-size="13" font-weight="600" fill="#e4e4e7">5. Rerank / cascade</text>
       <line x1="14" y1="34" x2="158" y2="34" stroke="rgba(255,255,255,0.07)"/>
-      <text x="14" y="55" font-size="11" fill="#a1a1aa">dedup logical span,</text>
-      <text x="14" y="71" font-size="11" fill="#a1a1aa">cap ≤ 2 chunks/file,</text>
-      <text x="14" y="87" font-size="11" fill="#a1a1aa">backfill if short</text>
-      <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">diversify_results</text>
+      <text x="14" y="55" font-size="11" fill="#a1a1aa">cross-encoder rerank;</text>
+      <text x="14" y="71" font-size="11" fill="#a1a1aa">--cascade: gate by gap τ,</text>
+      <text x="14" y="87" font-size="11" fill="#a1a1aa">escalate w/ HyDE union</text>
+      <text x="14" y="107" font-size="10.5" fill="#67e8f9" font-family="ui-monospace, Menlo, Consolas, monospace">reranker.rerank · cascade_search</text>
     </g>
 
     <!-- 6. Output (highlight) -->
