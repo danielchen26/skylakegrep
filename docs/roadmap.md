@@ -31,8 +31,11 @@ concrete code change, expected lift, and verification step.
 | P4-MH (multi-HyDE union) | three independent HyDE prompts (sdk-call, ident-list, crate-path) per query, search each, union top-K. **Saturates at 14/16 @ 3.75 s/q** — same ceiling as cascade, 2.5× slower. The 2 remaining misses (`crates/ai/`, `app/src/billing/`) are hard semantic-disambiguation cases that no LLM-augmented variant catches. Probe at `benchmarks/multi_hyde_probe.py` | **ABANDONED** — no Pareto improvement over P4-CC |
 | P2-G (asymmetric query/document prefixes) | folded into P0-B | **DONE** |
 | P2-H (configurable max-per-file / rerank-pool) | exposed as CLI flags | **DONE** |
-| P3-I (ColBERT late interaction) | not started | future |
-| P3-J (LoRA fine-tune of reranker) | not started | future |
+| **P5-SYM (symbol-aware indexing)** | tree-sitter extracts function / struct / class / impl / module names per file; new ``symbols`` table indexed by lowercased camelCase-split tokens; query-time exact match on ≥4-char query terms adds a multiplicative boost. Attacks the "concept word lives in symbol name, not in body text" failure mode that P4 multi-pass could not break. Detailed exec plan at [`docs/plans/2026-05-03-intelligent-system-v0.5.md`](plans/2026-05-03-intelligent-system-v0.5.md) §2 | **EXECUTING** — v0.5.0 |
+| **P6-D2Q (doc2query chunk enrichment)** | background LLM pass writes a 1-2 sentence high-level description per chunk; description is appended to chunk text and the chunk is re-embedded so its vector absorbs the LLM-generated semantic. Eliminates query-time HyDE permanently — the 3-5 s LLM call moves from query-time to a one-time index-time pass. Resumable via ``enriched_at`` column. Plan §3 | **EXECUTING** — v0.5.0 (or v0.6.0 if it slips) |
+| **P7-PR (file-export PageRank tiebreaker)** | regex-parse use/import edges across source files, build directed graph, run PageRank; store ``in_degree``, ``out_degree``, ``pagerank`` per file. Used at query time **only** when top-1 and top-2 final scores are within ε (default 0.005); the higher-PageRank candidate wins. Avoids the P4-CGC failure mode (where global graph prior pulled hubs ahead of leaves) by activating only on near-ties. Plan §4 | **EXECUTING** — v0.5.0 |
+| P3-I (ColBERT late interaction) | not started | deferred (10× index size for marginal lift; revisit after v0.5.0 / v0.6.0 ship) |
+| P3-J (LoRA fine-tune of reranker) | not started | deferred (per-user fine-tune is hard to ship; doc2query is the better lever for now) |
 
 ## Why we are not at parity today
 
