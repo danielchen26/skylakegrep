@@ -540,15 +540,43 @@ times measured here: <repo-D> 26 K chunks ~25 min, CCSB 36 K chunks
 ~17 min, <repo-A> 4 K chunks ~3 min, all on Mac CPU with
 ``OLLAMA_EMBED_MODEL=nomic-embed-text``.
 
-## Reaching the end-to-end agent claim
+## End-to-end agent benchmark (v0.8.0)
 
-The four bullets above for end-to-end token-cost evaluation are still
-unsatisfied (item 1 — task set across ≥ 3 repos — is satisfied by the
-multi-language benchmark in this section, but items 2-5 require an
-agent harness that doesn't yet exist). Until that benchmark is run, the
-strongest claims from this repository are:
+The four bullets above (items 2-5: real agent harness, controlled model
++ prompt + repo, real agent runs, baseline-vs-treatment headline) are
+now answered for n = 6 tasks. We spawned 12 sub-agents in parallel via
+the Claude Code `Agent` tool — 6 questions × 2 conditions (`rg-only`
+forbidding mgrep, `mgrep-on` forbidding rg/grep/find) — and recorded
+each sub-agent's own `usage` telemetry.
+
+| | rg-only | mgrep-on | Δ |
+|---|:-:|:-:|:-:|
+| **Tokens (sum, 6 tasks)** | 194 403 | 201 926 | +3.9 % |
+| **Tool calls (sum)** | 46 | 21 | **−54 %** |
+| **Tool calls (avg / task)** | 7.7 | 3.5 | **−54 %** |
+| **Strict-label correct** | 4 / 6 | 5 / 6 | +1 task |
+| **Lenient-label correct** | 5 / 6 | 6 / 6 | +1 task |
+
+The clean signal is the **−54 % tool-call reduction**. mgrep's semantic
+top-K replaces several rounds of `rg` / `Read` / `head` triangulation,
+and the agent's reasoning loop stays cleaner. Token totals are roughly
+equal because the agent's own reasoning tokens dominate. Wall time
+data was contaminated by 6-way parallel Ollama contention from the
+benchmark methodology (single-user usage doesn't have this contention)
+and is not reported as a headline number.
+
+Per-task data, full caveats, and the explicit relationship to the
+simulated-grep-agent benchmark (#2) are in
+[`benchmarks/agent_e2e_results.md`](../benchmarks/agent_e2e_results.md).
+
+## Strongest claims from this repository
 
   - **Cross-language retrieval recall**: 38 / 40 (95 %) at 3.55 s/q
-    average on Mac CPU across Rust, Python, TypeScript.
-  - **Token reduction vs ripgrep**: ~17.7× on the 30-task self-test
-    (benchmark #2 above) at equal recall.
+    average on Mac CPU across Rust, Python, TypeScript (multi-
+    language benchmark, v0.7.0).
+  - **Agent tool-call reduction**: 54 % fewer tool calls in real
+    Claude Code agent loops over 6 hand-labelled questions in
+    3 languages (e2e benchmark, v0.8.0).
+  - **Static-retrieval token reduction vs ripgrep**: ~17.7× on the
+    30-task self-test (simulated grep-agent benchmark #2 above) at
+    equal recall.
