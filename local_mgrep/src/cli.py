@@ -301,6 +301,13 @@ def search_cmd(
             )
             return
 
+    # Fire-and-forget Ollama preheat. Loads embed + HyDE models with
+    # ``keep_alive=-1`` in background threads so the cold-load cost
+    # (~5-10 s per model on Mac CPU) is amortised across the time we
+    # spend on rg prefilter, file-mean cosine, and DB migrations.
+    # Best-effort: failures are silently swallowed inside ``preheat_models``.
+    bootstrap.preheat_models()
+
     project_root = cfg_mod.project_root()
     db_path = config["db_path"]
 

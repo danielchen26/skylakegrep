@@ -9,6 +9,7 @@ The Markdown files here are reference companions to that site.
 | File | Purpose |
 | --- | --- |
 | [`index.html`](index.html) | Rendered documentation site (published as <https://danielchen26.github.io/local-mgrep/>). |
+| [`local-mgrep-0.6.2.md`](local-mgrep-0.6.2.md) | Release notes for 0.6.2: Ollama preheat (fire-and-forget warm-up at search start), GitHub Actions CI workflows (pytest + auto-PyPI on tag), and a 1200×630 social preview card wired into ``og:image`` meta. No retrieval architecture change. |
 | [`local-mgrep-0.6.1.md`](local-mgrep-0.6.1.md) | Release notes for 0.6.1: ``keep_alive=-1`` correctness fix; HyDE default reverted to ``qwen2.5:3b`` after measurement showed ``qwen2.5:1.5b`` cost 1 task; tag-aware model presence check. |
 | [`local-mgrep-0.6.0.md`](local-mgrep-0.6.0.md) | Release notes for 0.6.0: introduced ``OLLAMA_HYDE_MODEL`` env and Ollama ``keep_alive`` plumbing. Superseded by 0.6.1 for default correctness. |
 | [`local-mgrep-0.5.1.md`](local-mgrep-0.5.1.md) | Release notes for 0.5.1: cascade file-mean cosine corpus-wide fix; <repo-D> 16-task benchmark relabeled to acceptable-alternatives form (16/16 with corrected labels); honest empirical note that L2/L3/L4 don't move <repo-D> recall (<repo-D> saturated, multi-language bench landing in 0.5.2). |

@@ -191,6 +191,63 @@ def ensure_model(
         )
 
 
+def preheat_models(
+    *,
+    base_url: str | None = None,
+    embed_model: str | None = None,
+    hyde_model: str | None = None,
+    timeout: float = 0.25,
+) -> None:
+    """Fire-and-forget warm-up of Ollama models in a background thread.
+
+    Sending a no-op generate / embed call with ``keep_alive=-1`` causes
+    Ollama to load the model into memory and pin it there. The first
+    real query in the same shell session then no longer pays the
+    5-10 s cold-load. Subsequent ``mgrep`` invocations benefit too,
+    because Ollama keeps the model resident across our process exit.
+
+    Network failures, missing models, and short timeouts are silently
+    swallowed — preheat is best-effort and must never block or break
+    the real search flow.
+    """
+    import threading
+
+    cfg = get_config()
+    url = (base_url or cfg["ollama_url"]).rstrip("/")
+    em = embed_model or cfg["embed_model"]
+    lm = hyde_model or (cfg.get("hyde_model") or cfg["llm_model"])
+
+    def _ping_embed():
+        try:
+            requests.post(
+                f"{url}/api/embeddings",
+                json={"model": em, "prompt": "warm", "keep_alive": -1},
+                timeout=timeout,
+            )
+        except Exception:
+            pass
+
+    def _ping_generate():
+        try:
+            requests.post(
+                f"{url}/api/generate",
+                json={
+                    "model": lm,
+                    "prompt": "",
+                    "stream": False,
+                    "keep_alive": -1,
+                    "options": {"num_predict": 1},
+                },
+                timeout=timeout,
+            )
+        except Exception:
+            pass
+
+    for fn in (_ping_embed, _ping_generate):
+        t = threading.Thread(target=fn, daemon=True)
+        t.start()
+
+
 def doctor_report(base_url: str | None = None) -> dict:
     """Collect a structured health report. Used by ``mgrep doctor``."""
     cfg = get_config()
