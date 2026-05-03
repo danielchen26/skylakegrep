@@ -42,9 +42,25 @@ from .storage import (
     get_indexed_files,
     init_db,
     populate_file_embeddings,
+    populate_symbols,
     search,
     store_chunks_batch,
 )
+
+
+def _symbols_table_populated(conn) -> bool:
+    """Return True iff the ``symbols`` table has at least one row.
+
+    Wrapped because the table may be missing on databases built before L2.
+    The init_db pass adds the table, but the underlying sqlite query is
+    cheap enough that a try/except is the simplest contract.
+    """
+
+    try:
+        row = conn.execute("SELECT EXISTS (SELECT 1 FROM symbols LIMIT 1)").fetchone()
+    except sqlite3.Error:
+        return False
+    return bool(row and row[0])
 
 
 def merge_results(result_groups: list[list[dict]], top: int) -> list[dict]:
@@ -343,6 +359,21 @@ def search_cmd(
         except Exception as exc:
             logger.warning("auto-refresh failed: %s", exc)
 
+    # L2 one-time symbol extraction. The ``symbols`` table is created by
+    # ``init_db`` but is empty on indexes built before L2 — populate it on
+    # first use, best-effort so a parser failure or filesystem issue can't
+    # block the search itself. Stay quiet on the JSON path so stable
+    # consumers (CliRunner, scripts) keep parsing the output cleanly.
+    if not _symbols_table_populated(conn):
+        try:
+            if not json_output:
+                click.echo("↻ extracting symbols (one-time, no LLM)…", err=True)
+            inserted = populate_symbols(conn, project_root)
+            if not json_output:
+                click.echo(f"✓ {inserted} symbols indexed", err=True)
+        except Exception as exc:
+            logger.warning("symbol indexing failed: %s", exc)
+
     status = ai.index_status(conn)
     if status["chunks"] == 0:
         # Empty index is a legitimate state (e.g. after `index --reset` on a
@@ -456,6 +487,8 @@ def search_cmd(
             f"τ={cascade_telemetry.get('tau', 0):.4f})"
         )
     parts.append(f"index {ai.index_age_human(conn)} · {status['files']} files")
+    if _symbols_table_populated(conn):
+        parts.append("L2 symbols on")
     click.echo("\n[" + " · ".join(parts) + "]")
 
 
