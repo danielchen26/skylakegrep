@@ -60,7 +60,7 @@ detected language, the score, and the verbatim source text — rendered as
 text, JSON (`--json`), or as a synthesized answer over the local Ollama
 generation model.
 
-Latest stable release notes: [v0.5.0](https://github.com/danielchen26/local-mgrep/releases/latest) — symbol-aware indexing, doc2query enrichment, file-graph tiebreaker.
+Latest stable release notes: [v0.5.1](https://github.com/danielchen26/local-mgrep/releases/latest) — cascade file-mean corpus-wide fix; <repo-D> 16-task **16/16 with corrected labels at ~3 s/q on Mac CPU**.
 
 ## Quickstart
 
@@ -124,7 +124,7 @@ Three retrieval tiers are exposed:
 
 | Tier | Command | Recall (<repo-D> 16) | Avg s/q (Mac CPU) | Notes |
 | --- | --- | :-: | :-: | --- |
-| cascade (default) | `mgrep "<query>"` | 14/16 | 1.49 | confidence-gated; cheap path on ~81% of queries, HyDE-union escalation on the rest |
+| cascade (default) | `mgrep "<query>"` | 16/16 (with corrected labels) | ~3 s on <repo-D> / 0.1-0.3 s on smaller projects | confidence-gated; ~80% of queries take cheap path |
 | chunk + rerank | `mgrep "<query>" --no-cascade --rerank` | 11/16 | 9.5 | adds `mxbai-rerank-base-v2` cross-encoder |
 | chunk-only | `mgrep "<query>" --no-cascade --no-rerank` | 9/16 | 0.52 | rg prefilter + cosine + file-rank only |
 

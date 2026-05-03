@@ -806,6 +806,8 @@ def cascade_search(
     languages: tuple[str, ...] = (),
     include_patterns: tuple[str, ...] = (),
     exclude_patterns: tuple[str, ...] = (),
+    use_symbol_boost: bool = True,
+    use_graph_tiebreak: bool = True,
 ) -> tuple[list[dict], dict]:
     """Confidence-gated retrieval: cheap file-mean cosine first, escalate when uncertain.
 
@@ -828,11 +830,19 @@ def cascade_search(
     """
 
     qv = np.array(query_embedding, dtype=np.float32)
+    # 0.5.1 fix: file-mean cosine runs **corpus-wide**, not within the rg
+    # candidate set. The rg prefilter is a hard filter against on-disk file
+    # text; L3-enriched embeddings (which carry the LLM-written description)
+    # would otherwise be invisible to file-mean cosine when the on-disk
+    # text doesn't share surface tokens with the query. Corpus-wide
+    # file-mean cosine on ~5K files is ~5-10 ms — cheap enough to run
+    # unconditionally. Chunk-level cosine still uses the rg candidate set
+    # via the normal search() multi-resolution path on the cheap branch.
     pairs = _file_level_pairs(
         conn,
         qv,
         top_files=max(top_k, 10),
-        candidate_paths=candidate_paths,
+        candidate_paths=None,
     )
     gap = (pairs[0][1] - pairs[1][1]) if len(pairs) >= 2 else 0.0
     early_exit = len(pairs) >= 2 and gap >= tau
@@ -851,10 +861,22 @@ def cascade_search(
             multi_resolution=False,
             candidate_paths=chosen,
             rank_by="file",
+            use_symbol_boost=use_symbol_boost,
+            use_graph_tiebreak=use_graph_tiebreak,
         )
         return cheap, {"early_exit": True, "gap": gap, "tau": tau}
 
-    # Escalation: Round A (cosine + file-rank) ∪ Round C (HyDE + cosine + file-rank).
+    # Escalation: Round A (cosine + file-rank) ∪ Round C (HyDE + cosine +
+    # file-rank). 0.5.1 fix: the rg prefilter is a hard filter against
+    # disk-resident file text, but L3 enrichment lives in chunk
+    # *embeddings* — files whose disk text doesn't contain query terms are
+    # invisible to rg even when their enriched embeddings would be the
+    # right answer (the <repo-D> ``crates/ai/`` and ``app/src/billing/``
+    # cases). When the cascade decides to escalate (i.e. confidence is
+    # already low), we drop ``candidate_paths`` so the cosine + multi-
+    # resolution stages run against the full corpus, letting enriched
+    # embeddings actually contribute. The cheap path above still uses
+    # ``candidate_paths`` — fast queries don't pay this widening.
     a = search(
         conn,
         query_embedding,
@@ -866,8 +888,10 @@ def cascade_search(
         rerank=False,
         multi_resolution=True,
         file_top=30,
-        candidate_paths=candidate_paths,
+        candidate_paths=None,
         rank_by="file",
+        use_symbol_boost=use_symbol_boost,
+        use_graph_tiebreak=use_graph_tiebreak,
     )
     h_query = query_text
     if answerer is not None:
@@ -887,8 +911,10 @@ def cascade_search(
         rerank=False,
         multi_resolution=True,
         file_top=30,
-        candidate_paths=candidate_paths,
+        candidate_paths=None,
         rank_by="file",
+        use_symbol_boost=use_symbol_boost,
+        use_graph_tiebreak=use_graph_tiebreak,
     )
     merged: dict[tuple, dict] = {}
     for r in a + c:
