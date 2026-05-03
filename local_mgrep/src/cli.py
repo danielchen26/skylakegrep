@@ -110,6 +110,9 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--hyde/--no-hyde", default=False, help="Use the local LLM to generate a hypothetical code answer for natural-language queries, then embed both the question and that doc (slower; helps recall on user-language queries)")
 @click.option("--multi-resolution/--no-multi-resolution", default=True, help="Two-stage retrieval: pick top-N files by file-level cosine first, then drill into their chunks (helps small canonical files compete against large consumer files)")
 @click.option("--file-top", default=30, type=int, help="Number of files surfaced by file-level retrieval before chunk-level scoring (only used with --multi-resolution)")
+@click.option("--lexical-prefilter/--no-lexical-prefilter", default=True, help="Use ripgrep to narrow the candidate file set before cosine + rerank (default on; this is the high-recall fast path)")
+@click.option("--lexical-root", default=None, help="Root directory ripgrep scans for the lexical prefilter (defaults to the working directory)")
+@click.option("--lexical-min-candidates", default=2, type=int, help="If ripgrep returns fewer than this many candidate files we fall back to corpus-wide cosine retrieval")
 @click.option("--daemon-url", default=None, help="If set, send the search to a running mgrep daemon instead of loading the reranker in-process (eliminates cold-load latency)")
 def search_cmd(
     query: str,
@@ -129,6 +132,9 @@ def search_cmd(
     hyde: bool,
     multi_resolution: bool,
     file_top: int,
+    lexical_prefilter: bool,
+    lexical_root: str,
+    lexical_min_candidates: int,
     daemon_url: str,
 ):
     cfg = get_config()
@@ -183,6 +189,17 @@ def search_cmd(
         if answerer is None:
             answerer = get_answerer()
         queries = [answerer.hyde(item) for item in queries]
+    candidate_paths = None
+    if lexical_prefilter:
+        from pathlib import Path as _Path
+
+        from .hybrid import lexical_candidate_paths
+
+        prefilter_root = _Path(lexical_root) if lexical_root else _Path.cwd()
+        cands = lexical_candidate_paths(query, prefilter_root)
+        if len(cands) >= lexical_min_candidates:
+            candidate_paths = cands
+        # else fall through to corpus-wide cosine
     result_groups = []
     for item in queries:
         query_embedding = embedder.embed(item)
@@ -201,6 +218,7 @@ def search_cmd(
                 rerank_model=rerank_model,
                 multi_resolution=multi_resolution,
                 file_top=file_top,
+                candidate_paths=candidate_paths,
             )
         )
     results = merge_results(result_groups, top)

@@ -128,15 +128,29 @@ def file_level_search(
     conn,
     query_embedding: np.ndarray,
     top_files: int = 30,
+    candidate_paths: Optional[set[str]] = None,
 ) -> list[str]:
     """Return the top-N file paths by cosine similarity of file-level embeddings.
+
+    When ``candidate_paths`` is given (typically the ripgrep prefilter
+    output) the file-level cosine ranks within those files only; this is
+    necessary so the prefilter and multi-resolution stages compose
+    correctly — independently they would AND-intersect and could drop the
+    canonical file when one stage's top-N excluded it.
 
     Returns an empty list when the ``files`` table is unpopulated, which is
     the signal to the caller that multi-resolution mode is unavailable for
     this index and chunk-only search should be used.
     """
 
-    rows = conn.execute("SELECT file, embedding FROM files").fetchall()
+    if candidate_paths:
+        placeholders = ",".join("?" * len(candidate_paths))
+        rows = conn.execute(
+            f"SELECT file, embedding FROM files WHERE file IN ({placeholders})",
+            sorted(candidate_paths),
+        ).fetchall()
+    else:
+        rows = conn.execute("SELECT file, embedding FROM files").fetchall()
     if not rows:
         return []
     matrix = np.vstack([np.frombuffer(blob, dtype=np.float32) for _, blob in rows])
@@ -309,6 +323,7 @@ def search(
     rerank_model: Optional[str] = None,
     multi_resolution: bool = False,
     file_top: int = 30,
+    candidate_paths: Optional[set[str]] = None,
 ) -> list[dict]:
     """Hybrid retrieval with optional cross-encoder rerank.
 
@@ -326,6 +341,17 @@ def search(
         placeholders = ",".join("?" * len(languages))
         where.append(f"chunks.language IN ({placeholders})")
         params.extend(languages)
+    # Lexical prefilter (highest-priority candidate filter): when the caller
+    # passes a non-empty ``candidate_paths`` set — typically the output of
+    # ``hybrid.lexical_candidate_paths`` running ripgrep against the index
+    # root — we restrict the chunk scan to those files. ripgrep's recall on
+    # code-search benchmarks tends to be at the absolute ceiling, so this
+    # narrows the search space from tens of thousands of chunks to a few
+    # hundred without losing the answer.
+    if candidate_paths:
+        placeholders = ",".join("?" * len(candidate_paths))
+        where.append(f"chunks.file IN ({placeholders})")
+        params.extend(sorted(candidate_paths))
     # Multi-resolution stage 1: pick the top-N files by file-level cosine,
     # then restrict chunk-level retrieval to those files only. This stops
     # large consumer files (50 chunks of partial matches) from drowning out
@@ -333,7 +359,12 @@ def search(
     # stage. The file-level vector is the L2-normalised mean of chunk
     # vectors, computed once at index time by ``populate_file_embeddings``.
     if multi_resolution:
-        top_files = file_level_search(conn, query_vec, top_files=file_top)
+        top_files = file_level_search(
+            conn,
+            query_vec,
+            top_files=file_top,
+            candidate_paths=candidate_paths,
+        )
         if top_files:
             placeholders = ",".join("?" * len(top_files))
             where.append(f"chunks.file IN ({placeholders})")

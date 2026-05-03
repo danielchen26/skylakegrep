@@ -53,7 +53,7 @@ class AnswerModeTests(unittest.TestCase):
             try:
                 with patch.object(cli_module, "get_embedder", return_value=StaticEmbedder()):
                     with patch.object(cli_module, "get_answerer", return_value=answerer):
-                        result = runner.invoke(cli_module.cli, ["search", "token validation", "--answer"])
+                        result = runner.invoke(cli_module.cli, ["search", "--no-lexical-prefilter", "token validation", "--answer"])
             finally:
                 if old_db_path is None:
                     os.environ.pop("MGREP_DB_PATH", None)

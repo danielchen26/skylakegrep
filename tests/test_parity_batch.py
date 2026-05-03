@@ -89,7 +89,7 @@ class ParityBatchTests(unittest.TestCase):
                     target.unlink()
                     second = runner.invoke(cli_module.cli, ["index", str(root)])
                     self.assertEqual(second.exit_code, 0, second.output)
-                    result = runner.invoke(cli_module.cli, ["search", "deleted token symbol", "--json"])
+                    result = runner.invoke(cli_module.cli, ["search", "--no-lexical-prefilter", "deleted token symbol", "--json"])
 
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertEqual(json.loads(result.output), [])
@@ -146,6 +146,7 @@ class ParityBatchTests(unittest.TestCase):
                         cli_module.cli,
                         [
                             "search",
+                            "--no-lexical-prefilter",
                             "token",
                             "--json",
                             "-m",
@@ -188,7 +189,7 @@ class ParityBatchTests(unittest.TestCase):
             runner = CliRunner()
             with with_db_path(db_path):
                 with patch.object(cli_module, "get_embedder", return_value=KeywordEmbedder()):
-                    result = runner.invoke(cli_module.cli, ["search", "token", "--no-content"])
+                    result = runner.invoke(cli_module.cli, ["search", "--no-lexical-prefilter", "token", "--no-content"])
 
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertIn("auth.py:1-2", result.output)
@@ -232,7 +233,7 @@ class ParityBatchTests(unittest.TestCase):
             with with_db_path(db_path):
                 with patch.object(cli_module, "get_embedder", return_value=KeywordEmbedder()):
                     with patch.object(cli_module, "get_answerer", return_value=answerer):
-                        result = runner.invoke(cli_module.cli, ["search", "token lifecycle", "--agentic", "--json", "-m", "5"])
+                        result = runner.invoke(cli_module.cli, ["search", "--no-lexical-prefilter", "token lifecycle", "--agentic", "--json", "-m", "5"])
 
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertEqual(answerer.decompose_calls, [("token lifecycle", 3)])
