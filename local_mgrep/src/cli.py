@@ -29,7 +29,7 @@ import click
 
 logger = logging.getLogger(__name__)
 
-from . import auto_index, bootstrap, config as cfg_mod
+from . import auto_index, bootstrap, code_graph, config as cfg_mod, enrich as enrich_mod
 from .answerer import get_answerer
 from .config import get_config
 from .embeddings import get_embedder
@@ -42,9 +42,25 @@ from .storage import (
     get_indexed_files,
     init_db,
     populate_file_embeddings,
+    populate_symbols,
     search,
     store_chunks_batch,
 )
+
+
+def _symbols_table_populated(conn) -> bool:
+    """Return True iff the ``symbols`` table has at least one row.
+
+    Wrapped because the table may be missing on databases built before L2.
+    The init_db pass adds the table, but the underlying sqlite query is
+    cheap enough that a try/except is the simplest contract.
+    """
+
+    try:
+        row = conn.execute("SELECT EXISTS (SELECT 1 FROM symbols LIMIT 1)").fetchone()
+    except sqlite3.Error:
+        return False
+    return bool(row and row[0])
 
 
 def merge_results(result_groups: list[list[dict]], top: int) -> list[dict]:
@@ -78,7 +94,7 @@ def render_json_results(results: list[dict]) -> str:
 
 
 # Subcommand names that take precedence over bare-form query routing.
-_SUBCOMMANDS = {"index", "search", "watch", "serve", "stats", "doctor"}
+_SUBCOMMANDS = {"index", "search", "watch", "serve", "stats", "doctor", "enrich"}
 
 
 class MgrepCLI(click.Group):
@@ -343,6 +359,43 @@ def search_cmd(
         except Exception as exc:
             logger.warning("auto-refresh failed: %s", exc)
 
+    # L2 one-time symbol extraction. The ``symbols`` table is created by
+    # ``init_db`` but is empty on indexes built before L2 — populate it on
+    # first use, best-effort so a parser failure or filesystem issue can't
+    # block the search itself. Stay quiet on the JSON path so stable
+    # consumers (CliRunner, scripts) keep parsing the output cleanly.
+    if not _symbols_table_populated(conn):
+        try:
+            if not json_output:
+                click.echo("↻ extracting symbols (one-time, no LLM)…", err=True)
+            inserted = populate_symbols(conn, project_root)
+            if not json_output:
+                click.echo(f"✓ {inserted} symbols indexed", err=True)
+        except Exception as exc:
+            logger.warning("symbol indexing failed: %s", exc)
+
+    # L4 one-time migration: build the file-export graph if the table is
+    # empty. Best-effort; failures here must not block search. Suppressed
+    # under ``--json`` so machine-readable callers see clean stdout.
+    graph_ready = False
+    try:
+        row = conn.execute("SELECT COUNT(*) FROM file_graph").fetchone()
+        graph_count = row[0] if row else 0
+        if graph_count == 0:
+            if not json_output:
+                click.echo("↻ building file-export graph (one-time)…", err=True)
+            try:
+                code_graph.populate_graph_table(conn, project_root)
+                graph_ready = True
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("file-export graph build failed: %s", exc)
+        else:
+            graph_ready = True
+    except sqlite3.OperationalError:
+        # Old DB without file_graph table; init_db creates it now, so this
+        # path is rare. Silently fall through.
+        pass
+
     status = ai.index_status(conn)
     if status["chunks"] == 0:
         # Empty index is a legitimate state (e.g. after `index --reset` on a
@@ -456,7 +509,47 @@ def search_cmd(
             f"τ={cascade_telemetry.get('tau', 0):.4f})"
         )
     parts.append(f"index {ai.index_age_human(conn)} · {status['files']} files")
+    if _symbols_table_populated(conn):
+        parts.append("L2 symbols on")
+    if graph_ready:
+        parts.append("graph prior on")
+        if any(r.get("graph_tiebreak") for r in results):
+            # Surface the tied gap (top1-top2 of the pre-tiebreak rankings is
+            # not retained, so report the post-tiebreak top1-top2 as a proxy).
+            if len(results) >= 2:
+                gap = float(results[0].get("score", 0)) - float(results[1].get("score", 0))
+                parts.append(f"tied (Δ={gap:.3f})")
+            else:
+                parts.append("tied")
     click.echo("\n[" + " · ".join(parts) + "]")
+
+    # Optional background auto-enrich. Off by default; users opt in by
+    # exporting ``MGREP_AUTO_ENRICH=yes``. We only spawn when the index is
+    # actually ready — never alongside the rg-fallback path — so we don't
+    # contend with the still-running first-time indexer for Ollama.
+    if (
+        ready
+        and _os.environ.get("MGREP_AUTO_ENRICH") == "yes"
+        and enrich_mod.count_pending(conn) > 0
+    ):
+        try:
+            import subprocess as _subprocess
+
+            log = db_path.with_suffix(db_path.suffix + ".enrich.log")
+            env = dict(_os.environ)
+            env["MGREP_DB_PATH"] = str(db_path)
+            _subprocess.Popen(
+                [sys.executable, "-m", "local_mgrep.src.cli", "enrich", "--max", "50"],
+                cwd=str(project_root),
+                env=env,
+                stdout=open(log, "ab", buffering=0),
+                stderr=_subprocess.STDOUT,
+                stdin=_subprocess.DEVNULL,
+                start_new_session=True,
+                close_fds=True,
+            )
+        except Exception as exc:  # pragma: no cover — best-effort spawn
+            logger.warning("auto-enrich spawn failed: %s", exc)
 
 
 @cli.command()
@@ -532,11 +625,57 @@ def stats():
     row = conn.execute("SELECT COUNT(*), COUNT(DISTINCT file) FROM chunks").fetchone()
     click.echo(f"Total chunks: {row[0]}")
     click.echo(f"Total files:  {row[1]}")
+    enriched, total = enrich_mod.count_enriched(conn)
+    if total:
+        pct = 100.0 * enriched / total
+        click.echo(f"Enriched:     {enriched} / {total} ({pct:.1f}%)")
     snap = auto_index.index_status(conn)
     if snap["last_full_index_at"]:
         click.echo(f"Last full:    {auto_index._human_age(time.time() - snap['last_full_index_at'])}")
     if snap["last_refresh_at"]:
         click.echo(f"Last refresh: {auto_index._human_age(time.time() - snap['last_refresh_at'])}")
+
+
+@cli.command()
+@click.option("--max", "max_chunks", type=int, default=None,
+              help="Stop after this many chunks (default: run to completion).")
+@click.option("--batch", default=5, help="Chunks per progress line.")
+def enrich(max_chunks, batch):
+    """Run doc2query enrichment over the current project's index.
+
+    For each chunk that has not been enriched yet, call the local LLM to
+    write a one-sentence description, append it to the chunk text, and
+    re-embed. Resumable — safe to Ctrl+C and re-run.
+    """
+
+    config = get_config()
+    db_path = config["db_path"]
+    if not db_path.exists():
+        click.echo(
+            "No index yet. Run `mgrep index .` (or just query the project) "
+            "before enrichment.",
+            err=True,
+        )
+        return
+    conn = init_db(db_path)
+    pending_before = enrich_mod.count_pending(conn)
+    if pending_before == 0:
+        click.echo("All chunks are already enriched.")
+        return
+    click.echo(
+        f"Enriching up to {max_chunks if max_chunks is not None else pending_before} "
+        f"chunk(s) ({pending_before} pending)..."
+    )
+    n = enrich_mod.enrich_pending_chunks(
+        conn,
+        max_chunks=max_chunks,
+        batch_size=batch,
+    )
+    enriched, total = enrich_mod.count_enriched(conn)
+    pct = 100.0 * enriched / total if total else 0.0
+    click.echo(
+        f"Enriched {n} chunk(s) this run · {enriched} / {total} ({pct:.1f}%) total."
+    )
 
 
 @cli.command()
@@ -562,12 +701,16 @@ def doctor():
     # Project index status.
     db_path = config["db_path"]
     if db_path.exists():
-        conn = sqlite3.connect(db_path)
+        conn = init_db(db_path)
         snap = auto_index.index_status(conn)
         click.echo(
             f"{pad('Project index')}✓ {snap['files']} files / {snap['chunks']} chunks"
             + (f" · refreshed {auto_index._human_age(time.time() - snap['last_refresh_at'])}" if snap["last_refresh_at"] else "")
         )
+        enriched, total = enrich_mod.count_enriched(conn)
+        if total:
+            pct = 100.0 * enriched / total
+            click.echo(f"{pad('Enriched chunks')}{enriched} / {total} ({pct:.1f}%)")
         click.echo(f"{pad('Index DB')}{db_path}")
     else:
         click.echo(f"{pad('Project index')}× not yet built — run a query to auto-index, or `mgrep index .`")

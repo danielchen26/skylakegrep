@@ -60,7 +60,7 @@ detected language, the score, and the verbatim source text — rendered as
 text, JSON (`--json`), or as a synthesized answer over the local Ollama
 generation model.
 
-Latest stable release notes: [v0.4.1](https://github.com/danielchen26/local-mgrep/releases/latest).
+Latest stable release notes: [v0.5.0](https://github.com/danielchen26/local-mgrep/releases/latest) — symbol-aware indexing, doc2query enrichment, file-graph tiebreaker.
 
 ## Quickstart
 
@@ -157,6 +157,9 @@ The full set of internal modules is documented at
 | Bare-form invocation (`mgrep "<q>"`) | implemented | 0.4.0 | Routes to `search` automatically; subcommand names still win for `index/watch/serve/stats/doctor`. |
 | Per-project auto-index | implemented | 0.4.0 | First query in a project triggers one-time index; subsequent queries do mtime-based incremental refresh (30 s throttle). Set `MGREP_DB_PATH` to opt out. |
 | Ripgrep fallback for the first query | implemented | 0.4.1 | Fresh-project query returns ~0.7 s rg results while semantic indexer runs detached in the background. |
+| Symbol-aware indexing | implemented | 0.5.0 | Tree-sitter extracts function/struct/class/module names; query terms that match symbol identifiers add a small additive boost. CamelCase split lets natural-language queries hit PascalCase identifiers. |
+| doc2query chunk enrichment | implemented | 0.5.0 | Opt-in `mgrep enrich` runs a one-time background LLM pass that adds a one-sentence high-level description per chunk; the description is folded into the chunk's embedding so query-time HyDE becomes unnecessary. Resumable via the `enriched_at` column. |
+| File-export PageRank tiebreaker | implemented | 0.5.0 | Per-file in-degree / out-degree / PageRank populated from regex-parsed imports across Rust / Python / TS / JS. Applied at query time **only** when the top-1 and top-2 final scores are within ε; clear winners are never flipped. |
 | Bootstrap probes (`mgrep doctor`) | implemented | 0.4.0 | Health check of Ollama runtime, embed/LLM model presence, project index state, optional reranker. |
 | Hosted account / cloud index | out of scope | — | Not planned. |
 | Paid web search | out of scope | — | Not planned. |
