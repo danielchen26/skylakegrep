@@ -94,7 +94,7 @@ class HybridRankingTests(unittest.TestCase):
             os.environ["MGREP_DB_PATH"] = str(db_path)
             try:
                 with patch.object(cli_module, "get_embedder", return_value=SemanticOnlyEmbedder()):
-                    result = runner.invoke(cli_module.cli, ["search", "--no-lexical-prefilter", "refresh token", "--semantic-only", "--json", "-m", "2", "--no-rerank"])
+                    result = runner.invoke(cli_module.cli, ["search", "--no-cascade", "--no-lexical-prefilter", "refresh token", "--semantic-only", "--json", "-m", "2", "--no-rerank"])
             finally:
                 if old_db_path is None:
                     os.environ.pop("MGREP_DB_PATH", None)

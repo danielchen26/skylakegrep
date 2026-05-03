@@ -37,73 +37,62 @@ retrieval pipeline:
 2. **Multi-resolution cosine.** A file-level embedding (mean of chunk
    vectors, computed at index time) picks the top files; chunk-level cosine
    then runs only inside those files.
-3. **Confidence-gated cascade (`--cascade`, opt-in, v0.3.0).** When the
-   cheap file-mean retrieval has a clear top-1, we return immediately. Only
-   uncertain queries pay the LLM-driven escalation (cosine + file-rank ∪
-   HyDE-rewritten cosine + file-rank, score-preserved union).
-4. **Optional cross-encoder rerank.** When `--rerank` is on (default for the
-   non-cascade path), an `mxbai-rerank-*-v2` cross-encoder reorders the
-   top candidate pool; non-canonical paths (tests, blocklists) get a
-   multiplicative penalty.
+3. **Confidence-gated cascade (default).** When the cheap file-mean
+   retrieval has a clear top-1, we return immediately. Only uncertain
+   queries pay the LLM-driven escalation (cosine + file-rank ∪
+   HyDE-rewritten cosine + file-rank, score-preserved union). Pass
+   `--no-cascade` to fall back to the chunk-only path.
+4. **Optional cross-encoder rerank.** On the non-cascade path, an
+   `mxbai-rerank-*-v2` cross-encoder reorders the top candidate pool;
+   non-canonical paths (tests, blocklists) get a multiplicative penalty.
 
-Indexing, retrieval, optional answer synthesis (`--answer`), and optional
-agentic decomposition (`--agentic`) all run on the local host against a
-local Ollama server. No remote service is required for the core workflow.
+A first-time query against a project triggers a one-time auto-index;
+subsequent queries do an mtime-based incremental refresh (throttled, so
+back-to-back queries don't pay it). Indexing, retrieval, optional answer
+synthesis (`--answer`), and optional agentic decomposition (`--agentic`)
+all run on the local host against a local Ollama server. No remote service
+is required for the core workflow.
 
 Each result carries the file path, an inclusive 1-based line range, the
 detected language, the score, and the verbatim source text — rendered as
 text, JSON (`--json`), or as a synthesized answer over the local Ollama
 generation model.
 
-Latest stable release notes: [v0.3.1](https://github.com/danielchen26/local-mgrep/releases/latest).
+Latest stable release notes: [v0.4.0](https://github.com/danielchen26/local-mgrep/releases/latest).
 
 ## Quickstart
 
 ```bash
-# 1. Install
 pip install local-mgrep
 
-# 2. Pull a local embedding model (one-time)
-ollama pull nomic-embed-text         # recommended — supports query/doc prefixes
-# alternative: ollama pull mxbai-embed-large
-
-# 3. Index your repository (the rg prefilter is on by default)
-mgrep index /path/to/repo --reset
-
-# 4. Ask in natural language — daily-driver mode
-mgrep search "where is the auth token refreshed?" -m 10
-
-# 5. Or use the cascade for max recall at low latency (opt-in)
-mgrep search "where is the websocket reconnect logic?" -m 10 --cascade
+# Ask. The first query auto-indexes; subsequent queries refresh on mtime change.
+mgrep "where is the auth token refreshed?"
 ```
 
-For machine-readable output suitable for scripts and coding agents:
+That is the entire happy path. `mgrep` derives the project root from `git
+rev-parse --show-toplevel` (falling back to the current working directory),
+maintains a per-project index under `~/.local-mgrep/repos/`, and runs the
+confidence-gated cascade by default for retrieval. If Ollama is not yet
+installed or the embedding model is missing, the CLI prints an actionable
+one-line setup hint instead of failing silently.
+
+Health-check the setup at any time:
 
 ```bash
-mgrep search "where is the SQLite schema initialized?" -m 10 --json
+mgrep doctor
 ```
 
-To synthesize an answer from the retrieved snippets via a local Ollama
-generation model (the original ranked sources are still printed below):
+Common follow-ups:
 
 ```bash
-ollama pull qwen2.5:3b
-mgrep search "how does indexing remove deleted files?" --answer
-```
-
-To decompose a broad question into bounded local subqueries:
-
-```bash
-mgrep search "how are tokens created, validated, and refreshed?" \
-  --agentic --max-subqueries 3 --answer
-```
-
-For interactive multi-query sessions (eliminates ~5–10 s of cross-encoder
-cold-load per call):
-
-```bash
-mgrep serve &                                          # one terminal
-mgrep search "..." --daemon-url http://127.0.0.1:7878  # another
+mgrep "where is the SQLite schema initialized?" --json    # machine-readable
+mgrep "how does indexing remove deleted files?" --answer  # local Ollama answer
+mgrep "..." --agentic --max-subqueries 3 --answer         # bounded subquery decomposition
+mgrep "..." --no-cascade --rerank                         # legacy chunk + rerank path
+mgrep stats                                               # current project's index info
+mgrep index .                                             # explicit reindex (rarely needed)
+mgrep serve &                                             # warm-reranker daemon
+mgrep "..." --daemon-url http://127.0.0.1:7878            # query against the daemon
 ```
 
 Full CLI reference and configuration: <https://danielchen26.github.io/local-mgrep/>.
@@ -122,13 +111,13 @@ index pipeline additionally populates a `files` table at index time
 (L2-normalised mean of chunk vectors per file) so the query path can do
 file-level retrieval without re-scanning chunks.
 
-Three retrieval tiers are exposed through `mgrep search`:
+Three retrieval tiers are exposed:
 
 | Tier | Command | Recall (<repo-D> 16) | Avg s/q (Mac CPU) | Notes |
 | --- | --- | :-: | :-: | --- |
-| daily-driver | `mgrep search` (defaults) | 9/16 | 0.52 | rg prefilter + cosine + file-rank, no rerank |
-| standard | `--rerank` | 11/16 | 9.5 | adds `mxbai-rerank-base-v2` cross-encoder |
-| cascade | `--cascade` | 14/16 | 1.49 | confidence-gated; cheap path on ~81% of queries, HyDE-union escalation on the rest |
+| cascade (default) | `mgrep "<query>"` | 14/16 | 1.49 | confidence-gated; cheap path on ~81% of queries, HyDE-union escalation on the rest |
+| chunk + rerank | `mgrep "<query>" --no-cascade --rerank` | 11/16 | 9.5 | adds `mxbai-rerank-base-v2` cross-encoder |
+| chunk-only | `mgrep "<query>" --no-cascade --no-rerank` | 9/16 | 0.52 | rg prefilter + cosine + file-rank only |
 
 The full set of internal modules is documented at
 <https://danielchen26.github.io/local-mgrep/#architecture>.
@@ -155,7 +144,10 @@ The full set of internal modules is documented at
 | File-rank (one chunk per file) | implemented | 0.3.0 | `--rank-by file`; collapses results so small canonical files compete fairly. |
 | Daemon mode (warm reranker) | implemented | 0.3.0 | `mgrep serve` + `--daemon-url`; eliminates ~5–10 s cold-load per call. |
 | Quantisation / device knobs | implemented | 0.3.0 | `MGREP_RERANK_QUANTIZE=int8`, `MGREP_RERANK_DEVICE=auto/mps/cpu`. |
-| Confidence-gated cascade | implemented | 0.3.0 | `--cascade` + `--cascade-tau`; gates expensive escalation on a top-1 / top-2 score gap. See [Benchmark](#benchmark). |
+| Confidence-gated cascade | implemented | 0.3.0 (default in 0.4.0) | Default on; gates expensive escalation on a top-1 / top-2 score gap. `--no-cascade` to disable. See [Benchmark](#benchmark). |
+| Bare-form invocation (`mgrep "<q>"`) | implemented | 0.4.0 | Routes to `search` automatically; subcommand names still win for `index/watch/serve/stats/doctor`. |
+| Per-project auto-index | implemented | 0.4.0 | First query in a project triggers one-time index; subsequent queries do mtime-based incremental refresh (30 s throttle). Set `MGREP_DB_PATH` to opt out. |
+| Bootstrap probes (`mgrep doctor`) | implemented | 0.4.0 | Health check of Ollama runtime, embed/LLM model presence, project index state, optional reranker. |
 | Hosted account / cloud index | out of scope | — | Not planned. |
 | Paid web search | out of scope | — | Not planned. |
 
@@ -173,10 +165,10 @@ least one returned chunk lives under the canonical subdirectory.
 
 | Tier | Command | Recall | Avg s/q |
 | --- | --- | :-: | :-: |
-| ultra-fast | `mgrep search --cascade --cascade-tau 0.0` | 11/16 | 0.10 |
-| daily-driver | `mgrep search` (defaults) | 9/16 | 0.52 |
-| standard | `mgrep search --rerank` | 11/16 | 9.5 |
-| cascade (default τ) | `mgrep search --cascade` | 14/16 | 1.49 |
+| ultra-fast | `mgrep "..." --cascade-tau 0.0` | 11/16 | 0.10 |
+| chunk-only | `mgrep "..." --no-cascade --no-rerank` | 9/16 | 0.52 |
+| chunk + rerank | `mgrep "..." --no-cascade --rerank` | 11/16 | 9.5 |
+| cascade (default) | `mgrep "..."` | 14/16 | 1.49 |
 | ripgrep raw recall | `rg -il -F` token-OR | 16/16 | 0.1 |
 
 At the default τ=0.015 the cascade's cheap file-mean path handles ~81% of
@@ -212,11 +204,13 @@ top-k 10. Full methodology and limitations are in
 ## CLI reference
 
 ```bash
-mgrep index   [PATH] [--reset] [--incremental/--full]    # build or refresh the index
-mgrep search  QUERY  [OPTIONS]                           # retrieve ranked snippets
-mgrep serve   [--host H] [--port P]                      # run daemon (keeps reranker warm)
+mgrep        QUERY  [OPTIONS]                            # bare-form search (default)
+mgrep search QUERY  [OPTIONS]                            # explicit search
+mgrep doctor                                             # runtime + model + index health check
 mgrep stats                                              # print chunk and file counts
-mgrep watch   [PATH] --interval N                        # poll for changes (default 5s)
+mgrep index  [PATH] [--reset] [--incremental/--full]    # explicit reindex (auto on first query)
+mgrep watch  [PATH] --interval N                        # poll for changes (default 5s)
+mgrep serve  [--host H] [--port P]                      # run daemon (keeps reranker warm)
 ```
 
 <details>
@@ -244,8 +238,9 @@ mgrep watch   [PATH] --interval N                        # poll for changes (def
 | `--lexical-root` | cwd | Root directory ripgrep scans for the lexical prefilter. |
 | `--lexical-min-candidates` | 2 | Fall back to corpus-wide cosine when ripgrep returns fewer files. |
 | `--rank-by` | `chunk` | `chunk` (per-file diversity cap) or `file` (one best chunk per file, sorted by score). |
-| `--cascade / --no-cascade` | off | **0.3.0**: confidence-gated retrieval (cheap path + HyDE-union escalation). |
-| `--cascade-tau` | 0.015 | **0.3.0**: confidence threshold (top-1 minus top-2 file-mean cosine). |
+| `--cascade / --no-cascade` | on | Confidence-gated retrieval (cheap path + HyDE-union escalation). On by default since 0.4.0. |
+| `--cascade-tau` | 0.015 | Confidence threshold (top-1 minus top-2 file-mean cosine). |
+| `--auto-index / --no-auto-index` | on | Auto-build the index on first query and refresh on mtime change. Off when `MGREP_DB_PATH` is set externally. |
 | `--daemon-url` | — | Send the search to a running `mgrep serve` daemon (warm reranker). |
 | `--agentic` | off | Decompose the query into subqueries via Ollama before search. |
 | `--max-subqueries` | 3 | Upper bound on agentic subqueries. |

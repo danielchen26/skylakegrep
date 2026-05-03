@@ -9,6 +9,7 @@ The Markdown files here are reference companions to that site.
 | File | Purpose |
 | --- | --- |
 | [`index.html`](index.html) | Rendered documentation site (published as <https://danielchen26.github.io/local-mgrep/>). |
+| [`local-mgrep-0.4.0.md`](local-mgrep-0.4.0.md) | Release notes for 0.4.0: bare-form `mgrep "<query>"`, per-project auto-index, `mgrep doctor`, cascade default, default embed model `nomic-embed-text`. |
 | [`local-mgrep-0.3.1.md`](local-mgrep-0.3.1.md) | Release notes for 0.3.1: README + diagram refresh so the PyPI page reflects the cascade flow. No behaviour change. |
 | [`local-mgrep-0.3.0.md`](local-mgrep-0.3.0.md) | Release notes for 0.3.0: confidence-gated cascade (`--cascade`), benchmark sweep, null-result findings. |
 | [`local-mgrep-0.2.0.md`](local-mgrep-0.2.0.md) | Capability guide for the 0.2.0 release: indexing, ranking, output modes, configuration. |

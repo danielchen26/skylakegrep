@@ -1,20 +1,59 @@
-import click
+"""Command-line entry point for ``mgrep``.
+
+Two-mode CLI:
+
+  - **Bare-form** (95% of use): ``mgrep "<query>"`` runs a search with smart
+    defaults. The first argument is treated as a query whenever it isn't a
+    known subcommand. Auto-index runs the first time a project is queried,
+    incremental refresh runs on subsequent queries when files have changed.
+  - **Subcommand form** (admin / power use): ``mgrep <verb> [args]`` for
+    ``index``, ``watch``, ``serve``, ``stats``, ``doctor``, and the explicit
+    ``search`` form. ``mgrep --help`` prints the full surface.
+
+Routing rule: known subcommands win. Anything that isn't a known subcommand
+is treated as the first argument to ``search``. A query that happens to
+collide with a subcommand name (rare) can be quoted: ``mgrep "stats and
+metrics"`` searches; ``mgrep stats`` runs the subcommand.
+"""
+
+from __future__ import annotations
+
 import json
 import sqlite3
+import sys
 import time
 from pathlib import Path
+
+import click
+
+from . import auto_index, bootstrap, config as cfg_mod
 from .answerer import get_answerer
-from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
-from .embeddings import get_embedder
-from .storage import CASCADE_DEFAULT_TAU, cascade_search, delete_file_chunks, delete_missing_files, get_indexed_files, init_db, populate_file_embeddings, search, store_chunks_batch
 from .config import get_config
+from .embeddings import get_embedder
+from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
+from .storage import (
+    CASCADE_DEFAULT_TAU,
+    cascade_search,
+    delete_file_chunks,
+    delete_missing_files,
+    get_indexed_files,
+    init_db,
+    populate_file_embeddings,
+    search,
+    store_chunks_batch,
+)
 
 
 def merge_results(result_groups: list[list[dict]], top: int) -> list[dict]:
     merged = {}
     for results in result_groups:
         for result in results:
-            key = (result["path"], result.get("start_line"), result.get("end_line"), result["snippet"])
+            key = (
+                result["path"],
+                result.get("start_line"),
+                result.get("end_line"),
+                result["snippet"],
+            )
             if key not in merged or result["score"] > merged[key]["score"]:
                 merged[key] = result
     return sorted(merged.values(), key=lambda item: item["score"], reverse=True)[:top]
@@ -34,17 +73,57 @@ def render_json_results(results: list[dict]) -> str:
     ]
     return json.dumps(payload, indent=2)
 
-@click.group()
-def cli():
-    pass
+
+# Subcommand names that take precedence over bare-form query routing.
+_SUBCOMMANDS = {"index", "search", "watch", "serve", "stats", "doctor"}
+
+
+class MgrepCLI(click.Group):
+    """Click group that routes unknown first-args to ``search``.
+
+    Implements two adjustments to default Click behaviour:
+      - ``mgrep "<query>"`` (no subcommand) routes to ``search "<query>"``.
+      - ``mgrep stats and metrics`` (subcommand-shaped but with extra args
+        that don't fit) prints a friendly suggestion to quote the query.
+    """
+
+    def parse_args(self, ctx, args):  # type: ignore[override]
+        # If first non-flag token is not a known subcommand, treat the whole
+        # arg list as the search query.
+        if args and not args[0].startswith("-") and args[0] not in _SUBCOMMANDS:
+            return super().parse_args(ctx, ["search", *args])
+        return super().parse_args(ctx, args)
+
+
+@click.group(cls=MgrepCLI, invoke_without_command=True)
+@click.pass_context
+def cli(ctx):
+    """``mgrep`` — local semantic code search.
+
+    Common usage:
+
+        mgrep "where is the auth token refreshed?"      # bare query
+        mgrep doctor                                    # health check
+        mgrep stats                                     # index info
+        mgrep index .                                   # explicit reindex
+    """
+
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
+
 
 @cli.command()
 @click.argument("path", default=".")
-@click.option("--reset", is_flag=True, help="Reset existing index")
+@click.option("--reset", is_flag=True, help="Reset existing index before reindexing")
 @click.option("--incremental/--full", default=True, help="Only update changed files")
 def index(path: str, reset: bool, incremental: bool):
-    cfg = get_config()
-    db_path = cfg["db_path"]
+    """Build or refresh the index explicitly. ``mgrep search`` already
+    auto-indexes the first time you query a project; use this command for
+    forced full rebuilds, ``--reset`` after switching embedding models, or
+    indexing a directory other than the current working tree."""
+
+    config = get_config()
+    db_path = config["db_path"]
     if reset and db_path.exists():
         db_path.unlink()
     conn = init_db(db_path)
@@ -66,7 +145,10 @@ def index(path: str, reset: bool, incremental: bool):
                 to_index.append(f)
             elif f.stat().st_mtime > indexed_files[f_str]:
                 to_reindex.append(f)
-        click.echo(f"Incremental: {len(to_index)} new, {len(to_reindex)} changed, {len(deleted_files)} deleted")
+        click.echo(
+            f"Incremental: {len(to_index)} new, {len(to_reindex)} changed, "
+            f"{len(deleted_files)} deleted"
+        )
         files_to_process = to_index + to_reindex
     else:
         files_to_process = files
@@ -77,7 +159,6 @@ def index(path: str, reset: bool, incremental: bool):
 
     click.echo(f"Indexing {len(files_to_process)} files...")
     total_chunks = 0
-
     for f in files_to_process:
         chunks = prepare_file_chunks(f, root=root)
         if chunks:
@@ -88,9 +169,17 @@ def index(path: str, reset: bool, incremental: bool):
             total_chunks += len(chunks)
             click.echo(f"  Indexed: {f} ({len(chunks)} chunks)")
 
-    click.echo(f"Indexing complete! {total_chunks} chunks in {len(files_to_process)} files")
+    click.echo(
+        f"Indexing complete! {total_chunks} chunks in {len(files_to_process)} files"
+    )
     file_count = populate_file_embeddings(conn)
-    click.echo(f"File-level embeddings populated: {file_count} files (mean of chunk vectors)")
+    click.echo(
+        f"File-level embeddings populated: {file_count} files (mean of chunk vectors)"
+    )
+    # Mark refresh state so subsequent searches skip the throttle.
+    auto_index._meta_set(conn, "last_full_index_at", str(time.time()))
+    auto_index._meta_set(conn, "last_refresh_at", str(time.time()))
+
 
 @cli.command()
 @click.argument("query")
@@ -104,19 +193,20 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--agentic", is_flag=True, help="Use local Ollama to split the query into bounded subqueries")
 @click.option("--max-subqueries", default=3, help="Maximum local agentic subqueries")
 @click.option("--semantic-only", is_flag=True, help="Disable local lexical reranking and use pure vector similarity")
-@click.option("--rerank/--no-rerank", default=True, help="Apply cross-encoder reranking (requires sentence-transformers; install with pip install 'local-mgrep[rerank]')")
+@click.option("--rerank/--no-rerank", default=True, help="Apply cross-encoder reranking on the non-cascade path (default on when sentence-transformers is installed)")
 @click.option("--rerank-pool", default=None, type=int, help="Candidate pool size before reranking (default 50, env MGREP_RERANK_POOL)")
 @click.option("--rerank-model", default=None, help="HuggingFace cross-encoder model id for reranking")
-@click.option("--hyde/--no-hyde", default=False, help="Use the local LLM to generate a hypothetical code answer for natural-language queries, then embed both the question and that doc (slower; helps recall on user-language queries)")
+@click.option("--hyde/--no-hyde", default=False, help="Force a HyDE rewrite even outside the cascade (rarely needed; the cascade decides per query)")
 @click.option("--multi-resolution/--no-multi-resolution", default=True, help="Two-stage retrieval: pick top-N files by file-level cosine first, then drill into their chunks (helps small canonical files compete against large consumer files)")
 @click.option("--file-top", default=30, type=int, help="Number of files surfaced by file-level retrieval before chunk-level scoring (only used with --multi-resolution)")
-@click.option("--lexical-prefilter/--no-lexical-prefilter", default=True, help="Use ripgrep to narrow the candidate file set before cosine + rerank (default on; this is the high-recall fast path)")
-@click.option("--lexical-root", default=None, help="Root directory ripgrep scans for the lexical prefilter (defaults to the working directory)")
+@click.option("--lexical-prefilter/--no-lexical-prefilter", default=True, help="Use ripgrep to narrow the candidate file set before cosine + rerank (default on; the high-recall fast path)")
+@click.option("--lexical-root", default=None, help="Root directory ripgrep scans for the lexical prefilter (defaults to the project root)")
 @click.option("--lexical-min-candidates", default=2, type=int, help="If ripgrep returns fewer than this many candidate files we fall back to corpus-wide cosine retrieval")
 @click.option("--daemon-url", default=None, help="If set, send the search to a running mgrep daemon instead of loading the reranker in-process (eliminates cold-load latency)")
-@click.option("--rank-by", default="chunk", type=click.Choice(["chunk", "file"]), help="Ranking strategy: 'chunk' (default) returns top-K chunks with per-file diversity cap; 'file' returns one best chunk per file, sorted by that score")
-@click.option("--cascade/--no-cascade", default=False, help="Confidence-gated retrieval: cheap file-mean cosine first; escalate to HyDE-union only on uncertain queries. 14/16 <repo-D> recall at ~1.9 s/q (vs. 21.8 s/q for chunk-cosine + rerank). Disables --rerank/--hyde routing because the cascade owns those choices internally.")
-@click.option("--cascade-tau", default=CASCADE_DEFAULT_TAU, type=float, help=f"Confidence threshold (top1 - top2 file-mean cosine) above which the cascade returns the cheap result. Lower → more early-exits, lower recall; higher → more escalations, higher latency. Default {CASCADE_DEFAULT_TAU} (<repo-D> sweet spot).")
+@click.option("--rank-by", default="chunk", type=click.Choice(["chunk", "file"]), help="Ranking strategy on the non-cascade path: 'chunk' returns top-K chunks with per-file diversity cap; 'file' returns one best chunk per file")
+@click.option("--cascade/--no-cascade", default=True, help="Confidence-gated retrieval (default on): cheap file-mean cosine first, escalate to HyDE-union only on uncertain queries. Pass --no-cascade for the chunk-only legacy path.")
+@click.option("--cascade-tau", default=CASCADE_DEFAULT_TAU, type=float, help=f"Confidence threshold (top1 - top2 file-mean cosine) above which the cascade returns the cheap result. Default {CASCADE_DEFAULT_TAU}.")
+@click.option("--auto-index/--no-auto-index", default=None, help="Auto-build the index for this project on first query and refresh on subsequent queries. Default: on for the project-scoped DB; off when MGREP_DB_PATH is set externally so curated indexes are not auto-mutated.")
 def search_cmd(
     query: str,
     top: int,
@@ -142,8 +232,17 @@ def search_cmd(
     rank_by: str,
     cascade: bool,
     cascade_tau: float,
+    auto_index: bool | None,
 ):
-    cfg = get_config()
+    """Run a search. Aliased as the bare form: ``mgrep "<query>"``."""
+
+    import os as _os
+
+    config = get_config()
+    if auto_index is None:
+        # Default policy: auto-index unless the caller has pinned the DB
+        # location with MGREP_DB_PATH (curated index — don't auto-mutate it).
+        auto_index = _os.environ.get("MGREP_DB_PATH") is None
     if daemon_url:
         from .server import daemon_search
 
@@ -154,7 +253,7 @@ def search_cmd(
                 query,
                 top_k=top,
                 rerank=rerank,
-                rerank_pool=rerank_pool if rerank_pool is not None else cfg["rerank_pool"],
+                rerank_pool=rerank_pool if rerank_pool is not None else config["rerank_pool"],
                 multi_resolution=multi_resolution,
                 file_top=file_top,
                 hyde=hyde,
@@ -177,9 +276,37 @@ def search_cmd(
                 click.echo(f"\n=== {r['path']}{line_range} (score: {r['score']:.3f}) ===")
                 if content:
                     click.echo(r["snippet"][:500])
-            click.echo(f"\n[Daemon search completed in {elapsed:.3f}s; daemon-side {payload.get('latency_seconds')}s]")
+            click.echo(
+                f"\n[Daemon search completed in {elapsed:.3f}s; "
+                f"daemon-side {payload.get('latency_seconds')}s]"
+            )
             return
-    conn = sqlite3.connect(cfg["db_path"])
+
+    project_root = cfg_mod.project_root()
+    db_path = config["db_path"]
+
+    from . import auto_index as ai
+
+    if auto_index:
+        try:
+            conn = ai.ensure_indexed(db_path, project_root, quiet=json_output)
+        except bootstrap.BootstrapError as exc:
+            click.echo(f"\n{exc}", err=True)
+            sys.exit(1)
+    else:
+        conn = init_db(db_path)
+    status = ai.index_status(conn)
+    if status["chunks"] == 0:
+        # Empty index is a legitimate state (e.g. after `index --reset` on a
+        # directory with no indexable files, or after every file was
+        # deleted). Return empty results rather than erroring; the caller
+        # already saw any auto-index progress / actionable output above.
+        if json_output:
+            click.echo(render_json_results([]))
+        else:
+            click.echo("[no indexed chunks]")
+        return
+
     embedder = get_embedder(role="query")
     start = time.time()
     queries = [query]
@@ -190,23 +317,22 @@ def search_cmd(
         for subquery in subqueries:
             if subquery not in queries:
                 queries.append(subquery)
-    pool = rerank_pool if rerank_pool is not None else cfg["rerank_pool"]
-    if hyde:
+    pool = rerank_pool if rerank_pool is not None else config["rerank_pool"]
+    if hyde and not cascade:
         if answerer is None:
             answerer = get_answerer()
         queries = [answerer.hyde(item) for item in queries]
     candidate_paths = None
     if lexical_prefilter:
-        from pathlib import Path as _Path
-
         from .hybrid import lexical_candidate_paths
 
-        prefilter_root = _Path(lexical_root) if lexical_root else _Path.cwd()
+        prefilter_root = Path(lexical_root) if lexical_root else project_root
         cands = lexical_candidate_paths(query, prefilter_root)
         if len(cands) >= lexical_min_candidates:
             candidate_paths = cands
         # else fall through to corpus-wide cosine
-    result_groups = []
+
+    result_groups: list[list[dict]] = []
     cascade_telemetry: dict | None = None
     for item in queries:
         query_embedding = embedder.embed(item)
@@ -262,7 +388,9 @@ def search_cmd(
             line_range = ""
             if result.get("start_line") and result.get("end_line"):
                 line_range = f":{result['start_line']}-{result['end_line']}"
-            click.echo(f"- {result['path']}{line_range} (score: {result['score']:.3f})")
+            click.echo(
+                f"- {result['path']}{line_range} (score: {result['score']:.3f})"
+            )
         click.echo(f"\n[Answer completed in {elapsed:.3f}s]")
         return
     for r in results:
@@ -272,24 +400,31 @@ def search_cmd(
         click.echo(f"\n=== {r['path']}{line_range} (score: {r['score']:.3f}) ===")
         if content:
             click.echo(r["snippet"][:500])
-    extra = ""
+
+    parts: list[str] = [f"{elapsed:.3f}s"]
     if cascade and cascade_telemetry is not None:
         kind = "cheap" if cascade_telemetry.get("early_exit") else "escalated"
-        extra = f"; cascade={kind} (gap={cascade_telemetry.get('gap', 0):.4f} τ={cascade_telemetry.get('tau', 0):.4f})"
-    click.echo(f"\n[Search completed in {elapsed:.3f}s{extra}]")
+        parts.append(
+            f"cascade={kind} (gap={cascade_telemetry.get('gap', 0):.4f} "
+            f"τ={cascade_telemetry.get('tau', 0):.4f})"
+        )
+    parts.append(f"index {ai.index_age_human(conn)} · {status['files']} files")
+    click.echo("\n[" + " · ".join(parts) + "]")
+
 
 @cli.command()
 @click.argument("path", default=".")
 @click.option("--interval", "-i", default=5, help="Check interval in seconds")
 def watch(path: str, interval: int):
-    cfg = get_config()
-    db_path = cfg["db_path"]
+    """Continuously index a directory: poll mtimes, reindex changed files."""
+
+    config = get_config()
+    db_path = config["db_path"]
     conn = init_db(db_path)
     embedder = get_embedder()
     indexed_files = get_indexed_files(conn)
 
     click.echo(f"Watching {path} for changes (Ctrl+C to stop)")
-
     while True:
         try:
             root = Path(path)
@@ -298,7 +433,6 @@ def watch(path: str, interval: int):
             for deleted_file in deleted_files:
                 indexed_files.pop(deleted_file, None)
                 click.echo(f"  Deleted: {deleted_file}")
-
             for f in files:
                 f_str = str(f)
                 current_mtime = f.stat().st_mtime
@@ -319,24 +453,17 @@ def watch(path: str, interval: int):
                         store_chunks_batch(conn, chunks)
                         indexed_files[f_str] = current_mtime
                         click.echo(f"  Added: {f}")
-
             time.sleep(interval)
         except KeyboardInterrupt:
             click.echo("\nStopping watch mode")
             break
 
+
 @cli.command()
 @click.option("--host", default="127.0.0.1", help="Host to bind the daemon on")
 @click.option("--port", default=7878, type=int, help="Port to bind the daemon on")
 def serve(host: str, port: int):
-    """Run a long-running daemon that holds the reranker + embedder warm.
-
-    A short-lived ``mgrep search`` invocation pays the cross-encoder cold
-    load on every call (~30 s for the large reranker on Mac CPU). This
-    daemon eliminates that cost: start it once, point ``mgrep search
-    --daemon-url http://127.0.0.1:7878`` at it, and per-query latency
-    drops to inference-only (~1-3 s on this hardware).
-    """
+    """Run a long-running daemon that holds the reranker + embedder warm."""
 
     from .server import serve as _serve
 
@@ -345,12 +472,68 @@ def serve(host: str, port: int):
 
 @cli.command()
 def stats():
-    cfg = get_config()
-    conn = sqlite3.connect(cfg["db_path"])
-    cursor = conn.execute("SELECT COUNT(*), COUNT(DISTINCT file) FROM chunks")
-    row = cursor.fetchone()
+    """Print chunk and file counts for the current project's index."""
+
+    config = get_config()
+    db_path = config["db_path"]
+    click.echo(f"DB:           {db_path}")
+    click.echo(f"Project root: {cfg_mod.project_root()}")
+    if not db_path.exists():
+        click.echo("No index yet. Run a query to auto-index, or `mgrep index .`.")
+        return
+    conn = init_db(db_path)
+    row = conn.execute("SELECT COUNT(*), COUNT(DISTINCT file) FROM chunks").fetchone()
     click.echo(f"Total chunks: {row[0]}")
-    click.echo(f"Total files: {row[1]}")
+    click.echo(f"Total files:  {row[1]}")
+    snap = auto_index.index_status(conn)
+    if snap["last_full_index_at"]:
+        click.echo(f"Last full:    {auto_index._human_age(time.time() - snap['last_full_index_at'])}")
+    if snap["last_refresh_at"]:
+        click.echo(f"Last refresh: {auto_index._human_age(time.time() - snap['last_refresh_at'])}")
+
+
+@cli.command()
+def doctor():
+    """Health check: probe Ollama, list models, summarise the project index."""
+
+    config = get_config()
+    report = bootstrap.doctor_report(config["ollama_url"])
+    pad = lambda label: f"  {label:<26}"  # noqa: E731
+    click.echo("mgrep doctor")
+    if report["ollama"]["ok"]:
+        click.echo(f"{pad('Ollama runtime')}✓ {report['ollama']['url']}")
+    else:
+        click.echo(f"{pad('Ollama runtime')}× {report['ollama']['url']}")
+        click.echo(f"  → {report['ollama']['error']}")
+        click.echo(f"\n{bootstrap.OLLAMA_INSTALL_HINT}")
+        sys.exit(1)
+    for entry in report["models"]:
+        mark = "✓" if entry["present"] else "×"
+        click.echo(f"{pad(entry['role'].title() + ' model')}{mark} {entry['name']}")
+        if not entry["present"]:
+            click.echo(f"  → run: ollama pull {entry['name']}")
+    # Project index status.
+    db_path = config["db_path"]
+    if db_path.exists():
+        conn = sqlite3.connect(db_path)
+        snap = auto_index.index_status(conn)
+        click.echo(
+            f"{pad('Project index')}✓ {snap['files']} files / {snap['chunks']} chunks"
+            + (f" · refreshed {auto_index._human_age(time.time() - snap['last_refresh_at'])}" if snap["last_refresh_at"] else "")
+        )
+        click.echo(f"{pad('Index DB')}{db_path}")
+    else:
+        click.echo(f"{pad('Project index')}× not yet built — run a query to auto-index, or `mgrep index .`")
+        click.echo(f"{pad('Would write to')}{db_path}")
+    # Reranker presence is a soft check.
+    try:
+        import sentence_transformers  # noqa: F401
+
+        click.echo(f"{pad('Reranker (optional)')}✓ sentence-transformers installed")
+    except ImportError:
+        click.echo(f"{pad('Reranker (optional)')}— install: pip install 'local-mgrep[rerank]'")
+    click.echo(f"{pad('Project root')}{cfg_mod.project_root()}")
+
 
 def main():
     cli()
