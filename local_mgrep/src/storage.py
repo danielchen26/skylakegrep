@@ -1,5 +1,6 @@
 import fnmatch
 import logging
+import os
 import re
 import sqlite3
 from pathlib import Path
@@ -16,6 +17,17 @@ logger = logging.getLogger(__name__)
 LEXICAL_WEIGHT = 0.2
 MAX_RESULTS_PER_FILE = 2
 TOKEN_RE = re.compile(r"[a-z0-9]+")
+
+# L4 file-export PageRank tiebreaker. Only fires when the gap between the
+# top-1 and top-2 final scores is below ``TIEBREAK_EPS``. The keep-safe
+# property is ``GRAPH_TIEBREAK_WEIGHT <= TIEBREAK_EPS`` — any score gap
+# wider than the weight cannot be flipped by the prior. This is the fix
+# for the P4-CGC failure mode where in-degree as a global cosine prior
+# pulled hubs (``lib.rs`` with 1655 in-degree) ahead of canonical leaves.
+TIEBREAK_EPS = float(os.environ.get("MGREP_TIEBREAK_EPS", "0.005"))
+GRAPH_TIEBREAK_WEIGHT = float(
+    os.environ.get("MGREP_GRAPH_TIEBREAK_WEIGHT", "0.005")
+)
 
 # Path patterns that almost always indicate a non-canonical file: tests,
 # test fixtures, AI safety blocklists, integration helpers, generated bundles.
@@ -84,6 +96,18 @@ def init_db(db_path: Path):
             file TEXT PRIMARY KEY,
             chunk_count INTEGER,
             embedding BLOB
+        )
+    """)
+    # File-export graph (L4): per-file in/out degree and PageRank, populated
+    # from regex-parsed import edges across Rust / Python / TS / JS. Used as
+    # a near-tie tiebreaker, never as a global cosine prior.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS file_graph (
+            file       TEXT PRIMARY KEY,
+            in_degree  INTEGER,
+            out_degree INTEGER,
+            pagerank   REAL,
+            file_mtime REAL
         )
     """)
     conn.commit()
@@ -309,6 +333,63 @@ def path_matches(path: str, include_patterns: tuple[str, ...], exclude_patterns:
     return True
 
 
+def _apply_graph_tiebreak(
+    conn,
+    candidates: list[dict],
+    *,
+    eps: float = TIEBREAK_EPS,
+    weight: float = GRAPH_TIEBREAK_WEIGHT,
+    top_k: int = 5,
+) -> bool:
+    """Resort ``candidates`` in place when the top two scores are within ``eps``.
+
+    Reads ``file_graph.pagerank`` for the top-K paths, normalises to [0, 1]
+    over that K-set, and adds ``weight * normalised_pr`` to each candidate's
+    score before resorting. By construction ``weight <= eps`` ensures no
+    candidate whose pre-tiebreak gap exceeds ``weight`` can be displaced.
+
+    Returns True if the tiebreaker actually fired (top-1 and top-2 within
+    ``eps`` and at least one pagerank value was found), so the caller can
+    surface it on the status line.
+    """
+
+    if len(candidates) < 2:
+        return False
+    top1 = float(candidates[0].get("score", 0.0))
+    top2 = float(candidates[1].get("score", 0.0))
+    if top1 - top2 >= eps:
+        return False
+    # Read pagerank for the top-K candidates only.
+    top = candidates[:top_k]
+    paths = [c.get("path", "") for c in top if c.get("path")]
+    if not paths:
+        return False
+    placeholders = ",".join("?" * len(paths))
+    try:
+        rows = conn.execute(
+            f"SELECT file, pagerank FROM file_graph WHERE file IN ({placeholders})",
+            paths,
+        ).fetchall()
+    except sqlite3.OperationalError:
+        # file_graph table absent — table not migrated, silently skip.
+        return False
+    pr_map = {file_path: float(pr) for file_path, pr in rows}
+    if not pr_map:
+        return False
+    values = [pr_map.get(p, 0.0) for p in paths]
+    lo, hi = min(values), max(values)
+    span = (hi - lo) + 1e-9
+    norm = {p: (pr_map.get(p, 0.0) - lo) / span for p in paths}
+    for c in top:
+        bump = weight * norm.get(c.get("path", ""), 0.0)
+        c["score"] = float(c.get("score", 0.0)) + bump
+        c["graph_tiebreak"] = True
+    # Resort the prefix; tail order is irrelevant for top-K display.
+    top.sort(key=lambda c: c.get("score", 0.0), reverse=True)
+    candidates[:top_k] = top
+    return True
+
+
 def _file_rank(candidates: list[dict], top_k: int) -> list[dict]:
     """Return one best-scoring chunk per file, sorted by that score.
 
@@ -343,6 +424,7 @@ def search(
     file_top: int = 30,
     candidate_paths: Optional[set[str]] = None,
     rank_by: str = "chunk",
+    use_graph_tiebreak: bool = True,
 ) -> list[dict]:
     """Hybrid retrieval with optional cross-encoder rerank and file ranking.
 
@@ -499,6 +581,13 @@ def search(
             penalised = True
     if penalised:
         candidates.sort(key=lambda c: c.get("score", 0.0), reverse=True)
+
+    # L4 file-export PageRank tiebreaker: only re-orders the top-2 when their
+    # score gap is below ``TIEBREAK_EPS``. Hubs only win against another hub,
+    # never against a clearly-higher-scoring leaf — that's the regression
+    # guard against P4-CGC's failure mode.
+    if use_graph_tiebreak and candidates:
+        _apply_graph_tiebreak(conn, candidates)
 
     if rank_by == "file":
         return _file_rank(candidates, top_k)

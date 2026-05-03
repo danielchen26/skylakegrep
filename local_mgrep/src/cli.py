@@ -29,7 +29,7 @@ import click
 
 logger = logging.getLogger(__name__)
 
-from . import auto_index, bootstrap, config as cfg_mod
+from . import auto_index, bootstrap, code_graph, config as cfg_mod
 from .answerer import get_answerer
 from .config import get_config
 from .embeddings import get_embedder
@@ -343,6 +343,28 @@ def search_cmd(
         except Exception as exc:
             logger.warning("auto-refresh failed: %s", exc)
 
+    # One-time migration: build the file-export graph if the table is empty.
+    # Best-effort; failures here must not block search. Suppressed under
+    # ``--json`` so machine-readable callers see clean stdout.
+    graph_ready = False
+    try:
+        row = conn.execute("SELECT COUNT(*) FROM file_graph").fetchone()
+        graph_count = row[0] if row else 0
+        if graph_count == 0:
+            if not json_output:
+                click.echo("↻ building file-export graph (one-time)…", err=True)
+            try:
+                code_graph.populate_graph_table(conn, project_root)
+                graph_ready = True
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("file-export graph build failed: %s", exc)
+        else:
+            graph_ready = True
+    except sqlite3.OperationalError:
+        # Old DB without file_graph table; init_db creates it now, so this
+        # path is rare. Silently fall through.
+        pass
+
     status = ai.index_status(conn)
     if status["chunks"] == 0:
         # Empty index is a legitimate state (e.g. after `index --reset` on a
@@ -456,6 +478,16 @@ def search_cmd(
             f"τ={cascade_telemetry.get('tau', 0):.4f})"
         )
     parts.append(f"index {ai.index_age_human(conn)} · {status['files']} files")
+    if graph_ready:
+        parts.append("graph prior on")
+        if any(r.get("graph_tiebreak") for r in results):
+            # Surface the tied gap (top1-top2 of the pre-tiebreak rankings is
+            # not retained, so report the post-tiebreak top1-top2 as a proxy).
+            if len(results) >= 2:
+                gap = float(results[0].get("score", 0)) - float(results[1].get("score", 0))
+                parts.append(f"tied (Δ={gap:.3f})")
+            else:
+                parts.append("tied")
     click.echo("\n[" + " · ".join(parts) + "]")
 
 
