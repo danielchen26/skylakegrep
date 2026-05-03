@@ -698,6 +698,8 @@ def doctor():
         click.echo(f"{pad(entry['role'].title() + ' model')}{mark} {entry['name']}")
         if not entry["present"]:
             click.echo(f"  → run: ollama pull {entry['name']}")
+    keep_alive = report.get("keep_alive") or "(default)"
+    click.echo(f"{pad('Ollama keep_alive')}{keep_alive}")
     # Project index status.
     db_path = config["db_path"]
     if db_path.exists():

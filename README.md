@@ -60,7 +60,7 @@ detected language, the score, and the verbatim source text — rendered as
 text, JSON (`--json`), or as a synthesized answer over the local Ollama
 generation model.
 
-Latest stable release notes: [v0.5.1](https://github.com/danielchen26/local-mgrep/releases/latest) — cascade file-mean corpus-wide fix; <repo-D> 16-task **16/16 with corrected labels at ~3 s/q on Mac CPU**.
+Latest stable release notes: [v0.6.0](https://github.com/danielchen26/local-mgrep/releases/latest) — smaller default HyDE model + `keep_alive=-1` drop average <repo-D> latency from ~3 s/q to ~1 s/q on Mac CPU at unchanged 16/16 recall.
 
 ## Quickstart
 

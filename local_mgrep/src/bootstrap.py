@@ -190,17 +190,28 @@ def doctor_report(base_url: str | None = None) -> dict:
     """Collect a structured health report. Used by ``mgrep doctor``."""
     cfg = get_config()
     url = (base_url or cfg["ollama_url"]).rstrip("/")
-    report: dict = {"ollama": {"url": url, "ok": False, "error": ""}, "models": []}
+    report: dict = {
+        "ollama": {"url": url, "ok": False, "error": ""},
+        "models": [],
+        "keep_alive": cfg.get("keep_alive"),
+    }
     ok, err = _probe_ollama(url)
     report["ollama"]["ok"] = ok
     report["ollama"]["error"] = err
     if not ok:
         return report
     installed = list_local_models(url)
+    seen_names: set[str] = set()
     for label, name in (
         ("embed", cfg["embed_model"]),
-        ("llm", cfg["llm_model"]),
+        ("llm (--answer)", cfg["llm_model"]),
+        ("llm (cascade/HyDE)", cfg.get("hyde_model") or cfg["llm_model"]),
     ):
+        if name in seen_names:
+            # ``hyde_model == llm_model`` is fine (legacy / explicit override) —
+            # don't print the same row twice.
+            continue
+        seen_names.add(name)
         report["models"].append(
             {
                 "role": label,

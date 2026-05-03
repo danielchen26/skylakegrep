@@ -9,6 +9,7 @@ The Markdown files here are reference companions to that site.
 | File | Purpose |
 | --- | --- |
 | [`index.html`](index.html) | Rendered documentation site (published as <https://danielchen26.github.io/local-mgrep/>). |
+| [`local-mgrep-0.6.0.md`](local-mgrep-0.6.0.md) | Release notes for 0.6.0: smaller default HyDE model (`qwen2.5:1.5b`) + Ollama `keep_alive=-1`. Average <repo-D> latency drops from ~3 s/q to ~1 s/q on Mac CPU with no recall regression. Graceful fallback when the smaller model isn't installed. |
 | [`local-mgrep-0.5.1.md`](local-mgrep-0.5.1.md) | Release notes for 0.5.1: cascade file-mean cosine corpus-wide fix; <repo-D> 16-task benchmark relabeled to acceptable-alternatives form (16/16 with corrected labels); honest empirical note that L2/L3/L4 don't move <repo-D> recall (<repo-D> saturated, multi-language bench landing in 0.5.2). |
 | [`local-mgrep-0.5.0.md`](local-mgrep-0.5.0.md) | Release notes for 0.5.0: 5-layer progressive system — symbol-aware indexing (L2), doc2query enrichment (L3), PageRank tiebreaker (L4) on top of the 0.4.x rg fallback + cascade base. |
 | [`local-mgrep-0.4.1.md`](local-mgrep-0.4.1.md) | Release notes for 0.4.1: ripgrep fallback for the first query in a fresh project (~0.7 s) + detached background semantic indexer. |

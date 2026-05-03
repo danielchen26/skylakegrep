@@ -6,13 +6,45 @@ from .config import get_config
 
 def get_answerer():
     cfg = get_config()
-    return OllamaAnswerer(cfg["ollama_url"], cfg["llm_model"])
+    return OllamaAnswerer(
+        cfg["ollama_url"],
+        cfg["llm_model"],
+        hyde_model=cfg.get("hyde_model"),
+        keep_alive=cfg.get("keep_alive"),
+    )
 
 
 class OllamaAnswerer:
-    def __init__(self, base_url: str, model: str):
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        hyde_model: str | None = None,
+        keep_alive: str | None = None,
+    ):
         self.base_url = base_url.rstrip("/")
         self.model = model
+        # ``hyde_model`` lets cascade escalation use a smaller / faster
+        # model than ``--answer`` while leaving the answer-quality model
+        # untouched. Falls back to ``model`` so existing tests that only
+        # pass ``model`` keep working unchanged.
+        self.hyde_model = hyde_model or model
+        self.keep_alive = keep_alive
+
+    def _options(self) -> dict:
+        opts = {"temperature": 0, "seed": 42, "num_predict": 256}
+        return opts
+
+    def _payload(self, model: str, prompt: str, *, options: dict | None = None) -> dict:
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "stream": False,
+            "options": options if options is not None else self._options(),
+        }
+        if self.keep_alive is not None and self.keep_alive != "":
+            payload["keep_alive"] = self.keep_alive
+        return payload
 
     def hyde(self, query: str, language_hint: str = "") -> str:
         """Generate a hypothetical code answer for ``query`` (HyDE).
@@ -44,27 +76,55 @@ class OllamaAnswerer:
             f"Question: {query}\n\n"
             "Hypothetical code:"
         )
+        text = self._generate(self.hyde_model, prompt, fallback=self.model)
+        if not text:
+            return query
+        # Combine the question and the hypothetical doc; the embedding then
+        # benefits from both surface-language anchors and the synthesized
+        # identifier vocabulary.
+        return f"{query}\n\n{text}"
+
+    _missing_logged: set[str] = set()
+
+    def _generate(self, model: str, prompt: str, *, fallback: str | None = None) -> str:
+        """POST to /api/generate with graceful fallback when the requested
+        model is not installed locally. Returns the response text or empty
+        string on permanent failure.
+        """
         try:
             response = requests.post(
                 f"{self.base_url}/api/generate",
-                json={
-                    "model": self.model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {"temperature": 0, "seed": 42, "num_predict": 256},
-                },
+                json=self._payload(model, prompt),
                 timeout=120,
             )
             response.raise_for_status()
-            text = response.json().get("response", "").strip()
-            if not text:
-                return query
-            # Combine the question and the hypothetical doc; the embedding then
-            # benefits from both surface-language anchors and the synthesized
-            # identifier vocabulary.
-            return f"{query}\n\n{text}"
+            return response.json().get("response", "").strip()
+        except requests.HTTPError as exc:
+            # Ollama returns 404 with body containing "model not found"
+            # when the requested model isn't pulled. Fall back once,
+            # logging a hint the first time per model.
+            try:
+                body = exc.response.text  # type: ignore[union-attr]
+            except Exception:
+                body = ""
+            if (
+                fallback
+                and fallback != model
+                and ("not found" in body.lower() or exc.response is not None and exc.response.status_code == 404)  # type: ignore[union-attr]
+            ):
+                if model not in self._missing_logged:
+                    self._missing_logged.add(model)
+                    import sys
+                    print(
+                        f"[mgrep] hyde model {model!r} not installed; falling back to "
+                        f"{fallback!r}. Pull the smaller model for faster cascade "
+                        f"escalations:  ollama pull {model}",
+                        file=sys.stderr,
+                    )
+                return self._generate(fallback, prompt, fallback=None)
+            return ""
         except requests.RequestException:
-            return query
+            return ""
 
     def decompose(self, query: str, max_queries: int = 3) -> list[str]:
         prompt = (
@@ -75,7 +135,7 @@ class OllamaAnswerer:
         )
         response = requests.post(
             f"{self.base_url}/api/generate",
-            json={"model": self.model, "prompt": prompt, "stream": False},
+            json=self._payload(self.model, prompt, options={}),
             timeout=120,
         )
         response.raise_for_status()
@@ -107,7 +167,7 @@ class OllamaAnswerer:
         )
         response = requests.post(
             f"{self.base_url}/api/generate",
-            json={"model": self.model, "prompt": prompt, "stream": False},
+            json=self._payload(self.model, prompt, options={}),
             timeout=120,
         )
         response.raise_for_status()

@@ -23,7 +23,12 @@ def get_embedder(role: str = "document"):
 
     cfg = get_config()
     prefix = cfg["embed_prefixes"].get(role, "")
-    return OllamaEmbedder(cfg["ollama_url"], cfg["embed_model"], prefix=prefix)
+    return OllamaEmbedder(
+        cfg["ollama_url"],
+        cfg["embed_model"],
+        prefix=prefix,
+        keep_alive=cfg.get("keep_alive"),
+    )
 
 
 def _clip(text: str) -> str:
@@ -33,10 +38,21 @@ def _clip(text: str) -> str:
 
 
 class OllamaEmbedder:
-    def __init__(self, base_url: str, model: str, prefix: str = ""):
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        prefix: str = "",
+        keep_alive: str | None = None,
+    ):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.prefix = prefix
+        # ``keep_alive=-1`` keeps the embed model resident across calls,
+        # which avoids 5-10 s reload latency between query embeddings in
+        # the same shell session. None / empty string falls back to
+        # Ollama's default (~5 min).
+        self.keep_alive = keep_alive
         self._zero_dim: int | None = None
 
     def _prep(self, text: str) -> str:
@@ -47,11 +63,18 @@ class OllamaEmbedder:
             self._zero_dim = 768  # nomic-embed-text default; corrected on first success
         return [0.0] * self._zero_dim
 
+    def _maybe_keep_alive(self, payload: dict) -> dict:
+        if self.keep_alive:
+            payload["keep_alive"] = self.keep_alive
+        return payload
+
     def embed(self, text: str) -> list[float]:
         try:
             resp = requests.post(
                 f"{self.base_url}/api/embeddings",
-                json={"model": self.model, "prompt": self._prep(text)},
+                json=self._maybe_keep_alive(
+                    {"model": self.model, "prompt": self._prep(text)}
+                ),
                 timeout=60,
             )
             resp.raise_for_status()
@@ -72,7 +95,9 @@ class OllamaEmbedder:
         try:
             resp = requests.post(
                 f"{self.base_url}/api/embed",
-                json={"model": self.model, "input": prepped},
+                json=self._maybe_keep_alive(
+                    {"model": self.model, "input": prepped}
+                ),
                 timeout=120,
             )
             resp.raise_for_status()

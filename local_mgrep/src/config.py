@@ -11,6 +11,18 @@ DEFAULT_OLLAMA_URL = "http://localhost:11434"
 # search time and require ``mgrep index <repo> --reset``.
 DEFAULT_EMBED_MODEL = "nomic-embed-text"
 DEFAULT_LLM_MODEL = "qwen2.5:3b"
+# HyDE / cascade-escalation use a smaller model by default — the LLM job is
+# "write a short plausible code snippet matching the question's intent",
+# which a 1.5B-class model handles competently and 3-5× faster on Mac CPU
+# than the 3B used for ``--answer``. Override with ``OLLAMA_HYDE_MODEL`` to
+# pin a specific model. If the configured model is missing locally the
+# answerer falls back transparently to ``llm_model``.
+DEFAULT_HYDE_MODEL = "qwen2.5:1.5b"
+# Ollama keep-alive: -1 keeps a model resident indefinitely after the first
+# load, which is what we want for an interactive CLI — the next query in
+# the same shell session no longer pays a 5-10 s cold-load. Override with a
+# duration string (``"30m"``, ``"60s"``) or ``"0"`` to disable.
+DEFAULT_KEEP_ALIVE = "-1"
 GLOBAL_INDEX_FALLBACK = Path.home() / ".local-mgrep" / "index.db"
 PROJECT_INDEX_DIR = Path.home() / ".local-mgrep" / "repos"
 
@@ -106,6 +118,8 @@ def get_config():
             _strip_tag(embed_model), {"query": "", "document": ""}
         ),
         "llm_model": os.environ.get("OLLAMA_LLM_MODEL", DEFAULT_LLM_MODEL),
+        "hyde_model": os.environ.get("OLLAMA_HYDE_MODEL", DEFAULT_HYDE_MODEL),
+        "keep_alive": os.environ.get("OLLAMA_KEEP_ALIVE", DEFAULT_KEEP_ALIVE),
         "db_path": resolve_db_path(),
         "rerank_model": os.environ.get("MGREP_RERANK_MODEL", DEFAULT_RERANK_MODEL),
         "rerank_pool": int(os.environ.get("MGREP_RERANK_POOL", str(DEFAULT_RERANK_POOL))),
