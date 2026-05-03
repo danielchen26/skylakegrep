@@ -46,6 +46,11 @@ CHUNK_METADATA_COLUMNS = {
     "end_line": "INTEGER",
     "start_byte": "INTEGER",
     "end_byte": "INTEGER",
+    # L3 doc2query enrichment columns. Old DBs are migrated by
+    # ``ensure_chunk_metadata_columns`` so the enrich command can resume
+    # against an index that pre-dates this feature.
+    "enriched_at": "REAL",
+    "description": "TEXT",
 }
 
 
