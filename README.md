@@ -46,9 +46,11 @@ retrieval pipeline:
    `mxbai-rerank-*-v2` cross-encoder reorders the top candidate pool;
    non-canonical paths (tests, blocklists) get a multiplicative penalty.
 
-A first-time query against a project triggers a one-time auto-index;
-subsequent queries do an mtime-based incremental refresh (throttled, so
-back-to-back queries don't pay it). Indexing, retrieval, optional answer
+A first-time query against a project completes in well under a second
+via a ripgrep fallback while a detached background process builds the
+semantic index. Subsequent queries hit the full cascade with an
+mtime-based incremental refresh on every search (throttled, so back-to-
+back queries don't pay it). Indexing, retrieval, optional answer
 synthesis (`--answer`), and optional agentic decomposition (`--agentic`)
 all run on the local host against a local Ollama server. No remote service
 is required for the core workflow.
@@ -58,23 +60,30 @@ detected language, the score, and the verbatim source text — rendered as
 text, JSON (`--json`), or as a synthesized answer over the local Ollama
 generation model.
 
-Latest stable release notes: [v0.4.0](https://github.com/danielchen26/local-mgrep/releases/latest).
+Latest stable release notes: [v0.4.1](https://github.com/danielchen26/local-mgrep/releases/latest).
 
 ## Quickstart
 
 ```bash
 pip install local-mgrep
 
-# Ask. The first query auto-indexes; subsequent queries refresh on mtime change.
+# Ask. First query in a fresh project: < 1 s via ripgrep fallback.
+# A detached background process builds the semantic index in parallel.
 mgrep "where is the auth token refreshed?"
+
+# A minute later, the next query uses the full semantic cascade.
+mgrep "..."
 ```
 
 That is the entire happy path. `mgrep` derives the project root from `git
 rev-parse --show-toplevel` (falling back to the current working directory),
 maintains a per-project index under `~/.local-mgrep/repos/`, and runs the
-confidence-gated cascade by default for retrieval. If Ollama is not yet
-installed or the embedding model is missing, the CLI prints an actionable
-one-line setup hint instead of failing silently.
+confidence-gated cascade by default for retrieval. The first query in any
+project never blocks: while the semantic index builds in the background,
+ripgrep returns top files immediately and the status line tells you which
+mode produced the results. If Ollama is not yet installed or the embedding
+model is missing, the CLI prints an actionable one-line setup hint instead
+of failing silently.
 
 Health-check the setup at any time:
 
@@ -147,6 +156,7 @@ The full set of internal modules is documented at
 | Confidence-gated cascade | implemented | 0.3.0 (default in 0.4.0) | Default on; gates expensive escalation on a top-1 / top-2 score gap. `--no-cascade` to disable. See [Benchmark](#benchmark). |
 | Bare-form invocation (`mgrep "<q>"`) | implemented | 0.4.0 | Routes to `search` automatically; subcommand names still win for `index/watch/serve/stats/doctor`. |
 | Per-project auto-index | implemented | 0.4.0 | First query in a project triggers one-time index; subsequent queries do mtime-based incremental refresh (30 s throttle). Set `MGREP_DB_PATH` to opt out. |
+| Ripgrep fallback for the first query | implemented | 0.4.1 | Fresh-project query returns ~0.7 s rg results while semantic indexer runs detached in the background. |
 | Bootstrap probes (`mgrep doctor`) | implemented | 0.4.0 | Health check of Ollama runtime, embed/LLM model presence, project index state, optional reranker. |
 | Hosted account / cloud index | out of scope | — | Not planned. |
 | Paid web search | out of scope | — | Not planned. |

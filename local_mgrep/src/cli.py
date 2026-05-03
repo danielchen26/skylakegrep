@@ -19,12 +19,15 @@ metrics"`` searches; ``mgrep stats`` runs the subcommand.
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 import sys
 import time
 from pathlib import Path
 
 import click
+
+logger = logging.getLogger(__name__)
 
 from . import auto_index, bootstrap, config as cfg_mod
 from .answerer import get_answerer
@@ -287,20 +290,64 @@ def search_cmd(
 
     from . import auto_index as ai
 
+    # Routing decision: ready → cascade; building or absent → rg fallback.
+    conn = init_db(db_path)
+    ready = ai.is_index_ready(conn)
+    if not ready and auto_index:
+        # Spawn (or no-op if already running) a detached indexer; do NOT
+        # block the user. The next query that lands after the spawn
+        # finishes will get full semantic results.
+        try:
+            ai.spawn_background_index(project_root, db_path)
+        except Exception as exc:
+            logger.warning("background index spawn failed: %s", exc)
+        # Fall back to a pure-rg result for this query.
+        start = time.time()
+        results = ai.rg_fallback_results(query, project_root, top_k=top)
+        elapsed = time.time() - start
+        if json_output:
+            click.echo(render_json_results(results))
+            return
+        if not results:
+            click.echo(
+                "No matches yet. Semantic index is building in the background; "
+                "try the same query again in a minute, or run `mgrep stats` to "
+                "see progress.",
+                err=True,
+            )
+            return
+        for r in results:
+            line_range = ""
+            if r.get("start_line") and r.get("end_line"):
+                line_range = f":{r['start_line']}-{r['end_line']}"
+            click.echo(f"\n=== {r['path']}{line_range} (score: {r['score']:.3f}) ===")
+            if content:
+                click.echo(r["snippet"][:500])
+        building = ai.is_index_building(db_path)
+        suffix = "building in background" if building else "queued"
+        click.echo(
+            f"\n[{elapsed:.3f}s · ripgrep fallback · semantic index {suffix}]"
+        )
+        return
+
+    # Index is ready (or auto_index disabled): run the normal pipeline,
+    # plus an mtime-based incremental refresh on the way in.
     if auto_index:
         try:
-            conn = ai.ensure_indexed(db_path, project_root, quiet=json_output)
-        except bootstrap.BootstrapError as exc:
-            click.echo(f"\n{exc}", err=True)
-            sys.exit(1)
-    else:
-        conn = init_db(db_path)
+            ai.incremental_refresh(
+                conn,
+                project_root,
+                throttle_seconds=ai._refresh_throttle_from_env(),
+                quiet=json_output,
+            )
+        except Exception as exc:
+            logger.warning("auto-refresh failed: %s", exc)
+
     status = ai.index_status(conn)
     if status["chunks"] == 0:
         # Empty index is a legitimate state (e.g. after `index --reset` on a
         # directory with no indexable files, or after every file was
-        # deleted). Return empty results rather than erroring; the caller
-        # already saw any auto-index progress / actionable output above.
+        # deleted). Return empty results rather than erroring.
         if json_output:
             click.echo(render_json_results([]))
         else:

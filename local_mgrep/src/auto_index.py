@@ -6,16 +6,26 @@ index`` for a normal workflow. This module owns:
   - First-time index for a fresh project (DB doesn't exist or is empty).
   - Lightweight mtime-based incremental refresh on every search.
   - A throttle so consecutive queries don't pay the mtime scan repeatedly.
+  - **Background-spawn indexing** so the first query in a fresh project
+    completes in ~100 ms via a ripgrep fallback while the semantic index
+    builds in another process.
 
 The throttle state lives in a small ``meta`` table inside the project DB
-itself — no external file, no global cache, no cross-project surprise.
+itself. The background-spawn lockfile lives next to the DB at
+``<db_path>.lock`` so a crashed indexer can be detected and re-spawned on
+the next query.
 """
 
 from __future__ import annotations
 
+import errno
 import logging
 import os
+import re
+import shutil
+import signal
 import sqlite3
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -24,6 +34,7 @@ import click
 
 from . import config, storage
 from .embeddings import get_embedder
+from .hybrid import extract_query_terms, lexical_candidate_paths
 from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
 
 logger = logging.getLogger(__name__)
@@ -230,6 +241,196 @@ def ensure_indexed(
             # query the existing index.
             logger.warning("auto-refresh failed: %s", exc)
     return conn
+
+
+# --------------------------------------------------------------------------- #
+# Background-index lockfile + readiness primitives.                            #
+# --------------------------------------------------------------------------- #
+
+
+def _lock_path(db_path: Path) -> Path:
+    return db_path.with_suffix(db_path.suffix + ".lock")
+
+
+def is_index_ready(conn: sqlite3.Connection) -> bool:
+    """An index is 'ready' iff a full pass has completed.
+
+    Marker: the ``meta.last_full_index_at`` row is set by ``first_time_index``
+    only after ``populate_file_embeddings`` succeeds. A partial chunks-but-
+    no-files state (which happens when the indexer is killed mid-flight)
+    therefore correctly reports 'not ready' — users get the rg fallback
+    until the next successful index pass.
+    """
+    return _meta_get(conn, "last_full_index_at") is not None
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except OSError as exc:
+        return exc.errno == errno.EPERM  # alive but not ours; treat as alive
+    return True
+
+
+def is_index_building(db_path: Path) -> bool:
+    """Is a background indexer currently working on this DB?
+
+    True iff ``<db>.lock`` exists with a PID that responds to signal 0.
+    Stale lockfiles (process gone) are removed and report False.
+    """
+    lock = _lock_path(db_path)
+    if not lock.exists():
+        return False
+    try:
+        pid = int(lock.read_text().strip())
+    except (OSError, ValueError):
+        try:
+            lock.unlink()
+        except FileNotFoundError:
+            pass
+        return False
+    if _pid_alive(pid):
+        return True
+    try:
+        lock.unlink()
+    except FileNotFoundError:
+        pass
+    return False
+
+
+def spawn_background_index(root: Path, db_path: Path, *, force: bool = False) -> int | None:
+    """Launch ``mgrep index <root>`` as a detached background process.
+
+    Returns the spawned PID, or ``None`` if the indexer is already running
+    (and ``force`` was False). The child writes its PID to
+    ``<db_path>.lock`` and removes it on exit; the wrapper script mirrors
+    this with ``flock`` semantics so a crashed child still cleans up.
+    """
+    if not force and is_index_building(db_path):
+        return None
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    lock = _lock_path(db_path)
+    log = db_path.with_suffix(db_path.suffix + ".log")
+    env = dict(os.environ)
+    env["MGREP_DB_PATH"] = str(db_path)
+    # Detach so the child survives our exit and isn't killed by the parent's
+    # signal group. ``start_new_session`` matters on POSIX; it makes the
+    # child the leader of a new session so SIGINT/SIGHUP from the parent
+    # terminal don't propagate.
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "local_mgrep.src.cli", "index", str(root)],
+        cwd=str(root),
+        env=env,
+        stdout=open(log, "ab", buffering=0),
+        stderr=subprocess.STDOUT,
+        stdin=subprocess.DEVNULL,
+        start_new_session=True,
+        close_fds=True,
+    )
+    try:
+        lock.write_text(str(proc.pid))
+    except OSError:
+        # Best-effort: if we cannot write the lockfile the indexer still
+        # runs but multiple invocations may race. Acceptable degradation.
+        pass
+    return proc.pid
+
+
+# --------------------------------------------------------------------------- #
+# Ripgrep-only fallback for the first query in a fresh project.                #
+# --------------------------------------------------------------------------- #
+
+
+def rg_fallback_results(
+    query: str,
+    root: Path,
+    *,
+    top_k: int,
+    snippet_lines: int = 24,
+) -> list[dict]:
+    """Return result dicts shaped like ``storage.search`` output, sourced
+    purely from ripgrep — no embedding model, no DB.
+
+    Score = number of distinct query terms whose token hits in the file.
+    Snippet = the first ``snippet_lines`` lines containing any query term,
+    or just the file head when no line matches.
+    """
+    rg = shutil.which("rg")
+    if not rg:
+        return []
+    terms = extract_query_terms(query)
+    if not terms:
+        return []
+    file_hits: dict[str, set[str]] = {}
+    for term in terms:
+        try:
+            r = subprocess.run(
+                [rg, "-il", "-F", term, str(root)],
+                capture_output=True,
+                text=True,
+                timeout=8,
+            )
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            continue
+        for line in r.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            file_hits.setdefault(line, set()).add(term)
+    if not file_hits:
+        return []
+    ranked = sorted(file_hits.items(), key=lambda kv: -len(kv[1]))[: top_k * 2]
+
+    results: list[dict] = []
+    term_pat = re.compile(
+        "|".join(re.escape(t) for t in terms), flags=re.IGNORECASE
+    ) if terms else None
+    for path, hits in ranked:
+        snippet, sl, el, lang = _read_snippet(Path(path), term_pat, snippet_lines)
+        if snippet is None:
+            continue
+        results.append(
+            {
+                "path": path,
+                "file": path,
+                "chunk": snippet,
+                "snippet": snippet,
+                "language": lang,
+                "start_line": sl,
+                "end_line": el,
+                "start_byte": None,
+                "end_byte": None,
+                "score": float(len(hits)) / max(1, len(terms)),
+                "semantic_score": 0.0,
+                "lexical_score": float(len(hits)) / max(1, len(terms)),
+                "fallback": "ripgrep",
+            }
+        )
+        if len(results) >= top_k:
+            break
+    return results
+
+
+def _read_snippet(
+    path: Path,
+    term_pat: re.Pattern | None,
+    snippet_lines: int,
+) -> tuple[str | None, int | None, int | None, str | None]:
+    try:
+        text = path.read_text(errors="ignore")
+    except OSError:
+        return None, None, None, None
+    lines = text.splitlines()
+    start = 0
+    if term_pat is not None:
+        for i, ln in enumerate(lines):
+            if term_pat.search(ln):
+                start = max(0, i - 3)
+                break
+    end = min(len(lines), start + snippet_lines)
+    snippet = "\n".join(lines[start:end])
+    suffix = path.suffix.lower().lstrip(".")
+    return snippet, start + 1, end, suffix or None
 
 
 def _refresh_throttle_from_env() -> float:
