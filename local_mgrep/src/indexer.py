@@ -329,6 +329,211 @@ def prepare_file_chunks(filepath: Path, root: Path | None = None) -> list[dict]:
         })
     return results
 
+# ---------------------------------------------------------------------------
+# L2 symbol extraction
+# ---------------------------------------------------------------------------
+
+# Tree-sitter node-type → kind mappings keyed by language. Languages without
+# a tree-sitter grammar (or where parsing fails) fall back to the regex path
+# in ``_extract_symbols_regex``.
+_TS_SYMBOL_KINDS: dict[str, dict[str, str]] = {
+    "python": {
+        "function_definition": "function",
+        "class_definition": "class",
+    },
+    "javascript": {
+        "function_declaration": "function",
+        "class_declaration": "class",
+        "method_definition": "function",
+    },
+    "typescript": {
+        "function_declaration": "function",
+        "class_declaration": "class",
+        "method_definition": "function",
+        "interface_declaration": "class",
+    },
+    "tsx": {
+        "function_declaration": "function",
+        "class_declaration": "class",
+        "method_definition": "function",
+        "interface_declaration": "class",
+    },
+    "jsx": {
+        "function_declaration": "function",
+        "class_declaration": "class",
+        "method_definition": "function",
+    },
+    "rust": {
+        "function_item": "function",
+        "struct_item": "struct",
+        "trait_item": "trait",
+        "impl_item": "impl",
+        "mod_item": "module",
+        "enum_item": "struct",
+    },
+}
+
+# Regex fallback patterns for languages without tree-sitter or when parsing
+# fails. Each entry is ``(pattern, kind)`` where the pattern's first group is
+# the symbol name. Used by Rust today; can be extended.
+_REGEX_SYMBOL_PATTERNS: dict[str, list[tuple[_re.Pattern, str]]] = {
+    "rust": [
+        (_re.compile(r"\bfn\s+([A-Za-z_][\w]*)"), "function"),
+        (_re.compile(r"\bstruct\s+([A-Za-z_][\w]*)"), "struct"),
+        (_re.compile(r"\btrait\s+([A-Za-z_][\w]*)"), "trait"),
+        (
+            _re.compile(r"\bimpl(?:\s*<[^>]*>)?\s+(?:[\w:<>,\s]+\s+for\s+)?([A-Za-z_][\w]*)"),
+            "impl",
+        ),
+        (_re.compile(r"\bmod\s+([A-Za-z_][\w]*)"), "module"),
+    ],
+}
+
+
+def _split_camel_lower(name: str) -> str:
+    """Lowercase ``name`` with camelCase boundaries inserted as spaces.
+
+    ``LanguageModelClient`` → ``language model client``. Used so a
+    natural-language query like ``language model`` can substring-match the
+    space-joined lowered form even though the source identifier was
+    PascalCase or camelCase.
+    """
+
+    return _re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", name).lower()
+
+
+def _ts_extract_node_name(node, encoded: bytes) -> str | None:
+    """Return the identifier name for a tree-sitter declaration node.
+
+    Tries the standard ``name`` field first; if that's missing (e.g. an
+    ``impl`` block has a ``type`` field with the implementing type) walks
+    the children for a likely identifier-bearing node.
+    """
+
+    name_node = None
+    try:
+        name_node = node.child_by_field_name("name")
+    except Exception:
+        name_node = None
+    if name_node is None:
+        # impl blocks expose the type via the ``type`` field in tree-sitter
+        # rust; try that before giving up.
+        try:
+            name_node = node.child_by_field_name("type")
+        except Exception:
+            name_node = None
+    if name_node is None:
+        for child in node.children:
+            if child.type in {"identifier", "type_identifier", "property_identifier"}:
+                name_node = child
+                break
+    if name_node is None:
+        return None
+    raw = encoded[name_node.start_byte:name_node.end_byte].decode("utf8", errors="ignore")
+    raw = raw.strip()
+    return raw or None
+
+
+def _extract_symbols_treesitter(content: str, language: str) -> list[dict]:
+    kind_map = _TS_SYMBOL_KINDS.get(language)
+    if not kind_map:
+        return []
+    parser = get_parser(language)
+    if parser is None:
+        return []
+    try:
+        tree = parser.parse(bytes(content, "utf8"))
+    except (ValueError, Exception):
+        return []
+    encoded = content.encode("utf8")
+    out: list[dict] = []
+
+    def walk(node):
+        kind = kind_map.get(node.type)
+        if kind is not None:
+            name = _ts_extract_node_name(node, encoded)
+            if name:
+                out.append({
+                    "name": name,
+                    "kind": kind,
+                    "start_line": node.start_point[0] + 1,
+                    "end_line": node.end_point[0] + 1,
+                })
+        for child in node.children:
+            walk(child)
+
+    walk(tree.root_node)
+    return out
+
+
+def _extract_symbols_regex(content: str, language: str) -> list[dict]:
+    patterns = _REGEX_SYMBOL_PATTERNS.get(language)
+    if not patterns:
+        return []
+    out: list[dict] = []
+    for line_index, line in enumerate(content.splitlines(), start=1):
+        for pattern, kind in patterns:
+            match = pattern.search(line)
+            if not match:
+                continue
+            name = match.group(1)
+            if not name:
+                continue
+            out.append({
+                "name": name,
+                "kind": kind,
+                "start_line": line_index,
+                "end_line": line_index,
+            })
+    return out
+
+
+def extract_file_symbols(file: Path, root: Path) -> list[dict]:
+    """Return symbol rows for ``file`` suitable for the ``symbols`` table.
+
+    Each row has keys ``file/name/name_lower/kind/start_line/end_line/file_mtime``.
+    ``file`` is the absolute path string (matching the ``chunks.file`` form
+    used elsewhere in storage). ``name_lower`` is the camelCase-split lower
+    form so query terms can substring-match against ``"language model client"``
+    even when the identifier was ``LanguageModelClient``.
+
+    Tree-sitter is the preferred extractor (Python, JS, TS, Rust). When a
+    grammar is unavailable or parsing fails, a regex fallback covers Rust's
+    `fn` / `struct` / `trait` / `impl` / `mod` shapes; other languages with
+    no grammar return an empty list.
+    """
+
+    ext = file.suffix.lower()
+    language = SUPPORTED_EXTENSIONS.get(ext)
+    if language is None:
+        return []
+    try:
+        content = file.read_text(errors="ignore")
+    except Exception:
+        return []
+    try:
+        file_mtime = file.stat().st_mtime
+    except OSError:
+        file_mtime = 0.0
+    raw_symbols = _extract_symbols_treesitter(content, language)
+    if not raw_symbols:
+        raw_symbols = _extract_symbols_regex(content, language)
+    file_str = str(file)
+    rows: list[dict] = []
+    for sym in raw_symbols:
+        name = sym["name"]
+        rows.append({
+            "file": file_str,
+            "name": name,
+            "name_lower": _split_camel_lower(name),
+            "kind": sym["kind"],
+            "start_line": sym.get("start_line"),
+            "end_line": sym.get("end_line"),
+            "file_mtime": file_mtime,
+        })
+    return rows
+
+
 def batch_embed(chunks: list[dict], embedder, batch_size: int = 10) -> list[dict]:
     results = []
     for i in range(0, len(chunks), batch_size):

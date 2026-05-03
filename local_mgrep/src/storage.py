@@ -1,5 +1,6 @@
 import fnmatch
 import logging
+import os
 import re
 import sqlite3
 from pathlib import Path
@@ -16,6 +17,13 @@ logger = logging.getLogger(__name__)
 LEXICAL_WEIGHT = 0.2
 MAX_RESULTS_PER_FILE = 2
 TOKEN_RE = re.compile(r"[a-z0-9]+")
+
+# L2 symbol-aware boost. ``SYMBOL_WEIGHT`` is the maximum additive bump a
+# fully-matched symbol adds to a candidate's score; partial matches scale
+# linearly with the fraction of query terms that hit. Tuneable via the
+# ``MGREP_SYMBOL_WEIGHT`` env var so the integrator can sweep it without
+# touching code.
+SYMBOL_WEIGHT = float(os.environ.get("MGREP_SYMBOL_WEIGHT", "0.10"))
 
 # Path patterns that almost always indicate a non-canonical file: tests,
 # test fixtures, AI safety blocklists, integration helpers, generated bundles.
@@ -86,6 +94,23 @@ def init_db(db_path: Path):
             embedding BLOB
         )
     """)
+    # L2 symbol-aware index. ``name_lower`` is the camelCase-split lowercase
+    # form (``LanguageModelClient`` → ``language model client``) so a query
+    # like "language model" can substring-match the join even though the
+    # source identifier was a single PascalCase word.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS symbols (
+            file       TEXT NOT NULL,
+            name       TEXT NOT NULL,
+            name_lower TEXT NOT NULL,
+            kind       TEXT NOT NULL,
+            start_line INTEGER,
+            end_line   INTEGER,
+            file_mtime REAL
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_symbols_name_lower ON symbols(name_lower)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_symbols_file       ON symbols(file)")
     conn.commit()
     return conn
 
@@ -122,6 +147,118 @@ def populate_file_embeddings(conn) -> int:
         )
     conn.commit()
     return len(files)
+
+
+def populate_symbols(conn, root: Path) -> int:
+    """(Re)build the ``symbols`` table from current ``chunks`` membership.
+
+    Walks every distinct file currently referenced by ``chunks``, runs the
+    tree-sitter / regex symbol extractor on it, and bulk-inserts the rows
+    into ``symbols``. Idempotent: deletes existing rows for each file
+    before inserting fresh ones, so calling it twice is a no-op aside from
+    picking up file changes since the last call. Returns the total number
+    of symbol rows inserted across all files.
+
+    Symbol extraction is best-effort — files that fail to parse simply
+    contribute zero rows. The boost path treats absent symbols as a
+    no-signal case rather than an error.
+    """
+
+    # Local import to avoid a circular dep at module import time: indexer
+    # imports nothing from storage today, but extract_file_symbols sits in
+    # indexer and a future cross-import would otherwise be fragile.
+    from .indexer import extract_file_symbols
+
+    files = [row[0] for row in conn.execute("SELECT DISTINCT file FROM chunks").fetchall()]
+    inserted = 0
+    for file_str in files:
+        path = Path(file_str)
+        rows = extract_file_symbols(path, root)
+        conn.execute("DELETE FROM symbols WHERE file = ?", (file_str,))
+        if not rows:
+            continue
+        conn.executemany(
+            """
+            INSERT INTO symbols (file, name, name_lower, kind, start_line, end_line, file_mtime)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    r["file"],
+                    r["name"],
+                    r["name_lower"],
+                    r["kind"],
+                    r.get("start_line"),
+                    r.get("end_line"),
+                    r.get("file_mtime"),
+                )
+                for r in rows
+            ],
+        )
+        inserted += len(rows)
+    conn.commit()
+    return inserted
+
+
+def symbol_match_boost(
+    conn,
+    query_text: str,
+    candidate_paths: Optional[set[str]] = None,
+) -> dict[str, float]:
+    """Return a ``{path: boost_score}`` mapping for symbol-aware reranking.
+
+    The boost counts the number of distinct ≥4-char query terms that appear
+    as a token inside a file's symbol ``name_lower`` strings (which are
+    pre-camelCase-split, so ``LanguageModelClient`` → ``language model
+    client``). The fraction of matched terms is multiplied by
+    ``SYMBOL_WEIGHT`` to produce the final additive bump.
+
+    When ``candidate_paths`` is provided, the lookup is restricted to those
+    files; otherwise every file with at least one matched symbol gets an
+    entry. Files with no matches are simply absent from the returned dict.
+    """
+
+    # Reuse the prefilter's term extractor so symbol boosts and ripgrep
+    # candidates work from the same vocabulary.
+    from .hybrid import extract_query_terms
+
+    terms = [t for t in extract_query_terms(query_text) if len(t) >= 4]
+    if not terms:
+        return {}
+
+    sql = "SELECT file, name_lower FROM symbols"
+    params: list = []
+    if candidate_paths:
+        placeholders = ",".join("?" * len(candidate_paths))
+        sql += f" WHERE file IN ({placeholders})"
+        params.extend(sorted(candidate_paths))
+    rows = conn.execute(sql, params).fetchall()
+    if not rows:
+        return {}
+
+    # For each file, count the distinct query terms that appear as a token
+    # in any of its symbols' space-joined lower form. We tokenize the
+    # symbol's lower form by splitting on spaces so that "model" matches
+    # "language model client" (token hit) but does not match the literal
+    # substring inside an unrelated identifier.
+    matched_terms_per_file: dict[str, set[str]] = {}
+    for file_str, name_lower in rows:
+        if not name_lower:
+            continue
+        tokens = name_lower.split()
+        if not tokens:
+            continue
+        token_set = set(tokens)
+        for term in terms:
+            if term in token_set:
+                matched_terms_per_file.setdefault(file_str, set()).add(term)
+
+    denom = max(1, len(terms))
+    return {
+        path: (len(matched) / denom) * SYMBOL_WEIGHT
+        for path, matched in matched_terms_per_file.items()
+        if matched
+    }
 
 
 def file_level_search(
@@ -343,6 +480,7 @@ def search(
     file_top: int = 30,
     candidate_paths: Optional[set[str]] = None,
     rank_by: str = "chunk",
+    use_symbol_boost: bool = True,
 ) -> list[dict]:
     """Hybrid retrieval with optional cross-encoder rerank and file ranking.
 
@@ -499,6 +637,27 @@ def search(
             penalised = True
     if penalised:
         candidates.sort(key=lambda c: c.get("score", 0.0), reverse=True)
+
+    # L2 symbol-aware boost: an additive bump tied to how many query terms
+    # match a file's symbol identifiers. Runs after the non-canonical-path
+    # penalty so symbol matches in test files still get demoted, but
+    # symbol-only matches in canonical files float up. Opt-in via the
+    # ``use_symbol_boost`` kwarg so legacy unit tests can pin the old
+    # ranking by passing False.
+    if use_symbol_boost and query_text and candidates:
+        try:
+            boost_paths = {c.get("path") for c in candidates if c.get("path")}
+            boosts = symbol_match_boost(conn, query_text, candidate_paths=boost_paths)
+        except sqlite3.Error as exc:
+            logger.warning("symbol boost failed: %s", exc)
+            boosts = {}
+        if boosts:
+            for candidate in candidates:
+                bump = boosts.get(candidate.get("path"), 0.0)
+                if bump:
+                    candidate["score"] = float(candidate.get("score", 0.0)) + bump
+                    candidate["symbol_boost"] = bump
+            candidates.sort(key=lambda c: c.get("score", 0.0), reverse=True)
 
     if rank_by == "file":
         return _file_rank(candidates, top_k)
