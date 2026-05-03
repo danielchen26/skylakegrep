@@ -465,7 +465,90 @@ reduces token usage in real coding-agent sessions, requires the following:
    reported alongside the rubric quality score on each side. A workflow that
    uses fewer tokens but produces a worse answer is worse, not better.
 
-Until that benchmark is run, the strongest claim from this repository is the
-one in benchmark #2 above: equal recall at top-k 10 with about a 17.7×
-estimated total-token reduction in a deterministic local context-gathering
-benchmark on this codebase against a real `rg` baseline.
+## Multi-language benchmark (v0.7.0)
+
+Three repositories, three languages, 40 hand-labelled questions. This is
+the cross-language evidence the bullet "task set of 30–50 questions on at
+least three different repositories" above asked for; it does not measure
+the end-to-end agent latency / token-cost story (that still needs the
+agent harness in items 2-5), but it does answer "does the cascade
+generalise beyond the <repo-D> Rust workspace?".
+
+| Repo | Language | Files indexed | Tasks | Recall (cascade default) | Avg s/q | Cheap-path % |
+| --- | --- | :-: | :-: | :-: | :-: | :-: |
+| `<repo-D>-terminal/<repo-D>` | Rust | 3 173 | 16 | **16 / 16** | 4.17 s | 19 % |
+| `<repo-A>` (this user's research repo) | Python | 142 | 12 | **11 / 12** | 2.45 s | 58 % |
+| `<repo-B>` | TypeScript | 1 903 | 12 | **11 / 12** | 3.83 s | 33 % |
+| **Aggregate** | | **5 218** | **40** | **38 / 40 (95 %)** | **3.55 s** | **35 %** |
+
+All four 0.5.0 layer tiers (cascade only, +L2 symbol boost, +L4 PageRank
+tiebreaker, full 0.5/0.7 default) hit the same recall on each repo, with
+< 0.4 s/q latency variation between tiers. As on <repo-D>, the symbol and
+graph layers don't add measurable headroom on these benchmarks because
+the cascade alone already gets close to the question-set ceiling — see
+the 0.5.1 release notes for why we believe these layers may still help
+on harder benchmarks.
+
+The two misses are honest retrieval failures, not label problems:
+
+  - **<repo-A> task 4** ("How does the V6 medical-grade <domain-y> benchmark
+    resolve and chain its acquire / extract / audit / score steps?")
+    Expected `<module-x>/<domain-y>_v6.py` (the orchestration
+    layer with `V6Resolution`, `resolve_v6`, `run_step`,
+    `command_<domain-y>_v6`). The cascade returned the four
+    implementation scripts under
+    `examples/scientific_use_cases/genetic_<domain-y>_real_medical_benchmark/v6_medical_grade/scripts/`
+    — files that contain `acquire_*`, `extract_*`, `audit_*`,
+    `score_*` literally. The cascade preferred surface-token matches
+    over the orchestration file's deeper semantic. A user could argue
+    the scripts are also a valid answer.
+
+  - **<repo-B> task 7** ("How does the assistant decide
+    when to automatically compact the conversation history before the
+    context window fills?")
+    Expected `src/services/compact/autoCompact.ts` (where
+    `getAutoCompactThreshold`, `shouldAutoCompact`, `autoCompactIfNeeded`
+    live). The cascade returned five other files in
+    `src/services/compact/` (`timeBasedMCConfig.ts`, `grouping.ts`,
+    `postCompactCleanup.ts`, `prompt.ts`) plus `commands/context/
+    context.tsx` — neighbouring concerns but not the actual decision
+    logic. The cheap-path early-exited (gap = 0.0467, well above
+    τ = 0.015) and didn't reach HyDE escalation; this is the closest
+    we've come on the layered system to a query where escalation might
+    have helped but the cheap path was over-confident.
+
+Per-repo breakdown of how queries split across cheap vs. escalated path:
+
+  - **<repo-D>** has 13/16 escalated queries because <repo-D>'s natural-
+    language questions rarely have surface-token overlap with the
+    canonical Rust file paths (a query like "how does shell command
+    autocompletion generate suggestions while the user is typing"
+    needs HyDE to reach `crates/<repo-D>_completer/`).
+  - **<repo-A>** has 7/12 cheap-path early-exits because <repo-A>'s filenames
+    are very semantic (`<domain-y>_v6.py`, `finite_field_runner.py`,
+    `<component-v>.py`) so file-mean cosine alone is
+    confident.
+  - **<repo-B>** sits between (4/12 cheap) — TS
+    project conventions mix descriptive filenames with shorter ones
+    (`client.ts`, `parser.ts`).
+
+Reproducible runner: ``benchmarks/v0_7_multilang_bench.py``. JSON task
+files: ``benchmarks/cross_repo/{<repo-D>,<repo-A>,<repo-B>}.json``. Reproducing the
+numbers requires that the three repos be cloned and the per-project
+indexes built (``mgrep index .`` from each repo). Index construction
+times measured here: <repo-D> 26 K chunks ~25 min, CCSB 36 K chunks
+~17 min, <repo-A> 4 K chunks ~3 min, all on Mac CPU with
+``OLLAMA_EMBED_MODEL=nomic-embed-text``.
+
+## Reaching the end-to-end agent claim
+
+The four bullets above for end-to-end token-cost evaluation are still
+unsatisfied (item 1 — task set across ≥ 3 repos — is satisfied by the
+multi-language benchmark in this section, but items 2-5 require an
+agent harness that doesn't yet exist). Until that benchmark is run, the
+strongest claims from this repository are:
+
+  - **Cross-language retrieval recall**: 38 / 40 (95 %) at 3.55 s/q
+    average on Mac CPU across Rust, Python, TypeScript.
+  - **Token reduction vs ripgrep**: ~17.7× on the 30-task self-test
+    (benchmark #2 above) at equal recall.

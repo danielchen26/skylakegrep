@@ -72,16 +72,30 @@ a query, so `mgrep "stats and metrics"` (quoted) is unambiguous.
 
 ## Performance
 
-Measured on a Mac M-series CPU, no GPU, against the
-`<repo-D>-terminal/<repo-D>` Rust workspace (≈3 K files, ≈26 K chunks). Recall
-counts a query as a hit when at least one of the top-10 returned chunks
-matches the canonical answer dirs. See
-[`docs/parity-benchmarks.md`](docs/parity-benchmarks.md) for the full
-methodology and `benchmarks/cross_repo/<repo-D>.json` for the labels.
+Measured on a Mac M-series CPU, no GPU. Three repositories, three
+languages, 40 hand-labelled questions:
 
-| Tier | What it does | Recall (<repo-D> 16) | Cold first query | Warm avg s/q |
+| Repo | Language | Tasks | Recall | Avg s/q |
 | --- | --- | :-: | :-: | :-: |
-| **cascade** ⭐ default | rg prefilter → file-mean cosine → escalate to HyDE only when uncertain | **16 / 16** | ~10 s (Ollama loads) | **2.0 s** |
+| `<repo-D>-terminal/<repo-D>` | Rust | 16 | **16 / 16** | 4.17 |
+| `<repo-A>` | Python | 12 | **11 / 12** | 2.45 |
+| `<repo-B>` | TypeScript | 12 | **11 / 12** | 3.83 |
+| **Aggregate** | | **40** | **38 / 40 (95 %)** | **3.55** |
+
+Reproducible runner at `benchmarks/v0_7_multilang_bench.py`. Per-repo
+breakdown, per-tier comparison (cascade only / +L2 / +L4 / full
+default), and the two honest misses are documented in
+[`docs/parity-benchmarks.md`](docs/parity-benchmarks.md).
+
+Recall counts a query as a hit when at least one of the top-10
+returned chunks matches the canonical answer dirs (or any listed
+`expected_alternatives`).
+
+### Tier breakdown (<repo-D> 16-task)
+
+| Tier | What it does | Recall | Cold first query | Warm avg s/q |
+| --- | --- | :-: | :-: | :-: |
+| **cascade** ⭐ default | rg prefilter → file-mean cosine → escalate to HyDE only when uncertain | **16 / 16** | ~10 s (Ollama loads) | **4.2 s** |
 | cascade-cheap | early-exit only, no LLM call | 11 / 16 | <1 s | <0.2 s |
 | cascade + small HyDE (`OLLAMA_HYDE_MODEL=qwen2.5:1.5b`) | uses 1.5 B for HyDE — faster, slightly lower recall | 15 / 16 | ~5 s | **2.0 s** |
 | chunk + rerank | classic chunk cosine + cross-encoder rerank | 11 / 16 | ~10 s + 30 s reranker load | ~10 s |
@@ -166,6 +180,15 @@ also [installable from PyPI](https://pypi.org/project/local-mgrep/).
 
 The full sequence so far:
 
+  - **0.7.0** — multi-language benchmark across Rust + Python +
+    TypeScript: 38 / 40 (95 %) recall at 3.55 s/q on Mac CPU. New
+    `benchmarks/cross_repo/<repo-A>.json` (12 Python tasks) and
+    `<repo-B>.json` (12 TypeScript tasks); unified runner at
+    `benchmarks/v0_7_multilang_bench.py`. Two honest misses
+    documented in `docs/parity-benchmarks.md`.
+  - **0.6.2** — Ollama preheat (fire-and-forget warm-up at search
+    start); GitHub Actions CI workflows (pytest + auto-PyPI on tag);
+    1200×630 social preview card.
   - **0.6.1** — Ollama `keep_alive=-1` correctness fix (was sending
     string ``"-1"`` causing 400 Bad Request); HyDE default model
     reverted to ``qwen2.5:3b`` after the <repo-D> benchmark showed

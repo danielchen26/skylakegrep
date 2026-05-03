@@ -45,7 +45,7 @@
 
   <!-- Pill row -->
   <g font-size="11.5" font-family="ui-monospace, Menlo, Consolas, monospace" fill="#71717a" text-anchor="middle">
-    <text x="640" y="186"><tspan fill="#22d3ee">v0.6.2</tspan>  ·  MIT  ·  Python 3.9+  ·  powered by Ollama</text>
+    <text x="640" y="186"><tspan fill="#22d3ee">v0.7.0</tspan>  ·  MIT  ·  Python 3.9+  ·  powered by Ollama</text>
   </g>
 
   <!-- =================== Terminal card =================== -->
