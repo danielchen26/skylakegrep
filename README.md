@@ -55,11 +55,7 @@ detected language, the score, and the verbatim source text — rendered as
 text, JSON (`--json`), or as a synthesized answer over the local Ollama
 generation model.
 
-> **What's new in 0.3.0** — `mgrep search --cascade` (opt-in) hits **14/16
-> recall on the <repo-D> 16-task cross-repo benchmark at 1.49 s/query on
-> Mac CPU**, the same recall as the previous max-accurate tier
-> (`--rerank --hyde --rank-by file`, 21.8 s/q) at **14× lower latency**.
-> See [Benchmark](#benchmark) and the [v0.3.0 release notes](docs/local-mgrep-0.3.0.md).
+Latest stable release notes: [v0.3.1](https://github.com/danielchen26/local-mgrep/releases/latest).
 
 ## Quickstart
 
@@ -130,10 +126,9 @@ Three retrieval tiers are exposed through `mgrep search`:
 
 | Tier | Command | Recall (<repo-D> 16) | Avg s/q (Mac CPU) | Notes |
 | --- | --- | :-: | :-: | --- |
-| daily-driver | `mgrep search` (defaults) | 9/16 | **0.52** | rg prefilter + cosine + file-rank, no rerank |
+| daily-driver | `mgrep search` (defaults) | 9/16 | 0.52 | rg prefilter + cosine + file-rank, no rerank |
 | standard | `--rerank` | 11/16 | 9.5 | adds `mxbai-rerank-base-v2` cross-encoder |
-| **cascade** ⭐ | `--cascade` | **14/16** | **1.49** | confidence-gated; cheap path on ~81% of queries, HyDE-union escalation on the rest |
-| previous max | `--rerank --hyde --rank-by file` | 14/16 | 21.8 | superseded by `--cascade` (same recall, 14× faster) |
+| cascade | `--cascade` | 14/16 | 1.49 | confidence-gated; cheap path on ~81% of queries, HyDE-union escalation on the rest |
 
 The full set of internal modules is documented at
 <https://danielchen26.github.io/local-mgrep/#architecture>.
@@ -160,7 +155,7 @@ The full set of internal modules is documented at
 | File-rank (one chunk per file) | implemented | 0.3.0 | `--rank-by file`; collapses results so small canonical files compete fairly. |
 | Daemon mode (warm reranker) | implemented | 0.3.0 | `mgrep serve` + `--daemon-url`; eliminates ~5–10 s cold-load per call. |
 | Quantisation / device knobs | implemented | 0.3.0 | `MGREP_RERANK_QUANTIZE=int8`, `MGREP_RERANK_DEVICE=auto/mps/cpu`. |
-| **Confidence-gated cascade** | **implemented** | **0.3.0** | `--cascade` + `--cascade-tau`; **14/16 <repo-D> recall @ 1.49 s/q** — see [Benchmark](#benchmark). |
+| Confidence-gated cascade | implemented | 0.3.0 | `--cascade` + `--cascade-tau`; gates expensive escalation on a top-1 / top-2 score gap. See [Benchmark](#benchmark). |
 | Hosted account / cloud index | out of scope | — | Not planned. |
 | Paid web search | out of scope | — | Not planned. |
 
@@ -178,21 +173,20 @@ least one returned chunk lives under the canonical subdirectory.
 
 | Tier | Command | Recall | Avg s/q |
 | --- | --- | :-: | :-: |
-| ultra-fast | `mgrep search --cascade --cascade-tau 0.0` | 11/16 | **0.10** |
+| ultra-fast | `mgrep search --cascade --cascade-tau 0.0` | 11/16 | 0.10 |
 | daily-driver | `mgrep search` (defaults) | 9/16 | 0.52 |
 | standard | `mgrep search --rerank` | 11/16 | 9.5 |
-| **cascade ⭐ (default τ)** | `mgrep search --cascade` | **14/16** | **1.49** |
-| previous max | `mgrep search --rerank --hyde --rank-by file` | 14/16 | 21.8 |
+| cascade (default τ) | `mgrep search --cascade` | 14/16 | 1.49 |
 | ripgrep raw recall | `rg -il -F` token-OR | 16/16 | 0.1 |
 
-The cascade is **the new max-accurate tier**: same 14/16 ceiling as the
-previous LLM-augmented configuration, at one fourteenth the latency. The
-cheap file-mean path handles ~81% of queries at the default τ=0.015; only
-the remaining ~19% pay the HyDE-union escalation. Two queries
+At the default τ=0.015 the cascade's cheap file-mean path handles ~81% of
+queries; the remaining ~19% pay the HyDE-union escalation. Two queries
 (`crates/ai/`, `app/src/billing/`) currently miss across every tested
-configuration — these are hard semantic-disambiguation cases discussed in
-[`docs/roadmap.md`](docs/roadmap.md). Full sweep, methodology, and a τ
-ablation table are in [`docs/parity-benchmarks.md`](docs/parity-benchmarks.md).
+configuration — hard semantic-disambiguation cases discussed in
+[`docs/roadmap.md`](docs/roadmap.md). Full τ sweep, methodology, and the
+ablation tables (including the abandoned LLM-arbitration, code-graph, and
+multi-HyDE experiments) live in
+[`docs/parity-benchmarks.md`](docs/parity-benchmarks.md).
 
 ### 2. local-mgrep self-test (regression guard)
 
@@ -279,14 +273,8 @@ mgrep watch   [PATH] --interval N                        # poll for changes (def
 
 Every released version has a comprehensive entry on the
 [GitHub Releases page](https://github.com/danielchen26/local-mgrep/releases)
-covering the architecture change, benchmark deltas, null-result findings,
-and compatibility notes. The latest release is also published to PyPI.
-
-| Version | Release notes | PyPI |
-| --- | --- | --- |
-| **0.3.0** ⭐ | [v0.3.0 — confidence-gated cascade](https://github.com/danielchen26/local-mgrep/releases/tag/v0.3.0) ([docs](docs/local-mgrep-0.3.0.md)) | <https://pypi.org/project/local-mgrep/0.3.0/> |
-| 0.2.0 | [v0.2.0 — vectorized retrieval, lexical reranker](https://github.com/danielchen26/local-mgrep/releases/tag/v0.2.0) ([docs](docs/local-mgrep-0.2.0.md)) | <https://pypi.org/project/local-mgrep/0.2.0/> |
-| 0.1.0 | [v0.1.0](https://github.com/danielchen26/local-mgrep/releases/tag/v0.1.0) | <https://pypi.org/project/local-mgrep/0.1.0/> |
+covering architecture changes, benchmark deltas, and compatibility notes.
+Each release is also published to PyPI.
 
 ## Development
 
