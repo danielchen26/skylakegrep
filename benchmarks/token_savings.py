@@ -49,7 +49,7 @@ DEFAULT_QUERIES = [
         "expected": "skylakegrep/src/answerer.py",
     },
     {
-        "query": "what tests cover mgrepignore and batch embedding",
+        "query": "what tests cover skygrepignore and batch embedding",
         "expected": "tests/test_parity_batch.py",
     },
 ]

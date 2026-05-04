@@ -148,16 +148,16 @@ as knobs, then measured cold single-query latency for the
 Two negative findings worth recording so future work doesn't repeat them:
 
 - ``torch.quantization.quantize_dynamic`` is optimised for x86_64 CPUs
-  with VNNI instructions. Apple Silicon CPUs do not have those, so the
-  quantised int8 kernels fall back to fp32-equivalent paths and we see no
-  net win. Quantisation is therefore left as an opt-in for x86_64
-  deployments via ``SKYGREP_RERANK_QUANTIZE=int8``.
+ with VNNI instructions. Apple Silicon CPUs do not have those, so the
+ quantised int8 kernels fall back to fp32-equivalent paths and we see no
+ net win. Quantisation is therefore left as an opt-in for x86_64
+ deployments via ``SKYGREP_RERANK_QUANTIZE=int8``.
 - MPS support in PyTorch is per-op; the Qwen2 cross-encoder used by
-  ``mxbai-rerank-large-v2`` includes ops without fast MPS kernels, which
-  forces tensors to round-trip to CPU per-layer. The result on this
-  hardware is no net speedup. ``SKYGREP_RERANK_DEVICE=auto`` (the default)
-  still picks MPS when available so we benefit on architectures or future
-  PyTorch versions where this is fixed.
+ ``mxbai-rerank-large-v2`` includes ops without fast MPS kernels, which
+ forces tensors to round-trip to CPU per-layer. The result on this
+ hardware is no net speedup. ``SKYGREP_RERANK_DEVICE=auto`` (the default)
+ still picks MPS when available so we benefit on architectures or future
+ PyTorch versions where this is fixed.
 
 The lever that *does* shrink reranker latency on this hardware is the
 **model itself**: switching from large to base (3× fewer parameters) is a
@@ -311,9 +311,9 @@ palette, auth, billing, and code review.
 
 ```bash
 .venv/bin/python benchmarks/parity_vs_ripgrep.py \
-  --root /path/to/repo-A \
-  --tasks benchmarks/cross_repo/repo-a.json \
-  --top-k 10 --summary-only
+ --root /path/to/repo-A \
+ --tasks benchmarks/cross_repo/repo-a.json \
+ --top-k 10 --summary-only
 ```
 
 **Result (top-k = 10, on the repo-A Rust workspace, ripgrep 15.1.0):**
@@ -333,32 +333,32 @@ On a large unfamiliar Rust codebase (repo-A, 65+ crates, ~3.2k files, ~46M
 chars / ~12M approx tokens), the trade-off is real and asymmetric:
 
 - **ripgrep recovers every expected file in raw output** but produces
-  ~58M tokens of context across the 16 tasks — that exceeds any LLM's
-  practical context window. An agent cannot actually feed all of that
-  to a model; it has to truncate aggressively, which deletes most of
-  the recall.
+ ~58M tokens of context across the 16 tasks — that exceeds any LLM's
+ practical context window. An agent cannot actually feed all of that
+ to a model; it has to truncate aggressively, which deletes most of
+ the recall.
 - **skylakegrep keeps context to ~46k tokens** (1,257× smaller) but
-  only places the expected directory inside the top-10 for **8 of 16
-  tasks**. The other 8 questions are answered in the corpus but the
-  semantic ranker did not surface their expected directory in time.
+ only places the expected directory inside the top-10 for **8 of 16
+ tasks**. The other 8 questions are answered in the corpus but the
+ semantic ranker did not surface their expected directory in time.
 
 The ~50% recall on repo-A is materially worse than the 30/30 on the
 self-test. The likely contributors, in order:
 
 1. **Embedding model.** `mxbai-embed-large` (1024-d, 512-token context)
-   was trained on general English; semantic distinguishing-power on
-   dense Rust code is bounded.
+ was trained on general English; semantic distinguishing-power on
+ dense Rust code is bounded.
 2. **No cross-encoder rerank.** The hybrid score is just
-   `0.8 · cosine + 0.2 · token-overlap`; a second-stage reranker over a
-   wider candidate pool (e.g. top-100 from cosine, then a small
-   cross-encoder) would likely lift recall meaningfully on this kind
-   of corpus. It is on the roadmap.
+ `0.8 · cosine + 0.2 · token-overlap`; a second-stage reranker over a
+ wider candidate pool (e.g. top-100 from cosine, then a small
+ cross-encoder) would likely lift recall meaningfully on this kind
+ of corpus. It is on the roadmap.
 3. **Per-file diversification cap.** With `MAX_RESULTS_PER_FILE = 2`,
-   when several relevant chunks live in the same `lib.rs`, only the
-   top 2 surface; for sparsely-distributed evidence this is fine, for
-   "the answer is concentrated in one big file" it can hurt.
+ when several relevant chunks live in the same `lib.rs`, only the
+ top 2 surface; for sparsely-distributed evidence this is fine, for
+ "the answer is concentrated in one big file" it can hurt.
 4. **Top-k = 10.** Increasing k would directly raise recall at the
-   cost of more output tokens. A higher-k run is on the roadmap.
+ cost of more output tokens. A higher-k run is on the roadmap.
 
 The bottom line is the pair of numbers above: **869× fewer tokens, 50%
 of the expected hits**. That is real data, not parity. skygrep on this
@@ -393,10 +393,10 @@ resolves to this repository's own wrapper.
 **Why it is not run here:**
 
 1. The benchmark requires an interactive OAuth login that cannot run in a
-   non-interactive setting.
+ non-interactive setting.
 2. Running it uploads the target repository to Mixedbread's cloud — for
-   private codebases this is a non-trivial disclosure decision and should
-   be made by a human operator.
+ private codebases this is a non-trivial disclosure decision and should
+ be made by a human operator.
 
 When a Mixedbread account is available, the script in this repository runs
 end-to-end with one `skygrep search` per task; see the script's docstring for
@@ -427,20 +427,20 @@ token-reduction trade-off curve is visible in version control.
 The numbers above support narrow claims only.
 
 - **Not provider billing.** No real coding agent is executed against a paid
-  model in any of these benchmarks. The total-token figures use a fixed
-  prompt-and-overhead estimate for the baseline agent rather than a measured
-  session.
+ model in any of these benchmarks. The total-token figures use a fixed
+ prompt-and-overhead estimate for the baseline agent rather than a measured
+ session.
 - **Not an answer-quality evaluation.** Hit rate is "did the expected file
-  appear in the gathered context", not "is the final synthesized answer
-  correct against a rubric".
+ appear in the gathered context", not "is the final synthesized answer
+ correct against a rubric".
 - **Embedding-model dependent.** Switching `OLLAMA_EMBED_MODEL` changes the
-  retrieval numbers. Published results use `mxbai-embed-large`.
+ retrieval numbers. Published results use `mxbai-embed-large`.
 - **Hand-curated task sets.** Both the 30-task self-test and the 16-task
-  repo-A set were authored by hand. Generalization to arbitrary repositories
-  requires a broader independent task set.
+ repo-A set were authored by hand. Generalization to arbitrary repositories
+ requires a broader independent task set.
 - **No cross-encoder rerank.** The lexical reranker uses simple token and
-  phrase overlap. A second-stage reranker over a larger candidate pool is
-  on the roadmap and would change the trade-off curve.
+ phrase overlap. A second-stage reranker over a larger candidate pool is
+ on the roadmap and would change the trade-off curve.
 
 ## What an end-to-end agent claim would still need
 
@@ -448,24 +448,24 @@ A future end-to-end benchmark, suitable for the broader claim that skylakegrep
 reduces token usage in real coding-agent sessions, requires the following:
 
 1. A task set of 30–50 questions with expected files and rubric answers,
-   covering easy, medium, and multi-hop items, on at least three different
-   repositories.
+ covering easy, medium, and multi-hop items, on at least three different
+ repositories.
 2. The same model, repository commit, and system prompt across both
-   conditions.
+ conditions.
 3. Per task and per condition, recorded measurements for input tokens,
-   output tokens, tool-call/result tokens, number of tool calls, wall-clock
-   latency, retrieval correctness, and a rubric-graded final answer score.
+ output tokens, tool-call/result tokens, number of tool calls, wall-clock
+ latency, retrieval correctness, and a rubric-graded final answer score.
 4. Two conditions:
-   - **Baseline.** The agent may use exact search tools (`grep`, `rg`),
-     file reads, and shell inspection, but not skylakegrep.
-   - **Treatment.** The agent may issue one or more `skygrep search` calls
-     before reading files and may verify with file reads afterwards.
+ - **Baseline.** The agent may use exact search tools (`grep`, `rg`),
+ file reads, and shell inspection, but not skylakegrep.
+ - **Treatment.** The agent may issue one or more `skygrep search` calls
+ before reading files and may verify with file reads afterwards.
 5. The reported headline metric is
-   `end_to_end_token_reduction = baseline total tokens / treatment total tokens`,
-   reported alongside the rubric quality score on each side. A workflow that
-   uses fewer tokens but produces a worse answer is worse, not better.
+ `end_to_end_token_reduction = baseline total tokens / treatment total tokens`,
+ reported alongside the rubric quality score on each side. A workflow that
+ uses fewer tokens but produces a worse answer is worse, not better.
 
-## Multi-language benchmark (v0.7.0)
+## Multi-language benchmark
 
 Three repositories, three languages, 40 hand-labelled questions. This is
 the cross-language evidence the bullet "task set of 30–50 questions on at
@@ -491,46 +491,46 @@ on harder benchmarks.
 
 The two misses are honest retrieval failures, not label problems:
 
-  - **repo-B task 4** ("How does the V6 medical-grade <domain-y> benchmark
-    resolve and chain its acquire / extract / audit / score steps?")
-    Expected `repo-B/<domain-y>_v6.py` (the orchestration
-    layer with `V6Resolution`, `resolve_v6`, `run_step`,
-    `command_<domain-y>_v6`). The cascade returned the four
-    implementation scripts under
-    `examples/scientific_use_cases/genetic_<domain-y>_real_medical_benchmark/v6_medical_grade/scripts/`
-    — files that contain `acquire_*`, `extract_*`, `audit_*`,
-    `score_*` literally. The cascade preferred surface-token matches
-    over the orchestration file's deeper semantic. A user could argue
-    the scripts are also a valid answer.
+ - **repo-B task 4** ("How does the V6 medical-grade <domain-y> benchmark
+ resolve and chain its acquire / extract / audit / score steps?")
+ Expected `repo-B/<domain-y>_v6.py` (the orchestration
+ layer with `V6Resolution`, `resolve_v6`, `run_step`,
+ `command_<domain-y>_v6`). The cascade returned the four
+ implementation scripts under
+ `examples/scientific_use_cases/genetic_<domain-y>_real_medical_benchmark/v6_medical_grade/scripts/`
+ — files that contain `acquire_*`, `extract_*`, `audit_*`,
+ `score_*` literally. The cascade preferred surface-token matches
+ over the orchestration file's deeper semantic. A user could argue
+ the scripts are also a valid answer.
 
-  - **repo-C task 7** ("How does the assistant decide
-    when to automatically compact the conversation history before the
-    context window fills?")
-    Expected `src/services/compact/autoCompact.ts` (where
-    `getAutoCompactThreshold`, `shouldAutoCompact`, `autoCompactIfNeeded`
-    live). The cascade returned five other files in
-    `src/services/compact/` (`timeBasedMCConfig.ts`, `grouping.ts`,
-    `postCompactCleanup.ts`, `prompt.ts`) plus `commands/context/
-    context.tsx` — neighbouring concerns but not the actual decision
-    logic. The cheap-path early-exited (gap = 0.0467, well above
-    τ = 0.015) and didn't reach HyDE escalation; this is the closest
-    we've come on the layered system to a query where escalation might
-    have helped but the cheap path was over-confident.
+ - **repo-C task 7** ("How does the assistant decide
+ when to automatically compact the conversation history before the
+ context window fills?")
+ Expected `src/services/compact/autoCompact.ts` (where
+ `getAutoCompactThreshold`, `shouldAutoCompact`, `autoCompactIfNeeded`
+ live). The cascade returned five other files in
+ `src/services/compact/` (`timeBasedMCConfig.ts`, `grouping.ts`,
+ `postCompactCleanup.ts`, `prompt.ts`) plus `commands/context/
+ context.tsx` — neighbouring concerns but not the actual decision
+ logic. The cheap-path early-exited (gap = 0.0467, well above
+ τ = 0.015) and didn't reach HyDE escalation; this is the closest
+ we've come on the layered system to a query where escalation might
+ have helped but the cheap path was over-confident.
 
 Per-repo breakdown of how queries split across cheap vs. escalated path:
 
-  - **repo-A** has 13/16 escalated queries because repo-A's natural-
-    language questions rarely have surface-token overlap with the
-    canonical Rust file paths (a query like "how does shell command
-    autocompletion generate suggestions while the user is typing"
-    needs HyDE to reach `crates/<repo-D>_completer/`).
-  - **repo-B** has 7/12 cheap-path early-exits because repo-B's filenames
-    are very semantic (`<domain-y>_v6.py`, `finite_field_runner.py`,
-    `<component-v>.py`) so file-mean cosine alone is
-    confident.
-  - **repo-C** sits between (4/12 cheap) — TS
-    project conventions mix descriptive filenames with shorter ones
-    (`client.ts`, `parser.ts`).
+ - **repo-A** has 13/16 escalated queries because repo-A's natural-
+ language questions rarely have surface-token overlap with the
+ canonical Rust file paths (a query like "how does shell command
+ autocompletion generate suggestions while the user is typing"
+ needs HyDE to reach `crates/<repo-D>_completer/`).
+ - **repo-B** has 7/12 cheap-path early-exits because repo-B's filenames
+ are very semantic (`<domain-y>_v6.py`, `finite_field_runner.py`,
+ `<component-v>.py`) so file-mean cosine alone is
+ confident.
+ - **repo-C** sits between (4/12 cheap) — TS
+ project conventions mix descriptive filenames with shorter ones
+ (`client.ts`, `parser.ts`).
 
 Reproducible runner: ``benchmarks/v0_7_multilang_bench.py``. JSON task
 files: ``benchmarks/cross_repo/{repo-A,repo-b,repo-c}.json``. Reproducing the
@@ -540,55 +540,55 @@ times measured here: repo-A 26 K chunks ~25 min, Repo-C 36 K chunks
 ~17 min, repo-B 4 K chunks ~3 min, all on Mac CPU with
 ``OLLAMA_EMBED_MODEL=nomic-embed-text``.
 
-## End-to-end agent benchmark (v0.8.0 → v0.10.0)
+## End-to-end agent benchmark
 
 The four bullets above (items 2-5: real agent harness, controlled model
 + prompt + repo, real agent runs, baseline-vs-treatment headline) have
 been answered across three rounds:
 
-  - **v0.8.0** — 6 single-turn easy questions × 2 conditions = 12
-    sub-agents.
-  - **v0.9.0** — 8 single-turn hard semantic / vocab-mismatch
-    questions × 2 conditions = 16 sub-agents.
-  - **v0.10.0** — (B) one 3-turn repo-A multi-turn session × 2
-    conditions = 6 sub-agents (sequential, clean wall-time);
-    (C) 6 unused medium-difficulty single-turn questions × 2
-    conditions = 12 sub-agents.
+ - 6 single-turn easy questions × 2 conditions = 12
+ sub-agents.
+ - 8 single-turn hard semantic / vocab-mismatch
+ questions × 2 conditions = 16 sub-agents.
+ - (B) one 3-turn repo-A multi-turn session × 2
+ conditions = 6 sub-agents (sequential, clean wall-time);
+ (C) 6 unused medium-difficulty single-turn questions × 2
+ conditions = 12 sub-agents.
 
 Each agent reported a single canonical-file JSON answer plus a
 `TOOLS:` audit line of every shell call it made. Token / tool-call /
 wall-time totals from each sub-agent's own `usage` telemetry.
 
-### Headline (v0.10.0)
+### Headline
 
 | Bench | Tasks | rg-only tools | skygrep tools | Δ tools | Δ tokens |
 |---|:-:|:-:|:-:|:-:|:-:|
 | **Multi-turn (3-turn repo-A session)** | 1 × 3 | 38 | **7** | **−82 %** | −5 % |
-| 6 medium tasks (v0.10.0-C) | 6 | 25 | **6** | **−76 %** | −8 % |
-| 14 single-turn (v0.8.0 + v0.9.0) | 14 | 124 | 87 | −30 % | +12 % |
+| 6 medium tasks (-C) | 6 | 25 | **6** | **−76 %** | −8 % |
+| 14 single-turn | 14 | 124 | 87 | −30 % | +12 % |
 | **20-task single-turn aggregate** | 20 | **149** | **93** | **−37.6 %** | +6.5 % |
 | **Strict-label correct (20 tasks)** | — | 12 / 20 | **14 / 20** | **+2** | — |
 | Lenient-label correct (20 tasks) | — | 14 / 20 | **17 / 20** | **+3** | — |
 
 ### What the data actually shows
 
-  - **Tool-call reduction is the cleanest, most consistent signal.**
-    Across single-turn (−37.6 %) and multi-turn (−82 %) the
-    direction is the same; multi-turn amplifies the gap because
-    rg's wandering compounds across turns while skygrep stays decisive.
-  - **Tokens are noisy.** skygrep agents are roughly flat on tokens
-    (+6.5 % aggregate), with subset-level swings −8 % to +18 %
-    depending on whether the skygrep agent was decisive (1 tool call)
-    or wandered through multiple `skygrep` + `Read` rounds. **Don't
-    cite skygrep as a token saver.**
-  - **Quality slightly better with skygrep.** +2 strict / +3 lenient
-    on the 20-task aggregate. skygrep solves the repo-A `<domain-y>_v6.py`
-    famous miss and repo-c `client.ts` task that rg-only got wrong;
-    doesn't lose any task rg-only got right.
-  - **Wall-time data is contaminated** by parallel-spawn Ollama
-    contention in v0.8.0/v0.9.0 batches. The v0.10.0 multi-turn
-    session ran sequentially and is reportable: rg 179 s vs skygrep
-    158 s (−12 %).
+ - **Tool-call reduction is the cleanest, most consistent signal.**
+ Across single-turn (−37.6 %) and multi-turn (−82 %) the
+ direction is the same; multi-turn amplifies the gap because
+ rg's wandering compounds across turns while skygrep stays decisive.
+ - **Tokens are noisy.** skygrep agents are roughly flat on tokens
+ (+6.5 % aggregate), with subset-level swings −8 % to +18 %
+ depending on whether the skygrep agent was decisive (1 tool call)
+ or wandered through multiple `skygrep` + `Read` rounds. **Don't
+ cite skygrep as a token saver.**
+ - **Quality slightly better with skygrep.** +2 strict / +3 lenient
+ on the 20-task aggregate. skygrep solves the repo-A `<domain-y>_v6.py`
+ famous miss and repo-c `client.ts` task that rg-only got wrong;
+ doesn't lose any task rg-only got right.
+ - **Wall-time data is contaminated** by parallel-spawn Ollama
+ contention in batches. The multi-turn
+ session ran sequentially and is reportable: rg 179 s vs skygrep
+ 158 s (−12 %).
 
 ### Why this matters even when token cost is roughly flat
 
@@ -605,15 +605,15 @@ and the per-version release notes (`docs/skylakegrep-0.{8,9,10}.0.md`).
 
 ## Strongest claims from this repository
 
-  - **Multi-turn agent tool-call reduction**: −82 % fewer tool
-    calls in a 3-turn repo-A Claude Code session (v0.10.0
-    e2e benchmark).
-  - **Single-turn agent tool-call reduction**: −37.6 % across 20
-    hand-labelled questions in Rust + Python + TypeScript (v0.8.0
-    + v0.9.0 + v0.10.0 single-turn aggregate).
-  - **Cross-language retrieval recall**: 38 / 40 (95 %) at 3.55 s/q
-    average on Mac CPU across Rust, Python, TypeScript (multi-
-    language benchmark, v0.7.0).
-  - **Static-retrieval token reduction vs ripgrep**: ~17.7× on the
-    30-task self-test (simulated grep-agent benchmark #2 above) at
-    equal recall.
+ - **Multi-turn agent tool-call reduction**: −82 % fewer tool
+ calls in a 3-turn repo-A Claude Code session (
+ e2e benchmark).
+ - **Single-turn agent tool-call reduction**: −37.6 % across 20
+ hand-labelled questions in Rust + Python + TypeScript (
+ + + single-turn aggregate).
+ - **Cross-language retrieval recall**: 38 / 40 (95 %) at 3.55 s/q
+ average on Mac CPU across Rust, Python, TypeScript (multi-
+ language benchmark, ).
+ - **Static-retrieval token reduction vs ripgrep**: ~17.7× on the
+ 30-task self-test (simulated grep-agent benchmark #2 above) at
+ equal recall.

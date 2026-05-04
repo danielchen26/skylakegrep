@@ -93,7 +93,7 @@ DEFAULT_TASKS = [
     },
     {
         "id": "indexing-002",
-        "question": "Where are .gitignore and .mgrepignore patterns loaded?",
+        "question": "Where are .gitignore and .skygrepignore patterns loaded?",
         "expected": "skylakegrep/src/indexer.py",
     },
     {
@@ -178,7 +178,7 @@ DEFAULT_TASKS = [
     },
     {
         "id": "tests-002",
-        "question": "Which test covers .mgrepignore behavior?",
+        "question": "Which test covers .skygrepignore behavior?",
         "expected": "tests/test_parity_batch.py",
     },
     {

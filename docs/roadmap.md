@@ -1,181 +1,59 @@
-# skylakegrep accuracy roadmap
+# skylakegrep roadmap
 
-This document records the planned improvements to lift skylakegrep retrieval
-quality so that recall on unseen large repositories approaches
-`@mixedbread/skygrep` cloud parity, while keeping the token-reduction advantage
-over ripgrep.
+The current capabilities are documented in
+[`skylakegrep-0.1.0.md`](skylakegrep-0.1.0.md). This file describes
+what is planned beyond v0.1.0.
 
-It is a strict execution plan. Items are ordered by ROI; each item names the
-concrete code change, expected lift, and verification step.
+## Planned
 
-## Status (repo-A 16-task benchmark)
+### Native MCP server
 
-| Phase | repo-A recall | Status |
-| --- | :-: | --- |
-| pre-P0 baseline | 8/16 | — |
-| P0-A (cross-encoder rerank) + P0-B (nomic-embed-text + asymmetric prefixes) | 9/16 | **DONE** |
-| P1-C (chunk path/symbol prefix) + P1-E (tree-sitter dedup + max_chars 2000) | 10/16 | **DONE** |
-| P1-D (BM25 + path-segment-exact bonus) | 10/16 (no net lift; reverted) | **ABANDONED** — surface-token shape on repo-A doesn't reward this; LLM-driven HyDE is the better lever |
-| P2-F (HyDE) | 11–13/16 (mean ~12/16) | **DONE** |
-| P2-F+ (deterministic HyDE seed, ``mxbai-rerank-large-v2``, non-canonical path penalty) | **14/16** stable | **DONE** — 2 misses remain (websocket / billing) |
-| P2-Latency (measure daily-driver tradeoff) | base rerank + no HyDE = **10/16 @ 12.7 s** ; raw = 8/16 @ 3.3 s | **DONE** — speed × recall curve in `docs/parity-benchmarks.md` |
-| P2-MR (multi-resolution: file-level cosine top-30 → chunk-level) | every config ~2× faster, loses 0-1 / 16 recall. Daily = **10/16 @ 8.1 s**, accurate = **13/16 @ 25.3 s**, max = 14/16 @ 54 s with `--no-multi-resolution` | **DONE** — default on |
-| P2-D (daemon mode: ``skygrep serve`` + ``--daemon-url``) | single-query latency 27 s → 21 s; the dominant remaining cost is per-query rerank inference, not model load. Useful for interactive multi-query sessions | **DONE** — opt-in |
-| P2-Q (quantisation + device probe) | ``int8`` dynamic quant: no speedup on Apple Silicon (no VNNI). MPS: no speedup on the 2 B Qwen2 reranker (op fallbacks). The real Mac-CPU lever is the smaller ``mxbai-rerank-base-v2`` model (14.4 s cold vs 27 s) — already settable via ``SKYGREP_RERANK_MODEL`` | **DONE** — knobs added, findings recorded |
-| **P3-LP (lexical prefilter — new default first stage)** | ripgrep is the first stage of the pipeline; cosine + rerank only run on chunks of rg-matched files. **Daily-driver tier 8 s → 0.52 s (16× faster) at 9/16 recall**. Standard tier 8 s → 7 s @ 10/16. Max tier 25 s → 23 s @ 13/16. ``skygrep search`` runs ``rg -il -F`` against the working directory by default; falls back to corpus-wide cosine when rg returns fewer than ``--lexical-min-candidates`` (2) | **DONE** — default on |
-| **P3-FR (file-rank: one best chunk per file)** | ``--rank-by file`` collapses results so each candidate file gets exactly one slot — its highest-scoring chunk. Stops chunk-volume imbalance from masking small canonical files. Standard tier 10/16 → **11/16** (+1) at 9.5 s. Max tier 13/16 → **14/16** at 21.8 s — same peak recall the chunk-only no-MR config previously needed 54 s to reach (**2.5× faster**) | **DONE** — opt-in flag |
-| P3-AR (agentic refine — multi-turn LLM-driven query rewrite) | implemented in worktree but **rejected**: B1 8/16 @ 1.0 s, B2 10/16 @ 17.5 s, B3 13/16 @ 59.3 s. No tier improved over plain prefilter+file-rank, and the LLM call adds latency. The bottleneck for misses is chunk-volume imbalance, not query wording — file-rank fixes the actual root cause | **NOT MERGED** — branch ``feature/agentic-refine`` retained for reference |
-| **P4-CC (confidence-gated cascade)** | `skygrep search --cascade` runs file-mean cosine first; if top-1 minus top-2 ≥ τ the cheap result is returned, otherwise it escalates to Round A ∪ Round C (HyDE) union. **τ=0.015 → 14/16 @ 1.49 s/q with 81% early-exit** — same recall as the previous max tier (21.8 s) at **14× lower latency**. New file `skylakegrep/src/storage.py::cascade_search`; benched in `benchmarks/cascade_production_bench.py` and probed in `benchmarks/cascade_probe.py` | **DONE** — opt-in via `--cascade` |
-| P4-LFA (LLM filename arbitration) | feed top-N rg paths to qwen2.5:3b, ask which 5 are most likely, then cosine. Tested 4 variants: LFA-only(20→5) 9/16 @ 0.91 s, LFA-only(30→5) 10/16 @ 1.17 s, LFA-rerank(20→5) 9/16 @ 1.05 s, LFA-rerank(30→5) 10/16 @ 1.10 s. **All worse than B-only baseline (11/16 @ 0.13 s)** — qwen2.5:3b cannot reliably localise from filenames alone. Bigger LLM might do better but adds prohibitive latency | **ABANDONED** — null result, probe retained at `benchmarks/llm_arbitration_probe.py` |
-| P4-CGC (code-graph centrality) | parse Rust `use crate::…` and `mod` to build per-file in-degree (1655 for `crates/<repo-D>ui/src/lib.rs`); add `α · log(1+indeg)` prior to Round B file-cosine. **Hurts recall**: α=0 11/16, α=0.05 9/16, α≥0.10 7/16. Hub files (`lib.rs`, `mod.rs`) systematically beat canonical leaf files — the centrality signal points the wrong direction for "where is X implemented" queries. Probe at `benchmarks/code_graph_probe.py` | **ABANDONED** — null result |
-| P4-MH (multi-HyDE union) | three independent HyDE prompts (sdk-call, ident-list, crate-path) per query, search each, union top-K. **Saturates at 14/16 @ 3.75 s/q** — same ceiling as cascade, 2.5× slower. The 2 remaining misses (`crates/ai/`, `app/src/billing/`) are hard semantic-disambiguation cases that no LLM-augmented variant catches. Probe at `benchmarks/multi_hyde_probe.py` | **ABANDONED** — no Pareto improvement over P4-CC |
-| P2-G (asymmetric query/document prefixes) | folded into P0-B | **DONE** |
-| P2-H (configurable max-per-file / rerank-pool) | exposed as CLI flags | **DONE** |
-| **P5-SYM (symbol-aware indexing)** | tree-sitter extracts function / struct / class / impl / module names per file; new ``symbols`` table indexed by lowercased camelCase-split tokens; query-time exact match on ≥4-char query terms adds a multiplicative boost. Attacks the "concept word lives in symbol name, not in body text" failure mode that P4 multi-pass could not break. Detailed exec plan at [`docs/plans/2026-05-03-intelligent-system-v0.5.md`](plans/2026-05-03-intelligent-system-v0.5.md) §2 | **EXECUTING** — v0.5.0 |
-| **P6-D2Q (doc2query chunk enrichment)** | background LLM pass writes a 1-2 sentence high-level description per chunk; description is appended to chunk text and the chunk is re-embedded so its vector absorbs the LLM-generated semantic. Eliminates query-time HyDE permanently — the 3-5 s LLM call moves from query-time to a one-time index-time pass. Resumable via ``enriched_at`` column. Plan §3 | **EXECUTING** — v0.5.0 (or v0.6.0 if it slips) |
-| **P7-PR (file-export PageRank tiebreaker)** | regex-parse use/import edges across source files, build directed graph, run PageRank; store ``in_degree``, ``out_degree``, ``pagerank`` per file. Used at query time **only** when top-1 and top-2 final scores are within ε (default 0.005); the higher-PageRank candidate wins. Avoids the P4-CGC failure mode (where global graph prior pulled hubs ahead of leaves) by activating only on near-ties. Plan §4 | **EXECUTING** — v0.5.0 |
-| P3-I (ColBERT late interaction) | not started | deferred (10× index size for marginal lift; revisit after v0.5.0 / v0.6.0 ship) |
-| P3-J (LoRA fine-tune of reranker) | not started | deferred (per-user fine-tune is hard to ship; doc2query is the better lever for now) |
+`skygrep setup` writes a markdown snippet into agent rules files
+telling the agent to prefer `skygrep` over `rg`. A native MCP
+server (Model Context Protocol) would let agents call `skygrep` as
+a structured tool instead of a shell command — better schema,
+fewer parsing failures, cleaner error surfaces.
 
-## Why we are not at parity today
+### Multi-vector / late-interaction retrieval (ColBERT-style)
 
-Five structural shortfalls in the current pipeline, ranked by their
-contribution to the repo-A recall miss:
+The current cascade uses single-vector cosine + cross-encoder
+rerank. Token-level late interaction (ColBERT-style) over a larger
+candidate pool is the most promising lever for the residual ~5 %
+miss rate on hand-labelled multi-language benchmarks. Costs ~10×
+index size; needs hardware-aware tuning.
 
-1. **No cross-encoder rerank.** `storage.py:247` ranks final results by a
-   linear blend `0.8 · cosine + 0.2 · lexical`. Mixedbread's flagship product
-   line is the rerank stage (`mxbai-rerank-large-v2`), not the embedding;
-   their cloud advantage is rerank compute, not embedding quality.
-2. **General-English embedding on Rust code.** `config.py:5` defaults to
-   `mxbai-embed-large`, which is not trained on code. Token "microphone" is
-   far in vector space from `AudioInput::new()` chunks.
-3. **Chunk text has no path / filename / symbol prefix.** `indexer.py:222-234`
-   stores raw chunk text only; embedder cannot tell that a chunk lives in
-   `crates/voice_input/lib.rs` versus `crates/billing/checkout.rs`.
-4. **Lexical score is set-overlap, not BM25, no path boost.**
-   `storage.py:140-153` weights every token equally; identifier tokens in
-   filenames get the same weight as common English words in chunk bodies.
-5. **Tree-sitter chunker emits redundant nested nodes.** `indexer.py:191-206`
-   recurses without pruning, so a function chunk, its containing impl block,
-   and the containing module all enter the index. The `MAX_RESULTS_PER_FILE`
-   = 2 cap is a band-aid for this.
+### Larger benchmark task sets
 
-The headline trade-off in benchmark #3 of `parity-benchmarks.md`
-(869× fewer tokens, 50% recall on repo-A) is the mathematical consequence of
-all five.
+Current published numbers are based on 20 single-turn + 1 multi-
+turn agent task. Push n into the 100+ range to move statistical
+significance from "directional" to "tight". Real-user query
+corpora are the goal.
 
-## Execution plan
+### Packaged benchmark fixtures
 
-### P0 — immediate (target: repo-A recall 8/16 → 12-14/16)
+Third parties should be able to reproduce every published number
+without copying internal scripts. Needs a `benchmarks/` CLI plus
+fixture repos pinned to specific commits.
 
-**P0-A: cross-encoder reranker as second-stage scorer.**
+### Expanded language coverage
 
-- New module `skylakegrep/src/reranker.py` wrapping a `CrossEncoder` from
-  `sentence-transformers`. Default model
-  `mixedbread-ai/mxbai-rerank-base-v2` (≈150 M params, CPU-friendly).
-- Lazy import — basic `skygrep` install does not pull torch.
-- `storage.search()` retrieves a wider candidate pool (default 50), the
-  reranker scores `(query, chunk)` pairs, top-k by rerank score is returned.
-- CLI flag `--rerank / --no-rerank` (default on when extras installed,
-  graceful fallback when not).
-- New optional dep group: `pip install -e ".[rerank]"`.
+Tree-sitter grammars and chunk heuristics for Go, Java, Kotlin,
+Swift, Rust (currently relies on generic chunking for Rust). Plus
+richer `.gitignore` / `.skygrepignore` precedence rules.
 
-**P0-B: switch default embedding to `nomic-embed-text`.**
+### Daemon mode hardening
 
-- Already present in user's Ollama install.
-- Supports asymmetric `search_query: ` / `search_document: ` prefixes,
-  giving us P2-G "for free" once enabled.
-- Add a runtime warning when the on-disk index vector dim does not match the
-  current model's vector dim, with a clear `skygrep index --reset` instruction.
+`skygrep serve` exists but does not pool embedder/reranker model
+instances optimally for concurrent requests. A production-grade
+daemon would amortise model warm-load across all queries on the
+host.
 
-**Verification.** Existing 14 unit tests pass; `agent_context_benchmark.py`
-on the skylakegrep self-test recall stays 30/30 with rerank enabled;
-`parity_vs_ripgrep.py --tasks benchmarks/cross_repo/repo-a.json` on repo-A
-re-indexed under nomic-embed-text + rerank lifts skygrep recall above 12/16.
+## Not on the roadmap
 
-### P1 — within one week (target: repo-A recall 14-16/16)
-
-**P1-C: prepend `[file: …] [lang: …] [symbol: …]` header to chunk text
-before embedding.**
-
-- Modify `indexer.prepare_file_chunks` to wrap chunk body with a structured
-  prefix.
-- `extract_code_chunks` uses tree-sitter to recover the enclosing symbol
-  name (function / impl / class / module) when available.
-- The same prefix is also stored on the chunk row so the reranker sees it.
-- Requires re-indexing to take effect (vector dim does not change).
-
-**P1-D: replace token-set lexical with SQLite FTS5 + BM25, weighted columns.**
-
-- `storage.init_db` adds an external-content FTS5 virtual table over the
-  `chunks` table, with separate columns for `path`, `symbol`, and `chunk`.
-- BM25 weighting boosts `path` and `symbol` columns ≥ 4× the body column,
-  giving filename and identifier tokens IDF-correct weight.
-- `lexical_score()` becomes a SQL FTS query; combined with cosine in the
-  same hybrid blend.
-
-**P1-E: fix tree-sitter chunker emit / dedup.**
-
-- `walk()` only emits a node if no descendant qualifies, OR only emits leaves
-  when configured. Prefer the most semantically meaningful enclosing
-  function / class / impl block.
-- Increase `max_chars` from 1000 → 2000 to actually use the embedding
-  model's 512-token window.
-- Remove the implicit `MAX_RESULTS_PER_FILE = 2` band-aid; lift the cap to a
-  configurable default (5) once nested duplication is fixed.
-
-### P2 — polish (target: hold ≥15/16)
-
-**P2-F: HyDE for natural-language queries.**
-
-- When the query is detected as natural language (no `::`, no `()`, no
-  obvious identifier tokens, length > 8 words), call the local Ollama LLM
-  to generate a short hypothetical code answer, then embed *that* instead
-  of the raw query.
-- Add `--hyde / --no-hyde` flag (auto-detected by default).
-- New `answerer.OllamaAnswerer.hyde(query)` method.
-
-**P2-G: asymmetric query / passage prefixes.**
-
-- For `nomic-embed-text` and other models that document
-  query / passage separation, prepend `search_query: ` to query inputs and
-  `search_document: ` to document inputs.
-- Lookup table in `config.py` keyed by model name.
-
-**P2-H: expose `MAX_RESULTS_PER_FILE` and `RERANK_POOL` as CLI / env.**
-
-- `--max-per-file` and `--rerank-pool` flags.
-- Env vars `SKYGREP_MAX_PER_FILE`, `SKYGREP_RERANK_POOL`.
-
-### P3 — long-term
-
-**P3-I: ColBERT-style late interaction.** Multiple per-chunk vectors,
-MaxSim against query token vectors. Index size ~10× larger; recall lifts on
-hard semantic queries. Implementation requires a separate vector store
-(e.g. `pylate`, `colbert-ai`) — not pursued until P0–P2 are exhausted.
-
-**P3-J: task-fine-tuned reranker.** Use the 30-task self-test
-+ synthetic question-passage pairs to LoRA-fine-tune
-`mxbai-rerank-base-v2`. Self-host the fine-tuned head as a default override.
-
-## Verification protocol per phase
-
-After each P-level lands:
-
-1. `pytest -q` — all existing unit tests pass.
-2. `.venv/bin/python benchmarks/agent_context_benchmark.py --top-k 10
-   --summary-only` — recall stays 30/30 on the skylakegrep self-test
-   (regression guard).
-3. `.venv/bin/python benchmarks/parity_vs_ripgrep.py --top-k 10
-   --summary-only` — same self-test, with the real-rg comparison.
-4. Re-index repo-A once per phase, then
-   `.venv/bin/python benchmarks/parity_vs_ripgrep.py --root /path/to/repo-A
-   --tasks benchmarks/cross_repo/repo-a.json --top-k 10 --summary-only`,
-   and append the phase's skygrep recall and token-reduction numbers as a
-   new row in `docs/parity-benchmarks.md`.
-5. Commit, push, update `docs/parity-benchmarks.md` headline table.
-
-The headline check after P0 (A + B) is whether repo-A skygrep recall reaches
-≥ 12/16 with no more than a 4× rise in skygrep total tokens. If yes, proceed
-to P1. If no, diagnose which queries still miss and revisit P0 selection
-before adding P1 changes.
+- **Cloud-hosted index.** This project is local-first by design.
+- **Removing the Ollama dependency.** `skygrep` is intentionally
+  built on top of Ollama for local LLM access. Other backends
+  (e.g. llama.cpp direct) are possible but not prioritised.
+- **MIT relicensing.** This project is PolyForm Noncommercial
+  1.0.0 and stays that way. Commercial users should contact for
+  a commercial license.

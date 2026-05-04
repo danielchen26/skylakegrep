@@ -98,7 +98,7 @@ DEFAULT_IGNORED_DIRS = {
 
 def load_ignore_patterns(root: Path) -> list[str]:
     patterns = []
-    for ignore_name in (".gitignore", ".mgrepignore"):
+    for ignore_name in (".gitignore", ".skygrepignore"):
         ignore_file = root / ignore_name
         if not ignore_file.exists():
             continue

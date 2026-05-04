@@ -146,7 +146,7 @@
 
   <!-- ===== Footnote ===== -->
   <text x="60" y="688" font-size="11.5" fill="#71717a">
-    Source: <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#a1a1aa">benchmarks/agent_context_benchmark.py --top-k {5,10,20,50} --summary-only</tspan>, run on the skylakegrep repository at v0.2.0.
+    Source: <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#a1a1aa">benchmarks/agent_context_benchmark.py --top-k {5,10,20,50} --summary-only</tspan>, run on the current skylakegrep repository.
   </text>
   <text x="60" y="706" font-size="11.5" fill="#71717a">
     Total-token reduction includes a fixed grep-agent prompt-and-overhead estimate; context-token reduction counts retrieved JSON only. This is a deterministic local benchmark, not provider billing data.

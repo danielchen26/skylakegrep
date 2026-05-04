@@ -60,10 +60,10 @@ def with_db_path(db_path: Path):
 
 
 class ParityBatchTests(unittest.TestCase):
-    def test_collect_indexable_files_honors_mgrepignore(self):
+    def test_collect_indexable_files_honors_skygrepignore(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            (root / ".mgrepignore").write_text("secret.py\nlocal-only/\n", encoding="utf-8")
+            (root / ".skygrepignore").write_text("secret.py\nlocal-only/\n", encoding="utf-8")
             (root / "kept.py").write_text("print('kept')\n", encoding="utf-8")
             (root / "secret.py").write_text("print('secret')\n", encoding="utf-8")
             (root / "local-only").mkdir()

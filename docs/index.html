@@ -1,880 +1,894 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="skylakegrep is a command-line semantic code search tool that builds a local SQLite vector index from a repository's source files and answers natural-language queries with line-cited snippets. Fully offline, PolyForm Noncommercial 1.0.0 licensed, powered by Ollama." />
-    <meta name="theme-color" content="#0a0d12" />
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep is a command-line semantic code search tool that builds a local SQLite vector index from a repository's source files and answers natural-language queries with line-cited snippets. Fully offline, PolyForm Noncommercial 1.0.0 licensed, powered by Ollama." />
+ <meta name="theme-color" content="#0a0d12" />
 
-    <!-- Open Graph / Twitter social preview -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
-    <meta property="og:title" content="skylakegrep — semantic code search over a local index" />
-    <meta property="og:description" content="Fully-offline semantic code search CLI. 16/16 repo-A recall, sub-second warm queries on Mac CPU, no remote service. PolyForm Noncommercial 1.0.0, powered by Ollama." />
-    <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (16/16 repo-A recall, sub-0.5 s warm queries, 100% local), and the latest version." />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="skylakegrep — semantic code search over a local index" />
-    <meta name="twitter:description" content="Fully-offline semantic code search CLI. 16/16 repo-A recall, sub-second warm queries on Mac CPU." />
-    <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <!-- Open Graph / Twitter social preview -->
+ <meta property="og:type" content="website" />
+ <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
+ <meta property="og:title" content="skylakegrep — semantic code search over a local index" />
+ <meta property="og:description" content="Fully-offline semantic code search CLI. 16/16 repo-A recall, sub-second warm queries on Mac CPU, no remote service. PolyForm Noncommercial 1.0.0, powered by Ollama." />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <meta property="og:image:width" content="1200" />
+ <meta property="og:image:height" content="630" />
+ <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (16/16 repo-A recall, sub-0.5 s warm queries, 100% local), and the latest version." />
+ <meta name="twitter:card" content="summary_large_image" />
+ <meta name="twitter:title" content="skylakegrep — semantic code search over a local index" />
+ <meta name="twitter:description" content="Fully-offline semantic code search CLI. 16/16 repo-A recall, sub-second warm queries on Mac CPU." />
+ <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
-    <title>skylakegrep · documentation</title>
-    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
-    <link rel="preconnect" href="https://rsms.me/" />
-    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
-    <link rel="stylesheet" href="styles.css?v=3.0.0" />
-  </head>
-  <body>
-    <header class="topbar">
-      <a class="brand" href="#overview" aria-label="skylakegrep documentation">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
-        </span>
-        <span class="brand-text">skylakegrep</span>
-        <span class="version">v0.1.0</span>
-      </a>
-      <nav class="topnav" aria-label="External links">
-        <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
-        <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
-        <a class="topnav-cta" href="#install">Install</a>
-      </nav>
-    </header>
+ <title>skylakegrep · documentation</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.0.0" />
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="#overview" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version"></span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="#install">Install</a>
+ </nav>
+ </header>
 
-    <div class="docs-shell">
-      <!-- =============================================================
-           Sidebar navigation
-           ============================================================= -->
-      <aside class="sidebar" aria-label="Documentation navigation">
-        <div class="sidebar-title">Documentation</div>
-        <nav>
-          <div class="nav-section">
-            <p>Get started</p>
-            <a href="#overview">Overview</a>
-            <a href="#install">Installation</a>
-            <a href="#quickstart">Quickstart</a>
-          </div>
-          <div class="nav-section">
-            <p>Concepts</p>
-            <a href="#indexing">Indexing model</a>
-            <a href="#ranking">Ranking</a>
-            <a href="#output">Output formats</a>
-          </div>
-          <div class="nav-section">
-            <p>System</p>
-            <a href="#architecture">Architecture</a>
-            <a href="#schema">Storage schema</a>
-            <a href="#ranking-pipeline">Ranking pipeline</a>
-          </div>
-          <div class="nav-section">
-            <p>Reference</p>
-            <a href="#cli">CLI</a>
-            <a href="#configuration">Configuration</a>
-            <a href="#json-schema">JSON output schema</a>
-          </div>
-          <div class="nav-section">
-            <p>Evaluation</p>
-            <a href="#benchmarks">Benchmark</a>
-            <a href="#limitations">Limitations</a>
-            <a href="#roadmap">Roadmap</a>
-          </div>
-        </nav>
-      </aside>
+ <div class="docs-shell">
+ <!-- =============================================================
+ Sidebar navigation
+ ============================================================= -->
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">Documentation</div>
+ <nav>
+ <div class="nav-section">
+ <p>Get started</p>
+ <a href="#overview">Overview</a>
+ <a href="#install">Installation</a>
+ <a href="#quickstart">Quickstart</a>
+ </div>
+ <div class="nav-section">
+ <p>Concepts</p>
+ <a href="#indexing">Indexing model</a>
+ <a href="#ranking">Ranking</a>
+ <a href="#output">Output formats</a>
+ </div>
+ <div class="nav-section">
+ <p>System</p>
+ <a href="#architecture">Architecture</a>
+ <a href="#schema">Storage schema</a>
+ <a href="#ranking-pipeline">Ranking pipeline</a>
+ </div>
+ <div class="nav-section">
+ <p>Reference</p>
+ <a href="#cli">CLI</a>
+ <a href="#configuration">Configuration</a>
+ <a href="#json-schema">JSON output schema</a>
+ </div>
+ <div class="nav-section">
+ <p>Evaluation</p>
+ <a href="#benchmarks">Benchmark</a>
+ <a href="#limitations">Limitations</a>
+ <a href="#roadmap">Roadmap</a>
+ </div>
+ </nav>
+ </aside>
 
-      <!-- =============================================================
-           Main content
-           ============================================================= -->
-      <main class="content">
-        <!-- ============== Overview ============== -->
-        <section id="overview" class="hero">
-          <p class="eyebrow">v0.1.0 · PolyForm Noncommercial 1.0.0</p>
-          <h1>Semantic code search over a local index.</h1>
-          <p class="lead">
-            <code>skylakegrep</code> is a command-line tool that builds a SQLite
-            vector index from a repository's source files and answers natural-language
-            queries with line-cited snippets. Indexing, retrieval, and optional answer
-            generation run on the local host using a local Ollama server; no remote
-            service is required for the core workflow.
-          </p>
-          <div class="button-row">
-            <a class="button primary" href="#install">Install</a>
-            <a class="button secondary" href="https://github.com/danielchen26/skylakegrep">Source on GitHub</a>
-          </div>
-          <div class="kpi-row" aria-label="At-a-glance facts">
-            <div>
-              <strong>Python 3.9+</strong>
-              <span>runs on macOS, Linux, Windows; SQLite is bundled with the standard library</span>
-            </div>
-            <div>
-              <strong>Ollama HTTP</strong>
-              <span>embeddings via <code>/api/embed</code>; generation via <code>/api/generate</code></span>
-            </div>
-            <div>
-              <strong>Ranked snippets</strong>
-              <span>file path · line range · language · score · text body</span>
-            </div>
-          </div>
-        </section>
+ <!-- =============================================================
+ Main content
+ ============================================================= -->
+ <main class="content">
+ <!-- ============== Overview ============== -->
+ <section id="overview" class="hero">
+ <p class="eyebrow"> · PolyForm Noncommercial 1.0.0</p>
+ <h1>Semantic code search over a local index.</h1>
+ <p class="lead">
+ <code>skylakegrep</code> is a command-line tool that builds a SQLite
+ vector index from a repository's source files and answers natural-language
+ queries with line-cited snippets. Indexing, retrieval, and optional answer
+ generation run on the local host using a local Ollama server; no remote
+ service is required for the core workflow.
+ </p>
+ <div class="button-row">
+ <a class="button primary" href="#install">Install</a>
+ <a class="button secondary" href="https://github.com/danielchen26/skylakegrep">Source on GitHub</a>
+ </div>
+ <div class="kpi-row" aria-label="At-a-glance facts">
+ <div>
+ <strong>Python 3.9+</strong>
+ <span>runs on macOS, Linux, Windows; SQLite is bundled with the standard library</span>
+ </div>
+ <div>
+ <strong>Ollama HTTP</strong>
+ <span>embeddings via <code>/api/embed</code>; generation via <code>/api/generate</code></span>
+ </div>
+ <div>
+ <strong>Ranked snippets</strong>
+ <span>file path · line range · language · score · text body</span>
+ </div>
+ </div>
+ </section>
 
-        <!-- ============== Installation ============== -->
-        <section id="install" class="doc-section">
-          <p class="eyebrow">Installation</p>
-          <h2>Install the CLI and a local embedding model.</h2>
+ <!-- ============== Installation ============== -->
+ <section id="install" class="doc-section">
+ <p class="eyebrow">Installation</p>
+ <h2>Install the CLI and a local embedding model.</h2>
 
-          <h3>Package install</h3>
-          <pre><code>pip install skylakegrep</code></pre>
+ <h3>Package install</h3>
+ <pre><code>pip install skylakegrep</code></pre>
 
-          <h3>From source</h3>
+ <h3>From source</h3>
 <pre><code>git clone https://github.com/danielchen26/skylakegrep.git
 cd skylakegrep
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .</code></pre>
 
-          <h3>Ollama runtime</h3>
-          <p>
-            Install Ollama from
-            <a href="https://ollama.com">ollama.com</a>
-            and pull at least one embedding model:
-          </p>
-<pre><code>ollama pull mxbai-embed-large       # default; 1024-dim
+ <h3>Ollama runtime</h3>
+ <p>
+ Install Ollama from
+ <a href="https://ollama.com">ollama.com</a>
+ and pull at least one embedding model:
+ </p>
+<pre><code>ollama pull mxbai-embed-large # default; 1024-dim
 # or
-ollama pull nomic-embed-text        # smaller alternative</code></pre>
-          <p>
-            Pull a generation model only if <code>--answer</code> or <code>--agentic</code>
-            will be used:
-          </p>
+ollama pull nomic-embed-text # smaller alternative</code></pre>
+ <p>
+ Pull a generation model only if <code>--answer</code> or <code>--agentic</code>
+ will be used:
+ </p>
 <pre><code>ollama pull qwen2.5:3b</code></pre>
-        </section>
+ </section>
 
-        <!-- ============== Quickstart ============== -->
-        <section id="quickstart" class="doc-section">
-          <p class="eyebrow">Quickstart</p>
-          <h2>Index a repository, then query it.</h2>
+ <!-- ============== Quickstart ============== -->
+ <section id="quickstart" class="doc-section">
+ <p class="eyebrow">Quickstart</p>
+ <h2>Index a repository, then query it.</h2>
 <pre><code>skygrep index /path/to/repo --reset
 skygrep search "where is token refresh implemented?" -m 10</code></pre>
-          <p>
-            The first command walks the repository, chunks supported source files,
-            embeds each chunk via Ollama, and writes the result to
-            <code>~/.skylakegrep/index.db</code>. Subsequent runs re-index only
-            files whose modification time has changed and remove rows for files
-            that no longer exist.
-          </p>
-          <p>
-            For machine-readable output, add <code>--json</code>:
-          </p>
+ <p>
+ The first command walks the repository, chunks supported source files,
+ embeds each chunk via Ollama, and writes the result to
+ <code>~/.skylakegrep/index.db</code>. Subsequent runs re-index only
+ files whose modification time has changed and remove rows for files
+ that no longer exist.
+ </p>
+ <p>
+ For machine-readable output, add <code>--json</code>:
+ </p>
 <pre><code>skygrep search "where is token refresh implemented?" -m 10 --json</code></pre>
-        </section>
+ </section>
 
-        <!-- ============== Concepts: Indexing ============== -->
-        <section id="indexing" class="doc-section">
-          <p class="eyebrow">Concept · indexing model</p>
-          <h2>Source files become line-attributed chunks with dense vectors.</h2>
-          <p>
-            Indexing is divided into five stages, all of which run in process and
-            commit to a single SQLite file:
-          </p>
-          <ol>
-            <li>
-              <strong>Discover.</strong> Recursively walk the repository, restricted
-              to a fixed set of supported source extensions. Apply the union of
-              <code>.gitignore</code>, <code>.mgrepignore</code>, and a built-in
-              skip-list of build/cache/vendor directories.
-            </li>
-            <li>
-              <strong>Chunk.</strong> When a tree-sitter grammar is available for
-              the language, walk the AST and emit nodes whose span is within
-              configured size limits (≤ 50 lines and ≤ 1000 chars by default,
-              with a minimum of 3 lines). Otherwise fall back to a deterministic
-              line-window splitter.
-            </li>
-            <li>
-              <strong>Embed.</strong> Send chunks in batches to the Ollama
-              <code>/api/embed</code> endpoint; fall back to single-text
-              <code>/api/embeddings</code> requests if the batch endpoint is
-              unavailable on the running model.
-            </li>
-            <li>
-              <strong>Persist.</strong> Insert one row into <code>chunks</code>
-              and one parallel row into <code>vectors</code>, keyed by the same
-              integer id. Embeddings are stored as raw float32 BLOBs.
-            </li>
-            <li>
-              <strong>Reconcile.</strong> On incremental runs, compare disk
-              <code>mtime</code> against <code>file_mtime</code> in the index.
-              Reindex changed files; delete rows for files no longer present
-              under the indexed root.
-            </li>
-          </ol>
+ <!-- ============== Concepts: Indexing ============== -->
+ <section id="indexing" class="doc-section">
+ <p class="eyebrow">Concept · indexing model</p>
+ <h2>Source files become line-attributed chunks with dense vectors.</h2>
+ <p>
+ Indexing is divided into five stages, all of which run in process and
+ commit to a single SQLite file:
+ </p>
+ <ol>
+ <li>
+ <strong>Discover.</strong> Recursively walk the repository, restricted
+ to a fixed set of supported source extensions. Apply the union of
+ <code>.gitignore</code>, <code>.skygrepignore</code>, and a built-in
+ skip-list of build/cache/vendor directories.
+ </li>
+ <li>
+ <strong>Chunk.</strong> When a tree-sitter grammar is available for
+ the language, walk the AST and emit nodes whose span is within
+ configured size limits (≤ 50 lines and ≤ 1000 chars by default,
+ with a minimum of 3 lines). Otherwise fall back to a deterministic
+ line-window splitter.
+ </li>
+ <li>
+ <strong>Embed.</strong> Send chunks in batches to the Ollama
+ <code>/api/embed</code> endpoint; fall back to single-text
+ <code>/api/embeddings</code> requests if the batch endpoint is
+ unavailable on the running model.
+ </li>
+ <li>
+ <strong>Persist.</strong> Insert one row into <code>chunks</code>
+ and one parallel row into <code>vectors</code>, keyed by the same
+ integer id. Embeddings are stored as raw float32 BLOBs.
+ </li>
+ <li>
+ <strong>Reconcile.</strong> On incremental runs, compare disk
+ <code>mtime</code> against <code>file_mtime</code> in the index.
+ Reindex changed files; delete rows for files no longer present
+ under the indexed root.
+ </li>
+ </ol>
 
-          <h3>Supported languages</h3>
-          <p>
-            The extension-to-parser map lives in
-            <code>skylakegrep/src/indexer.py</code>:
-            <code>.py</code>, <code>.js</code>, <code>.ts</code>,
-            <code>.tsx</code>, <code>.jsx</code>, <code>.go</code>,
-            <code>.rs</code>, <code>.java</code>, <code>.c</code>,
-            <code>.cpp</code>, <code>.h</code>, <code>.cs</code>,
-            <code>.rb</code>, <code>.php</code>, <code>.swift</code>,
-            <code>.kt</code>, <code>.scala</code>, <code>.vue</code>,
-            <code>.svelte</code>. When a tree-sitter grammar package is missing
-            for a supported extension, the file still indexes via the line-window
-            fallback.
-          </p>
-        </section>
+ <h3>Supported languages</h3>
+ <p>
+ The extension-to-parser map lives in
+ <code>skylakegrep/src/indexer.py</code>:
+ <code>.py</code>, <code>.js</code>, <code>.ts</code>,
+ <code>.tsx</code>, <code>.jsx</code>, <code>.go</code>,
+ <code>.rs</code>, <code>.java</code>, <code>.c</code>,
+ <code>.cpp</code>, <code>.h</code>, <code>.cs</code>,
+ <code>.rb</code>, <code>.php</code>, <code>.swift</code>,
+ <code>.kt</code>, <code>.scala</code>, <code>.vue</code>,
+ <code>.svelte</code>. When a tree-sitter grammar package is missing
+ for a supported extension, the file still indexes via the line-window
+ fallback.
+ </p>
+ </section>
 
-        <!-- ============== Concepts: Ranking ============== -->
-        <section id="ranking" class="doc-section">
-          <p class="eyebrow">Concept · ranking</p>
-          <h2>Hybrid scoring with capped per-file diversification.</h2>
-          <p>
-            A query produces a single ranked list. Scoring proceeds in four steps:
-          </p>
-          <ol>
-            <li>
-              <strong>Cosine.</strong> Embed the query with the same model used at
-              index time and compute cosine similarity against the candidate
-              embedding matrix in a single NumPy pass.
-            </li>
-            <li>
-              <strong>Lexical adjustment.</strong> When the raw query text is
-              available and <code>--semantic-only</code> is not set, compute a
-              token-and-phrase overlap score against the chunk and its file path,
-              then take a weighted sum: <code>0.8 · cosine + 0.2 · lexical</code>.
-            </li>
-            <li>
-              <strong>Span deduplication.</strong> Drop later candidates whose
-              <code>(file, start_line, end_line, text)</code> tuple has already
-              been observed.
-            </li>
-            <li>
-              <strong>Diversification.</strong> Cap the number of accepted
-              candidates per file at 2 before filling the remaining top-k slots
-              from the overflow.
-            </li>
-          </ol>
-          <p>
-            The numerical defaults (<code>LEXICAL_WEIGHT = 0.2</code>,
-            <code>MAX_RESULTS_PER_FILE = 2</code>, term/phrase weights
-            0.75/0.25) are module-level constants in
-            <code>skylakegrep/src/storage.py</code>. They are not exposed
-            through CLI flags in this release.
-          </p>
-        </section>
+ <!-- ============== Concepts: Ranking ============== -->
+ <section id="ranking" class="doc-section">
+ <p class="eyebrow">Concept · ranking</p>
+ <h2>Hybrid scoring with capped per-file diversification.</h2>
+ <p>
+ A query produces a single ranked list. Scoring proceeds in four steps:
+ </p>
+ <ol>
+ <li>
+ <strong>Cosine.</strong> Embed the query with the same model used at
+ index time and compute cosine similarity against the candidate
+ embedding matrix in a single NumPy pass.
+ </li>
+ <li>
+ <strong>Lexical adjustment.</strong> When the raw query text is
+ available and <code>--semantic-only</code> is not set, compute a
+ token-and-phrase overlap score against the chunk and its file path,
+ then take a weighted sum: <code>0.8 · cosine + 0.2 · lexical</code>.
+ </li>
+ <li>
+ <strong>Span deduplication.</strong> Drop later candidates whose
+ <code>(file, start_line, end_line, text)</code> tuple has already
+ been observed.
+ </li>
+ <li>
+ <strong>Diversification.</strong> Cap the number of accepted
+ candidates per file at 2 before filling the remaining top-k slots
+ from the overflow.
+ </li>
+ </ol>
+ <p>
+ The numerical defaults (<code>LEXICAL_WEIGHT = 0.2</code>,
+ <code>MAX_RESULTS_PER_FILE = 2</code>, term/phrase weights
+ 0.75/0.25) are module-level constants in
+ <code>skylakegrep/src/storage.py</code>. They are not exposed
+ through CLI flags in this release.
+ </p>
+ </section>
 
-        <!-- ============== Concepts: Output ============== -->
-        <section id="output" class="doc-section">
-          <p class="eyebrow">Concept · output</p>
-          <h2>Three rendering modes.</h2>
-          <h3>Human-readable (default)</h3>
-          <p>Plain text records, one per result, ordered by descending score:</p>
+ <!-- ============== Concepts: Output ============== -->
+ <section id="output" class="doc-section">
+ <p class="eyebrow">Concept · output</p>
+ <h2>Three rendering modes.</h2>
+ <h3>Human-readable (default)</h3>
+ <p>Plain text records, one per result, ordered by descending score:</p>
 <pre><code>=== skylakegrep/src/storage.py:197-271 (score: 0.824) ===
 def search(conn, query_embedding, top_k=10, …):
-    query_vec = np.array(query_embedding, dtype=np.float32)
-    …</code></pre>
+ query_vec = np.array(query_embedding, dtype=np.float32)
+ …</code></pre>
 
-          <h3>JSON (<code>--json</code>)</h3>
-          <p>Stable output for scripts and coding agents. See <a href="#json-schema">JSON schema</a>.</p>
+ <h3>JSON (<code>--json</code>)</h3>
+ <p>Stable output for scripts and coding agents. See <a href="#json-schema">JSON schema</a>.</p>
 
-          <h3>Synthesized answer (<code>--answer</code>)</h3>
-          <p>
-            The retrieved snippets are passed as context to a local Ollama
-            generation model along with a fixed system prompt. The model is
-            instructed to cite file paths and line ranges and to refrain from
-            asking follow-up questions. The original ranked sources are still
-            printed below the synthesized answer.
-          </p>
-          <p>
-            <code>--agentic</code> precedes the search with an LLM step that
-            decomposes the question into up to <code>--max-subqueries</code>
-            related queries; each is searched independently and the results are
-            merged by score.
-          </p>
-        </section>
+ <h3>Synthesized answer (<code>--answer</code>)</h3>
+ <p>
+ The retrieved snippets are passed as context to a local Ollama
+ generation model along with a fixed system prompt. The model is
+ instructed to cite file paths and line ranges and to refrain from
+ asking follow-up questions. The original ranked sources are still
+ printed below the synthesized answer.
+ </p>
+ <p>
+ <code>--agentic</code> precedes the search with an LLM step that
+ decomposes the question into up to <code>--max-subqueries</code>
+ related queries; each is searched independently and the results are
+ merged by score.
+ </p>
+ </section>
 
-        <!-- ============== Architecture ============== -->
-        <section id="architecture" class="doc-section">
-          <p class="eyebrow">System · architecture</p>
-          <h2>Three lanes: index time, storage, query time.</h2>
-          <figure>
-            <img src="assets/architecture.svg" alt="Three-lane schematic showing the indexing pipeline writing into a SQLite store, and the query pipeline reading from the same store." />
-            <figcaption>
-              Index time runs offline via <code>skygrep index</code> or
-              <code>skygrep watch</code>. Storage is the only shared state between the two
-              lanes. Query time runs per call to <code>skygrep search</code>.
-            </figcaption>
-          </figure>
-        </section>
+ <!-- ============== Architecture ============== -->
+ <section id="architecture" class="doc-section">
+ <p class="eyebrow">System · architecture</p>
+ <h2>Three lanes: index time, storage, query time.</h2>
+ <figure>
+ <img src="assets/architecture.svg" alt="Three-lane schematic showing the indexing pipeline writing into a SQLite store, and the query pipeline reading from the same store." />
+ <figcaption>
+ Index time runs offline via <code>skygrep index</code> or
+ <code>skygrep watch</code>. Storage is the only shared state between the two
+ lanes. Query time runs per call to <code>skygrep search</code>.
+ </figcaption>
+ </figure>
+ </section>
 
-        <!-- ============== Schema ============== -->
-        <section id="schema" class="doc-section">
-          <p class="eyebrow">System · storage</p>
-          <h2>Two SQLite tables joined 1-to-1.</h2>
-          <figure>
-            <img src="assets/schema.svg" alt="SQLite schema with chunks and vectors tables, joined on id." />
-            <figcaption>
-              Schema as initialized by <code>storage.init_db</code>. The
-              <code>chunks</code> table holds source location and verbatim text;
-              <code>vectors</code> holds the embedding as a binary float32 buffer.
-            </figcaption>
-          </figure>
-          <p>
-            The two tables are kept in lockstep at write time
-            (<code>store_chunks_batch</code> inserts both rows in the same
-            transaction) and joined on <code>id</code> at read time. There is no
-            declared foreign key constraint; the join is enforced by application
-            code.
-          </p>
-        </section>
+ <!-- ============== Schema ============== -->
+ <section id="schema" class="doc-section">
+ <p class="eyebrow">System · storage</p>
+ <h2>Two SQLite tables joined 1-to-1.</h2>
+ <figure>
+ <img src="assets/schema.svg" alt="SQLite schema with chunks and vectors tables, joined on id." />
+ <figcaption>
+ Schema as initialized by <code>storage.init_db</code>. The
+ <code>chunks</code> table holds source location and verbatim text;
+ <code>vectors</code> holds the embedding as a binary float32 buffer.
+ </figcaption>
+ </figure>
+ <p>
+ The two tables are kept in lockstep at write time
+ (<code>store_chunks_batch</code> inserts both rows in the same
+ transaction) and joined on <code>id</code> at read time. There is no
+ declared foreign key constraint; the join is enforced by application
+ code.
+ </p>
+ </section>
 
-        <!-- ============== Ranking pipeline figure ============== -->
-        <section id="ranking-pipeline" class="doc-section">
-          <p class="eyebrow">System · ranking</p>
-          <h2>Cosine, lexical adjustment, dedup, diversify.</h2>
-          <figure>
-            <img src="assets/ranking.svg" alt="Ranking pipeline showing semantic and lexical scores combined and then post-processed with sort, dedup, and diversification." />
-            <figcaption>
-              The combined score weight (λ = 0.2) and the per-file cap
-              (MAX_RESULTS_PER_FILE = 2) are module-level constants.
-            </figcaption>
-          </figure>
-        </section>
+ <!-- ============== Ranking pipeline figure ============== -->
+ <section id="ranking-pipeline" class="doc-section">
+ <p class="eyebrow">System · ranking</p>
+ <h2>Cosine, lexical adjustment, dedup, diversify.</h2>
+ <figure>
+ <img src="assets/ranking.svg" alt="Ranking pipeline showing semantic and lexical scores combined and then post-processed with sort, dedup, and diversification." />
+ <figcaption>
+ The combined score weight (λ = 0.2) and the per-file cap
+ (MAX_RESULTS_PER_FILE = 2) are module-level constants.
+ </figcaption>
+ </figure>
+ </section>
 
-        <!-- ============== CLI ============== -->
-        <section id="cli" class="doc-section">
-          <p class="eyebrow">Reference · CLI</p>
-          <h2>Four commands.</h2>
+ <!-- ============== CLI ============== -->
+ <section id="cli" class="doc-section">
+ <p class="eyebrow">Reference · CLI</p>
+ <h2>Four commands.</h2>
 
-          <div class="ref-list">
-            <article class="ref-item">
-              <span class="signature">skygrep index [PATH] [--reset] [--incremental/--full]</span>
-              <p>
-                Build or refresh the local SQLite index. <code>PATH</code> defaults
-                to the current directory. <code>--reset</code> deletes the existing
-                database file before indexing. <code>--incremental</code> (default)
-                processes only new and modified files; <code>--full</code> reindexes
-                every discovered file.
-              </p>
-            </article>
+ <div class="ref-list">
+ <article class="ref-item">
+ <span class="signature">skygrep index [PATH] [--reset] [--incremental/--full]</span>
+ <p>
+ Build or refresh the local SQLite index. <code>PATH</code> defaults
+ to the current directory. <code>--reset</code> deletes the existing
+ database file before indexing. <code>--incremental</code> (default)
+ processes only new and modified files; <code>--full</code> reindexes
+ every discovered file.
+ </p>
+ </article>
 
-            <article class="ref-item">
-              <span class="signature">skygrep search QUERY [OPTIONS]</span>
-              <p>Retrieve ranked snippets. Options are summarized below.</p>
-              <div class="table-wrap">
-                <table class="flag-table">
-                  <thead>
-                    <tr><th>Flag</th><th>Default</th><th>Effect</th></tr>
-                  </thead>
-                  <tbody>
-                    <tr><td><code>-m</code>, <code>-n</code>, <code>--top</code></td><td>5</td><td>Number of final results.</td></tr>
-                    <tr><td><code>--json</code></td><td>off</td><td>Emit results as a JSON array; suppresses human formatting.</td></tr>
-                    <tr><td><code>--answer</code></td><td>off</td><td>Synthesize an answer from retrieved snippets via Ollama.</td></tr>
-                    <tr><td><code>--content / --no-content</code></td><td>on</td><td>Show or hide snippet bodies in human output.</td></tr>
-                    <tr><td><code>--language</code></td><td>—</td><td>Restrict to one or more language keys; repeatable.</td></tr>
-                    <tr><td><code>--include</code></td><td>—</td><td>Glob; only paths matching at least one pattern are kept; repeatable.</td></tr>
-                    <tr><td><code>--exclude</code></td><td>—</td><td>Glob; paths matching any pattern are dropped; repeatable.</td></tr>
-                    <tr><td><code>--semantic-only</code></td><td>off</td><td>Skip lexical reranking; rank by cosine similarity alone.</td></tr>
-                    <tr><td><code>--agentic</code></td><td>off</td><td>Decompose the query into subqueries via Ollama before search.</td></tr>
-                    <tr><td><code>--max-subqueries</code></td><td>3</td><td>Upper bound on agentic subqueries.</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </article>
+ <article class="ref-item">
+ <span class="signature">skygrep search QUERY [OPTIONS]</span>
+ <p>Retrieve ranked snippets. Options are summarized below.</p>
+ <div class="table-wrap">
+ <table class="flag-table">
+ <thead>
+ <tr><th>Flag</th><th>Default</th><th>Effect</th></tr>
+ </thead>
+ <tbody>
+ <tr><td><code>-m</code>, <code>-n</code>, <code>--top</code></td><td>5</td><td>Number of final results.</td></tr>
+ <tr><td><code>--json</code></td><td>off</td><td>Emit results as a JSON array; suppresses human formatting.</td></tr>
+ <tr><td><code>--answer</code></td><td>off</td><td>Synthesize an answer from retrieved snippets via Ollama.</td></tr>
+ <tr><td><code>--content / --no-content</code></td><td>on</td><td>Show or hide snippet bodies in human output.</td></tr>
+ <tr><td><code>--language</code></td><td>—</td><td>Restrict to one or more language keys; repeatable.</td></tr>
+ <tr><td><code>--include</code></td><td>—</td><td>Glob; only paths matching at least one pattern are kept; repeatable.</td></tr>
+ <tr><td><code>--exclude</code></td><td>—</td><td>Glob; paths matching any pattern are dropped; repeatable.</td></tr>
+ <tr><td><code>--semantic-only</code></td><td>off</td><td>Skip lexical reranking; rank by cosine similarity alone.</td></tr>
+ <tr><td><code>--agentic</code></td><td>off</td><td>Decompose the query into subqueries via Ollama before search.</td></tr>
+ <tr><td><code>--max-subqueries</code></td><td>3</td><td>Upper bound on agentic subqueries.</td></tr>
+ </tbody>
+ </table>
+ </div>
+ </article>
 
-            <article class="ref-item">
-              <span class="signature">skygrep stats</span>
-              <p>Print total chunk count and total indexed file count.</p>
-            </article>
+ <article class="ref-item">
+ <span class="signature">skygrep stats</span>
+ <p>Print total chunk count and total indexed file count.</p>
+ </article>
 
-            <article class="ref-item">
-              <span class="signature">skygrep watch [PATH] --interval N</span>
-              <p>
-                Poll <code>PATH</code> every <code>N</code> seconds (default 5).
-                Newly added files are indexed; modified files are reindexed; files
-                missing from disk are removed from the index.
-              </p>
-            </article>
-          </div>
-        </section>
+ <article class="ref-item">
+ <span class="signature">skygrep watch [PATH] --interval N</span>
+ <p>
+ Poll <code>PATH</code> every <code>N</code> seconds (default 5).
+ Newly added files are indexed; modified files are reindexed; files
+ missing from disk are removed from the index.
+ </p>
+ </article>
+ </div>
+ </section>
 
-        <!-- ============== Configuration ============== -->
-        <section id="configuration" class="doc-section">
-          <p class="eyebrow">Reference · configuration</p>
-          <h2>Environment variables.</h2>
-          <p>
-            Configuration is read from environment variables on every invocation;
-            there is no config file. Defaults assume a local Ollama server on the
-            default port.
-          </p>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr><th>Variable</th><th>Default</th><th>Effect</th></tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><code>OLLAMA_URL</code></td>
-                  <td><code>http://localhost:11434</code></td>
-                  <td>Base URL of the Ollama server used for embeddings and (optional) generation.</td>
-                </tr>
-                <tr>
-                  <td><code>OLLAMA_EMBED_MODEL</code></td>
-                  <td><code>mxbai-embed-large</code></td>
-                  <td>Embedding model name. Must be the same at index time and query time.</td>
-                </tr>
-                <tr>
-                  <td><code>OLLAMA_LLM_MODEL</code></td>
-                  <td><code>qwen2.5:3b</code></td>
-                  <td>Generation model used by <code>--answer</code> and <code>--agentic</code>.</td>
-                </tr>
-                <tr>
-                  <td><code>SKYGREP_DB_PATH</code></td>
-                  <td><code>~/.skylakegrep/index.db</code></td>
-                  <td>SQLite index location. Use distinct paths to keep per-project indexes.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="note warn">
-            <span class="label">Note</span>
-            <p>
-              Switching <code>OLLAMA_EMBED_MODEL</code> after indexing produces a
-              dimension or semantic mismatch and will not return useful results.
-              Reindex with <code>--reset</code> when the embedding model changes.
-            </p>
-          </div>
-        </section>
+ <!-- ============== Configuration ============== -->
+ <section id="configuration" class="doc-section">
+ <p class="eyebrow">Reference · configuration</p>
+ <h2>Environment variables.</h2>
+ <p>
+ Configuration is read from environment variables on every invocation;
+ there is no config file. Defaults assume a local Ollama server on the
+ default port.
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr><th>Variable</th><th>Default</th><th>Effect</th></tr>
+ </thead>
+ <tbody>
+ <tr>
+ <td><code>OLLAMA_URL</code></td>
+ <td><code>http://localhost:11434</code></td>
+ <td>Base URL of the Ollama server used for embeddings and (optional) generation.</td>
+ </tr>
+ <tr>
+ <td><code>OLLAMA_EMBED_MODEL</code></td>
+ <td><code>mxbai-embed-large</code></td>
+ <td>Embedding model name. Must be the same at index time and query time.</td>
+ </tr>
+ <tr>
+ <td><code>OLLAMA_LLM_MODEL</code></td>
+ <td><code>qwen2.5:3b</code></td>
+ <td>Generation model used by <code>--answer</code> and <code>--agentic</code>.</td>
+ </tr>
+ <tr>
+ <td><code>SKYGREP_DB_PATH</code></td>
+ <td><code>~/.skylakegrep/index.db</code></td>
+ <td>SQLite index location. Use distinct paths to keep per-project indexes.</td>
+ </tr>
+ </tbody>
+ </table>
+ </div>
+ <div class="note warn">
+ <span class="label">Note</span>
+ <p>
+ Switching <code>OLLAMA_EMBED_MODEL</code> after indexing produces a
+ dimension or semantic mismatch and will not return useful results.
+ Reindex with <code>--reset</code> when the embedding model changes.
+ </p>
+ </div>
+ </section>
 
-        <!-- ============== JSON schema ============== -->
-        <section id="json-schema" class="doc-section">
-          <p class="eyebrow">Reference · output schema</p>
-          <h2>JSON shape.</h2>
-          <p>
-            <code>--json</code> writes a JSON array to stdout. Each element has
-            the following fields:
-          </p>
+ <!-- ============== JSON schema ============== -->
+ <section id="json-schema" class="doc-section">
+ <p class="eyebrow">Reference · output schema</p>
+ <h2>JSON shape.</h2>
+ <p>
+ <code>--json</code> writes a JSON array to stdout. Each element has
+ the following fields:
+ </p>
 <pre><code>[
-  {
-    "path":       "skylakegrep/src/storage.py",
-    "start_line": 197,
-    "end_line":   271,
-    "language":   "python",
-    "score":      0.824,
-    "snippet":    "def search(conn, query_embedding, top_k=10, …): …"
-  }
+ {
+ "path": "skylakegrep/src/storage.py",
+ "start_line": 197,
+ "end_line": 271,
+ "language": "python",
+ "score": 0.824,
+ "snippet": "def search(conn, query_embedding, top_k=10, …): …"
+ }
 ]</code></pre>
-          <dl class="def-list">
-            <dt>path</dt>
-            <dd>Absolute file path on the indexing host.</dd>
-            <dt>start_line, end_line</dt>
-            <dd>Inclusive 1-based line range of the chunk within <code>path</code>.</dd>
-            <dt>language</dt>
-            <dd>Tree-sitter language key, or the extension-derived key if the file used the fallback splitter.</dd>
-            <dt>score</dt>
-            <dd>Combined score (cosine plus lexical adjustment unless <code>--semantic-only</code>).</dd>
-            <dt>snippet</dt>
-            <dd>Verbatim source text of the chunk.</dd>
-          </dl>
-        </section>
+ <dl class="def-list">
+ <dt>path</dt>
+ <dd>Absolute file path on the indexing host.</dd>
+ <dt>start_line, end_line</dt>
+ <dd>Inclusive 1-based line range of the chunk within <code>path</code>.</dd>
+ <dt>language</dt>
+ <dd>Tree-sitter language key, or the extension-derived key if the file used the fallback splitter.</dd>
+ <dt>score</dt>
+ <dd>Combined score (cosine plus lexical adjustment unless <code>--semantic-only</code>).</dd>
+ <dt>snippet</dt>
+ <dd>Verbatim source text of the chunk.</dd>
+ </dl>
+ </section>
 
-        <!-- ============== Benchmarks ============== -->
-        <section id="benchmarks" class="doc-section">
-          <p class="eyebrow">Evaluation · benchmarks</p>
-          <h2>Empirical results across four benchmark dimensions.</h2>
-          <p>
-            skylakegrep ships four reproducible benchmarks. Each measures a
-            different question; quoting the right number for the right claim
-            matters. The repository's
-            <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>
-            holds the full raw tables, methodology, and per-task data; this
-            page is the curated summary.
-          </p>
+ <!-- ============== Benchmarks ============== -->
+ <section id="benchmarks" class="doc-section">
+ <p class="eyebrow">Evaluation · benchmarks</p>
+ <h2>Empirical results across four benchmark dimensions.</h2>
+ <p>
+ skylakegrep ships four reproducible benchmarks. Each measures a
+ different question; quoting the right number for the right claim
+ matters. The repository's
+ <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>
+ holds the full raw tables, methodology, and per-task data; this
+ page is the curated summary.
+ </p>
 
-          <h3 id="bench-e2e">1. End-to-end Claude Code agent (v0.8.0 → v0.10.0)</h3>
-          <p>
-            Real Claude Code sub-agents answering hand-labelled code-search
-            questions in two prompted conditions —
-            <strong>rg-only</strong> (skygrep forbidden) vs
-            <strong>skygrep-on</strong> (rg/grep/find forbidden) — across
-            21 questions and 1 multi-turn session in three repos.
-          </p>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Bench</th>
-                  <th>Tasks</th>
-                  <th>rg-only tools</th>
-                  <th>skygrep tools</th>
-                  <th>Δ tools</th>
-                  <th>Δ tokens</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>Multi-turn (3-turn repo-A session)</strong></td>
-                  <td>1 × 3</td><td>38</td><td>7</td><td><strong>−82 %</strong></td><td>−5 %</td>
-                </tr>
-                <tr>
-                  <td>6 medium tasks (v0.10.0-C)</td>
-                  <td>6</td><td>25</td><td>6</td><td>−76 %</td><td>−8 %</td>
-                </tr>
-                <tr>
-                  <td>14 single-turn (v0.8.0 + v0.9.0)</td>
-                  <td>14</td><td>124</td><td>87</td><td>−30 %</td><td>+12 %</td>
-                </tr>
-                <tr>
-                  <td><strong>20-task single-turn aggregate</strong></td>
-                  <td>20</td><td><strong>149</strong></td><td><strong>93</strong></td><td><strong>−37.6 %</strong></td><td>+6.5 %</td>
-                </tr>
-                <tr>
-                  <td><strong>Strict-label correctness (20 tasks)</strong></td>
-                  <td>—</td><td>12 / 20</td><td><strong>14 / 20</strong></td><td><strong>+2 tasks</strong></td><td>—</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p>
-            The cleanest, most consistent signal is
-            <strong>tool-call reduction</strong>: −37.6 % single-turn, −82 %
-            multi-turn. Each agent tool call costs an LLM round-trip + network
-            RTT + serialization + context-window growth, so reducing them
-            shortens the agent loop even when total tokens are equal. Token
-            cost across the 20-task aggregate is roughly flat (+6.5 %); we
-            do not claim skygrep saves the LLM bill.
-          </p>
-          <p>
-            Best-case task in the set: <em>repo-A editor cursor</em> — skygrep
-            finishes in 1 tool call vs rg-only's 25 (25× fewer), at one
-            eighth the wall time. Worst-case (in v0.10.0): <em>repo-A
-            signin</em> — skygrep was 40 % more tool calls because the
-            question's vocabulary (auth/session/token) overlapped directly
-            with code-path tokens, so rg's straightforward scan was already
-            efficient. <strong>v0.12.0 addresses this</strong> via a
-            conservative lexical pre-gate that detects exactly these
-            queries and short-circuits to <code>rg</code> internally in
-            ~50 ms. Both cases are published in
-            <a href="skylakegrep-0.10.0.md">the v0.10.0 release notes</a>;
-            see <a href="skylakegrep-0.12.0.md">the v0.12.0 release
-            notes</a> for the routing fix.
-          </p>
+ <h3 id="bench-e2e">1. End-to-end Claude Code agent (this)</h3>
+ <p>
+ Real Claude Code sub-agents answering hand-labelled code-search
+ questions in two prompted conditions —
+ <strong>rg-only</strong> (skygrep forbidden) vs
+ <strong>skygrep-on</strong> (rg/grep/find forbidden) — across
+ 21 questions and 1 multi-turn session in three repos.
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr>
+ <th>Bench</th>
+ <th>Tasks</th>
+ <th>rg-only tools</th>
+ <th>skygrep tools</th>
+ <th>Δ tools</th>
+ <th>Δ tokens</th>
+ </tr>
+ </thead>
+ <tbody>
+ <tr>
+ <td><strong>Multi-turn (3-turn repo-A session)</strong></td>
+ <td>1 × 3</td><td>38</td><td>7</td><td><strong>−82 %</strong></td><td>−5 %</td>
+ </tr>
+ <tr>
+ <td>6 medium tasks</td>
+ <td>6</td><td>25</td><td>6</td><td>−76 %</td><td>−8 %</td>
+ </tr>
+ <tr>
+ <td>14 single-turn ( + )</td>
+ <td>14</td><td>124</td><td>87</td><td>−30 %</td><td>+12 %</td>
+ </tr>
+ <tr>
+ <td><strong>20-task single-turn aggregate</strong></td>
+ <td>20</td><td><strong>149</strong></td><td><strong>93</strong></td><td><strong>−37.6 %</strong></td><td>+6.5 %</td>
+ </tr>
+ <tr>
+ <td><strong>Strict-label correctness (20 tasks)</strong></td>
+ <td>—</td><td>12 / 20</td><td><strong>14 / 20</strong></td><td><strong>+2 tasks</strong></td><td>—</td>
+ </tr>
+ </tbody>
+ </table>
+ </div>
+ <p>
+ The cleanest, most consistent signal is
+ <strong>tool-call reduction</strong>: −37.6 % single-turn, −82 %
+ multi-turn. Each agent tool call costs an LLM round-trip + network
+ RTT + serialization + context-window growth, so reducing them
+ shortens the agent loop even when total tokens are equal. Token
+ cost across the 20-task aggregate is roughly flat (+6.5 %); we
+ do not claim skygrep saves the LLM bill.
+ </p>
+ <p>
+ Best-case task in the set: <em>repo-A editor cursor</em> — skygrep
+ finishes in 1 tool call vs rg-only's 25 (25× fewer), at one
+ eighth the wall time. Worst-case (in ): <em>repo-A
+ signin</em> — skygrep was 40 % more tool calls because the
+ question's vocabulary (auth/session/token) overlapped directly
+ with code-path tokens, so rg's straightforward scan was already
+ efficient. <strong>The lexical pre-gate addresses this</strong> via a
+ conservative lexical pre-gate that detects exactly these
+ queries and short-circuits to <code>rg</code> internally in
+ ~50 ms. Both cases are published in
+ <a href="skylakegrep-0.1.0.md">the release notes</a>;
+ see <a href="skylakegrep-0.1.0.md">the release notes</a> for the routing fix.
+ </p>
 
-          <h3 id="bench-multilang">2. Multi-language retrieval recall (v0.7.0)</h3>
-          <p>
-            Three repositories, three languages, 40 hand-labelled questions:
-            does the cascade generalise beyond Rust?
-          </p>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Repo</th>
-                  <th>Language</th>
-                  <th>Files indexed</th>
-                  <th>Tasks</th>
-                  <th>Recall (cascade default)</th>
-                  <th>Avg s/q (Mac CPU)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td><code>repo-A</code></td><td>Rust</td><td>3 173</td><td>16</td><td><strong>16 / 16</strong></td><td>4.17 s</td></tr>
-                <tr><td><code>repo-B</code> (scientific Python)</td><td>Python</td><td>142</td><td>12</td><td>11 / 12</td><td>2.45 s</td></tr>
-                <tr><td><code>repo-C</code></td><td>TypeScript</td><td>1 903</td><td>12</td><td>11 / 12</td><td>3.83 s</td></tr>
-                <tr><td><strong>Aggregate</strong></td><td>3 langs</td><td><strong>5 218</strong></td><td><strong>40</strong></td><td><strong>38 / 40 (95 %)</strong></td><td><strong>3.55 s</strong></td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p>
-            Recall counts a query as a hit when at least one of the top-10
-            returned chunks matches the canonical answer dirs (or any listed
-            <code>expected_alternatives</code>). The two honest misses
-            (<code><domain-y>_v6.py</code> orchestration vs implementation
-            scripts; <code>autoCompact.ts</code> decision logic vs
-            neighbouring config files) are documented in
-            <a href="skylakegrep-0.7.0.md">v0.7.0 release notes</a>. Both
-            tasks have since been re-tried in the e2e agent benchmark and
-            skygrep solves the <code><domain-y>_v6</code> case in the agent
-            harness.
-          </p>
+ <h3 id="bench-multilang">2. Multi-language retrieval recall</h3>
+ <p>
+ Three repositories, three languages, 40 hand-labelled questions:
+ does the cascade generalise beyond Rust?
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr>
+ <th>Repo</th>
+ <th>Language</th>
+ <th>Files indexed</th>
+ <th>Tasks</th>
+ <th>Recall (cascade default)</th>
+ <th>Avg s/q (Mac CPU)</th>
+ </tr>
+ </thead>
+ <tbody>
+ <tr><td><code>repo-A</code></td><td>Rust</td><td>3 173</td><td>16</td><td><strong>16 / 16</strong></td><td>4.17 s</td></tr>
+ <tr><td><code>repo-B</code> (scientific Python)</td><td>Python</td><td>142</td><td>12</td><td>11 / 12</td><td>2.45 s</td></tr>
+ <tr><td><code>repo-C</code></td><td>TypeScript</td><td>1 903</td><td>12</td><td>11 / 12</td><td>3.83 s</td></tr>
+ <tr><td><strong>Aggregate</strong></td><td>3 langs</td><td><strong>5 218</strong></td><td><strong>40</strong></td><td><strong>38 / 40 (95 %)</strong></td><td><strong>3.55 s</strong></td></tr>
+ </tbody>
+ </table>
+ </div>
+ <p>
+ Recall counts a query as a hit when at least one of the top-10
+ returned chunks matches the canonical answer dirs (or any listed
+ <code>expected_alternatives</code>). The two honest misses
+ (<code><domain-y>_v6.py</code> orchestration vs implementation
+ scripts; <code>autoCompact.ts</code> decision logic vs
+ neighbouring config files) are documented in
+ <a href="skylakegrep-0.1.0.md">the release notes</a>. Both
+ tasks have since been re-tried in the e2e agent benchmark and
+ skygrep solves the <code><domain-y>_v6</code> case in the agent
+ harness.
+ </p>
 
-          <h3 id="bench-repo-A">3. repo-A 16-task retrieval ceiling (v0.5.1)</h3>
-          <p>
-            The original headline benchmark since 0.5.0. Verified retrieval
-            recall against hand-curated queries on the
-            <code>repo-A</code> Rust workspace — a 3 K-file,
-            26 K-chunk codebase that's a stress test for any local
-            embedding-based retrieval.
-          </p>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Tier</th>
-                  <th>Command</th>
-                  <th>Recall</th>
-                  <th>Avg s/q warm</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td>ultra-fast (cheap-only)</td><td><code>skygrep "..." --cascade-tau 0.0</code></td><td>11 / 16</td><td>0.10 s</td></tr>
-                <tr><td>chunk-only (no rerank)</td><td><code>skygrep "..." --no-cascade --no-rerank</code></td><td>9 / 16</td><td>0.52 s</td></tr>
-                <tr><td>chunk + rerank</td><td><code>skygrep "..." --no-cascade --rerank</code></td><td>11 / 16</td><td>9.5 s</td></tr>
-                <tr><td><strong>cascade (default)</strong></td><td><code>skygrep "..."</code></td><td><strong>16 / 16</strong></td><td><strong>~3 s</strong></td></tr>
-                <tr><td>ripgrep raw</td><td><code>rg -il -F</code> token-OR</td><td>16 / 16</td><td>0.1 s</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p>
-            With the v0.5.1 corrected ground-truth labels (the original
-            <code>crates/ai/</code> and <code>app/src/billing/</code> labels
-            were too narrow), the cascade default hits 16 / 16 on repo-A at
-            ~3 s/q on Mac CPU, no GPU. ~80 % of queries take the cheap path
-            (file-mean cosine, no LLM call) and complete in well under 0.5 s
-            warm; the remaining ~20 % escalate to a HyDE-augmented retrieval
-            and complete in the 1-2 s band. Full τ sweep, methodology, and
-            ablation tables are in
-            <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>.
-          </p>
+ <h3 id="bench-repo-A">3. repo-A 16-task retrieval ceiling</h3>
+ <p>
+ The original headline benchmark since 0.5.0. Verified retrieval
+ recall against hand-curated queries on the
+ <code>repo-A</code> Rust workspace — a 3 K-file,
+ 26 K-chunk codebase that's a stress test for any local
+ embedding-based retrieval.
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr>
+ <th>Tier</th>
+ <th>Command</th>
+ <th>Recall</th>
+ <th>Avg s/q warm</th>
+ </tr>
+ </thead>
+ <tbody>
+ <tr><td>ultra-fast (cheap-only)</td><td><code>skygrep "..." --cascade-tau 0.0</code></td><td>11 / 16</td><td>0.10 s</td></tr>
+ <tr><td>chunk-only (no rerank)</td><td><code>skygrep "..." --no-cascade --no-rerank</code></td><td>9 / 16</td><td>0.52 s</td></tr>
+ <tr><td>chunk + rerank</td><td><code>skygrep "..." --no-cascade --rerank</code></td><td>11 / 16</td><td>9.5 s</td></tr>
+ <tr><td><strong>cascade (default)</strong></td><td><code>skygrep "..."</code></td><td><strong>16 / 16</strong></td><td><strong>~3 s</strong></td></tr>
+ <tr><td>ripgrep raw</td><td><code>rg -il -F</code> token-OR</td><td>16 / 16</td><td>0.1 s</td></tr>
+ </tbody>
+ </table>
+ </div>
+ <p>
+ With corrected ground-truth labels (the original
+ <code>crates/ai/</code> and <code>app/src/billing/</code> labels
+ were too narrow), the cascade default hits 16 / 16 on repo-A at
+ ~3 s/q on Mac CPU, no GPU. ~80 % of queries take the cheap path
+ (file-mean cosine, no LLM call) and complete in well under 0.5 s
+ warm; the remaining ~20 % escalate to a HyDE-augmented retrieval
+ and complete in the 1-2 s band. Full τ sweep, methodology, and
+ ablation tables are in
+ <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>.
+ </p>
 
-          <h3 id="bench-self">4. skylakegrep self-test (regression guard, since v0.2.0)</h3>
-          <p>
-            Deterministic local benchmark over 30 repository-navigation tasks
-            against this very repo. Compares a single <code>skygrep search</code>
-            call against a simulated grep-agent. Token volumes are estimated
-            as <code>chars / 4</code>. Every release is verified to keep
-            <strong>30 / 30 at top-k 10</strong>.
-          </p>
+ <h3 id="bench-self">4. skylakegrep self-test (regression guard)</h3>
+ <p>
+ Deterministic local benchmark over 30 repository-navigation tasks
+ against this very repo. Compares a single <code>skygrep search</code>
+ call against a simulated grep-agent. Token volumes are estimated
+ as <code>chars / 4</code>. Every release is verified to keep
+ <strong>30 / 30 at top-k 10</strong>.
+ </p>
 
-          <figure>
-            <img src="assets/benchmark.svg" alt="Bar chart of token reduction and recall against top-k values 5, 10, 20, 50." />
-            <figcaption>
-              Bars: token reduction (left axis). Markers and dashed line:
-              expected-file recall (right axis). Reproduce with the
-              <code>benchmarks/agent_context_benchmark.py --top-k N</code>
-              command.
-            </figcaption>
-          </figure>
+ <figure>
+ <img src="assets/benchmark.svg" alt="Bar chart of token reduction and recall against top-k values 5, 10, 20, 50." />
+ <figcaption>
+ Bars: token reduction (left axis). Markers and dashed line:
+ expected-file recall (right axis). Reproduce with the
+ <code>benchmarks/agent_context_benchmark.py --top-k N</code>
+ command.
+ </figcaption>
+ </figure>
 
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>top-k</th>
-                  <th>recall</th>
-                  <th>total-token reduction</th>
-                  <th>context-token reduction</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><td>5</td><td>28 / 30</td><td>2.66×</td><td>5.53×</td></tr>
-                <tr><td><strong>10</strong></td><td><strong>30 / 30</strong></td><td><strong>2.00×</strong></td><td><strong>2.90×</strong></td></tr>
-                <tr><td>20</td><td>30 / 30</td><td>1.36×</td><td>1.53×</td></tr>
-                <tr><td>50</td><td>30 / 30</td><td>0.67×</td><td>0.60×</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p>
-            Vs real ripgrep (not the simulated grep-agent), this same task set
-            shows <strong>~17.7× total-token reduction at equal recall</strong>.
-            See <a href="token-benchmarking.md">the benchmark protocol</a>
-            for definitions and limitations.
-          </p>
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr>
+ <th>top-k</th>
+ <th>recall</th>
+ <th>total-token reduction</th>
+ <th>context-token reduction</th>
+ </tr>
+ </thead>
+ <tbody>
+ <tr><td>5</td><td>28 / 30</td><td>2.66×</td><td>5.53×</td></tr>
+ <tr><td><strong>10</strong></td><td><strong>30 / 30</strong></td><td><strong>2.00×</strong></td><td><strong>2.90×</strong></td></tr>
+ <tr><td>20</td><td>30 / 30</td><td>1.36×</td><td>1.53×</td></tr>
+ <tr><td>50</td><td>30 / 30</td><td>0.67×</td><td>0.60×</td></tr>
+ </tbody>
+ </table>
+ </div>
+ <p>
+ Vs real ripgrep (not the simulated grep-agent), this same task set
+ shows <strong>~17.7× total-token reduction at equal recall</strong>.
+ See <a href="token-benchmarking.md">the benchmark protocol</a>
+ for definitions and limitations.
+ </p>
 
-          <h3 id="bench-honest-framing">Which number to cite for which claim</h3>
-          <ul>
-            <li>
-              <strong>"skygrep cuts agent tool calls"</strong> →
-              <a href="#bench-e2e">benchmark 1</a>: −37.6 % single-turn,
-              −82 % multi-turn (real Claude Code sub-agents, 20 + 1
-              hand-labelled tasks).
-            </li>
-            <li>
-              <strong>"skygrep generalises across languages"</strong> →
-              <a href="#bench-multilang">benchmark 2</a>: 38 / 40 (95 %)
-              across Rust + Python + TypeScript at 3.55 s/q (40
-              hand-labelled retrieval tasks).
-            </li>
-            <li>
-              <strong>"skygrep matches ripgrep file-set ceiling on a stress test"</strong> →
-              <a href="#bench-repo-A">benchmark 3</a>: 16 / 16 on repo-A with
-              corrected ground-truth labels at ~3 s/q.
-            </li>
-            <li>
-              <strong>"skygrep is more token-efficient than ripgrep when feeding LLM context"</strong> →
-              <a href="#bench-self">benchmark 4</a>: ~17.7× total-token
-              reduction at equal recall on the 30-task self-test.
-            </li>
-          </ul>
-          <p>
-            Don't combine these into a single number; they answer different
-            questions. The honest framing is in
-            <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>'s
-            "Strongest claims" section.
-          </p>
-        </section>
+ <h3 id="bench-honest-framing">Which number to cite for which claim</h3>
+ <ul>
+ <li>
+ <strong>"skygrep cuts agent tool calls"</strong> →
+ <a href="#bench-e2e">benchmark 1</a>: −37.6 % single-turn,
+ −82 % multi-turn (real Claude Code sub-agents, 20 + 1
+ hand-labelled tasks).
+ </li>
+ <li>
+ <strong>"skygrep generalises across languages"</strong> →
+ <a href="#bench-multilang">benchmark 2</a>: 38 / 40 (95 %)
+ across Rust + Python + TypeScript at 3.55 s/q (40
+ hand-labelled retrieval tasks).
+ </li>
+ <li>
+ <strong>"skygrep matches ripgrep file-set ceiling on a stress test"</strong> →
+ <a href="#bench-repo-A">benchmark 3</a>: 16 / 16 on repo-A with
+ corrected ground-truth labels at ~3 s/q.
+ </li>
+ <li>
+ <strong>"skygrep is more token-efficient than ripgrep when feeding LLM context"</strong> →
+ <a href="#bench-self">benchmark 4</a>: ~17.7× total-token
+ reduction at equal recall on the 30-task self-test.
+ </li>
+ </ul>
+ <p>
+ Don't combine these into a single number; they answer different
+ questions. The honest framing is in
+ <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>'s
+ "Strongest claims" section.
+ </p>
+ </section>
 
-        <!-- ============== Limitations ============== -->
-        <section id="limitations" class="doc-section">
-          <p class="eyebrow">Evaluation · limitations</p>
-          <h2>What the current data does and does not show.</h2>
-          <ul>
-            <li>
-              <strong>Sample sizes are measurement-grade, not study-grade.</strong>
-              The e2e agent benchmark is n = 20 single-turn + 1 multi-turn
-              session; the multi-language benchmark is n = 40; statistical
-              significance is improving but small.
-            </li>
-            <li>
-              <strong>Token cost is roughly flat in the agent loop</strong>
-              (+6.5 % aggregate). The agent's own reasoning tokens dominate
-              the bill; trimming retrieval payload doesn't move the total.
-              The "17.7× reduction" cited in the self-test (benchmark 4)
-              is static retrieval-output volume, not an agent's reasoning
-              loop. Don't conflate the two.
-            </li>
-            <li>
-              <strong>Wall-time data is partially contaminated</strong> by
-              parallel-spawn Ollama contention in the v0.8.0 / v0.9.0 / v0.10.0-C
-              batches. The 3-turn multi-turn session ran sequentially and
-              is reportable; single-user usage has no contention.
-            </li>
-            <li>
-              <strong>Tool-list compliance was prompt-instructed, not
-              API-enforced.</strong> Each sub-agent published a TOOLS audit
-              line; manual inspection confirms compliance, but it is not a
-              hard guarantee.
-            </li>
-            <li>
-              <strong>Answer correctness is graded by path substring</strong>
-              against a hand-labelled ground truth (with explicit
-              <code>expected_alternatives</code> for multi-file cases).
-              Rubric-graded answer quality of <code>--answer</code> mode is
-              not yet evaluated.
-            </li>
-            <li>
-              <strong>Retrieval quality is bounded by the embedding model</strong>
-              in use. Switching <code>OLLAMA_EMBED_MODEL</code> after indexing
-              produces a dim/semantic mismatch and requires
-              <code>skygrep index --reset</code>.
-            </li>
-            <li>
-              <strong>Task sets are hand-curated, not user-collected.</strong>
-              Real-world questions from real users likely exhibit more
-              vocabulary mismatch than benchmark-curated questions, so the
-              production gap likely widens, not narrows.
-            </li>
-          </ul>
-        </section>
+ <!-- ============== Limitations ============== -->
+ <section id="limitations" class="doc-section">
+ <p class="eyebrow">Evaluation · limitations</p>
+ <h2>What the current data does and does not show.</h2>
+ <ul>
+ <li>
+ <strong>Sample sizes are measurement-grade, not study-grade.</strong>
+ The e2e agent benchmark is n = 20 single-turn + 1 multi-turn
+ session; the multi-language benchmark is n = 40; statistical
+ significance is improving but small.
+ </li>
+ <li>
+ <strong>Token cost is roughly flat in the agent loop</strong>
+ (+6.5 % aggregate). The agent's own reasoning tokens dominate
+ the bill; trimming retrieval payload doesn't move the total.
+ The "17.7× reduction" cited in the self-test (benchmark 4)
+ is static retrieval-output volume, not an agent's reasoning
+ loop. Don't conflate the two.
+ </li>
+ <li>
+ <strong>Wall-time data is partially contaminated</strong> by
+ parallel-spawn Ollama contention in the e2e agent
+ batches. The 3-turn multi-turn session ran sequentially and
+ is reportable; single-user usage has no contention.
+ </li>
+ <li>
+ <strong>Tool-list compliance was prompt-instructed, not
+ API-enforced.</strong> Each sub-agent published a TOOLS audit
+ line; manual inspection confirms compliance, but it is not a
+ hard guarantee.
+ </li>
+ <li>
+ <strong>Answer correctness is graded by path substring</strong>
+ against a hand-labelled ground truth (with explicit
+ <code>expected_alternatives</code> for multi-file cases).
+ Rubric-graded answer quality of <code>--answer</code> mode is
+ not yet evaluated.
+ </li>
+ <li>
+ <strong>Retrieval quality is bounded by the embedding model</strong>
+ in use. Switching <code>OLLAMA_EMBED_MODEL</code> after indexing
+ produces a dim/semantic mismatch and requires
+ <code>skygrep index --reset</code>.
+ </li>
+ <li>
+ <strong>Task sets are hand-curated, not user-collected.</strong>
+ Real-world questions from real users likely exhibit more
+ vocabulary mismatch than benchmark-curated questions, so the
+ production gap likely widens, not narrows.
+ </li>
+ </ul>
+ </section>
 
-        <!-- ============== Roadmap ============== -->
-        <section id="roadmap" class="doc-section">
-          <p class="eyebrow">Roadmap</p>
-          <h2>Planned work.</h2>
+ <!-- ============== Roadmap ============== -->
+ <section id="roadmap" class="doc-section">
+ <p class="eyebrow">Roadmap</p>
+ <h2>Planned work.</h2>
 
-          <h3>Recently shipped</h3>
-          <ul>
-            <li>
-              <strong>Smart-routing lexical pre-gate (v0.12.0).</strong>
-              A conservative four-condition gate detects lexical-friendly
-              queries and short-circuits to <code>rg</code> internally
-              in ~50 ms. Vocabulary-mismatch queries still run the full
-              semantic cascade — borderline queries always fall through
-              so semantic recall is never sacrificed for routing speed.
-              Default on; <code>--no-rg-shortcut</code> forces pure
-              cascade.
-            </li>
-            <li>
-              <strong>Editor / agent integrations (v0.11.0).</strong>
-              <code>skygrep setup</code> auto-registers skylakegrep as the
-              preferred semantic search for Claude Code, Codex, OpenCode,
-              Gemini CLI, and Cursor — markdown snippet between
-              BEGIN/END markers, cleanly removable via
-              <code>skygrep setup --uninstall</code>.
-            </li>
-            <li>
-              <strong>Multi-repository benchmark (v0.7.0).</strong>
-              40 hand-labelled queries across Rust + Python + TypeScript
-              repos, 38 / 40 (95 %) recall at 3.55 s/q.
-            </li>
-            <li>
-              <strong>End-to-end Claude Code agent benchmark
-              (v0.8.0 → v0.10.0).</strong> Real sub-agent harness measuring
-              tool-call efficiency: −37.6 % single-turn, −82 % multi-turn.
-            </li>
-            <li>
-              <strong>Cross-encoder reranker (v0.3.0).</strong>
-              <code>--rerank</code> flag for an optional cross-encoder
-              second pass on the top candidates.
-            </li>
-            <li>
-              <strong>Confidence-gated cascade (v0.3.0 → v0.5.x).</strong>
-              ~80 % of queries take a sub-second cheap path; the rest
-              escalate to HyDE-augmented retrieval.
-            </li>
-          </ul>
+ <h3>Current capabilities</h3>
+ <ul>
+ <li>
+ <strong>LLM-driven query routing.</strong>
+ A small local Ollama model reads each query and returns
+ structured intent / token / skip-cascade JSON. Three-layer
+ fallback chain (LLM → rule-based → mixed) keeps the CLI
+ working when Ollama is down. Confidence threshold protects
+ accuracy: cascade always runs when the model is unsure.
+ </li>
+ <li>
+ <strong>Three retrieval tiers, intent-ranked.</strong>
+ Filename lookup (~10 ms) + lexical content shortcut (~50 ms)
+ + confidence-gated semantic cascade (sub-second to ~3 s).
+ All enabled tiers always run; results dedupe by path and
+ rank by detected intent.
+ </li>
+ <li>
+ <strong>Confidence-gated cascade.</strong>
+ ~80 % of queries take a sub-second cheap file-mean cosine
+ path; the rest escalate to HyDE-augmented retrieval +
+ cross-encoder rerank + PageRank tiebreaker.
+ </li>
+ <li>
+ <strong>Multi-repository retrieval recall.</strong>
+ 38 / 40 (95 %) recall across Rust + Python + TypeScript
+ hand-labelled queries at 3.55 s/q on Mac CPU.
+ </li>
+ <li>
+ <strong>End-to-end agent tool-call efficiency.</strong>
+ Real sub-agent harness measurements: −37.6 % single-turn,
+ −82 % multi-turn vs <code>rg</code>-only baseline.
+ </li>
+ <li>
+ <strong>Editor / agent integrations.</strong>
+ <code>skygrep setup</code> auto-registers skylakegrep as the
+ preferred semantic search for Claude Code, Codex, OpenCode,
+ Gemini CLI, and Cursor — markdown snippet between
+ BEGIN/END markers, cleanly removable via
+ <code>skygrep setup --uninstall</code>.
+ </li>
+ <li>
+ <strong>Binary file content extraction.</strong>
+ Lazy on-demand <code>pdftotext</code> / <code>pypdf</code> /
+ <code>python-docx</code> for filename matches in
+ <code>--detail=full</code>. Optional <code>--ocr</code>
+ (tesseract) for scanned PDFs. Editor lock-files
+ (<code>~$*.docx</code>, <code>*.swp</code>, etc.) filtered.
+ </li>
+ <li>
+ <strong>Framed terminal rendering.</strong>
+ Pygments-driven syntax highlighting (300+ languages) inside
+ rounded card frames. Four <code>--detail</code> levels;
+ <code>NO_COLOR</code> opt-out honoured.
+ </li>
+ </ul>
 
-          <h3>In progress / planned</h3>
-          <ul>
-            <li>
-              <strong>Native MCP server.</strong> The v0.11.0
-              <code>skygrep setup</code> integration writes a
-              "prefer skygrep over rg" instruction into agent rules files;
-              a true MCP server (so agents can call skygrep as a structured
-              tool rather than a shell command) is the next step.
-            </li>
-            <li>
-              <strong>Multi-vector / late-interaction retrieval (ColBERT-style).</strong>
-              Current retrieval is single-vector cosine + lexical rerank;
-              token-level late interaction over a larger candidate pool
-              is the most promising lever for the remaining ~5 % miss
-              rate.
-            </li>
-            <li>
-              <strong>Larger benchmark task sets.</strong> Push n from
-              20 single-turn / 1 multi-turn into the n = 100+ range so
-              statistical significance moves from "directional" to
-              "tight." Real-user query corpora are the goal.
-            </li>
-            <li>
-              <strong>Packaged benchmark fixtures.</strong> Third parties
-              should be able to reproduce every published number without
-              copying internal scripts; needs a
-              <code>benchmarks/</code> CLI plus fixture repos pinned to
-              specific commits.
-            </li>
-            <li>
-              <strong>Expanded ignore semantics + language coverage.</strong>
-              Tree-sitter grammars and chunk heuristics for additional
-              languages (Go, Java, Kotlin, Swift); richer
-              <code>.gitignore</code> / <code>.mgrepignore</code>
-              precedence rules.
-            </li>
-          </ul>
-        </section>
-      </main>
+ <h3>In progress / planned</h3>
+ <ul>
+ <li>
+ <strong>Native MCP server.</strong> The 
+ <code>skygrep setup</code> integration writes a
+ "prefer skygrep over rg" instruction into agent rules files;
+ a true MCP server (so agents can call skygrep as a structured
+ tool rather than a shell command) is the next step.
+ </li>
+ <li>
+ <strong>Multi-vector / late-interaction retrieval (ColBERT-style).</strong>
+ Current retrieval is single-vector cosine + lexical rerank;
+ token-level late interaction over a larger candidate pool
+ is the most promising lever for the remaining ~5 % miss
+ rate.
+ </li>
+ <li>
+ <strong>Larger benchmark task sets.</strong> Push n from
+ 20 single-turn / 1 multi-turn into the n = 100+ range so
+ statistical significance moves from "directional" to
+ "tight." Real-user query corpora are the goal.
+ </li>
+ <li>
+ <strong>Packaged benchmark fixtures.</strong> Third parties
+ should be able to reproduce every published number without
+ copying internal scripts; needs a
+ <code>benchmarks/</code> CLI plus fixture repos pinned to
+ specific commits.
+ </li>
+ <li>
+ <strong>Expanded ignore semantics + language coverage.</strong>
+ Tree-sitter grammars and chunk heuristics for additional
+ languages (Go, Java, Kotlin, Swift); richer
+ <code>.gitignore</code> / <code>.skygrepignore</code>
+ precedence rules.
+ </li>
+ </ul>
+ </section>
+ </main>
 
-      <!-- =============================================================
-           Right TOC
-           ============================================================= -->
-      <aside class="toc" aria-label="On this page">
-        <p>On this page</p>
-        <a href="#overview">Overview</a>
-        <a href="#install">Installation</a>
-        <a href="#quickstart">Quickstart</a>
-        <a href="#indexing">Indexing model</a>
-        <a href="#ranking">Ranking</a>
-        <a href="#output">Output formats</a>
-        <a href="#architecture">Architecture</a>
-        <a href="#schema">Storage schema</a>
-        <a href="#ranking-pipeline">Ranking pipeline</a>
-        <a href="#cli">CLI</a>
-        <a href="#configuration">Configuration</a>
-        <a href="#json-schema">JSON schema</a>
-        <a href="#benchmarks">Benchmark</a>
-        <a href="#limitations">Limitations</a>
-        <a href="#roadmap">Roadmap</a>
-      </aside>
-    </div>
-  </body>
+ <!-- =============================================================
+ Right TOC
+ ============================================================= -->
+ <aside class="toc" aria-label="On this page">
+ <p>On this page</p>
+ <a href="#overview">Overview</a>
+ <a href="#install">Installation</a>
+ <a href="#quickstart">Quickstart</a>
+ <a href="#indexing">Indexing model</a>
+ <a href="#ranking">Ranking</a>
+ <a href="#output">Output formats</a>
+ <a href="#architecture">Architecture</a>
+ <a href="#schema">Storage schema</a>
+ <a href="#ranking-pipeline">Ranking pipeline</a>
+ <a href="#cli">CLI</a>
+ <a href="#configuration">Configuration</a>
+ <a href="#json-schema">JSON schema</a>
+ <a href="#benchmarks">Benchmark</a>
+ <a href="#limitations">Limitations</a>
+ <a href="#roadmap">Roadmap</a>
+ </aside>
+ </div>
+ </body>
 </html>

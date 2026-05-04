@@ -151,7 +151,7 @@ Only the cascade's HyDE-escalation path makes a query-time LLM call, and
 it only runs on the ~20 % of queries the cheap path is uncertain about.
 
 The full architecture diagram and module-by-module walk-through is at
-[`docs/skylakegrep-0.6.0.md`](docs/skylakegrep-0.6.0.md) and
+[`docs/skylakegrep-0.1.0.md`](docs/skylakegrep-0.1.0.md) and
 [`docs/roadmap.md`](docs/roadmap.md).
 
 ## When to use what
@@ -184,107 +184,20 @@ The full architecture diagram and module-by-module walk-through is at
 
 ## Releases
 
-Each release ships with comprehensive notes covering the architecture
-change, benchmark deltas, compatibility notes, and download artifacts.
-Browse them at
-<https://github.com/danielchen26/skylakegrep/releases> — the latest is
-also [installable from PyPI](https://pypi.org/project/skylakegrep/).
+This is the first public release of `skylakegrep`. See
+[`docs/skylakegrep-0.1.0.md`](docs/skylakegrep-0.1.0.md) for the full
+description of capabilities, architecture, CLI flags, and
+environment variables.
 
-The full sequence so far:
-
-  - **0.15.1** — fix: editor/app session-lock and swap files
-    (`~$*.docx`, `*.swp`, `.#*`, `*~`) no longer leak into
-    filename-lookup results. Two-layer fix: `find` filter at source
-    + lock-file detection in `extract_docx` with friendly hint.
-    Resolves Word `~$pert Letter ....docx` showing up with the
-    cryptic "Package not found" error.
-  - **0.15.0** — LLM-driven query routing replaces hand-rolled
-    heuristics as the primary source of routing decisions. A small
-    local Ollama model (`qwen2.5:3b`) reads each query and returns
-    structured `{intent, primary_token, skip_cascade, extract_content,
-    confidence}` JSON. Three-layer fallback chain (LLM → v0.14.0
-    rules → mixed) keeps the CLI working air-gapped or when Ollama is
-    down. New `binary_extract.py` extracts PDF/docx content inline for
-    filename matches; `--detail=brief|standard|full|summary` and
-    `--ocr` (opt-in tesseract) round out the verbosity story.
-    Confidence threshold (0.7) protects accuracy: an unsure LLM never
-    skips the cascade. Filename queries return to ~150 ms.
-  - **0.14.0** — hierarchical merge: every enabled tier (filename /
-    lexical / semantic cascade) always runs, results dedupe by
-    path, and `classify_intent(query)` decides which tier wins
-    top slots. A query like `where is config file` returns the
-    `config.py` file **and** the cascade chunks discussing config
-    loading in one pass. Latency note: every query now pays
-    cascade cost; pass `--no-cascade` to opt out.
-  - **0.13.0** — three-tier smart routing + framed card rendering.
-    New filename-lookup tier (~10 ms) handles `where is eb1b file?` /
-    `find package.json` / `show me README` queries via
-    `find -iname` — no index needed. Result rendering rewritten to
-    proper rounded card frames with Pygments-driven syntax
-    highlighting (300+ languages) tuned to the website hero.
-    `--filename-shortcut/--no-filename-shortcut` flag; `pygments>=2.0`
-    is now a hard dependency.
-  - **0.12.1** — terminal output rework: cyan repo-relative paths,
-    right-aligned language pill + bold-green score, dim separator
-    rule, lightweight ANSI syntax highlighting on the code body.
-    Visually aligned with the landing-page hero. `--json` and
-    pipe/redirect behaviour unchanged; `NO_COLOR=1` opt-out
-    honoured. No retrieval-pipeline change.
-  - **0.12.0** — smart-routing: a four-condition lexical pre-gate
-    short-circuits ripgrep-friendly queries (~50 ms) so calling
-    `skygrep` is no longer ever a tax over `rg` for the easy cases.
-    Vocabulary-mismatch queries still run the full semantic
-    cascade. New `--rg-shortcut/--no-rg-shortcut` flag (default on);
-    `skygrep setup` snippet rewritten to reflect auto-routing.
-  - **0.11.0** — `skygrep setup` auto-registers skylakegrep as the
-    preferred semantic search with **Claude Code, Codex, OpenCode,
-    Gemini CLI, and Cursor**. First-run banner nudges new users;
-    `skygrep setup --uninstall` removes all snippets cleanly. New
-    `skygrep doctor` row shows registration state per CLI.
-  - **0.10.0** — multi-turn agent benchmark + single-turn sample
-    expanded to 20 tasks. **−82 % tool calls in multi-turn repo-A
-    session, −37.6 % across 20 single-turn tasks.** On 5 / 6
-    medium-difficulty single-turn tasks, skygrep finds the canonical
-    file in 1 tool call vs rg-only's 4-8.
-  - **0.9.0** — e2e Claude Code agent benchmark extended to 14
-    hand-labelled tasks (8 hard semantic + 6 easy single-shot) across
-    Rust + Python + TypeScript. **−30 % tool calls and +2 / 14
-    answer-correctness** with skygrep on. Best-case task: **25× fewer
-    tool calls** on the repo-A editor cursor query. Worst-case task:
-    skygrep slightly worse on lexical-friendly signin question — both
-    published.
-  - **0.8.0** — first e2e Claude Code agent benchmark (6 easy
-    single-shot questions). Superseded by 0.9.0 with larger sample.
-  - **0.7.0** — multi-language benchmark across Rust + Python +
-    TypeScript: 38 / 40 (95 %) recall at 3.55 s/q on Mac CPU. New
-    `benchmarks/cross_repo/repo-b.json` (12 Python tasks) and
-    `repo-c.json` (12 TypeScript tasks); unified runner at
-    `benchmarks/v0_7_multilang_bench.py`. Two honest misses
-    documented in `docs/parity-benchmarks.md`.
-  - **0.6.2** — Ollama preheat (fire-and-forget warm-up at search
-    start); GitHub Actions CI workflows (pytest + auto-PyPI on tag);
-    1200×630 social preview card.
-  - **0.6.1** — Ollama `keep_alive=-1` correctness fix (was sending
-    string ``"-1"`` causing 400 Bad Request); HyDE default model
-    reverted to ``qwen2.5:3b`` after the repo-A benchmark showed
-    ``qwen2.5:1.5b`` cost 1 task in recall; tag-aware model presence
-    check in ``skygrep doctor`` (no more false-positives when only
-    a different tag of the same base name is installed).
-  - **0.6.0** — introduced ``OLLAMA_HYDE_MODEL`` and Ollama
-    ``keep_alive`` plumbing; superseded by 0.6.1 for default
-    correctness.
-  - **0.5.1** — cascade file-mean cosine corpus-wide; repo-A benchmark
-    relabeled to acceptable-alternatives form (16/16 with corrected
-    labels).
-  - **0.5.0** — symbol-aware indexing, doc2query enrichment, file-export
-    PageRank tiebreaker.
-  - **0.4.1** — ripgrep fallback for the first query in a fresh project.
-  - **0.4.0** — bare-form `skygrep "<query>"`, per-project auto-index,
-    `skygrep doctor`, cascade default.
-  - **0.3.0–0.3.1** — confidence-gated cascade.
-  - **0.2.0** — vectorized retrieval, lexical reranker, agentic
-    decomposition.
-  - **0.1.0** — initial release.
+  - **0.1.0** — first public release. LLM-driven query routing
+    (filename / lexical / semantic cascade tiers, intent-aware
+    merge), confidence-gated semantic cascade with HyDE escalation +
+    cross-encoder rerank + PageRank tiebreaker, lazy PDF / docx
+    content extraction (`pdftotext` + `pypdf` fallback, optional
+    `--ocr`), framed Pygments-highlighted card rendering, four
+    `--detail` levels, `skygrep setup` auto-registration with major
+    LLM CLIs (Claude Code, Codex, OpenCode, Gemini CLI, Cursor).
+    PolyForm Noncommercial 1.0.0 license.
 
 ## CLI reference
 
@@ -342,7 +255,7 @@ skygrep enrich   [--max N] [--batch B]      # opt-in doc2query enrichment
 | --- | --- |
 | Semantic code search via local Ollama | 0.1.0 |
 | Tree-sitter chunking + line-window fallback | 0.2.0 |
-| `.gitignore` / `.mgrepignore` hygiene | 0.2.0 |
+| `.gitignore` / `.skygrepignore` hygiene | 0.2.0 |
 | Incremental indexing (mtime-based) | 0.2.0 |
 | Stale row cleanup | 0.2.0 |
 | Watch mode | 0.2.0 |
@@ -391,19 +304,11 @@ in [`docs/parity-benchmarks.md`](docs/parity-benchmarks.md).
 
 **PolyForm Noncommercial 1.0.0** — see [`LICENSE`](LICENSE).
 
-> ⚠️ **License change as of v0.16.0.** This project is now licensed under
-> **PolyForm Noncommercial 1.0.0**. Personal, academic, research, hobby,
-> and any other non-commercial use is fully permitted, including
-> modification and redistribution. **Commercial use is NOT permitted**
-> under this license. To obtain a commercial license, open a GitHub
-> issue titled "Commercial license inquiry" or email
-> <chentianchi@gmail.com>.
->
-> Earlier releases (v0.2.0 – v0.15.1) were originally distributed under
-> the MIT License at release time. The git history has been rewritten
-> retroactively so all checked-in `LICENSE` files now reflect the new
-> license; binaries that were already published under MIT remain so
-> wherever they exist in the wild.
+Personal, academic, research, hobby, and any other non-commercial
+use is fully permitted, including modification and redistribution.
+**Commercial use is NOT permitted** under this license. To obtain
+a commercial license, open a GitHub issue titled "Commercial
+license inquiry" or email <chentianchi@gmail.com>.
 
 ## Acknowledgments
 

@@ -9,39 +9,19 @@ The Markdown files here are reference companions to that site.
 | File | Purpose |
 | --- | --- |
 | [`index.html`](index.html) | Rendered documentation site (published as <https://danielchen26.github.io/skylakegrep/>). |
-| [`skylakegrep-0.16.0.md`](skylakegrep-0.16.0.md) | Release notes for 0.16.0: **license change** from MIT to **PolyForm Noncommercial 1.0.0**. Personal / academic / research / hobby use fully permitted; commercial use requires a separate license (contact `chentianchi@gmail.com`). Git history rewritten to apply new license retroactively; old PyPI versions removed. License-only release — no code changes. |
-| [`skylakegrep-0.15.1.md`](skylakegrep-0.15.1.md) | Release notes for 0.15.1: fix — editor / app session-lock and swap files (`~$*.docx`, `*.swp`, `.#*`, `*~`) no longer leak into filename-lookup results. Two-layer fix: `find` filter at source + lock-file detection in `extract_docx` with friendly hint instead of cryptic "Package not found" error. |
-| [`skylakegrep-0.15.0.md`](skylakegrep-0.15.0.md) | Release notes for 0.15.0: LLM-driven query routing replaces hand-rolled heuristics. Small local Ollama model returns structured `{intent, primary_token, skip_cascade, extract_content, confidence}` JSON; three-layer fallback (LLM → v0.14.0 rules → mixed). New `binary_extract.py` extracts PDF/docx content inline (`pdftotext` + `pypdf` fallback, opt-in `--ocr` tesseract). `--detail=brief\|standard\|full\|summary` flag. Confidence threshold 0.7 protects accuracy. |
-| [`skylakegrep-0.14.0.md`](skylakegrep-0.14.0.md) | Release notes for 0.14.0: hierarchical merge — every enabled tier (filename / lexical / semantic cascade) always runs, results dedupe by path, and `classify_intent(query)` decides which tier wins top slots. A query like `where is config file` returns `config.py` **and** cascade chunks discussing config loading in one pass. New `skylakegrep/src/intent.py` owns intent classification + tier merging. Latency note: every query now pays cascade cost. |
-| [`skylakegrep-0.13.0.md`](skylakegrep-0.13.0.md) | Release notes for 0.13.0: three-tier smart routing + framed card rendering. New filename-lookup tier (~10 ms) handles `where is eb1b file?` / `find package.json` queries via `find -iname` — no index needed. Result rendering rewritten to rounded card frames with Pygments-driven syntax highlighting (300+ languages). `--filename-shortcut/--no-filename-shortcut` flag; `pygments>=2.0` is now a hard dependency. |
-| [`skylakegrep-0.12.1.md`](skylakegrep-0.12.1.md) | Release notes for 0.12.1: terminal output rework — cyan repo-relative paths, right-aligned language pill + bold-green score, dim separator rule, lightweight ANSI syntax highlighting. Visually aligned with the landing-page hero. `--json` and pipe/redirect behaviour unchanged; `NO_COLOR=1` opt-out honoured. |
-| [`skylakegrep-0.12.0.md`](skylakegrep-0.12.0.md) | Release notes for 0.12.0: smart-routing release. A four-condition conservative lexical pre-gate short-circuits ripgrep-friendly queries (~50 ms) so calling `skygrep` is no longer ever a tax over `rg` for the easy cases. Vocabulary-mismatch queries still run the full semantic cascade. New `--rg-shortcut/--no-rg-shortcut` flag (default on). |
-| [`skylakegrep-0.11.0.md`](skylakegrep-0.11.0.md) | Release notes for 0.11.0: `skygrep setup` interactive command auto-registers skylakegrep as preferred semantic search with **Claude Code, Codex, OpenCode, Gemini CLI, and Cursor**. First-run banner nudges new users; `skygrep setup --uninstall` removes all snippets cleanly. |
-| [`skylakegrep-0.10.0.md`](skylakegrep-0.10.0.md) | Release notes for 0.10.0: multi-turn benchmark + 6-task expansion. Headline: **−82 % tool calls in multi-turn sessions, −37.6 % across 20 single-turn tasks**. On 5 / 6 medium tasks, skygrep finishes in 1 tool call. |
-| [`skylakegrep-0.9.0.md`](skylakegrep-0.9.0.md) | Release notes for 0.9.0: e2e Claude Code agent benchmark extended with 8 hard semantic questions (14 total). Headline: **−30 % agent tool calls + 2 / 14 better answers** with skygrep across Rust + Python + TypeScript. Best-case 25 × fewer tool calls on the hardest semantic query; worst-case skygrep slightly worse on lexical-friendly questions. Honest worst-case publishing. |
-| [`skylakegrep-0.8.0.md`](skylakegrep-0.8.0.md) | Release notes for 0.8.0: end-to-end Claude Code agent benchmark (skygrep on/off across 6 questions × 3 languages). Headline: **−54 % agent tool calls** with skygrep, +1 task in answer correctness, equal token cost. (Superseded by 0.9.0 with larger sample.) |
-| [`skylakegrep-0.7.0.md`](skylakegrep-0.7.0.md) | Release notes for 0.7.0: multi-language benchmark (Rust + Python + TypeScript, 40 hand-labelled questions across 3 repos). Headline: **38 / 40 (95 %) recall** at 3.55 s/q on Mac CPU. |
-| [`skylakegrep-0.6.2.md`](skylakegrep-0.6.2.md) | Release notes for 0.6.2: Ollama preheat (fire-and-forget warm-up at search start), GitHub Actions CI workflows (pytest + auto-PyPI on tag), and a 1200×630 social preview card wired into ``og:image`` meta. No retrieval architecture change. |
-| [`skylakegrep-0.6.1.md`](skylakegrep-0.6.1.md) | Release notes for 0.6.1: ``keep_alive=-1`` correctness fix; HyDE default reverted to ``qwen2.5:3b`` after measurement showed ``qwen2.5:1.5b`` cost 1 task; tag-aware model presence check. |
-| [`skylakegrep-0.6.0.md`](skylakegrep-0.6.0.md) | Release notes for 0.6.0: introduced ``OLLAMA_HYDE_MODEL`` env and Ollama ``keep_alive`` plumbing. Superseded by 0.6.1 for default correctness. |
-| [`skylakegrep-0.5.1.md`](skylakegrep-0.5.1.md) | Release notes for 0.5.1: cascade file-mean cosine corpus-wide fix; repo-A 16-task benchmark relabeled to acceptable-alternatives form (16/16 with corrected labels); honest empirical note that L2/L3/L4 don't move repo-A recall (repo-A saturated, multi-language bench landing in 0.5.2). |
-| [`skylakegrep-0.5.0.md`](skylakegrep-0.5.0.md) | Release notes for 0.5.0: 5-layer progressive system — symbol-aware indexing (L2), doc2query enrichment (L3), PageRank tiebreaker (L4) on top of the 0.4.x rg fallback + cascade base. |
-| [`skylakegrep-0.4.1.md`](skylakegrep-0.4.1.md) | Release notes for 0.4.1: ripgrep fallback for the first query in a fresh project (~0.7 s) + detached background semantic indexer. |
-| [`skylakegrep-0.4.0.md`](skylakegrep-0.4.0.md) | Release notes for 0.4.0: bare-form `skygrep "<query>"`, per-project auto-index, `skygrep doctor`, cascade default, default embed model `nomic-embed-text`. |
-| [`skylakegrep-0.3.1.md`](skylakegrep-0.3.1.md) | Release notes for 0.3.1: README + diagram refresh so the PyPI page reflects the cascade flow. No behaviour change. |
-| [`skylakegrep-0.3.0.md`](skylakegrep-0.3.0.md) | Release notes for 0.3.0: confidence-gated cascade (`--cascade`), benchmark sweep, null-result findings. |
-| [`skylakegrep-0.2.0.md`](skylakegrep-0.2.0.md) | Capability guide for the 0.2.0 release: indexing, ranking, output modes, configuration. |
+| [`skylakegrep-0.1.0.md`](skylakegrep-0.1.0.md) | First public release notes — full description of capabilities, three-tier routing, semantic cascade, PDF/docx extraction, CLI flags, environment variables, license terms. |
 | [`token-benchmarking.md`](token-benchmarking.md) | Methodology and full results for the deterministic context-gathering benchmark. |
+| [`parity-benchmarks.md`](parity-benchmarks.md) | Cross-repo retrieval benchmarks: cascade ablations, multi-language recall, end-to-end agent benchmark protocol. |
+| [`roadmap.md`](roadmap.md) | What's planned for future versions. |
 | [`assets/`](assets) | SVG figures referenced by the site and the project README. |
 
 ## Reading order
 
 1. The [project README](../README.md) for installation and a one-page summary.
-2. [`skylakegrep-0.3.0.md`](skylakegrep-0.3.0.md) for the latest release
-   notes (`--cascade` retrieval, benchmark deltas, null-result findings).
-3. [`skylakegrep-0.2.0.md`](skylakegrep-0.2.0.md) for what the 0.2.0 release
-   implements and how each component is invoked.
-4. [`token-benchmarking.md`](token-benchmarking.md) for the benchmark protocol,
+2. [`skylakegrep-0.1.0.md`](skylakegrep-0.1.0.md) for the full
+   description of what the project does today — capabilities,
+   architecture, CLI flags, environment variables.
+3. [`token-benchmarking.md`](token-benchmarking.md) for the benchmark protocol,
    limitations, and the conditions under which the published numbers are valid.
 
 ## Architecture at a glance
