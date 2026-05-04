@@ -33,7 +33,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
         </span>
         <span class="brand-text">local-mgrep</span>
-        <span class="version">v0.11.0</span>
+        <span class="version">v0.12.0</span>
       </a>
       <nav class="topnav" aria-label="External links">
         <a href="https://pypi.org/project/local-mgrep/">PyPI</a>
@@ -88,7 +88,7 @@
       <main class="content">
         <!-- ============== Overview ============== -->
         <section id="overview" class="hero">
-          <p class="eyebrow">v0.11.0 · MIT license</p>
+          <p class="eyebrow">v0.12.0 · MIT license</p>
           <h1>Semantic code search over a local index.</h1>
           <p class="lead">
             <code>local-mgrep</code> is a command-line tool that builds a SQLite
@@ -547,12 +547,17 @@ def search(conn, query_embedding, top_k=10, …):
           <p>
             Best-case task in the set: <em>repo-A editor cursor</em> — mgrep
             finishes in 1 tool call vs rg-only's 25 (25× fewer), at one
-            eighth the wall time. Worst-case: <em>repo-A signin</em> — mgrep
-            is 40 % more tool calls because the question's vocabulary
-            (auth/session/token) overlaps directly with code-path tokens, so
-            rg's straightforward scan was already efficient. Both cases are
-            published in
-            <a href="local-mgrep-0.10.0.md">the v0.10.0 release notes</a>.
+            eighth the wall time. Worst-case (in v0.10.0): <em>repo-A
+            signin</em> — mgrep was 40 % more tool calls because the
+            question's vocabulary (auth/session/token) overlapped directly
+            with code-path tokens, so rg's straightforward scan was already
+            efficient. <strong>v0.12.0 addresses this</strong> via a
+            conservative lexical pre-gate that detects exactly these
+            queries and short-circuits to <code>rg</code> internally in
+            ~50 ms. Both cases are published in
+            <a href="local-mgrep-0.10.0.md">the v0.10.0 release notes</a>;
+            see <a href="local-mgrep-0.12.0.md">the v0.12.0 release
+            notes</a> for the routing fix.
           </p>
 
           <h3 id="bench-multilang">2. Multi-language retrieval recall (v0.7.0)</h3>
@@ -769,6 +774,16 @@ def search(conn, query_embedding, top_k=10, …):
 
           <h3>Recently shipped</h3>
           <ul>
+            <li>
+              <strong>Smart-routing lexical pre-gate (v0.12.0).</strong>
+              A conservative four-condition gate detects lexical-friendly
+              queries and short-circuits to <code>rg</code> internally
+              in ~50 ms. Vocabulary-mismatch queries still run the full
+              semantic cascade — borderline queries always fall through
+              so semantic recall is never sacrificed for routing speed.
+              Default on; <code>--no-rg-shortcut</code> forces pure
+              cascade.
+            </li>
             <li>
               <strong>Editor / agent integrations (v0.11.0).</strong>
               <code>mgrep setup</code> auto-registers local-mgrep as the

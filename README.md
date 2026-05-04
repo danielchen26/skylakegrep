@@ -192,6 +192,12 @@ also [installable from PyPI](https://pypi.org/project/local-mgrep/).
 
 The full sequence so far:
 
+  - **0.12.0** — smart-routing: a four-condition lexical pre-gate
+    short-circuits ripgrep-friendly queries (~50 ms) so calling
+    `mgrep` is no longer ever a tax over `rg` for the easy cases.
+    Vocabulary-mismatch queries still run the full semantic
+    cascade. New `--rg-shortcut/--no-rg-shortcut` flag (default on);
+    `mgrep setup` snippet rewritten to reflect auto-routing.
   - **0.11.0** — `mgrep setup` auto-registers local-mgrep as the
     preferred semantic search with **Claude Code, Codex, OpenCode,
     Gemini CLI, and Cursor**. First-run banner nudges new users;

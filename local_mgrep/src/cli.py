@@ -226,6 +226,7 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--cascade/--no-cascade", default=True, help="Confidence-gated retrieval (default on): cheap file-mean cosine first, escalate to HyDE-union only on uncertain queries. Pass --no-cascade for the chunk-only legacy path.")
 @click.option("--cascade-tau", default=CASCADE_DEFAULT_TAU, type=float, help=f"Confidence threshold (top1 - top2 file-mean cosine) above which the cascade returns the cheap result. Default {CASCADE_DEFAULT_TAU}.")
 @click.option("--auto-index/--no-auto-index", default=None, help="Auto-build the index for this project on first query and refresh on subsequent queries. Default: on for the project-scoped DB; off when MGREP_DB_PATH is set externally so curated indexes are not auto-mutated.")
+@click.option("--rg-shortcut/--no-rg-shortcut", default=True, help="Lexical pre-gate: if the query is short and ripgrep returns a small, clustered, path-token-overlapping result set, return the rg result directly and skip the semantic cascade. Default on. Pass --no-rg-shortcut to force pure cascade (useful for benchmarking).")
 def search_cmd(
     query: str,
     top: int,
@@ -252,6 +253,7 @@ def search_cmd(
     cascade: bool,
     cascade_tau: float,
     auto_index: bool | None,
+    rg_shortcut: bool,
 ):
     """Run a search. Aliased as the bare form: ``mgrep "<query>"``."""
 
@@ -413,6 +415,36 @@ def search_cmd(
         else:
             click.echo("[no indexed chunks]")
         return
+
+    # Lexical shortcut. If the query is short, ripgrep returns a small
+    # clustered candidate set, and the path tokens already encode the
+    # user's vocabulary, return the rg result directly and skip the
+    # semantic cascade. The four-condition gate (see
+    # ``ai.lexical_shortcut``) is conservative — borderline queries fall
+    # through to cascade so semantic recall is never sacrificed for
+    # speed. Disabled by ``--no-rg-shortcut``, ``--agentic``, ``--answer``.
+    if rg_shortcut and not agentic and not answer:
+        shortcut_start = time.time()
+        shortcut = ai.lexical_shortcut(query, project_root, top_k=top)
+        if shortcut is not None:
+            shortcut_elapsed = time.time() - shortcut_start
+            if json_output:
+                click.echo(render_json_results(shortcut))
+                return
+            for r in shortcut:
+                line_range = ""
+                if r.get("start_line") and r.get("end_line"):
+                    line_range = f":{r['start_line']}-{r['end_line']}"
+                click.echo(
+                    f"\n=== {r['path']}{line_range} "
+                    f"(score: {r['score']:.3f}) ==="
+                )
+                if content:
+                    click.echo(r["snippet"][:500])
+            click.echo(
+                f"\n[{shortcut_elapsed:.3f}s · rg-shortcut · cascade skipped]"
+            )
+            return
 
     embedder = get_embedder(role="query")
     start = time.time()

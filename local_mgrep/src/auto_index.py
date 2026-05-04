@@ -443,3 +443,76 @@ def _refresh_throttle_from_env() -> float:
         return DEFAULT_REFRESH_THROTTLE_SECONDS
 
 
+# Lexical shortcut tuning. All four conditions must be satisfied for the
+# shortcut to fire. Tuned conservatively so we never short-circuit a
+# genuine semantic query — accuracy is the gold standard, speed is bonus.
+_LEXICAL_MAX_QUERY_TERMS = 6
+_LEXICAL_MAX_FILES = 10
+_LEXICAL_MIN_PATH_TOKEN_OVERLAP = 2
+_LEXICAL_MAX_PARENT_DIRS = 2
+
+
+def lexical_shortcut(
+    query: str,
+    project_root: Path,
+    *,
+    top_k: int,
+    max_query_terms: int = _LEXICAL_MAX_QUERY_TERMS,
+    max_files: int = _LEXICAL_MAX_FILES,
+    min_path_token_overlap: int = _LEXICAL_MIN_PATH_TOKEN_OVERLAP,
+    max_parent_dirs: int = _LEXICAL_MAX_PARENT_DIRS,
+) -> list[dict] | None:
+    """Try to short-circuit cascade retrieval via ripgrep when the query is
+    lexically friendly. Returns a results list shaped like
+    ``rg_fallback_results`` if all four conservative conditions hold; else
+    ``None`` so the caller falls through to semantic cascade.
+
+    Conditions (ALL required):
+      1. Query has <= ``max_query_terms`` non-stop-word tokens.
+      2. ``rg`` returns >= 1 and <= ``max_files`` candidate files.
+      3. At least one candidate's path contains
+         >= ``min_path_token_overlap`` query tokens.
+      4. Candidate files cluster in <= ``max_parent_dirs`` distinct
+         parent directories.
+
+    Conservative on every dimension: any borderline query falls through
+    to cascade so semantic recall is never sacrificed for routing speed.
+    """
+    terms = extract_query_terms(query)
+    # Condition 1: query is short enough to be plausibly lexical
+    if not terms or len(terms) > max_query_terms:
+        return None
+
+    results = rg_fallback_results(query, project_root, top_k=top_k)
+    if not results:
+        return None
+    paths = [r["path"] for r in results]
+
+    # Condition 2: result set is small
+    if len(paths) > max_files:
+        return None
+
+    # Condition 3: at least one path encodes >= min_path_token_overlap
+    # query tokens — strong sign the user's vocabulary already aligns
+    # with the code path vocabulary.
+    lower_terms = [t.lower() for t in terms]
+    max_overlap = 0
+    for p in paths:
+        p_lower = p.lower()
+        overlap = sum(1 for t in lower_terms if t in p_lower)
+        if overlap > max_overlap:
+            max_overlap = overlap
+    if max_overlap < min_path_token_overlap:
+        return None
+
+    # Condition 4: matches cluster in a small number of parent dirs
+    parent_dirs = {str(Path(p).parent) for p in paths}
+    if len(parent_dirs) > max_parent_dirs:
+        return None
+
+    # All conditions satisfied — annotate source and return.
+    for r in results:
+        r["fallback"] = "rg-shortcut"
+    return results
+
+

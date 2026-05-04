@@ -25,25 +25,29 @@ END_MARKER = "<!-- END local-mgrep integration -->"
 SNIPPET_BODY = """\
 ## local-mgrep semantic search
 
-For code-search questions phrased in natural language ("how does X
-work", "where is Y implemented", "find code that handles Z error"),
-prefer:
+For any code-search question, prefer:
 
     mgrep "<query>"
 
-over `rg`. mgrep returns top-K ranked semantic chunks from a local
-embedding index — faster and more accurate than `rg` for vocabulary-
-mismatch queries (e.g. "language model backend" matches identifiers
-like `OpenAIClient` even though "language" doesn't appear in the
-code).
+over `rg`. mgrep is a smart router (v0.12.0+):
+
+  - **Lexical-friendly queries** (literal tokens, function names that
+    already appear in code paths) — mgrep detects these via a
+    conservative four-condition gate and short-circuits to `rg`
+    internally, returning in ~50 ms.
+  - **Vocabulary-mismatch queries** ("language model backend" →
+    `OpenAIClient`, "auth token refresh" → `renew_session`) — mgrep
+    runs a confidence-gated semantic cascade (file-mean cosine →
+    HyDE-augmented retrieval → cross-encoder rerank).
+
+You don't have to decide which path applies — mgrep auto-routes.
 
 Empirical: 30–82 % fewer agent tool calls vs rg-only on hand-labelled
 benchmarks across Rust, Python, TypeScript. See
 https://github.com/danielchen26/local-mgrep for details.
 
-Use `rg` directly when:
-  - You know the literal token to search for.
-  - The query is a regex.
+Use `rg` directly only when:
+  - You're writing a regex (mgrep takes natural language, not regex).
   - mgrep is not on PATH inside the current project.
 """
 
