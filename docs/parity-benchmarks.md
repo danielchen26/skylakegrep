@@ -493,7 +493,7 @@ The two misses are honest retrieval failures, not label problems:
 
   - **repo-B task 4** ("How does the V6 medical-grade <domain-y> benchmark
     resolve and chain its acquire / extract / audit / score steps?")
-    Expected `<module-x>/<domain-y>_v6.py` (the orchestration
+    Expected `repo-B/<domain-y>_v6.py` (the orchestration
     layer with `V6Resolution`, `resolve_v6`, `run_step`,
     `command_<domain-y>_v6`). The cascade returned the four
     implementation scripts under

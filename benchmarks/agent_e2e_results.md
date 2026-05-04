@@ -18,8 +18,8 @@ Each agent returned a JSON `{file, lines, evidence}` answer. Token / tool-call /
 |---|---|---|---|---|---|
 | A | repo-A (Rust) | microphone audio for STT | `crates/voice_input/` | 35,219 / 6 / 29 s / ✓ | 35,279 / 4 / 18 s / ✓ |
 | B | repo-A (Rust) | websocket reconnect | `crates/websocket/` | 32,757 / 10 / 36 s / ✗* | 43,580 / 5 / 31 s / ✗* |
-| C | repo-B (Python) | root CLI entry | `<module-x>/cli.py` | 30,060 / 10 / 37 s / ✓ | 36,436 / 8 / 154 s / ✓ |
-| D | repo-B (Python) | finite-field event partitioning | `<module-x>/finite_field_runner.py` | 30,346 / 7 / 30 s / ✓ | 28,451 / 1 / 117 s / ✓ |
+| C | repo-B (Python) | root CLI entry | `repo-B/cli.py` | 30,060 / 10 / 37 s / ✓ | 36,436 / 8 / 154 s / ✓ |
+| D | repo-B (Python) | finite-field event partitioning | `repo-B/finite_field_runner.py` | 30,346 / 7 / 30 s / ✓ | 28,451 / 1 / 117 s / ✓ |
 | E | repo-c (TypeScript) | vim motions dispatch | `src/vim/motions.ts` | 28,757 / 7 / 27 s / ✓ | 28,641 / 1 / 19 s / ✓ |
 | F | repo-c (TypeScript) | MCP server client | `src/services/mcp/client.ts` | 37,264 / 6 / 22 s / ✗ | 29,539 / 2 / 24 s / ✓ |
 
