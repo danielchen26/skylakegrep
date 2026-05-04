@@ -32,12 +32,12 @@ sys.path.insert(0, str(REPO_ROOT))
 
 os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 
-from local_mgrep.src.answerer import get_answerer
-from local_mgrep.src.code_graph import populate_graph_table
-from local_mgrep.src.config import project_db_path
-from local_mgrep.src.embeddings import get_embedder
-from local_mgrep.src.hybrid import lexical_candidate_paths
-from local_mgrep.src.storage import (
+from skylakegrep.src.answerer import get_answerer
+from skylakegrep.src.code_graph import populate_graph_table
+from skylakegrep.src.config import project_db_path
+from skylakegrep.src.embeddings import get_embedder
+from skylakegrep.src.hybrid import lexical_candidate_paths
+from skylakegrep.src.storage import (
     cascade_search,
     init_db,
     populate_symbols,
@@ -167,7 +167,7 @@ def run_one_bench(b: Bench) -> dict[str, TierResult]:
     print(f"  db    : {b.db_path}")
     print(f"  repo  : {b.repo_path}")
     if not b.db_path.exists():
-        print(f"  [skip] DB not found, run `mgrep index` for {b.repo_path} first")
+        print(f"  [skip] DB not found, run `skygrep index` for {b.repo_path} first")
         return {}
     conn = init_db(b.db_path)
     ensure_migrations(conn, b.repo_path)

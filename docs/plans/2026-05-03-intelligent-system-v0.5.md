@@ -96,7 +96,7 @@ CREATE INDEX IF NOT EXISTS idx_symbols_file       ON symbols(file);
 
 ### Producer (index time)
 
-`local_mgrep/src/indexer.py` extends `prepare_file_chunks` (or a new
+`skylakegrep/src/indexer.py` extends `prepare_file_chunks` (or a new
 ``extract_file_symbols`` peer) to walk the tree-sitter AST and emit
 symbol rows. CamelCase identifiers get split into space-separated
 tokens for the lower-cased index column (so the query "language model"
@@ -104,7 +104,7 @@ matches symbol `LanguageModelClient`).
 
 ### Consumer (query time)
 
-`local_mgrep/src/storage.py` adds a `symbol_match_boost(conn,
+`skylakegrep/src/storage.py` adds a `symbol_match_boost(conn,
 query_text, candidate_paths)` helper. For each candidate file it
 computes:
 
@@ -117,7 +117,7 @@ exact-match (case-insensitive) any tokenised symbol name in `file`.
 
 `SYMBOL_WEIGHT` defaults to `0.10` (additive bonus on top of the
 final score after rerank/penalty/file-rank). Tunable via env
-`MGREP_SYMBOL_WEIGHT`.
+`SKYGREP_SYMBOL_WEIGHT`.
 
 ### Migration
 
@@ -143,7 +143,7 @@ ALTER TABLE chunks ADD COLUMN description  TEXT;
 
 ### Worker (background, resumable)
 
-New module `local_mgrep/src/enrich.py` with:
+New module `skylakegrep/src/enrich.py` with:
 
 ```python
 def enrich_pending_chunks(
@@ -182,12 +182,12 @@ Symbol: {symbol_name_or_blank}
 New top-level command:
 
 ```
-mgrep enrich [PATH] [--max N] [--batch B]
+skygrep enrich [PATH] [--max N] [--batch B]
 ```
 
 Synchronous path; useful for users who want to wait. The bare-form
 search path also auto-triggers `enrich_pending_chunks` in a separate
-detached process when L1 is fully ready and ``MGREP_AUTO_ENRICH`` is
+detached process when L1 is fully ready and ``SKYGREP_AUTO_ENRICH`` is
 not set to ``no``.
 
 ### Query-time consumer
@@ -211,7 +211,7 @@ mirrors `<db>.lock`).
 
 ### New module
 
-`local_mgrep/src/code_graph.py`:
+`skylakegrep/src/code_graph.py`:
 
 ```python
 def build_export_graph(root: Path) -> dict[str, dict[str, float]]:
@@ -257,7 +257,7 @@ score'(c) = score(c) + GRAPH_TIEBREAK_WEIGHT * normalized_pagerank(c)
 
 where `GRAPH_TIEBREAK_WEIGHT` defaults to `0.005` (≤ epsilon, so it
 only changes orderings that were near-ties to begin with). Tunable
-via `MGREP_GRAPH_TIEBREAK_WEIGHT`.
+via `SKYGREP_GRAPH_TIEBREAK_WEIGHT`.
 
 ### Migration
 
@@ -288,11 +288,11 @@ status-line text. Conflicts here are mechanical merges.
 
 **Multi-agent layout**:
 
-  - Worktree A (`local-mgrep-L2`): branch `feature/symbol-index`,
+  - Worktree A (`skylakegrep-L2`): branch `feature/symbol-index`,
     agent implements L2.
-  - Worktree B (`local-mgrep-L3`): branch `feature/doc2query`,
+  - Worktree B (`skylakegrep-L3`): branch `feature/doc2query`,
     agent implements L3.
-  - Worktree C (`local-mgrep-L4`): branch `feature/code-graph`,
+  - Worktree C (`skylakegrep-L4`): branch `feature/code-graph`,
     agent implements L4.
 
 After all three report 'tests pass', the integrator (main session)
@@ -321,7 +321,7 @@ Before tagging 0.5.0:
   - The two hard misses (`crates/ai/`, `app/src/billing/`) attempt
     list shows whether L2 and L3 each improve them; documented in
     `docs/parity-benchmarks.md` even when the lift is null.
-  - `mgrep doctor` reports L2 / L3 / L4 readiness.
+  - `skygrep doctor` reports L2 / L3 / L4 readiness.
 
 Stretch (would push to 0.6.0 instead of 0.5.0):
 

@@ -1,8 +1,8 @@
-"""Measure local-mgrep retrieval context compression.
+"""Measure skylakegrep retrieval context compression.
 
 This benchmark answers a narrower question than a full agent benchmark:
 
-    How many tokens would an LLM receive if it used local-mgrep top-k retrieval
+    How many tokens would an LLM receive if it used skylakegrep top-k retrieval
     instead of reading the whole local corpus?
 
 It does not claim end-to-end agent token savings. A Claude/OpenCode/Codex-style
@@ -21,32 +21,32 @@ import time
 from pathlib import Path
 from typing import Iterable
 
-from local_mgrep.src.cli import render_json_results
-from local_mgrep.src.embeddings import get_embedder
-from local_mgrep.src.indexer import batch_embed, collect_indexable_files, prepare_file_chunks
-from local_mgrep.src.storage import delete_missing_files, init_db, search, store_chunks_batch
+from skylakegrep.src.cli import render_json_results
+from skylakegrep.src.embeddings import get_embedder
+from skylakegrep.src.indexer import batch_embed, collect_indexable_files, prepare_file_chunks
+from skylakegrep.src.storage import delete_missing_files, init_db, search, store_chunks_batch
 
 
 DEFAULT_QUERIES = [
     {
         "query": "how does hybrid ranking combine lexical and semantic scores",
-        "expected": "local_mgrep/src/storage.py",
+        "expected": "skylakegrep/src/storage.py",
     },
     {
         "query": "where are files chunked and embedded during indexing",
-        "expected": "local_mgrep/src/indexer.py",
+        "expected": "skylakegrep/src/indexer.py",
     },
     {
         "query": "how does the CLI expose semantic-only search",
-        "expected": "local_mgrep/src/cli.py",
+        "expected": "skylakegrep/src/cli.py",
     },
     {
         "query": "how does incremental indexing remove deleted files",
-        "expected": "local_mgrep/src/storage.py",
+        "expected": "skylakegrep/src/storage.py",
     },
     {
         "query": "how does local answer mode call Ollama",
-        "expected": "local_mgrep/src/answerer.py",
+        "expected": "skylakegrep/src/answerer.py",
     },
     {
         "query": "what tests cover mgrepignore and batch embedding",
@@ -62,7 +62,7 @@ DEFAULT_IGNORED_PARTS = {
     "benchmarks",
     "build",
     "dist",
-    "local_mgrep.egg-info",
+    "skylakegrep.egg-info",
 }
 
 
@@ -221,7 +221,7 @@ def summarize(rows: list[dict[str, object]], indexed_tokens: int, source_doc_tok
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Benchmark local-mgrep retrieval token savings.")
+    parser = argparse.ArgumentParser(description="Benchmark skylakegrep retrieval token savings.")
     parser.add_argument("--root", default=".", help="Repository or directory to benchmark")
     parser.add_argument("--db-path", help="SQLite path to use; defaults to a temporary file")
     parser.add_argument("--top-k", type=int, default=5, help="Number of retrieved snippets per query")
@@ -234,7 +234,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     root = Path(args.root).resolve()
-    db_path = Path(args.db_path) if args.db_path else Path(tempfile.gettempdir()) / "local-mgrep-token-benchmark.sqlite"
+    db_path = Path(args.db_path) if args.db_path else Path(tempfile.gettempdir()) / "skylakegrep-token-benchmark.sqlite"
 
     indexable_files = [path for path in collect_indexable_files(root) if not is_benchmark_ignored(path, root)]
     indexed_corpus = count_files(indexable_files, args.chars_per_token)

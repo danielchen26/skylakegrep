@@ -1,4 +1,4 @@
-"""Tests for local_mgrep.src.integrations and the `mgrep setup` CLI."""
+"""Tests for skylakegrep.src.integrations and the `skygrep setup` CLI."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
-from local_mgrep.src import cli as cli_module
-from local_mgrep.src import integrations as integ
+from skylakegrep.src import cli as cli_module
+from skylakegrep.src import integrations as integ
 
 
 class IntegrationModelTests(unittest.TestCase):
@@ -32,7 +32,7 @@ class IntegrationModelTests(unittest.TestCase):
             content = i.config_path.read_text()
             self.assertIn(integ.BEGIN_MARKER, content)
             self.assertIn(integ.END_MARKER, content)
-            self.assertIn("local-mgrep semantic search", content)
+            self.assertIn("skylakegrep semantic search", content)
 
     def test_register_idempotent(self):
         with tempfile.TemporaryDirectory() as d:
@@ -78,7 +78,7 @@ class SetupCliTests(unittest.TestCase):
     def test_setup_list_does_not_modify(self):
         runner = CliRunner()
         with patch.object(integ, "_HOME", Path("/nonexistent")):
-            with patch("local_mgrep.src.cli.integrations_mod", integ):
+            with patch("skylakegrep.src.cli.integrations_mod", integ):
                 result = runner.invoke(cli_module.cli, ["setup", "--list"])
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertIn("Detected LLM CLIs", result.output)

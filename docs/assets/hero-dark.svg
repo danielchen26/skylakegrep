@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 600" role="img" aria-labelledby="hero-title hero-desc" font-family="Inter, ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
-  <title id="hero-title">local-mgrep — semantic code search over a local index</title>
-  <desc id="hero-desc">Brand block with the local-mgrep wordmark and tagline sitting above a mock terminal window that shows the command "mgrep search how does the auth token get refreshed -m 3" followed by three ranked code snippets with file path, line range, language pill, and similarity score.</desc>
+  <title id="hero-title">skylakegrep — semantic code search over a local index</title>
+  <desc id="hero-desc">Brand block with the skylakegrep wordmark and tagline sitting above a mock terminal window that shows the command "skygrep search how does the auth token get refreshed -m 3" followed by three ranked code snippets with file path, line range, language pill, and similarity score.</desc>
 
   <defs>
     <radialGradient id="orb-cy" cx="14%" cy="0%" r="58%">
@@ -38,14 +38,14 @@
   </g>
 
   <!-- Wordmark -->
-  <text x="640" y="125" text-anchor="middle" font-size="48" font-weight="700" fill="url(#brand-grad)" font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" letter-spacing="-0.025em">local-mgrep</text>
+  <text x="640" y="125" text-anchor="middle" font-size="48" font-weight="700" fill="url(#brand-grad)" font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" letter-spacing="-0.025em">skylakegrep</text>
 
   <!-- Subtitle -->
   <text x="640" y="156" text-anchor="middle" font-size="16" fill="#a1a1aa">Semantic code search over a local index — fully offline.</text>
 
   <!-- Pill row -->
   <g font-size="11.5" font-family="ui-monospace, Menlo, Consolas, monospace" fill="#71717a" text-anchor="middle">
-    <text x="640" y="186"><tspan fill="#22d3ee">v0.16.0</tspan>  ·  PolyForm-NC-1.0.0  ·  Python 3.9+  ·  powered by Ollama</text>
+    <text x="640" y="186"><tspan fill="#22d3ee">v0.1.0</tspan>  ·  PolyForm-NC-1.0.0  ·  Python 3.9+  ·  powered by Ollama</text>
   </g>
 
   <!-- =================== Terminal card =================== -->
@@ -67,7 +67,7 @@
     <g transform="translate(28 64)" font-family="ui-monospace, Menlo, Consolas, monospace">
       <!-- Command line -->
       <text font-size="14" fill="#71717a">$</text>
-      <text x="20"  font-size="14" fill="#e4e4e7">mgrep search </text>
+      <text x="20"  font-size="14" fill="#e4e4e7">skygrep search </text>
       <text x="160" font-size="14" fill="#a5f3fc">"how does the auth token get refreshed?"</text>
       <text x="568" font-size="14" fill="#71717a"> -m 3</text>
 

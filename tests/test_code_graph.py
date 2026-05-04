@@ -17,8 +17,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from local_mgrep.src import code_graph
-from local_mgrep.src.storage import (
+from skylakegrep.src import code_graph
+from skylakegrep.src.storage import (
     GRAPH_TIEBREAK_WEIGHT,
     TIEBREAK_EPS,
     _apply_graph_tiebreak,

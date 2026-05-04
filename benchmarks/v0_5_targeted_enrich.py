@@ -7,7 +7,7 @@ If targeted enrichment of those two directories flips the bench to 15 or
 the residual hard-miss queries (and ColBERT / fine-tune are not).
 
 Run:
-    OLLAMA_EMBED_MODEL=nomic-embed-text MGREP_DB_PATH=/tmp/<repo-D>_idx_p1.db \
+    OLLAMA_EMBED_MODEL=nomic-embed-text SKYGREP_DB_PATH=/tmp/<repo-D>_idx_p1.db \
       .venv/bin/python benchmarks/v0_5_targeted_enrich.py
 """
 
@@ -19,17 +19,17 @@ import sys
 import time
 from pathlib import Path
 
-REPO = Path("/Users/tianchichen/Documents/github/local-mgrep")
+REPO = Path("/Users/tianchichen/Documents/github/skylakegrep")
 sys.path.insert(0, str(REPO))
 
 os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")
-os.environ.setdefault("MGREP_DB_PATH", "/tmp/<repo-D>_idx_p1.db")
+os.environ.setdefault("SKYGREP_DB_PATH", "/tmp/<repo-D>_idx_p1.db")
 
 import numpy as np
 import requests
 
-from local_mgrep.src.config import get_config
-from local_mgrep.src.embeddings import get_embedder
+from skylakegrep.src.config import get_config
+from skylakegrep.src.embeddings import get_embedder
 
 DB = "/tmp/<repo-D>_idx_p1.db"
 

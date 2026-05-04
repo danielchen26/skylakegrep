@@ -11,17 +11,17 @@ import sys
 import time
 from pathlib import Path
 
-REPO = Path("/Users/tianchichen/Documents/github/local-mgrep")
+REPO = Path("/Users/tianchichen/Documents/github/skylakegrep")
 sys.path.insert(0, str(REPO))
 
 os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")
-os.environ.setdefault("MGREP_DB_PATH", "/tmp/<repo-D>_idx_p1.db")
+os.environ.setdefault("SKYGREP_DB_PATH", "/tmp/<repo-D>_idx_p1.db")
 
 import numpy as np
 
-from local_mgrep.src.answerer import get_answerer
-from local_mgrep.src.embeddings import get_embedder
-from local_mgrep.src.storage import _file_level_pairs, init_db
+from skylakegrep.src.answerer import get_answerer
+from skylakegrep.src.embeddings import get_embedder
+from skylakegrep.src.storage import _file_level_pairs, init_db
 
 
 HARD_MISSES = [
@@ -31,7 +31,7 @@ HARD_MISSES = [
 
 
 def main() -> None:
-    conn = init_db(Path(os.environ["MGREP_DB_PATH"]))
+    conn = init_db(Path(os.environ["SKYGREP_DB_PATH"]))
     embedder = get_embedder(role="query")
 
     for query, expected_dir in HARD_MISSES:

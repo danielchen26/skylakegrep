@@ -3,18 +3,18 @@
 The 0.8.0 release introduced this benchmark with 6 easy single-shot
 questions. 0.9.0 extended it with 8 hard semantic / vocab-mismatch
 questions on the same 3 repos. The 14-task headline is in the
-[v0.9.0 release notes](docs/local-mgrep-0.9.0.md); the per-task tables
+[v0.9.0 release notes](docs/skylakegrep-0.9.0.md); the per-task tables
 below carry both rounds.
 
 ## v0.8.0 round — 6 easy single-shot questions
 
 Methodology: 6 questions × 2 conditions = 12 sub-agents spawned in parallel via the Claude Code `Agent` tool. Each agent answered the same question with the same model under one of:
-- **rg-only**: prompt forbade `mgrep`; allowed `rg`, `find`, `ls`, `head`, `cat`, `Read`, `Grep`.
-- **mgrep-on**: prompt instructed `mgrep` as primary tool; `Read` allowed for verification; `rg`/`grep`/`find` forbidden.
+- **rg-only**: prompt forbade `skygrep`; allowed `rg`, `find`, `ls`, `head`, `cat`, `Read`, `Grep`.
+- **skygrep-on**: prompt instructed `skygrep` as primary tool; `Read` allowed for verification; `rg`/`grep`/`find` forbidden.
 
 Each agent returned a JSON `{file, lines, evidence}` answer. Token / tool-call / wall-time totals from each sub-agent's own usage telemetry.
 
-| # | Repo | Question | Expected | rg-only · tok / tools / time / correct | mgrep · tok / tools / time / correct |
+| # | Repo | Question | Expected | rg-only · tok / tools / time / correct | skygrep · tok / tools / time / correct |
 |---|---|---|---|---|---|
 | A | repo-A (Rust) | microphone audio for STT | `crates/voice_input/` | 35,219 / 6 / 29 s / ✓ | 35,279 / 4 / 18 s / ✓ |
 | B | repo-A (Rust) | websocket reconnect | `crates/websocket/` | 32,757 / 10 / 36 s / ✗* | 43,580 / 5 / 31 s / ✗* |
@@ -27,9 +27,9 @@ Each agent returned a JSON `{file, lines, evidence}` answer. Token / tool-call /
 
 ## Aggregate
 
-|  | rg-only | mgrep-on | Δ (mgrep − rg) |
+|  | rg-only | skygrep-on | Δ (skygrep − rg) |
 |---|:-:|:-:|:-:|
-| **Tokens (sum, 6 tasks)** | 194,403 | 201,926 | +3.9 % (mgrep slightly more) |
+| **Tokens (sum, 6 tasks)** | 194,403 | 201,926 | +3.9 % (skygrep slightly more) |
 | **Tool calls (sum)** | 46 | 21 | **−54 %** |
 | **Tool calls (avg/task)** | 7.7 | 3.5 | **−54 %** |
 | **Wall time (sum)** | 181 s | 363 s | +101 % (confounded — see below) |
@@ -38,29 +38,29 @@ Each agent returned a JSON `{file, lines, evidence}` answer. Token / tool-call /
 
 ## What the data actually shows
 
-  - **Tool-call reduction is real and large** (−54 %). mgrep returns ranked semantic candidates so the agent stops needing 6-10 separate `rg` / `Read` / `head` calls to triangulate the right file. With mgrep the agent often makes 1-2 tool calls and reads exactly one file. This translates directly into less context bloat in the agent's reasoning loop.
-  - **Token consumption is roughly equal** (+3.9 %). Tool calls drop, but the per-tool-call payload (mgrep's snippet + score) is not dramatically smaller than `rg`'s file-list + a couple of `Read`s on the agent's side once the candidates have been narrowed. The agent's own reasoning tokens dominate.
-  - **Wall time looks worse for mgrep here, but is confounded** by the benchmark methodology: 6 mgrep-on agents were spawned in parallel against the same Ollama instance, so the cascade-escalation HyDE + embed calls queued behind each other. repo-B tasks especially show this (mgrep wall times of 117 s and 154 s vs ~30 s rg-only). In normal usage one user runs one mgrep at a time and Ollama is not contended; in the v0.6.x small-project demo, warm queries land in 0.1-0.5 s. **Treat the wall-time row as not-clean** for the parallel-bench artefact.
-  - **Quality is slightly better with mgrep** (+1 task strict, +1 task lenient). mgrep's semantic ranking found the canonical `services/mcp/client.ts` directly on task F where rg-only's path-token search picked a sibling file (`useManageMCPConnections.ts`).
+  - **Tool-call reduction is real and large** (−54 %). skygrep returns ranked semantic candidates so the agent stops needing 6-10 separate `rg` / `Read` / `head` calls to triangulate the right file. With skygrep the agent often makes 1-2 tool calls and reads exactly one file. This translates directly into less context bloat in the agent's reasoning loop.
+  - **Token consumption is roughly equal** (+3.9 %). Tool calls drop, but the per-tool-call payload (skygrep's snippet + score) is not dramatically smaller than `rg`'s file-list + a couple of `Read`s on the agent's side once the candidates have been narrowed. The agent's own reasoning tokens dominate.
+  - **Wall time looks worse for skygrep here, but is confounded** by the benchmark methodology: 6 skygrep-on agents were spawned in parallel against the same Ollama instance, so the cascade-escalation HyDE + embed calls queued behind each other. repo-B tasks especially show this (skygrep wall times of 117 s and 154 s vs ~30 s rg-only). In normal usage one user runs one skygrep at a time and Ollama is not contended; in the v0.6.x small-project demo, warm queries land in 0.1-0.5 s. **Treat the wall-time row as not-clean** for the parallel-bench artefact.
+  - **Quality is slightly better with skygrep** (+1 task strict, +1 task lenient). skygrep's semantic ranking found the canonical `services/mcp/client.ts` directly on task F where rg-only's path-token search picked a sibling file (`useManageMCPConnections.ts`).
 
 ## Caveats
 
 1. n = 6 tasks. Statistical significance is weak; this is a measurement, not a study.
 2. Both conditions used the same underlying model (general-purpose sub-agent). A future bench could vary the model and prompt to test sensitivity.
-3. The agent was *told* not to use the disallowed tool. We did not enforce at the API level. Tool-list audits in each result confirm compliance: rg-only agents made 6-10 tool calls of `rg/find/ls/head/Read`; mgrep-on agents made 1-8 tool calls dominated by `mgrep`/`Read`. No agent violated its constraint.
+3. The agent was *told* not to use the disallowed tool. We did not enforce at the API level. Tool-list audits in each result confirm compliance: rg-only agents made 6-10 tool calls of `rg/find/ls/head/Read`; skygrep-on agents made 1-8 tool calls dominated by `skygrep`/`Read`. No agent violated its constraint.
 4. Tasks were drawn from existing per-repo `*.json` benchmarks (2 per repo × 3 repos). Easy and clear-canonical questions; harder questions in the original 40-task set might widen the gap.
 
 ## v0.8.0 headline (6 easy tasks)
 
-**On real Claude Code agent runs over 6 hand-labelled questions in 3 languages, mgrep cuts agent tool-call count by 54 % and improves answer correctness by 1/6, at roughly equivalent token cost.** Wall-time data was contaminated by parallel-spawn Ollama contention and is not reportable without a fresh sequential run.
+**On real Claude Code agent runs over 6 hand-labelled questions in 3 languages, skygrep cuts agent tool-call count by 54 % and improves answer correctness by 1/6, at roughly equivalent token cost.** Wall-time data was contaminated by parallel-spawn Ollama contention and is not reportable without a fresh sequential run.
 
-The earlier "17.7× total-token reduction" claim is from a *deterministic simulated* grep-agent (`benchmarks/agent_context_benchmark.py`) and measures static retrieval-output volume, not an agent's reasoning loop. Both numbers are valid for different questions; the e2e numbers are the more realistic one for "what does mgrep save in a real Claude Code session".
+The earlier "17.7× total-token reduction" claim is from a *deterministic simulated* grep-agent (`benchmarks/agent_context_benchmark.py`) and measures static retrieval-output volume, not an agent's reasoning loop. Both numbers are valid for different questions; the e2e numbers are the more realistic one for "what does skygrep save in a real Claude Code session".
 
 ---
 
 ## v0.9.0 round — 8 hard semantic questions
 
-| # | Repo | Question | Expected | rg-only · tok / tools / time / correct | mgrep · tok / tools / time / correct |
+| # | Repo | Question | Expected | rg-only · tok / tools / time / correct | skygrep · tok / tools / time / correct |
 |---|---|---|---|---|---|
 | 1 | repo-A | LLM backend caller | `crates/ai/` | 43 105 / 17 / 86 s / ✗* | 59 934 / 7 / 76 s / ✗* |
 | 2 | repo-A | editor cursor + keystroke | `crates/editor/` | 42 809 / 25 / 128 s / ✗* | 28 423 / **1** / 15 s / ✗* |
@@ -75,7 +75,7 @@ The earlier "17.7× total-token reduction" claim is from a *deterministic simula
 
 ### v0.9.0 aggregate
 
-|  | rg-only | mgrep-on | Δ |
+|  | rg-only | skygrep-on | Δ |
 |---|:-:|:-:|:-:|
 | Tokens | 277 387 | 325 770 | +17.4 % |
 | Tool calls | 78 | 66 | −15.4 % |
@@ -85,30 +85,30 @@ The earlier "17.7× total-token reduction" claim is from a *deterministic simula
 
 ### Best-case task: repo-A editor cursor (task 2)
 
-|  | rg-only | mgrep-on | Δ |
+|  | rg-only | skygrep-on | Δ |
 |---|:-:|:-:|:-:|
 | Tool calls | 25 | 1 | **25× fewer** |
 | Wall time | 128 s | 15 s | **1 / 8** |
 | Tokens | 42 809 | 28 423 | −34 % |
 
-mgrep returned the right file (`app/src/editor/view/mod.rs`) on the first call. The rg-only agent burned through 25 search/read rounds before settling on the same file.
+skygrep returned the right file (`app/src/editor/view/mod.rs`) on the first call. The rg-only agent burned through 25 search/read rounds before settling on the same file.
 
 ### Worst-case task: repo-A signin (task 4)
 
-|  | rg-only | mgrep-on | Δ |
+|  | rg-only | skygrep-on | Δ |
 |---|:-:|:-:|:-:|
-| Tool calls | 5 | 7 | +40 % (mgrep more) |
+| Tool calls | 5 | 7 | +40 % (skygrep more) |
 | Tokens | 30 583 | 44 473 | +44 % |
 
-Signin's vocabulary (auth / session / token) overlaps directly with code-path tokens, so rg's straightforward scan was already efficient. mgrep wandered through 4 search calls before answering. Both got the right answer.
+Signin's vocabulary (auth / session / token) overlaps directly with code-path tokens, so rg's straightforward scan was already efficient. skygrep wandered through 4 search calls before answering. Both got the right answer.
 
 ---
 
 ## Combined 14-task aggregate (v0.8.0 + v0.9.0)
 
-|  | rg-only | mgrep-on | Δ |
+|  | rg-only | skygrep-on | Δ |
 |---|:-:|:-:|:-:|
-| Total tokens (sum) | 471 790 | 527 696 | +11.8 % (mgrep slightly more) |
+| Total tokens (sum) | 471 790 | 527 696 | +11.8 % (skygrep slightly more) |
 | **Total tool calls (sum)** | **124** | **87** | **−30 %** |
 | Avg tool calls / task | 8.9 | 6.2 | **−30 %** |
 | Strict-label correct | 7 / 14 (50 %) | 9 / 14 (64 %) | **+2 tasks** |
@@ -121,12 +121,12 @@ Signin's vocabulary (auth / session / token) overlaps directly with code-path to
     round-trip + network RTT + agent context bloat; cutting them
     1/3 makes Claude Code agent loops measurably tighter.
   - **+2 tasks correct is real.** Strict 50 → 64 %, lenient 64 → 79 %.
-    mgrep solves the repo-A `<domain-y>_v6.py` famous miss and the repo-c
+    skygrep solves the repo-A `<domain-y>_v6.py` famous miss and the repo-c
     `client.ts` task that rg-only got wrong; doesn't lose any task
     rg-only got right.
   - **Token cost stays roughly equal** (+11.8 % aggregate). The
     agent's own reasoning tokens dominate the bill; trimming the
-    retrieval payload doesn't move the total. Don't claim mgrep
+    retrieval payload doesn't move the total. Don't claim skygrep
     saves money; do claim it saves agent loop complexity.
   - **Wall time is contaminated** by 8-way parallel Ollama
     contention from the benchmark methodology. Single-user usage
@@ -134,14 +134,14 @@ Signin's vocabulary (auth / session / token) overlaps directly with code-path to
 
 ### Task-dependent value
 
-mgrep's biggest wins are on **vocab-mismatch hard semantic queries**
+skygrep's biggest wins are on **vocab-mismatch hard semantic queries**
 (task 2 repo-A editor: 25× fewer tool calls; task 6 repo-B <domain-y>:
 the canonical answer file rg-only completely missed). On
-**lexical-friendly questions** (task 4 repo-A signin) mgrep is roughly
+**lexical-friendly questions** (task 4 repo-A signin) skygrep is roughly
 equal or slightly worse because rg's path-token grep already lands
 the answer in 5 tool calls.
 
-The pattern is consistent: **mgrep is a better tool when the
+The pattern is consistent: **skygrep is a better tool when the
 question's surface vocabulary doesn't overlap the code identifiers**.
 Real-world questions from real users (not benchmark-curated) tend
 to have more vocab mismatch, so the production gap is likely wider

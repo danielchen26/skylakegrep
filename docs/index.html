@@ -3,24 +3,24 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="local-mgrep is a command-line semantic code search tool that builds a local SQLite vector index from a repository's source files and answers natural-language queries with line-cited snippets. Fully offline, PolyForm Noncommercial 1.0.0 licensed, powered by Ollama." />
+    <meta name="description" content="skylakegrep is a command-line semantic code search tool that builds a local SQLite vector index from a repository's source files and answers natural-language queries with line-cited snippets. Fully offline, PolyForm Noncommercial 1.0.0 licensed, powered by Ollama." />
     <meta name="theme-color" content="#0a0d12" />
 
     <!-- Open Graph / Twitter social preview -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://danielchen26.github.io/local-mgrep/" />
-    <meta property="og:title" content="local-mgrep — semantic code search over a local index" />
+    <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
+    <meta property="og:title" content="skylakegrep — semantic code search over a local index" />
     <meta property="og:description" content="Fully-offline semantic code search CLI. 16/16 repo-A recall, sub-second warm queries on Mac CPU, no remote service. PolyForm Noncommercial 1.0.0, powered by Ollama." />
-    <meta property="og:image" content="https://danielchen26.github.io/local-mgrep/assets/og-image.png" />
+    <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="local-mgrep social card showing the wordmark, three performance highlights (16/16 repo-A recall, sub-0.5 s warm queries, 100% local), and the latest version." />
+    <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (16/16 repo-A recall, sub-0.5 s warm queries, 100% local), and the latest version." />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="local-mgrep — semantic code search over a local index" />
+    <meta name="twitter:title" content="skylakegrep — semantic code search over a local index" />
     <meta name="twitter:description" content="Fully-offline semantic code search CLI. 16/16 repo-A recall, sub-second warm queries on Mac CPU." />
-    <meta name="twitter:image" content="https://danielchen26.github.io/local-mgrep/assets/og-image.png" />
+    <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
-    <title>local-mgrep · documentation</title>
+    <title>skylakegrep · documentation</title>
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://rsms.me/" />
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
@@ -28,16 +28,16 @@
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="#overview" aria-label="local-mgrep documentation">
+      <a class="brand" href="#overview" aria-label="skylakegrep documentation">
         <span class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
         </span>
-        <span class="brand-text">local-mgrep</span>
-        <span class="version">v0.16.0</span>
+        <span class="brand-text">skylakegrep</span>
+        <span class="version">v0.1.0</span>
       </a>
       <nav class="topnav" aria-label="External links">
-        <a href="https://pypi.org/project/local-mgrep/">PyPI</a>
-        <a href="https://github.com/danielchen26/local-mgrep">GitHub</a>
+        <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+        <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
         <a class="topnav-cta" href="#install">Install</a>
       </nav>
     </header>
@@ -88,10 +88,10 @@
       <main class="content">
         <!-- ============== Overview ============== -->
         <section id="overview" class="hero">
-          <p class="eyebrow">v0.16.0 · PolyForm Noncommercial 1.0.0</p>
+          <p class="eyebrow">v0.1.0 · PolyForm Noncommercial 1.0.0</p>
           <h1>Semantic code search over a local index.</h1>
           <p class="lead">
-            <code>local-mgrep</code> is a command-line tool that builds a SQLite
+            <code>skylakegrep</code> is a command-line tool that builds a SQLite
             vector index from a repository's source files and answers natural-language
             queries with line-cited snippets. Indexing, retrieval, and optional answer
             generation run on the local host using a local Ollama server; no remote
@@ -99,7 +99,7 @@
           </p>
           <div class="button-row">
             <a class="button primary" href="#install">Install</a>
-            <a class="button secondary" href="https://github.com/danielchen26/local-mgrep">Source on GitHub</a>
+            <a class="button secondary" href="https://github.com/danielchen26/skylakegrep">Source on GitHub</a>
           </div>
           <div class="kpi-row" aria-label="At-a-glance facts">
             <div>
@@ -123,11 +123,11 @@
           <h2>Install the CLI and a local embedding model.</h2>
 
           <h3>Package install</h3>
-          <pre><code>pip install local-mgrep</code></pre>
+          <pre><code>pip install skylakegrep</code></pre>
 
           <h3>From source</h3>
-<pre><code>git clone https://github.com/danielchen26/local-mgrep.git
-cd local-mgrep
+<pre><code>git clone https://github.com/danielchen26/skylakegrep.git
+cd skylakegrep
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .</code></pre>
@@ -152,19 +152,19 @@ ollama pull nomic-embed-text        # smaller alternative</code></pre>
         <section id="quickstart" class="doc-section">
           <p class="eyebrow">Quickstart</p>
           <h2>Index a repository, then query it.</h2>
-<pre><code>mgrep index /path/to/repo --reset
-mgrep search "where is token refresh implemented?" -m 10</code></pre>
+<pre><code>skygrep index /path/to/repo --reset
+skygrep search "where is token refresh implemented?" -m 10</code></pre>
           <p>
             The first command walks the repository, chunks supported source files,
             embeds each chunk via Ollama, and writes the result to
-            <code>~/.local-mgrep/index.db</code>. Subsequent runs re-index only
+            <code>~/.skylakegrep/index.db</code>. Subsequent runs re-index only
             files whose modification time has changed and remove rows for files
             that no longer exist.
           </p>
           <p>
             For machine-readable output, add <code>--json</code>:
           </p>
-<pre><code>mgrep search "where is token refresh implemented?" -m 10 --json</code></pre>
+<pre><code>skygrep search "where is token refresh implemented?" -m 10 --json</code></pre>
         </section>
 
         <!-- ============== Concepts: Indexing ============== -->
@@ -211,7 +211,7 @@ mgrep search "where is token refresh implemented?" -m 10</code></pre>
           <h3>Supported languages</h3>
           <p>
             The extension-to-parser map lives in
-            <code>local_mgrep/src/indexer.py</code>:
+            <code>skylakegrep/src/indexer.py</code>:
             <code>.py</code>, <code>.js</code>, <code>.ts</code>,
             <code>.tsx</code>, <code>.jsx</code>, <code>.go</code>,
             <code>.rs</code>, <code>.java</code>, <code>.c</code>,
@@ -258,7 +258,7 @@ mgrep search "where is token refresh implemented?" -m 10</code></pre>
             The numerical defaults (<code>LEXICAL_WEIGHT = 0.2</code>,
             <code>MAX_RESULTS_PER_FILE = 2</code>, term/phrase weights
             0.75/0.25) are module-level constants in
-            <code>local_mgrep/src/storage.py</code>. They are not exposed
+            <code>skylakegrep/src/storage.py</code>. They are not exposed
             through CLI flags in this release.
           </p>
         </section>
@@ -269,7 +269,7 @@ mgrep search "where is token refresh implemented?" -m 10</code></pre>
           <h2>Three rendering modes.</h2>
           <h3>Human-readable (default)</h3>
           <p>Plain text records, one per result, ordered by descending score:</p>
-<pre><code>=== local_mgrep/src/storage.py:197-271 (score: 0.824) ===
+<pre><code>=== skylakegrep/src/storage.py:197-271 (score: 0.824) ===
 def search(conn, query_embedding, top_k=10, …):
     query_vec = np.array(query_embedding, dtype=np.float32)
     …</code></pre>
@@ -300,9 +300,9 @@ def search(conn, query_embedding, top_k=10, …):
           <figure>
             <img src="assets/architecture.svg" alt="Three-lane schematic showing the indexing pipeline writing into a SQLite store, and the query pipeline reading from the same store." />
             <figcaption>
-              Index time runs offline via <code>mgrep index</code> or
-              <code>mgrep watch</code>. Storage is the only shared state between the two
-              lanes. Query time runs per call to <code>mgrep search</code>.
+              Index time runs offline via <code>skygrep index</code> or
+              <code>skygrep watch</code>. Storage is the only shared state between the two
+              lanes. Query time runs per call to <code>skygrep search</code>.
             </figcaption>
           </figure>
         </section>
@@ -348,7 +348,7 @@ def search(conn, query_embedding, top_k=10, …):
 
           <div class="ref-list">
             <article class="ref-item">
-              <span class="signature">mgrep index [PATH] [--reset] [--incremental/--full]</span>
+              <span class="signature">skygrep index [PATH] [--reset] [--incremental/--full]</span>
               <p>
                 Build or refresh the local SQLite index. <code>PATH</code> defaults
                 to the current directory. <code>--reset</code> deletes the existing
@@ -359,7 +359,7 @@ def search(conn, query_embedding, top_k=10, …):
             </article>
 
             <article class="ref-item">
-              <span class="signature">mgrep search QUERY [OPTIONS]</span>
+              <span class="signature">skygrep search QUERY [OPTIONS]</span>
               <p>Retrieve ranked snippets. Options are summarized below.</p>
               <div class="table-wrap">
                 <table class="flag-table">
@@ -383,12 +383,12 @@ def search(conn, query_embedding, top_k=10, …):
             </article>
 
             <article class="ref-item">
-              <span class="signature">mgrep stats</span>
+              <span class="signature">skygrep stats</span>
               <p>Print total chunk count and total indexed file count.</p>
             </article>
 
             <article class="ref-item">
-              <span class="signature">mgrep watch [PATH] --interval N</span>
+              <span class="signature">skygrep watch [PATH] --interval N</span>
               <p>
                 Poll <code>PATH</code> every <code>N</code> seconds (default 5).
                 Newly added files are indexed; modified files are reindexed; files
@@ -429,8 +429,8 @@ def search(conn, query_embedding, top_k=10, …):
                   <td>Generation model used by <code>--answer</code> and <code>--agentic</code>.</td>
                 </tr>
                 <tr>
-                  <td><code>MGREP_DB_PATH</code></td>
-                  <td><code>~/.local-mgrep/index.db</code></td>
+                  <td><code>SKYGREP_DB_PATH</code></td>
+                  <td><code>~/.skylakegrep/index.db</code></td>
                   <td>SQLite index location. Use distinct paths to keep per-project indexes.</td>
                 </tr>
               </tbody>
@@ -456,7 +456,7 @@ def search(conn, query_embedding, top_k=10, …):
           </p>
 <pre><code>[
   {
-    "path":       "local_mgrep/src/storage.py",
+    "path":       "skylakegrep/src/storage.py",
     "start_line": 197,
     "end_line":   271,
     "language":   "python",
@@ -483,7 +483,7 @@ def search(conn, query_embedding, top_k=10, …):
           <p class="eyebrow">Evaluation · benchmarks</p>
           <h2>Empirical results across four benchmark dimensions.</h2>
           <p>
-            local-mgrep ships four reproducible benchmarks. Each measures a
+            skylakegrep ships four reproducible benchmarks. Each measures a
             different question; quoting the right number for the right claim
             matters. The repository's
             <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>
@@ -495,8 +495,8 @@ def search(conn, query_embedding, top_k=10, …):
           <p>
             Real Claude Code sub-agents answering hand-labelled code-search
             questions in two prompted conditions —
-            <strong>rg-only</strong> (mgrep forbidden) vs
-            <strong>mgrep-on</strong> (rg/grep/find forbidden) — across
+            <strong>rg-only</strong> (skygrep forbidden) vs
+            <strong>skygrep-on</strong> (rg/grep/find forbidden) — across
             21 questions and 1 multi-turn session in three repos.
           </p>
           <div class="table-wrap">
@@ -506,7 +506,7 @@ def search(conn, query_embedding, top_k=10, …):
                   <th>Bench</th>
                   <th>Tasks</th>
                   <th>rg-only tools</th>
-                  <th>mgrep tools</th>
+                  <th>skygrep tools</th>
                   <th>Δ tools</th>
                   <th>Δ tokens</th>
                 </tr>
@@ -542,21 +542,21 @@ def search(conn, query_embedding, top_k=10, …):
             RTT + serialization + context-window growth, so reducing them
             shortens the agent loop even when total tokens are equal. Token
             cost across the 20-task aggregate is roughly flat (+6.5 %); we
-            do not claim mgrep saves the LLM bill.
+            do not claim skygrep saves the LLM bill.
           </p>
           <p>
-            Best-case task in the set: <em>repo-A editor cursor</em> — mgrep
+            Best-case task in the set: <em>repo-A editor cursor</em> — skygrep
             finishes in 1 tool call vs rg-only's 25 (25× fewer), at one
             eighth the wall time. Worst-case (in v0.10.0): <em>repo-A
-            signin</em> — mgrep was 40 % more tool calls because the
+            signin</em> — skygrep was 40 % more tool calls because the
             question's vocabulary (auth/session/token) overlapped directly
             with code-path tokens, so rg's straightforward scan was already
             efficient. <strong>v0.12.0 addresses this</strong> via a
             conservative lexical pre-gate that detects exactly these
             queries and short-circuits to <code>rg</code> internally in
             ~50 ms. Both cases are published in
-            <a href="local-mgrep-0.10.0.md">the v0.10.0 release notes</a>;
-            see <a href="local-mgrep-0.12.0.md">the v0.12.0 release
+            <a href="skylakegrep-0.10.0.md">the v0.10.0 release notes</a>;
+            see <a href="skylakegrep-0.12.0.md">the v0.12.0 release
             notes</a> for the routing fix.
           </p>
 
@@ -592,9 +592,9 @@ def search(conn, query_embedding, top_k=10, …):
             (<code><domain-y>_v6.py</code> orchestration vs implementation
             scripts; <code>autoCompact.ts</code> decision logic vs
             neighbouring config files) are documented in
-            <a href="local-mgrep-0.7.0.md">v0.7.0 release notes</a>. Both
+            <a href="skylakegrep-0.7.0.md">v0.7.0 release notes</a>. Both
             tasks have since been re-tried in the e2e agent benchmark and
-            mgrep solves the <code><domain-y>_v6</code> case in the agent
+            skygrep solves the <code><domain-y>_v6</code> case in the agent
             harness.
           </p>
 
@@ -617,10 +617,10 @@ def search(conn, query_embedding, top_k=10, …):
                 </tr>
               </thead>
               <tbody>
-                <tr><td>ultra-fast (cheap-only)</td><td><code>mgrep "..." --cascade-tau 0.0</code></td><td>11 / 16</td><td>0.10 s</td></tr>
-                <tr><td>chunk-only (no rerank)</td><td><code>mgrep "..." --no-cascade --no-rerank</code></td><td>9 / 16</td><td>0.52 s</td></tr>
-                <tr><td>chunk + rerank</td><td><code>mgrep "..." --no-cascade --rerank</code></td><td>11 / 16</td><td>9.5 s</td></tr>
-                <tr><td><strong>cascade (default)</strong></td><td><code>mgrep "..."</code></td><td><strong>16 / 16</strong></td><td><strong>~3 s</strong></td></tr>
+                <tr><td>ultra-fast (cheap-only)</td><td><code>skygrep "..." --cascade-tau 0.0</code></td><td>11 / 16</td><td>0.10 s</td></tr>
+                <tr><td>chunk-only (no rerank)</td><td><code>skygrep "..." --no-cascade --no-rerank</code></td><td>9 / 16</td><td>0.52 s</td></tr>
+                <tr><td>chunk + rerank</td><td><code>skygrep "..." --no-cascade --rerank</code></td><td>11 / 16</td><td>9.5 s</td></tr>
+                <tr><td><strong>cascade (default)</strong></td><td><code>skygrep "..."</code></td><td><strong>16 / 16</strong></td><td><strong>~3 s</strong></td></tr>
                 <tr><td>ripgrep raw</td><td><code>rg -il -F</code> token-OR</td><td>16 / 16</td><td>0.1 s</td></tr>
               </tbody>
             </table>
@@ -637,10 +637,10 @@ def search(conn, query_embedding, top_k=10, …):
             <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>.
           </p>
 
-          <h3 id="bench-self">4. local-mgrep self-test (regression guard, since v0.2.0)</h3>
+          <h3 id="bench-self">4. skylakegrep self-test (regression guard, since v0.2.0)</h3>
           <p>
             Deterministic local benchmark over 30 repository-navigation tasks
-            against this very repo. Compares a single <code>mgrep search</code>
+            against this very repo. Compares a single <code>skygrep search</code>
             call against a simulated grep-agent. Token volumes are estimated
             as <code>chars / 4</code>. Every release is verified to keep
             <strong>30 / 30 at top-k 10</strong>.
@@ -684,24 +684,24 @@ def search(conn, query_embedding, top_k=10, …):
           <h3 id="bench-honest-framing">Which number to cite for which claim</h3>
           <ul>
             <li>
-              <strong>"mgrep cuts agent tool calls"</strong> →
+              <strong>"skygrep cuts agent tool calls"</strong> →
               <a href="#bench-e2e">benchmark 1</a>: −37.6 % single-turn,
               −82 % multi-turn (real Claude Code sub-agents, 20 + 1
               hand-labelled tasks).
             </li>
             <li>
-              <strong>"mgrep generalises across languages"</strong> →
+              <strong>"skygrep generalises across languages"</strong> →
               <a href="#bench-multilang">benchmark 2</a>: 38 / 40 (95 %)
               across Rust + Python + TypeScript at 3.55 s/q (40
               hand-labelled retrieval tasks).
             </li>
             <li>
-              <strong>"mgrep matches ripgrep file-set ceiling on a stress test"</strong> →
+              <strong>"skygrep matches ripgrep file-set ceiling on a stress test"</strong> →
               <a href="#bench-repo-A">benchmark 3</a>: 16 / 16 on repo-A with
               corrected ground-truth labels at ~3 s/q.
             </li>
             <li>
-              <strong>"mgrep is more token-efficient than ripgrep when feeding LLM context"</strong> →
+              <strong>"skygrep is more token-efficient than ripgrep when feeding LLM context"</strong> →
               <a href="#bench-self">benchmark 4</a>: ~17.7× total-token
               reduction at equal recall on the 30-task self-test.
             </li>
@@ -756,7 +756,7 @@ def search(conn, query_embedding, top_k=10, …):
               <strong>Retrieval quality is bounded by the embedding model</strong>
               in use. Switching <code>OLLAMA_EMBED_MODEL</code> after indexing
               produces a dim/semantic mismatch and requires
-              <code>mgrep index --reset</code>.
+              <code>skygrep index --reset</code>.
             </li>
             <li>
               <strong>Task sets are hand-curated, not user-collected.</strong>
@@ -786,11 +786,11 @@ def search(conn, query_embedding, top_k=10, …):
             </li>
             <li>
               <strong>Editor / agent integrations (v0.11.0).</strong>
-              <code>mgrep setup</code> auto-registers local-mgrep as the
+              <code>skygrep setup</code> auto-registers skylakegrep as the
               preferred semantic search for Claude Code, Codex, OpenCode,
               Gemini CLI, and Cursor — markdown snippet between
               BEGIN/END markers, cleanly removable via
-              <code>mgrep setup --uninstall</code>.
+              <code>skygrep setup --uninstall</code>.
             </li>
             <li>
               <strong>Multi-repository benchmark (v0.7.0).</strong>
@@ -818,9 +818,9 @@ def search(conn, query_embedding, top_k=10, …):
           <ul>
             <li>
               <strong>Native MCP server.</strong> The v0.11.0
-              <code>mgrep setup</code> integration writes a
-              "prefer mgrep over rg" instruction into agent rules files;
-              a true MCP server (so agents can call mgrep as a structured
+              <code>skygrep setup</code> integration writes a
+              "prefer skygrep over rg" instruction into agent rules files;
+              a true MCP server (so agents can call skygrep as a structured
               tool rather than a shell command) is the next step.
             </li>
             <li>

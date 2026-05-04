@@ -12,7 +12,7 @@ Strategies tested:
     directly without any cosine.
 
 Run:
-    OLLAMA_EMBED_MODEL=nomic-embed-text MGREP_DB_PATH=/tmp/<repo-D>_idx_p1.db \
+    OLLAMA_EMBED_MODEL=nomic-embed-text SKYGREP_DB_PATH=/tmp/<repo-D>_idx_p1.db \
       .venv/bin/python benchmarks/llm_arbitration_probe.py
 """
 
@@ -26,20 +26,20 @@ import sys
 import time
 from pathlib import Path
 
-REPO = Path("/Users/tianchichen/Documents/github/local-mgrep")
+REPO = Path("/Users/tianchichen/Documents/github/skylakegrep")
 WARP = Path("/path/to/repo-A")
 sys.path.insert(0, str(REPO))
 
 os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")
-os.environ.setdefault("MGREP_DB_PATH", "/tmp/<repo-D>_idx_p1.db")
+os.environ.setdefault("SKYGREP_DB_PATH", "/tmp/<repo-D>_idx_p1.db")
 
 import numpy as np
 import requests
 
-from local_mgrep.src.config import get_config
-from local_mgrep.src.embeddings import get_embedder
-from local_mgrep.src.hybrid import lexical_candidate_paths
-from local_mgrep.src.storage import file_level_search, search
+from skylakegrep.src.config import get_config
+from skylakegrep.src.embeddings import get_embedder
+from skylakegrep.src.hybrid import lexical_candidate_paths
+from skylakegrep.src.storage import file_level_search, search
 
 TASKS = json.loads((REPO / "benchmarks/cross_repo/repo-a.json").read_text())
 

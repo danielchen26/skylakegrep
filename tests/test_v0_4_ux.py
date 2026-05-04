@@ -10,18 +10,18 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
-from local_mgrep.src import cli as cli_module
-from local_mgrep.src import config as config_module
+from skylakegrep.src import cli as cli_module
+from skylakegrep.src import config as config_module
 
 
 class BareFormRoutingTests(unittest.TestCase):
-    """``mgrep "<query>"`` should route to ``search`` automatically."""
+    """``skygrep "<query>"`` should route to ``search`` automatically."""
 
     def test_unknown_first_arg_routes_to_search(self):
         # Verified by parsing args through MgrepCLI.parse_args directly: any
         # non-flag, non-subcommand first token gets prepended with ``search``.
         ctx = cli_module.cli.make_context(
-            "mgrep", [], resilient_parsing=True
+            "skygrep", [], resilient_parsing=True
         )
         # Re-parse through the custom group; expect args to be rewritten.
         args_in = ["a sample query"]
@@ -34,7 +34,7 @@ class BareFormRoutingTests(unittest.TestCase):
         self.assertTrue(full and full[0] == "search", full)
 
     def test_known_subcommand_does_not_route(self):
-        ctx = cli_module.cli.make_context("mgrep", [], resilient_parsing=True)
+        ctx = cli_module.cli.make_context("skygrep", [], resilient_parsing=True)
         cli_module.cli.parse_args(ctx, ["doctor"])
         full = ctx.protected_args + ctx.args
         self.assertEqual(full[:1], ["doctor"])
@@ -49,7 +49,7 @@ class BareFormRoutingTests(unittest.TestCase):
 class DoctorTests(unittest.TestCase):
     def test_doctor_reports_missing_ollama(self):
         runner = CliRunner()
-        with patch("local_mgrep.src.bootstrap._probe_ollama", return_value=(False, "connection refused")):
+        with patch("skylakegrep.src.bootstrap._probe_ollama", return_value=(False, "connection refused")):
             result = runner.invoke(cli_module.cli, ["doctor"])
         self.assertNotEqual(result.exit_code, 0)
         self.assertIn("ollama is required", result.output.lower())
@@ -57,9 +57,9 @@ class DoctorTests(unittest.TestCase):
 
     def test_doctor_reports_present_models(self):
         runner = CliRunner()
-        with patch("local_mgrep.src.bootstrap._probe_ollama", return_value=(True, "")):
+        with patch("skylakegrep.src.bootstrap._probe_ollama", return_value=(True, "")):
             with patch(
-                "local_mgrep.src.bootstrap.list_local_models",
+                "skylakegrep.src.bootstrap.list_local_models",
                 return_value=["nomic-embed-text:latest", "qwen2.5:3b"],
             ):
                 result = runner.invoke(cli_module.cli, ["doctor"])
@@ -95,15 +95,15 @@ class AutoIndexPolicyTests(unittest.TestCase):
     def test_resolve_db_path_respects_env_override(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             override = Path(temp_dir) / "x.db"
-            with patch.dict(os.environ, {"MGREP_DB_PATH": str(override)}, clear=False):
+            with patch.dict(os.environ, {"SKYGREP_DB_PATH": str(override)}, clear=False):
                 self.assertEqual(config_module.resolve_db_path(), override)
 
     def test_resolve_db_path_uses_project_scoped_default(self):
         env = dict(os.environ)
-        env.pop("MGREP_DB_PATH", None)
+        env.pop("SKYGREP_DB_PATH", None)
         with patch.dict(os.environ, env, clear=True):
             path = config_module.resolve_db_path()
-            self.assertIn(".local-mgrep/repos", str(path))
+            self.assertIn(".skylakegrep/repos", str(path))
 
 
 if __name__ == "__main__":

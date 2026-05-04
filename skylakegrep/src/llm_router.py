@@ -1,0 +1,336 @@
+"""LLM-driven query routing — replaces v0.14.0's hand-rolled rules
+as the primary source of truth for routing decisions. Hand-rolled
+rules survive as a fallback when the LLM is unavailable.
+
+Design contract:
+
+  1. **Intelligence**: a small local LLM (default ``qwen2.5:3b``) reads
+     the query and decides what tiers to run, what the most distinctive
+     identifier token is, and whether to extract content from binary
+     files. No more hand-rolled phrase / token / length rules as
+     primary source.
+  2. **Accuracy**: the 30 / 30 self-test benchmark is the gate. The
+     release pipeline runs it twice (LLM on, LLM off / forced fallback)
+     — both must hit 30 / 30. The LLM is never trusted blindly:
+     ``confidence < 0.7`` forces ``skip_cascade=False`` so the cascade
+     always runs when the model is unsure.
+  3. **Speed**: warm LLM call ~50 ms (``OLLAMA_KEEP_ALIVE=-1`` already
+     set). Hard timeout 500 ms; on timeout fall back to rule-based
+     decision. The result is cached per (query) within the SQLite
+     ``meta`` table for the duration of the project session.
+  4. **Failure transparency**: every routing decision exposes a
+     ``source`` field (``"llm"`` / ``"fallback-rules"`` /
+     ``"fallback-mixed"``) and a ``reason`` string. Both surface in
+     the CLI telemetry line so the user sees how the query was routed
+     and why.
+
+The fallback chain:
+
+  primary    : LLM router (Ollama HTTP, structured JSON output)
+                   ↓ on failure
+  fallback-1 : ``classify_intent`` from intent.py (v0.14.0 rules)
+                   ↓ on failure
+  fallback-2 : ``intent="mixed"`` — every tier runs, no smart routing
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import re
+import sqlite3
+from dataclasses import dataclass, field
+from typing import Any
+
+import requests
+
+from . import intent as intent_mod
+from .config import get_config
+
+logger = logging.getLogger(__name__)
+
+
+# ---- Tunables ------------------------------------------------------
+
+# How long (seconds) to wait for the LLM to respond before giving up
+# and using the rule-based fallback. 0.5 s is generous for a warm
+# 3 B model under keep_alive=-1.
+LLM_TIMEOUT_SECONDS = float(
+    os.environ.get("SKYGREP_LLM_ROUTER_TIMEOUT_SECONDS", "0.5")
+)
+
+# Below this confidence the LLM's "skip_cascade" decision is ignored
+# — accuracy is the gold standard, never trust an unsure model.
+MIN_CONFIDENCE_TO_SKIP_CASCADE = float(
+    os.environ.get("SKYGREP_LLM_ROUTER_MIN_CONFIDENCE", "0.7")
+)
+
+
+# ---- Decision dataclass --------------------------------------------
+
+
+@dataclass
+class RouterDecision:
+    """Structured routing decision with full provenance."""
+
+    intent: str  # "filename" | "semantic" | "lexical" | "mixed"
+    primary_token: str = ""
+    skip_cascade: bool = False
+    skip_filename: bool = False
+    skip_lexical: bool = False
+    extract_content: bool = False  # for filename matches on PDF/docx
+    confidence: float = 0.0
+    source: str = "fallback-mixed"
+    reason: str = ""
+    raw: dict[str, Any] = field(default_factory=dict)
+
+
+def _all_runs() -> RouterDecision:
+    """The safest default: run every tier, no skipping. Used as the
+    last-resort when both the LLM and the rule-based router fail."""
+    return RouterDecision(
+        intent="mixed",
+        source="fallback-mixed",
+        reason="LLM unavailable and rule-based classifier did not produce a confident answer",
+    )
+
+
+# ---- Rule-based fallback (compatibility with v0.14.0) -------------
+
+
+def _rule_based_decision(query: str) -> RouterDecision:
+    """Use the existing v0.14.0 ``classify_intent`` to produce a
+    routing decision. Token selection falls through to the v0.14.1
+    priority heuristic in ``auto_index.filename_shortcut``, so we
+    don't duplicate that logic here."""
+    if not query or not query.strip():
+        return _all_runs()
+    try:
+        intent_label = intent_mod.classify_intent(query)
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("rule-based classify_intent failed: %s", exc)
+        return _all_runs()
+    return RouterDecision(
+        intent=intent_label,
+        primary_token="",  # auto_index.filename_shortcut will pick its own
+        # Match v0.14.0 semantics: every tier always runs, intent only
+        # decides ranking. The LLM router is what enables skip_cascade.
+        skip_cascade=False,
+        skip_filename=False,
+        skip_lexical=False,
+        extract_content=False,
+        confidence=0.6,
+        source="fallback-rules",
+        reason=f"rule-based intent={intent_label} (v0.14.0 classifier)",
+    )
+
+
+# ---- LLM call ------------------------------------------------------
+
+
+_ROUTER_PROMPT = """You are a search-query router for a local code+document search tool.
+
+Given the user's query, decide:
+  - intent: one of "filename", "semantic", "lexical", "mixed"
+  - primary_token: the single most distinctive identifier token in the
+    query that should drive a filename `find -iname '*token*'` match.
+    Prefer tokens with digits or unusual capitalisation (e.g. "eb1b",
+    "v6", "PascalCase") over common English words.
+  - skip_cascade: true only when you are CERTAIN the query is a
+    filename lookup and semantic content search is unnecessary.
+    Default to false; uncertainty MUST keep cascade on.
+  - skip_filename: true if the query clearly does not want a filename
+    match (descriptive natural-language question).
+  - extract_content: true if the user might want PREVIEW content from
+    matched files (e.g. PDF / docx), not just metadata.
+  - confidence: 0.0 - 1.0. Use < 0.7 when uncertain; anything below
+    0.7 will force cascade to run regardless of skip_cascade.
+  - reason: one short sentence justifying the decision.
+
+Output ONLY a JSON object with these exact keys, no prose, no markdown.
+
+Examples:
+
+Query: "where is eb1b file?"
+{{"intent": "filename", "primary_token": "eb1b", "skip_cascade": true, "skip_filename": false, "extract_content": true, "confidence": 0.95, "reason": "user asks for a specific file by name"}}
+
+Query: "how does the auth token get refreshed"
+{{"intent": "semantic", "primary_token": "", "skip_cascade": false, "skip_filename": true, "extract_content": false, "confidence": 0.9, "reason": "descriptive question about code behaviour"}}
+
+Query: "auth login"
+{{"intent": "lexical", "primary_token": "auth", "skip_cascade": false, "skip_filename": false, "extract_content": false, "confidence": 0.7, "reason": "short code-token query, ambiguous"}}
+
+Now route this query:
+Query: "{query}"
+"""
+
+
+_JSON_BLOCK_RE = re.compile(r"\{.*\}", re.DOTALL)
+
+
+def _parse_llm_json(raw: str) -> dict | None:
+    """Extract a JSON object from the LLM's raw output. Tolerates
+    surrounding prose / markdown the model may emit."""
+    if not raw:
+        return None
+    m = _JSON_BLOCK_RE.search(raw)
+    if not m:
+        return None
+    try:
+        return json.loads(m.group(0))
+    except json.JSONDecodeError:
+        return None
+
+
+def _llm_decision(query: str) -> RouterDecision | None:
+    """Call the local LLM router. Returns ``None`` on any failure
+    (caller falls back). Never raises."""
+    cfg = get_config()
+    url = f"{cfg['ollama_url']}/api/generate"
+    model = os.environ.get(
+        "SKYGREP_LLM_ROUTER_MODEL", cfg.get("hyde_model") or cfg["llm_model"]
+    )
+    prompt = _ROUTER_PROMPT.format(query=query.replace('"', "'"))
+    keep_alive = cfg.get("keep_alive", -1)
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "format": "json",
+        "options": {"temperature": 0.0, "num_predict": 256},
+        "keep_alive": keep_alive,
+    }
+    try:
+        r = requests.post(url, json=payload, timeout=LLM_TIMEOUT_SECONDS)
+        r.raise_for_status()
+        body = r.json()
+    except (requests.RequestException, ValueError) as exc:
+        logger.debug("LLM router HTTP failure: %s", exc)
+        return None
+
+    raw = body.get("response", "") if isinstance(body, dict) else ""
+    parsed = _parse_llm_json(raw)
+    if not parsed:
+        logger.debug("LLM router returned non-JSON: %r", raw[:200])
+        return None
+
+    intent_val = str(parsed.get("intent", "mixed")).lower()
+    if intent_val not in {"filename", "semantic", "lexical", "mixed"}:
+        intent_val = "mixed"
+    confidence = float(parsed.get("confidence", 0.0) or 0.0)
+    skip_cascade = bool(parsed.get("skip_cascade", False))
+    # Safety: never trust low-confidence skip_cascade decisions.
+    if confidence < MIN_CONFIDENCE_TO_SKIP_CASCADE:
+        skip_cascade = False
+
+    return RouterDecision(
+        intent=intent_val,
+        primary_token=str(parsed.get("primary_token", "") or "").strip(),
+        skip_cascade=skip_cascade,
+        skip_filename=bool(parsed.get("skip_filename", False)),
+        skip_lexical=bool(parsed.get("skip_lexical", False)),
+        extract_content=bool(parsed.get("extract_content", False)),
+        confidence=confidence,
+        source="llm",
+        reason=str(parsed.get("reason", "") or "")[:200],
+        raw=parsed,
+    )
+
+
+# ---- Cache (per session, per project) -----------------------------
+
+
+def _cache_get(conn: sqlite3.Connection, query: str) -> RouterDecision | None:
+    try:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS router_cache "
+            "(query TEXT PRIMARY KEY, decision TEXT)"
+        )
+        row = conn.execute(
+            "SELECT decision FROM router_cache WHERE query = ?", (query,)
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    if not row or not row[0]:
+        return None
+    try:
+        d = json.loads(row[0])
+    except json.JSONDecodeError:
+        return None
+    return RouterDecision(**d)
+
+
+def _cache_set(conn: sqlite3.Connection, query: str, decision: RouterDecision) -> None:
+    try:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS router_cache "
+            "(query TEXT PRIMARY KEY, decision TEXT)"
+        )
+        payload = json.dumps({
+            "intent": decision.intent,
+            "primary_token": decision.primary_token,
+            "skip_cascade": decision.skip_cascade,
+            "skip_filename": decision.skip_filename,
+            "skip_lexical": decision.skip_lexical,
+            "extract_content": decision.extract_content,
+            "confidence": decision.confidence,
+            "source": decision.source,
+            "reason": decision.reason,
+            "raw": decision.raw,
+        })
+        conn.execute(
+            "INSERT OR REPLACE INTO router_cache (query, decision) "
+            "VALUES (?, ?)",
+            (query, payload),
+        )
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+
+
+# ---- Public API ----------------------------------------------------
+
+
+def route_query(
+    query: str,
+    *,
+    conn: sqlite3.Connection | None = None,
+    use_llm: bool = True,
+) -> RouterDecision:
+    """Resolve a query into a structured ``RouterDecision``.
+
+    Three-layer fallback chain:
+
+      1. SQLite per-session cache (skip if no ``conn``).
+      2. LLM router via Ollama HTTP (skip if ``use_llm=False``).
+      3. Rule-based ``classify_intent`` from v0.14.0.
+      4. Final safe default: ``intent="mixed"`` — every tier runs.
+
+    Never raises — returns a valid ``RouterDecision`` even on
+    arbitrary failure. Failure mode is exposed via the ``source``
+    and ``reason`` fields.
+    """
+    if not query or not query.strip():
+        return _all_runs()
+
+    if conn is not None:
+        cached = _cache_get(conn, query)
+        if cached is not None:
+            return cached
+
+    if use_llm:
+        try:
+            decision = _llm_decision(query)
+        except Exception as exc:  # noqa: BLE001 — never let routing crash a search
+            logger.debug("LLM router unexpected error: %s", exc)
+            decision = None
+        if decision is not None:
+            if conn is not None:
+                _cache_set(conn, query, decision)
+            return decision
+
+    decision = _rule_based_decision(query)
+    if conn is not None:
+        _cache_set(conn, query, decision)
+    return decision

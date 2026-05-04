@@ -1,13 +1,13 @@
 <p align="center">
-  <img alt="local-mgrep — semantic code search over a local index" src="docs/assets/hero-dark.svg" width="100%">
+  <img alt="skylakegrep — semantic code search over a local index" src="docs/assets/hero-dark.svg" width="100%">
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/local-mgrep/"><img src="https://img.shields.io/pypi/v/local-mgrep?label=pypi&color=22d3ee&labelColor=0a0d12" alt="PyPI"></a>
+  <a href="https://pypi.org/project/skylakegrep/"><img src="https://img.shields.io/pypi/v/skylakegrep?label=pypi&color=22d3ee&labelColor=0a0d12" alt="PyPI"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.9%2B-22d3ee?labelColor=0a0d12" alt="Python 3.9+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm--NC--1.0.0-f59e0b?labelColor=0a0d12" alt="PolyForm Noncommercial 1.0.0"></a>
-  <a href="https://danielchen26.github.io/local-mgrep/"><img src="https://img.shields.io/badge/docs-published-22d3ee?labelColor=0a0d12" alt="Documentation"></a>
-  <a href="https://github.com/danielchen26/local-mgrep/releases/latest"><img src="https://img.shields.io/github/v/release/danielchen26/local-mgrep?label=release&color=22d3ee&labelColor=0a0d12" alt="Latest release"></a>
+  <a href="https://danielchen26.github.io/skylakegrep/"><img src="https://img.shields.io/badge/docs-published-22d3ee?labelColor=0a0d12" alt="Documentation"></a>
+  <a href="https://github.com/danielchen26/skylakegrep/releases/latest"><img src="https://img.shields.io/github/v/release/danielchen26/skylakegrep?label=release&color=22d3ee&labelColor=0a0d12" alt="Latest release"></a>
 </p>
 
 <p align="center">
@@ -19,14 +19,14 @@
   &nbsp;·&nbsp;
   <a href="#how-it-works"><b>How it works</b></a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/danielchen26/local-mgrep/releases"><b>Releases</b></a>
+  <a href="https://github.com/danielchen26/skylakegrep/releases"><b>Releases</b></a>
   &nbsp;·&nbsp;
-  <a href="https://danielchen26.github.io/local-mgrep/"><b>Docs</b></a>
+  <a href="https://danielchen26.github.io/skylakegrep/"><b>Docs</b></a>
 </p>
 
 ---
 
-`mgrep` is a fully-offline semantic code-search CLI for natural-language
+`skygrep` is a fully-offline semantic code-search CLI for natural-language
 questions about your codebase. **Ask in plain English, get the right file
 and line range.** Indexing, retrieval, and optional answer synthesis all
 run locally against your own Ollama server. No remote service, no
@@ -35,12 +35,12 @@ subscription, no data leaves your machine.
 ## In 30 seconds
 
 ```console
-$ pip install local-mgrep
+$ pip install skylakegrep
 $ ollama pull nomic-embed-text qwen2.5:1.5b qwen2.5:3b   # one-time
 $ cd ~/your-project
 
-$ mgrep "where is the cascade tau threshold defined?"
-=== local_mgrep/src/storage.py:578-602 (score: 0.781) ===
+$ skygrep "where is the cascade tau threshold defined?"
+=== skylakegrep/src/storage.py:578-602 (score: 0.781) ===
 CASCADE_DEFAULT_TAU = 0.015
 
 def cascade_search(...
@@ -55,31 +55,31 @@ local LLM kept warm in memory.
 ## Quickstart
 
 ```bash
-pip install local-mgrep
+pip install skylakegrep
 ollama pull nomic-embed-text qwen2.5:1.5b qwen2.5:3b   # ~3 GB total
 
-# One-time: register local-mgrep with detected LLM CLIs
+# One-time: register skylakegrep with detected LLM CLIs
 # (Claude Code / Codex / OpenCode / Gemini CLI / Cursor)
-mgrep setup
+skygrep setup
 
 cd /your/project
-mgrep "<your question>"
-mgrep doctor                # verify runtime + models + index + integrations
-mgrep stats                 # show current project's index info
+skygrep "<your question>"
+skygrep doctor                # verify runtime + models + index + integrations
+skygrep stats                 # show current project's index info
 ```
 
-`mgrep` derives the project root from `git rev-parse --show-toplevel`
+`skygrep` derives the project root from `git rev-parse --show-toplevel`
 (falling back to the working directory) and keeps a per-project index
-under `~/.local-mgrep/repos/`. Subcommand names (`index`, `doctor`,
+under `~/.skylakegrep/repos/`. Subcommand names (`index`, `doctor`,
 `stats`, `watch`, `serve`, `setup`, `enrich`) take precedence — anything
-else is treated as a query, so `mgrep "stats and metrics"` (quoted) is
+else is treated as a query, so `skygrep "stats and metrics"` (quoted) is
 unambiguous.
 
-**`mgrep setup`** writes a small markdown snippet to each detected LLM
+**`skygrep setup`** writes a small markdown snippet to each detected LLM
 CLI's user-level instructions file (e.g. `~/.claude/CLAUDE.md`,
 `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`) telling the agent to
-prefer `mgrep` for natural-language code search and fall back to `rg`
-otherwise. Snippets are delimited by markers; `mgrep setup --uninstall`
+prefer `skygrep` for natural-language code search and fall back to `rg`
+otherwise. Snippets are delimited by markers; `skygrep setup --uninstall`
 removes them cleanly without touching your other instructions.
 
 ## Performance
@@ -121,7 +121,7 @@ the 1–2 s band. With Ollama models kept resident in memory
 session no longer pays the 5–10 s Ollama cold-load.
 
 A second [self-test benchmark](docs/token-benchmarking.md) compares
-`mgrep` against a simulated grep agent over 30 navigation tasks against
+`skygrep` against a simulated grep agent over 30 navigation tasks against
 this repo: 30 / 30 recall at top-k 10 with **2× total-token reduction**
 and **2.9× context-token reduction** vs the agent baseline.
 
@@ -151,44 +151,44 @@ Only the cascade's HyDE-escalation path makes a query-time LLM call, and
 it only runs on the ~20 % of queries the cheap path is uncertain about.
 
 The full architecture diagram and module-by-module walk-through is at
-[`docs/local-mgrep-0.6.0.md`](docs/local-mgrep-0.6.0.md) and
+[`docs/skylakegrep-0.6.0.md`](docs/skylakegrep-0.6.0.md) and
 [`docs/roadmap.md`](docs/roadmap.md).
 
 ## When to use what
 
 | You want | Use |
 | --- | --- |
-| Find code by concept ("how does X work?") | `mgrep "<query>"` |
+| Find code by concept ("how does X work?") | `skygrep "<query>"` |
 | Find code with a known token | `rg <token>` (it's faster, no setup) |
-| Synthesize an answer with citations | `mgrep "<query>" --answer` |
-| Decompose a broad question | `mgrep "<query>" --agentic --max-subqueries 3 --answer` |
-| Machine-readable output for an agent | `mgrep "<query>" --json` |
-| Re-rank candidates with a cross-encoder | `mgrep "<query>" --no-cascade --rerank` |
-| Continuously index a watched dir | `mgrep watch /path` |
-| Keep the cross-encoder warm across queries | `mgrep serve & ; mgrep "<q>" --daemon-url http://127.0.0.1:7878` |
+| Synthesize an answer with citations | `skygrep "<query>" --answer` |
+| Decompose a broad question | `skygrep "<query>" --agentic --max-subqueries 3 --answer` |
+| Machine-readable output for an agent | `skygrep "<query>" --json` |
+| Re-rank candidates with a cross-encoder | `skygrep "<query>" --no-cascade --rerank` |
+| Continuously index a watched dir | `skygrep watch /path` |
+| Keep the cross-encoder warm across queries | `skygrep serve & ; skygrep "<q>" --daemon-url http://127.0.0.1:7878` |
 
 ## Configuration
 
 | Variable | Default | Effect |
 | --- | --- | --- |
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama server URL. |
-| `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Embedding model. Switching requires `mgrep index --reset`. |
+| `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Embedding model. Switching requires `skygrep index --reset`. |
 | `OLLAMA_LLM_MODEL` | `qwen2.5:3b` | Used for `--answer` and `--agentic`. |
 | `OLLAMA_HYDE_MODEL` | `qwen2.5:3b` | Used for cascade-escalation HyDE. Falls back to `OLLAMA_LLM_MODEL` if not installed. Set to `qwen2.5:1.5b` for ~30 % speedup at the cost of 1 task on repo-A 16-task. |
 | `OLLAMA_KEEP_ALIVE` | `-1` | Passed to every Ollama call. `-1` keeps models resident indefinitely (recommended). |
-| `MGREP_DB_PATH` | per-project | When set, mgrep treats the index as curated and disables auto-mutation. |
-| `MGREP_AUTO_PULL` | unset | Set `yes` to auto-`ollama pull` missing models without prompting. |
-| `MGREP_AUTO_REFRESH_THROTTLE_SECONDS` | `30` | Skip the mtime scan if the previous refresh ran more recently. |
-| `MGREP_RERANK_MODEL` | `mixedbread-ai/mxbai-rerank-large-v2` | Cross-encoder for `--rerank`. |
-| `MGREP_RERANK_POOL` | `50` | Candidate pool before reranking. |
+| `SKYGREP_DB_PATH` | per-project | When set, skygrep treats the index as curated and disables auto-mutation. |
+| `SKYGREP_AUTO_PULL` | unset | Set `yes` to auto-`ollama pull` missing models without prompting. |
+| `SKYGREP_AUTO_REFRESH_THROTTLE_SECONDS` | `30` | Skip the mtime scan if the previous refresh ran more recently. |
+| `SKYGREP_RERANK_MODEL` | `mixedbread-ai/mxbai-rerank-large-v2` | Cross-encoder for `--rerank`. |
+| `SKYGREP_RERANK_POOL` | `50` | Candidate pool before reranking. |
 
 ## Releases
 
 Each release ships with comprehensive notes covering the architecture
 change, benchmark deltas, compatibility notes, and download artifacts.
 Browse them at
-<https://github.com/danielchen26/local-mgrep/releases> — the latest is
-also [installable from PyPI](https://pypi.org/project/local-mgrep/).
+<https://github.com/danielchen26/skylakegrep/releases> — the latest is
+also [installable from PyPI](https://pypi.org/project/skylakegrep/).
 
 The full sequence so far:
 
@@ -232,26 +232,26 @@ The full sequence so far:
     honoured. No retrieval-pipeline change.
   - **0.12.0** — smart-routing: a four-condition lexical pre-gate
     short-circuits ripgrep-friendly queries (~50 ms) so calling
-    `mgrep` is no longer ever a tax over `rg` for the easy cases.
+    `skygrep` is no longer ever a tax over `rg` for the easy cases.
     Vocabulary-mismatch queries still run the full semantic
     cascade. New `--rg-shortcut/--no-rg-shortcut` flag (default on);
-    `mgrep setup` snippet rewritten to reflect auto-routing.
-  - **0.11.0** — `mgrep setup` auto-registers local-mgrep as the
+    `skygrep setup` snippet rewritten to reflect auto-routing.
+  - **0.11.0** — `skygrep setup` auto-registers skylakegrep as the
     preferred semantic search with **Claude Code, Codex, OpenCode,
     Gemini CLI, and Cursor**. First-run banner nudges new users;
-    `mgrep setup --uninstall` removes all snippets cleanly. New
-    `mgrep doctor` row shows registration state per CLI.
+    `skygrep setup --uninstall` removes all snippets cleanly. New
+    `skygrep doctor` row shows registration state per CLI.
   - **0.10.0** — multi-turn agent benchmark + single-turn sample
     expanded to 20 tasks. **−82 % tool calls in multi-turn repo-A
     session, −37.6 % across 20 single-turn tasks.** On 5 / 6
-    medium-difficulty single-turn tasks, mgrep finds the canonical
+    medium-difficulty single-turn tasks, skygrep finds the canonical
     file in 1 tool call vs rg-only's 4-8.
   - **0.9.0** — e2e Claude Code agent benchmark extended to 14
     hand-labelled tasks (8 hard semantic + 6 easy single-shot) across
     Rust + Python + TypeScript. **−30 % tool calls and +2 / 14
-    answer-correctness** with mgrep on. Best-case task: **25× fewer
+    answer-correctness** with skygrep on. Best-case task: **25× fewer
     tool calls** on the repo-A editor cursor query. Worst-case task:
-    mgrep slightly worse on lexical-friendly signin question — both
+    skygrep slightly worse on lexical-friendly signin question — both
     published.
   - **0.8.0** — first e2e Claude Code agent benchmark (6 easy
     single-shot questions). Superseded by 0.9.0 with larger sample.
@@ -268,7 +268,7 @@ The full sequence so far:
     string ``"-1"`` causing 400 Bad Request); HyDE default model
     reverted to ``qwen2.5:3b`` after the repo-A benchmark showed
     ``qwen2.5:1.5b`` cost 1 task in recall; tag-aware model presence
-    check in ``mgrep doctor`` (no more false-positives when only
+    check in ``skygrep doctor`` (no more false-positives when only
     a different tag of the same base name is installed).
   - **0.6.0** — introduced ``OLLAMA_HYDE_MODEL`` and Ollama
     ``keep_alive`` plumbing; superseded by 0.6.1 for default
@@ -279,8 +279,8 @@ The full sequence so far:
   - **0.5.0** — symbol-aware indexing, doc2query enrichment, file-export
     PageRank tiebreaker.
   - **0.4.1** — ripgrep fallback for the first query in a fresh project.
-  - **0.4.0** — bare-form `mgrep "<query>"`, per-project auto-index,
-    `mgrep doctor`, cascade default.
+  - **0.4.0** — bare-form `skygrep "<query>"`, per-project auto-index,
+    `skygrep doctor`, cascade default.
   - **0.3.0–0.3.1** — confidence-gated cascade.
   - **0.2.0** — vectorized retrieval, lexical reranker, agentic
     decomposition.
@@ -289,19 +289,19 @@ The full sequence so far:
 ## CLI reference
 
 ```
-mgrep setup    [--list|--uninstall|--yes] # register with Claude Code / Codex / OpenCode / Gemini / Cursor
-mgrep "<query>" [OPTIONS]                 # bare-form search
-mgrep search   "<query>" [OPTIONS]        # explicit search
-mgrep doctor                              # health check
-mgrep stats                               # project index info
-mgrep index    [PATH] [--reset]           # explicit reindex
-mgrep watch    [PATH] --interval N        # poll for changes
-mgrep serve    [--host H] [--port P]      # warm-reranker daemon
-mgrep enrich   [--max N] [--batch B]      # opt-in doc2query enrichment
+skygrep setup    [--list|--uninstall|--yes] # register with Claude Code / Codex / OpenCode / Gemini / Cursor
+skygrep "<query>" [OPTIONS]                 # bare-form search
+skygrep search   "<query>" [OPTIONS]        # explicit search
+skygrep doctor                              # health check
+skygrep stats                               # project index info
+skygrep index    [PATH] [--reset]           # explicit reindex
+skygrep watch    [PATH] --interval N        # poll for changes
+skygrep serve    [--host H] [--port P]      # warm-reranker daemon
+skygrep enrich   [--max N] [--batch B]      # opt-in doc2query enrichment
 ```
 
 <details>
-<summary><b><code>mgrep search</code> options</b></summary>
+<summary><b><code>skygrep search</code> options</b></summary>
 
 <br>
 
@@ -326,7 +326,7 @@ mgrep enrich   [--max N] [--batch B]      # opt-in doc2query enrichment
 | `--lexical-min-candidates` | 2 | Fall back to corpus-wide cosine when ripgrep returns fewer files. |
 | `--rank-by` | `chunk` | `chunk` (per-file diversity cap) or `file` (one chunk per file). |
 | `--auto-index / --no-auto-index` | on | Auto-build the index on first query and refresh on mtime change. |
-| `--daemon-url` | — | Send the search to a running `mgrep serve` daemon. |
+| `--daemon-url` | — | Send the search to a running `skygrep serve` daemon. |
 | `--agentic` | off | Decompose into subqueries via Ollama before search. |
 | `--max-subqueries` | 3 | Upper bound on agentic subqueries. |
 | `--semantic-only` | off | Skip lexical reranking; rank by cosine alone. |
@@ -359,12 +359,12 @@ mgrep enrich   [--max N] [--batch B]      # opt-in doc2query enrichment
 | Daemon mode | 0.3.0 |
 | Quantisation / device knobs | 0.3.0 |
 | Confidence-gated cascade | 0.3.0 (default in 0.4.0) |
-| Bare-form invocation `mgrep "<q>"` | 0.4.0 |
+| Bare-form invocation `skygrep "<q>"` | 0.4.0 |
 | Per-project auto-index | 0.4.0 |
-| `mgrep doctor` health check | 0.4.0 |
+| `skygrep doctor` health check | 0.4.0 |
 | Ripgrep fallback for first query | 0.4.1 |
 | Symbol-aware indexing (L2) | 0.5.0 |
-| doc2query enrichment (L3, opt-in via `mgrep enrich`) | 0.5.0 |
+| doc2query enrichment (L3, opt-in via `skygrep enrich`) | 0.5.0 |
 | File-export PageRank tiebreaker (L4) | 0.5.0 |
 | Cascade file-mean cosine corpus-wide | 0.5.1 |
 | Smaller default HyDE model + `keep_alive=-1` | 0.6.0 |
@@ -374,8 +374,8 @@ mgrep enrich   [--max N] [--batch B]      # opt-in doc2query enrichment
 ## Development
 
 ```bash
-git clone https://github.com/danielchen26/local-mgrep.git
-cd local-mgrep
+git clone https://github.com/danielchen26/skylakegrep.git
+cd skylakegrep
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[rerank]"

@@ -1,22 +1,22 @@
 # Parity benchmarks
 
 This document collects everything the repository currently knows about how
-local-mgrep compares to alternative search tools. Each benchmark is
+skylakegrep compares to alternative search tools. Each benchmark is
 self-contained and reproducible from a fresh clone.
 
 ## Headline summary
 
-| # | Comparison | Recall (mgrep / baseline) | Total-token reduction | Context-token reduction | Script |
+| # | Comparison | Recall (skygrep / baseline) | Total-token reduction | Context-token reduction | Script |
 |---|---|:---:|:---:|:---:|---|
-| 1 | local-mgrep self-test vs **simulated grep-agent** | 30/30 vs 30/30 | **2.00×** | 2.90× | `benchmarks/agent_context_benchmark.py` |
-| 2 | local-mgrep self-test vs **real ripgrep 15.1.0** | 30/30 vs 30/30 | **17.71×** | 32.80× | `benchmarks/parity_vs_ripgrep.py` |
+| 1 | skylakegrep self-test vs **simulated grep-agent** | 30/30 vs 30/30 | **2.00×** | 2.90× | `benchmarks/agent_context_benchmark.py` |
+| 2 | skylakegrep self-test vs **real ripgrep 15.1.0** | 30/30 vs 30/30 | **17.71×** | 32.80× | `benchmarks/parity_vs_ripgrep.py` |
 | 3 | repo-A cross-repo vs **real ripgrep 15.1.0**, pre-P0 | 8/16 vs 16/16 | **868.6×** | 1256.98× | `benchmarks/parity_vs_ripgrep.py --tasks benchmarks/cross_repo/repo-a.json` |
 | 3a | repo-A cross-repo, **after P0** (nomic-embed-text + cross-encoder rerank) | 9/16 vs 16/16 | **860.4×** | 1239.87× | same script with `--rerank` (default on) |
 | 3b | repo-A cross-repo, **after P1** (P0 + chunk path/symbol prefix + chunker dedup) | 10/16 vs 16/16 | **528×** | 650× | `--rerank --reuse-index` after re-indexing |
 | 3c | repo-A cross-repo, **after P2-F (HyDE)** mean across 3 runs | **12/16 mean** (11-13/16 range) vs 16/16 | **524×** | 644× | `--rerank --hyde --reuse-index`; LLM is non-deterministic |
 | 3d | repo-A cross-repo, **after deterministic HyDE + `mxbai-rerank-large-v2`** | **14/16** vs 16/16 | ~525× | ~640× | same script with deterministic LLM seed and the larger reranker; 2 misses remain (websocket / billing) |
 | 3e | repo-A cross-repo, **daily-driver mode** (`mxbai-rerank-base-v2`, no HyDE) | **10/16** vs 16/16 | ~525× | ~640× | the practical default: ~12.7 s avg per query on Mac CPU, no LLM call, base reranker only |
-| 3f | repo-A cross-repo, **confidence-gated cascade** (`mgrep search --cascade`, τ=0.015) | **14/16** vs 16/16 | ~525× | ~640× | file-mean cosine first, escalate to HyDE-union only on uncertain queries — **1.49 s avg per query** (14× faster than tier 3d at the same recall) |
+| 3f | repo-A cross-repo, **confidence-gated cascade** (`skygrep search --cascade`, τ=0.015) | **14/16** vs 16/16 | ~525× | ~640× | file-mean cosine first, escalate to HyDE-union only on uncertain queries — **1.49 s avg per query** (14× faster than tier 3d at the same recall) |
 
 ### Latency × recall trade-off curve on repo-A (Mac CPU, no daemon, cold reranker load amortised over 16 tasks)
 
@@ -46,7 +46,7 @@ accurate tier at **13/16 @ 25.3 s**, and the maximum-accuracy tier
 
 ### Confidence-gated cascade (the new max-accurate tier)
 
-`mgrep search --cascade` (added 2026-05-03) replaces the previous
+`skygrep search --cascade` (added 2026-05-03) replaces the previous
 "max-accurate" config (`--rerank --hyde --rank-by file`, 14/16 @ 21.8 s)
 with a confidence-gated retrieval that only pays the LLM-driven escalation
 on queries the cheap path is uncertain about. Empirically on repo-A:
@@ -80,7 +80,7 @@ to tune the threshold. The non-cascade defaults are unchanged.
 ### Lexical prefilter (the new default first stage)
 
 The architecture was redrawn so that ripgrep is now the **first** stage of
-the pipeline, not just a benchmark baseline. ``mgrep search`` extracts up
+the pipeline, not just a benchmark baseline. ``skygrep search`` extracts up
 to 8 literal tokens from the query, asks ``rg -il -F`` for files
 containing any of them, and restricts the cosine + rerank stages to chunks
 of those files only. Empirically on repo-A:
@@ -133,8 +133,8 @@ escape hatch for queries with no usable surface-level overlap.
 
 ### Quantisation and device probe (Mac CPU / MPS)
 
-We added ``MGREP_RERANK_QUANTIZE=int8`` (torch dynamic quantisation of
-the cross-encoder Linear layers) and ``MGREP_RERANK_DEVICE=auto/mps/cpu``
+We added ``SKYGREP_RERANK_QUANTIZE=int8`` (torch dynamic quantisation of
+the cross-encoder Linear layers) and ``SKYGREP_RERANK_DEVICE=auto/mps/cpu``
 as knobs, then measured cold single-query latency for the
 2 B-parameter ``mxbai-rerank-large-v2`` model on this Mac:
 
@@ -151,11 +151,11 @@ Two negative findings worth recording so future work doesn't repeat them:
   with VNNI instructions. Apple Silicon CPUs do not have those, so the
   quantised int8 kernels fall back to fp32-equivalent paths and we see no
   net win. Quantisation is therefore left as an opt-in for x86_64
-  deployments via ``MGREP_RERANK_QUANTIZE=int8``.
+  deployments via ``SKYGREP_RERANK_QUANTIZE=int8``.
 - MPS support in PyTorch is per-op; the Qwen2 cross-encoder used by
   ``mxbai-rerank-large-v2`` includes ops without fast MPS kernels, which
   forces tensors to round-trip to CPU per-layer. The result on this
-  hardware is no net speedup. ``MGREP_RERANK_DEVICE=auto`` (the default)
+  hardware is no net speedup. ``SKYGREP_RERANK_DEVICE=auto`` (the default)
   still picks MPS when available so we benefit on architectures or future
   PyTorch versions where this is fixed.
 
@@ -166,9 +166,9 @@ The lever that *does* shrink reranker latency on this hardware is the
 
 ### Daemon mode (single-query latency)
 
-The CLI loads the cross-encoder reranker on every short-lived ``mgrep
+The CLI loads the cross-encoder reranker on every short-lived ``skygrep
 search`` invocation, paying ~5–10 s of model load per call. The new
-``mgrep serve`` daemon eliminates that:
+``skygrep serve`` daemon eliminates that:
 
 | Single query | latency |
 | --- | :-: |
@@ -186,8 +186,8 @@ not by removing the load step.
 Use:
 
 ```
-.venv/bin/mgrep serve --port 7878
-.venv/bin/mgrep search "..." --daemon-url http://127.0.0.1:7878
+.venv/bin/skygrep serve --port 7878
+.venv/bin/skygrep search "..." --daemon-url http://127.0.0.1:7878
 ```
 
 The dominant cost above 3 s is the cross-encoder reranker on Mac CPU: large-v2
@@ -196,11 +196,11 @@ cloud product runs the same reranker on A100 (0.89 s per query per their
 model card); we lose this round to hardware, not algorithm. The next phases
 on the roadmap (daemon-mode model retention, int8 quantization,
 multi-resolution file-level retrieval) target this latency directly.
-| 4 | local-mgrep vs **Mixedbread cloud mgrep** | not run (requires manual `mgrep login`) | n/a | n/a | `benchmarks/parity_vs_mixedbread.py` |
+| 4 | skylakegrep vs **Mixedbread cloud skygrep** | not run (requires manual `skygrep login`) | n/a | n/a | `benchmarks/parity_vs_mixedbread.py` |
 
 ### P0–P2 ablation on repo-A (top-k = 10, pool = 50 unless noted)
 
-| Config | mgrep recall | Notes |
+| Config | skygrep recall | Notes |
 | --- | :-: | --- |
 | pre-P0: mxbai-embed-large + cosine + token-overlap lexical | 8/16 | benchmark #3 above |
 | P0-B alone: nomic-embed-text + cosine + lexical, no rerank | 9/16 | embedding swap contributes +1 |
@@ -253,9 +253,9 @@ the file list is exhausted.
 .venv/bin/python benchmarks/agent_context_benchmark.py --top-k 10 --summary-only
 ```
 
-**Result (top-k = 10, on the local-mgrep repo):**
+**Result (top-k = 10, on the skylakegrep repo):**
 
-| Metric | Simulated grep | local-mgrep |
+| Metric | Simulated grep | skylakegrep |
 | --- | :-: | :-: |
 | Expected-file recall | 30 / 30 | 30 / 30 |
 | Tool calls | 227 | 30 |
@@ -279,9 +279,9 @@ would in a real agent loop.
 .venv/bin/python benchmarks/parity_vs_ripgrep.py --top-k 10 --summary-only
 ```
 
-**Result (top-k = 10, on the local-mgrep repo, ripgrep 15.1.0):**
+**Result (top-k = 10, on the skylakegrep repo, ripgrep 15.1.0):**
 
-| Metric | ripgrep 15.1.0 | local-mgrep | mgrep advantage |
+| Metric | ripgrep 15.1.0 | skylakegrep | skygrep advantage |
 | --- | :-: | :-: | :-: |
 | Expected-file recall | 30 / 30 | 30 / 30 | tied |
 | Context tokens | 1,416,412 | 43,185 | **32.8× less** |
@@ -292,17 +292,17 @@ would in a real agent loop.
 
 **Reading:** at the same recall, a coding agent that uses ripgrep for context
 gathering on this repository pulls **17.7× more total tokens** than the same
-agent using local-mgrep. The 32.8× context-only ratio shows the upper bound
+agent using skylakegrep. The 32.8× context-only ratio shows the upper bound
 once fixed prompt and answer overhead are removed.
 
-This is the most direct answer to the question "is local-mgrep better than
+This is the most direct answer to the question "is skylakegrep better than
 running rg locally?" for the agent-context use case on this codebase.
 
 ## 3 — Cross-repo on repo-A (real ripgrep)
 
 **Source:** `benchmarks/parity_vs_ripgrep.py` + `benchmarks/cross_repo/repo-a.json`
 
-To rule out the "tasks are tied to local-mgrep" critique, the same benchmark
+To rule out the "tasks are tied to skylakegrep" critique, the same benchmark
 is run against the [repo-A](the Rust terminal source tree (URL redacted)) terminal source
 (~3.2k Rust files, 65+ crates) with a hand-curated 16-task set covering AI
 integration, computer-use, editor, LSP, vim mode, voice input, completion,
@@ -318,13 +318,13 @@ palette, auth, billing, and code review.
 
 **Result (top-k = 10, on the repo-A Rust workspace, ripgrep 15.1.0):**
 
-| Metric | ripgrep 15.1.0 | local-mgrep | Notes |
+| Metric | ripgrep 15.1.0 | skylakegrep | Notes |
 | --- | :-: | :-: | :-: |
-| Expected-file recall | 16 / 16 | **8 / 16** | rg finds all in raw output; mgrep recovers half |
-| Context tokens | 58,405,476 | 46,465 | mgrep 1,257× less |
-| Estimated total tokens | 58,426,276 | 67,265 | mgrep 869× less |
+| Expected-file recall | 16 / 16 | **8 / 16** | rg finds all in raw output; skygrep recovers half |
+| Context tokens | 58,405,476 | 46,465 | skygrep 1,257× less |
+| Estimated total tokens | 58,426,276 | 67,265 | skygrep 869× less |
 | Tool calls | 127 | 16 | rg 8× more |
-| Avg latency / task | 3.515 s | 2.078 s | mgrep 1.7× faster |
+| Avg latency / task | 3.515 s | 2.078 s | skygrep 1.7× faster |
 | Indexing time (one-shot, 3,173 files / 53,382 chunks) | n/a | ~40 min | Ollama embedding throughput on Mac |
 
 **Reading — and this is the most honest data point in this document:**
@@ -337,7 +337,7 @@ chars / ~12M approx tokens), the trade-off is real and asymmetric:
   practical context window. An agent cannot actually feed all of that
   to a model; it has to truncate aggressively, which deletes most of
   the recall.
-- **local-mgrep keeps context to ~46k tokens** (1,257× smaller) but
+- **skylakegrep keeps context to ~46k tokens** (1,257× smaller) but
   only places the expected directory inside the top-10 for **8 of 16
   tasks**. The other 8 questions are answered in the corpus but the
   semantic ranker did not surface their expected directory in time.
@@ -361,7 +361,7 @@ self-test. The likely contributors, in order:
    cost of more output tokens. A higher-k run is on the roadmap.
 
 The bottom line is the pair of numbers above: **869× fewer tokens, 50%
-of the expected hits**. That is real data, not parity. mgrep on this
+of the expected hits**. That is real data, not parity. skygrep on this
 hardware and embedding model is not a drop-in replacement for ripgrep
 when recall is the bar; it is a drop-in replacement for "an agent
 naively dumping `rg`-output into an LLM" when context budget matters
@@ -378,16 +378,16 @@ slightly but are not the dominant cause.
 
 **Source:** `benchmarks/parity_vs_mixedbread.py`
 
-The original `@mixedbread/mgrep` is a cloud product that uploads the
+The original `@mixedbread/skygrep` is a cloud product that uploads the
 repository to Mixedbread's servers and serves embeddings + reranking from
 their hosted models. There is no offline mode, and the CLI requires an
-interactive `mgrep login` OAuth flow against `mixedbread.com`. Free-tier
+interactive `skygrep login` OAuth flow against `mixedbread.com`. Free-tier
 quotas apply.
 
 This repository's `parity_vs_mixedbread.py` provides a runnable harness that
 shells out to the Mixedbread CLI, parses its stdout into paths, and compares
-hit rate / latency / parsed-content tokens against local-mgrep on the same
-task list. It explicitly refuses to use `/opt/homebrew/bin/mgrep` if that
+hit rate / latency / parsed-content tokens against skylakegrep on the same
+task list. It explicitly refuses to use `/opt/homebrew/bin/skygrep` if that
 resolves to this repository's own wrapper.
 
 **Why it is not run here:**
@@ -399,7 +399,7 @@ resolves to this repository's own wrapper.
    be made by a human operator.
 
 When a Mixedbread account is available, the script in this repository runs
-end-to-end with one `mgrep search` per task; see the script's docstring for
+end-to-end with one `skygrep search` per task; see the script's docstring for
 the one-time setup steps.
 
 **What such a parity run would tell us that the other benchmarks cannot:**
@@ -407,7 +407,7 @@ how much retrieval quality is given up by switching from a paid cloud
 embedding model (Mixedbread's hosted embedder + reranker) to a local one
 (Ollama `mxbai-embed-large`, no reranker yet). Until that run exists, this
 repository makes **no claim** of accuracy parity with the original cloud
-mgrep.
+skygrep.
 
 ## Closing the recall gap — see the roadmap
 
@@ -444,7 +444,7 @@ The numbers above support narrow claims only.
 
 ## What an end-to-end agent claim would still need
 
-A future end-to-end benchmark, suitable for the broader claim that local-mgrep
+A future end-to-end benchmark, suitable for the broader claim that skylakegrep
 reduces token usage in real coding-agent sessions, requires the following:
 
 1. A task set of 30–50 questions with expected files and rubric answers,
@@ -457,8 +457,8 @@ reduces token usage in real coding-agent sessions, requires the following:
    latency, retrieval correctness, and a rubric-graded final answer score.
 4. Two conditions:
    - **Baseline.** The agent may use exact search tools (`grep`, `rg`),
-     file reads, and shell inspection, but not local-mgrep.
-   - **Treatment.** The agent may issue one or more `mgrep search` calls
+     file reads, and shell inspection, but not skylakegrep.
+   - **Treatment.** The agent may issue one or more `skygrep search` calls
      before reading files and may verify with file reads afterwards.
 5. The reported headline metric is
    `end_to_end_token_reduction = baseline total tokens / treatment total tokens`,
@@ -535,7 +535,7 @@ Per-repo breakdown of how queries split across cheap vs. escalated path:
 Reproducible runner: ``benchmarks/v0_7_multilang_bench.py``. JSON task
 files: ``benchmarks/cross_repo/{repo-A,repo-b,repo-c}.json``. Reproducing the
 numbers requires that the three repos be cloned and the per-project
-indexes built (``mgrep index .`` from each repo). Index construction
+indexes built (``skygrep index .`` from each repo). Index construction
 times measured here: repo-A 26 K chunks ~25 min, Repo-C 36 K chunks
 ~17 min, repo-B 4 K chunks ~3 min, all on Mac CPU with
 ``OLLAMA_EMBED_MODEL=nomic-embed-text``.
@@ -561,7 +561,7 @@ wall-time totals from each sub-agent's own `usage` telemetry.
 
 ### Headline (v0.10.0)
 
-| Bench | Tasks | rg-only tools | mgrep tools | Δ tools | Δ tokens |
+| Bench | Tasks | rg-only tools | skygrep tools | Δ tools | Δ tokens |
 |---|:-:|:-:|:-:|:-:|:-:|
 | **Multi-turn (3-turn repo-A session)** | 1 × 3 | 38 | **7** | **−82 %** | −5 % |
 | 6 medium tasks (v0.10.0-C) | 6 | 25 | **6** | **−76 %** | −8 % |
@@ -575,19 +575,19 @@ wall-time totals from each sub-agent's own `usage` telemetry.
   - **Tool-call reduction is the cleanest, most consistent signal.**
     Across single-turn (−37.6 %) and multi-turn (−82 %) the
     direction is the same; multi-turn amplifies the gap because
-    rg's wandering compounds across turns while mgrep stays decisive.
-  - **Tokens are noisy.** mgrep agents are roughly flat on tokens
+    rg's wandering compounds across turns while skygrep stays decisive.
+  - **Tokens are noisy.** skygrep agents are roughly flat on tokens
     (+6.5 % aggregate), with subset-level swings −8 % to +18 %
-    depending on whether the mgrep agent was decisive (1 tool call)
-    or wandered through multiple `mgrep` + `Read` rounds. **Don't
-    cite mgrep as a token saver.**
-  - **Quality slightly better with mgrep.** +2 strict / +3 lenient
-    on the 20-task aggregate. mgrep solves the repo-A `<domain-y>_v6.py`
+    depending on whether the skygrep agent was decisive (1 tool call)
+    or wandered through multiple `skygrep` + `Read` rounds. **Don't
+    cite skygrep as a token saver.**
+  - **Quality slightly better with skygrep.** +2 strict / +3 lenient
+    on the 20-task aggregate. skygrep solves the repo-A `<domain-y>_v6.py`
     famous miss and repo-c `client.ts` task that rg-only got wrong;
     doesn't lose any task rg-only got right.
   - **Wall-time data is contaminated** by parallel-spawn Ollama
     contention in v0.8.0/v0.9.0 batches. The v0.10.0 multi-turn
-    session ran sequentially and is reportable: rg 179 s vs mgrep
+    session ran sequentially and is reportable: rg 179 s vs skygrep
     158 s (−12 %).
 
 ### Why this matters even when token cost is roughly flat
@@ -601,7 +601,7 @@ dimension from the LLM bill.
 Per-task data, full caveats, and the explicit relationship to the
 simulated-grep-agent benchmark (#2) are in
 [`benchmarks/agent_e2e_results.md`](../benchmarks/agent_e2e_results.md)
-and the per-version release notes (`docs/local-mgrep-0.{8,9,10}.0.md`).
+and the per-version release notes (`docs/skylakegrep-0.{8,9,10}.0.md`).
 
 ## Strongest claims from this repository
 

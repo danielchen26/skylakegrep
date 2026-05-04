@@ -15,21 +15,21 @@ The benchmarks live in `benchmarks/` in the project root:
 - `benchmarks/parity_vs_ripgrep.py` — same comparison against a *real*
   `rg` baseline; supports cross-repo task lists via `--tasks`.
 - `benchmarks/parity_vs_mixedbread.py` — Mixedbread cloud parity harness;
-  requires interactive `mgrep login` and is not run by CI.
+  requires interactive `skygrep login` and is not run by CI.
 
 ## Headline result
 
-![local-mgrep benchmark](assets/benchmark.svg)
+![skylakegrep benchmark](assets/benchmark.svg)
 
 At top-k 10 on the deterministic context-gathering benchmark in this
 repository:
 
 ```text
-mgrep hit rate:                       30/30
+skygrep hit rate:                       30/30
 grep hit rate:                        30/30
 estimated total-token reduction:      2.00×
 context-token reduction:              2.90×
-mgrep tool calls:                      30
+skygrep tool calls:                      30
 grep-agent tool calls:                 227
 ```
 
@@ -51,7 +51,7 @@ source_doc_context_reduction_x   = source + docs tokens / retrieved JSON tokens
 
 The numerator approximates the size of context that an agent would otherwise
 read; the denominator approximates the size of the top-k JSON snippets
-returned by `mgrep search`. Token volumes are estimated as `chars / 4`.
+returned by `skygrep search`. Token volumes are estimated as `chars / 4`.
 
 This measures how much smaller the *retrieved* context is than the *whole
 indexed corpus*. It does not measure full agent session usage; it does not
@@ -72,7 +72,7 @@ OLLAMA_EMBED_MODEL=mxbai-embed-large \
 - **Baseline.** A grep-agent simulation issues exact-token searches and
   returns matching line windows, repeated until the expected file is found
   or a budget is exhausted.
-- **Treatment.** A single `mgrep search` call retrieves the top-k JSON
+- **Treatment.** A single `skygrep search` call retrieves the top-k JSON
   snippets.
 
 For both conditions the script counts:
@@ -94,14 +94,14 @@ OLLAMA_EMBED_MODEL=mxbai-embed-large \
 
 ## Results across top-k
 
-| top-k | recall (mgrep) | recall (grep) | estimated total-token reduction | context-token reduction | notes |
+| top-k | recall (skygrep) | recall (grep) | estimated total-token reduction | context-token reduction | notes |
 | --- | --- | --- | --- | --- | --- |
 | 5 | 28 / 30 | 30 / 30 | 2.66× | 5.53× | Highest token efficiency; misses two expected files. |
 | 10 | 30 / 30 | 30 / 30 | 2.00× | 2.90× | Equal recall to grep with the largest token reduction at parity. |
 | 20 | 30 / 30 | 30 / 30 | 1.36× | 1.53× | Equal recall, smaller reduction. |
 | 50 | 30 / 30 | 30 / 30 | 0.67× | 0.60× | Equal recall, but more tokens than the grep baseline. |
 
-Top-k 10 is the only setting in this table where local-mgrep matches
+Top-k 10 is the only setting in this table where skylakegrep matches
 grep-agent recall while keeping the estimated total-token reduction above 1×.
 
 Reproduce a single row with:
@@ -133,7 +133,7 @@ The numbers above support narrow claims only.
 ## Conditions for an end-to-end claim
 
 A future end-to-end benchmark, suitable for the broader claim that
-`local-mgrep` reduces token usage in real coding-agent sessions, requires
+`skylakegrep` reduces token usage in real coding-agent sessions, requires
 the following:
 
 1. A task set of 30–50 questions or navigation tasks with expected files
@@ -146,8 +146,8 @@ the following:
    answer score.
 4. Two conditions:
    - **Baseline.** The agent may use exact search tools (`grep`, `rg`),
-     file reads, and shell inspection, but not `local-mgrep`.
-   - **Treatment.** The agent may issue one or more `mgrep search` calls
+     file reads, and shell inspection, but not `skylakegrep`.
+   - **Treatment.** The agent may issue one or more `skygrep search` calls
      before reading files and may verify with file reads afterwards.
 5. The reported headline metric is
    `end_to_end_token_reduction = baseline total tokens / treatment total tokens`,

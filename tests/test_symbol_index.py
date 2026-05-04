@@ -21,9 +21,9 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
-from local_mgrep.src import cli as cli_module
-from local_mgrep.src.indexer import _split_camel_lower, extract_file_symbols
-from local_mgrep.src.storage import (
+from skylakegrep.src import cli as cli_module
+from skylakegrep.src.indexer import _split_camel_lower, extract_file_symbols
+from skylakegrep.src.storage import (
     init_db,
     populate_symbols,
     search,
@@ -256,8 +256,8 @@ class EndToEndSymbolBoostTests(unittest.TestCase):
 
             # And via the CLI.
             runner = CliRunner()
-            old_db_path = os.environ.get("MGREP_DB_PATH")
-            os.environ["MGREP_DB_PATH"] = str(db_path)
+            old_db_path = os.environ.get("SKYGREP_DB_PATH")
+            os.environ["SKYGREP_DB_PATH"] = str(db_path)
             try:
                 with patch.object(cli_module, "get_embedder", return_value=FakeEmbedder()):
                     result = runner.invoke(
@@ -277,9 +277,9 @@ class EndToEndSymbolBoostTests(unittest.TestCase):
                     )
             finally:
                 if old_db_path is None:
-                    os.environ.pop("MGREP_DB_PATH", None)
+                    os.environ.pop("SKYGREP_DB_PATH", None)
                 else:
-                    os.environ["MGREP_DB_PATH"] = old_db_path
+                    os.environ["SKYGREP_DB_PATH"] = old_db_path
             self.assertEqual(result.exit_code, 0, result.output)
             payload = json.loads(result.output)
             self.assertGreater(len(payload), 0)

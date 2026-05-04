@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from local_mgrep.src import auto_index
+from skylakegrep.src import auto_index
 
 
 # ---- helpers --------------------------------------------------------

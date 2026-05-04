@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 580" role="img" aria-labelledby="schema-title schema-desc" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
-  <title id="schema-title">local-mgrep SQLite schema</title>
+  <title id="schema-title">skylakegrep SQLite schema</title>
   <desc id="schema-desc">Two tables, chunks and vectors, joined 1-to-1 on id. Chunks holds source location and content; vectors holds the dense embedding as a binary BLOB. Two indexes accelerate file lookups.</desc>
 
   <!-- Title -->
   <text x="60" y="48" font-size="20" font-weight="600" fill="#e4e4e7" letter-spacing="-0.01em">SQLite schema</text>
   <text x="60" y="74" font-size="13" fill="#a1a1aa">
-    File <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">~/.local-mgrep/index.db</tspan> · created by
+    File <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">~/.skylakegrep/index.db</tspan> · created by
     <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">storage.init_db</tspan> ·
-    overridable via <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">$MGREP_DB_PATH</tspan>.
+    overridable via <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">$SKYGREP_DB_PATH</tspan>.
   </text>
 
   <!-- ======================== chunks table ======================== -->

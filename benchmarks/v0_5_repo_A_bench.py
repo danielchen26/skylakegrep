@@ -8,7 +8,7 @@ in 0.5.0 vs the 0.4.1 baseline:
     Tier C: + L4 PageRank tiebreaker
     Tier D: + both L2 and L4 (the actual 0.5.0 default)
     Tier E: + L3 doc2query enrichment (only if --enriched and the index
-            was already enriched by ``mgrep enrich``)
+            was already enriched by ``skygrep enrich``)
 
 The script reuses the existing ``/tmp/<repo-D>_idx_p1.db`` index (built under
 nomic-embed-text in earlier P-phases) and migrates it in-place to the
@@ -17,7 +17,7 @@ are unchanged). The benchmark *itself* never re-embeds anything, so the
 one-time migration is the only setup cost.
 
 Run:
-    OLLAMA_EMBED_MODEL=nomic-embed-text MGREP_DB_PATH=/tmp/<repo-D>_idx_p1.db \
+    OLLAMA_EMBED_MODEL=nomic-embed-text SKYGREP_DB_PATH=/tmp/<repo-D>_idx_p1.db \
       .venv/bin/python benchmarks/v0_5_<repo-D>_bench.py
 """
 
@@ -30,18 +30,18 @@ import sys
 import time
 from pathlib import Path
 
-REPO = Path("/Users/tianchichen/Documents/github/local-mgrep")
+REPO = Path("/Users/tianchichen/Documents/github/skylakegrep")
 WARP = Path("/path/to/repo-A")
 sys.path.insert(0, str(REPO))
 
 os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")
-os.environ.setdefault("MGREP_DB_PATH", "/tmp/<repo-D>_idx_p1.db")
+os.environ.setdefault("SKYGREP_DB_PATH", "/tmp/<repo-D>_idx_p1.db")
 
-from local_mgrep.src.answerer import get_answerer
-from local_mgrep.src.code_graph import populate_graph_table
-from local_mgrep.src.embeddings import get_embedder
-from local_mgrep.src.hybrid import lexical_candidate_paths
-from local_mgrep.src.storage import (
+from skylakegrep.src.answerer import get_answerer
+from skylakegrep.src.code_graph import populate_graph_table
+from skylakegrep.src.embeddings import get_embedder
+from skylakegrep.src.hybrid import lexical_candidate_paths
+from skylakegrep.src.storage import (
     cascade_search,
     init_db,
     populate_symbols,
@@ -121,7 +121,7 @@ def run_tier(
 
 
 def main() -> None:
-    conn = init_db(Path(os.environ["MGREP_DB_PATH"]))
+    conn = init_db(Path(os.environ["SKYGREP_DB_PATH"]))
     ensure_migrations(conn)
     print()
     print(f"v0.5.0 repo-A benchmark over {len(TASKS)} tasks "
@@ -154,7 +154,7 @@ def main() -> None:
     ).fetchone()[0]
     print(f"\n[L3 enrichment status: {n_enriched} chunks enriched]")
     if n_enriched == 0:
-        print("  → run `MGREP_DB_PATH=/tmp/<repo-D>_idx_p1.db mgrep enrich` "
+        print("  → run `SKYGREP_DB_PATH=/tmp/<repo-D>_idx_p1.db skygrep enrich` "
               "from the repo-A directory to add Tier E to this benchmark.")
 
 

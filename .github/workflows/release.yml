@@ -4,7 +4,7 @@ name: Release to PyPI
 #
 # Requires the repository secret PYPI_API_TOKEN (a project-scoped PyPI API
 # token). Generate at https://pypi.org/manage/account/token/ with
-# "Scope: Project · local-mgrep". The matching ``~/.pypirc`` flow we use
+# "Scope: Project · skylakegrep". The matching ``~/.pypirc`` flow we use
 # from a developer laptop is documented in CONTRIBUTING / docs/.
 #
 # This workflow does NOT trigger on master pushes. The author still

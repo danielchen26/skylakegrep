@@ -8,9 +8,9 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
-from local_mgrep.src import cli as cli_module
-from local_mgrep.src.indexer import batch_embed, collect_indexable_files
-from local_mgrep.src.storage import init_db, store_chunks_batch
+from skylakegrep.src import cli as cli_module
+from skylakegrep.src.indexer import batch_embed, collect_indexable_files
+from skylakegrep.src.storage import init_db, store_chunks_batch
 
 
 class KeywordEmbedder:
@@ -47,14 +47,14 @@ class BatchOnlyEmbedder:
 def with_db_path(db_path: Path):
     class DbPathContext:
         def __enter__(self):
-            self.old_db_path = os.environ.get("MGREP_DB_PATH")
-            os.environ["MGREP_DB_PATH"] = str(db_path)
+            self.old_db_path = os.environ.get("SKYGREP_DB_PATH")
+            os.environ["SKYGREP_DB_PATH"] = str(db_path)
 
         def __exit__(self, exc_type, exc, tb):
             if self.old_db_path is None:
-                os.environ.pop("MGREP_DB_PATH", None)
+                os.environ.pop("SKYGREP_DB_PATH", None)
             else:
-                os.environ["MGREP_DB_PATH"] = self.old_db_path
+                os.environ["SKYGREP_DB_PATH"] = self.old_db_path
 
     return DbPathContext()
 

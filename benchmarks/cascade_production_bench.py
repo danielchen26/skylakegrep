@@ -1,9 +1,9 @@
 """Production cascade benchmark — calls the real ``storage.cascade_search``
-through the same code path that ``mgrep search --cascade`` uses, and verifies
+through the same code path that ``skygrep search --cascade`` uses, and verifies
 repo-A recall matches the probe (14/16 @ ~1.9 s/q at tau=0.015).
 
 Run:
-    OLLAMA_EMBED_MODEL=nomic-embed-text MGREP_DB_PATH=/tmp/<repo-D>_idx_p1.db \
+    OLLAMA_EMBED_MODEL=nomic-embed-text SKYGREP_DB_PATH=/tmp/<repo-D>_idx_p1.db \
       .venv/bin/python benchmarks/cascade_production_bench.py
 """
 
@@ -16,17 +16,17 @@ import sys
 import time
 from pathlib import Path
 
-REPO = Path("/Users/tianchichen/Documents/github/local-mgrep")
+REPO = Path("/Users/tianchichen/Documents/github/skylakegrep")
 WARP = Path("/path/to/repo-A")
 sys.path.insert(0, str(REPO))
 
 os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")
-os.environ.setdefault("MGREP_DB_PATH", "/tmp/<repo-D>_idx_p1.db")
+os.environ.setdefault("SKYGREP_DB_PATH", "/tmp/<repo-D>_idx_p1.db")
 
-from local_mgrep.src.answerer import get_answerer
-from local_mgrep.src.embeddings import get_embedder
-from local_mgrep.src.hybrid import lexical_candidate_paths
-from local_mgrep.src.storage import cascade_search
+from skylakegrep.src.answerer import get_answerer
+from skylakegrep.src.embeddings import get_embedder
+from skylakegrep.src.hybrid import lexical_candidate_paths
+from skylakegrep.src.storage import cascade_search
 
 TASKS = json.loads((REPO / "benchmarks/cross_repo/repo-a.json").read_text())
 

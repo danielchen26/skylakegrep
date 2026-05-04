@@ -1,4 +1,4 @@
-# local-mgrep Implementation Plan
+# skylakegrep Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -13,26 +13,26 @@
 ## Task 1: Project Setup
 
 **Files:**
-- Create: `local-mgrep/pyproject.toml`
-- Create: `local-mgrep/src/__init__.py`
-- Create: `local-mgrep/src/config.py`
-- Create: `local-mgrep/src/indexer.py`
-- Create: `local-mgrep/src/searcher.py`
-- Create: `local-mgrep/src/cli.py`
-- Create: `local-mgrep/tests/`
+- Create: `skylakegrep/pyproject.toml`
+- Create: `skylakegrep/src/__init__.py`
+- Create: `skylakegrep/src/config.py`
+- Create: `skylakegrep/src/indexer.py`
+- Create: `skylakegrep/src/searcher.py`
+- Create: `skylakegrep/src/cli.py`
+- Create: `skylakegrep/tests/`
 
 **Step 1: Create project structure**
 
 ```bash
-mkdir -p local-mgrep/src local-mgrep/tests
-touch local-mgrep/src/__init__.py
+mkdir -p skylakegrep/src skylakegrep/tests
+touch skylakegrep/src/__init__.py
 ```
 
 **Step 2: Create pyproject.toml**
 
 ```toml
 [project]
-name = "local-mgrep"
+name = "skylakegrep"
 version = "0.1.0"
 description = "Free local semantic code search using Ollama"
 requires-python = ">=3.10"
@@ -46,12 +46,12 @@ dependencies = [
 ]
 
 [project.scripts]
-mgrep = "local_mgrep.cli:main"
+skygrep = "skylakegrep.cli:main"
 ```
 
 **Step 3: Install dependencies**
 
-Run: `cd local-mgrep && pip install -e .`
+Run: `cd skylakegrep && pip install -e .`
 Expected: Installation succeeds
 
 ---
@@ -59,24 +59,24 @@ Expected: Installation succeeds
 ## Task 2: Config Module
 
 **Files:**
-- Create: `local-mgrep/src/config.py`
+- Create: `skylakegrep/src/config.py`
 
 **Step 1: Write config module**
 
 ```python
-"""Configuration for local-mgrep."""
+"""Configuration for skylakegrep."""
 import os
 from pathlib import Path
 
 DEFAULT_OLLAMA_URL = "http://localhost:11434"
 DEFAULT_EMBED_MODEL = "nomic-embed-text:latest"
-DEFAULT_DB_PATH = Path.home() / ".local-mgrep" / "index.db"
+DEFAULT_DB_PATH = Path.home() / ".skylakegrep" / "index.db"
 
 def get_config():
     return {
         "ollama_url": os.environ.get("OLLAMA_URL", DEFAULT_OLLAMA_URL),
         "embed_model": os.environ.get("OLLAMA_EMBED_MODEL", DEFAULT_EMBED_MODEL),
-        "db_path": Path(os.environ.get("MGREP_DB_PATH", str(DEFAULT_DB_PATH))),
+        "db_path": Path(os.environ.get("SKYGREP_DB_PATH", str(DEFAULT_DB_PATH))),
     }
 ```
 
@@ -85,7 +85,7 @@ def get_config():
 ## Task 3: Ollama Embedding Integration
 
 **Files:**
-- Create: `local-mgrep/src/embeddings.py`
+- Create: `skylakegrep/src/embeddings.py`
 
 **Step 1: Write Ollama embedding client**
 
@@ -123,7 +123,7 @@ class OllamaEmbedder:
 ## Task 4: Code Parser & File Indexer
 
 **Files:**
-- Create: `local-mgrep/src/indexer.py`
+- Create: `skylakegrep/src/indexer.py`
 
 **Step 1: Write code parser using tree-sitter**
 
@@ -191,7 +191,7 @@ def index_file(filepath: Path, embedder) -> list[dict]:
 ## Task 5: Vector Storage (SQLite + numpy)
 
 **Files:**
-- Modify: `local-mgrep/src/storage.py` (new file)
+- Modify: `skylakegrep/src/storage.py` (new file)
 
 **Step 1: Write storage module**
 
@@ -256,12 +256,12 @@ def search(conn, query_embedding: list[float], top_k: int = 10) -> list[dict]:
 ## Task 6: CLI Interface
 
 **Files:**
-- Create: `local-mgrep/src/cli.py`
+- Create: `skylakegrep/src/cli.py`
 
 **Step 1: Write CLI module**
 
 ```python
-"""CLI for local-mgrep."""
+"""CLI for skylakegrep."""
 import click
 from pathlib import Path
 from .indexer import index_file, SUPPORTED_EXTENSIONS
@@ -333,7 +333,7 @@ import sqlite3
 ## Task 7: Create CLI entrypoint
 
 **Files:**
-- Modify: `local-mgrep/src/cli.py` - fix main()
+- Modify: `skylakegrep/src/cli.py` - fix main()
 
 **Step 1: Update main function**
 
@@ -347,20 +347,20 @@ def main():
 ## Task 8: Testing
 
 **Files:**
-- Create: `local-mgrep/tests/test_indexer.py`
+- Create: `skylakegrep/tests/test_indexer.py`
 
 **Step 1: Write basic test**
 
 ```python
-"""Tests for local-mgrep."""
-from local_mgrep.src.indexer import SUPPORTED_EXTENSIONS
+"""Tests for skylakegrep."""
+from skylakegrep.src.indexer import SUPPORTED_EXTENSIONS
 
 def test_supported_extensions():
     assert ".py" in SUPPORTED_EXTENSIONS
     assert ".js" in SUPPORTED_EXTENSIONS
 
 def test_extract_code_chunks():
-    from local_mgrep.src.indexer import extract_code_chunks
+    from skylakegrep.src.indexer import extract_code_chunks
     code = "def foo():\n    pass\ndef bar():\n    pass"
     chunks = extract_code_chunks(code, "python")
     assert len(chunks) > 0
@@ -368,7 +368,7 @@ def test_extract_code_chunks():
 
 **Step 2: Run tests**
 
-Run: `cd local-mgrep && python -m pytest tests/ -v`
+Run: `cd skylakegrep && python -m pytest tests/ -v`
 Expected: Tests pass
 
 ---

@@ -8,9 +8,9 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
-from local_mgrep.src import cli as cli_module
-from local_mgrep.src.indexer import collect_indexable_files, prepare_file_chunks
-from local_mgrep.src.storage import init_db, search, store_chunks_batch
+from skylakegrep.src import cli as cli_module
+from skylakegrep.src.indexer import collect_indexable_files, prepare_file_chunks
+from skylakegrep.src.storage import init_db, search, store_chunks_batch
 
 
 class StaticEmbedder:
@@ -32,7 +32,7 @@ class SearchQualityTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            with patch("local_mgrep.src.indexer.get_parser", return_value=None):
+            with patch("skylakegrep.src.indexer.get_parser", return_value=None):
                 chunks = prepare_file_chunks(path)
 
         self.assertEqual(len(chunks), 1)
@@ -119,16 +119,16 @@ class SearchQualityTests(unittest.TestCase):
                 ],
             )
             runner = CliRunner()
-            old_db_path = os.environ.get("MGREP_DB_PATH")
-            os.environ["MGREP_DB_PATH"] = str(db_path)
+            old_db_path = os.environ.get("SKYGREP_DB_PATH")
+            os.environ["SKYGREP_DB_PATH"] = str(db_path)
             try:
                 with patch.object(cli_module, "get_embedder", return_value=StaticEmbedder()):
                     result = runner.invoke(cli_module.cli, ["search", "--no-lexical-prefilter", "token", "--json", "--no-rerank"])
             finally:
                 if old_db_path is None:
-                    os.environ.pop("MGREP_DB_PATH", None)
+                    os.environ.pop("SKYGREP_DB_PATH", None)
                 else:
-                    os.environ["MGREP_DB_PATH"] = old_db_path
+                    os.environ["SKYGREP_DB_PATH"] = old_db_path
 
         self.assertEqual(result.exit_code, 0, result.output)
         payload = json.loads(result.output)

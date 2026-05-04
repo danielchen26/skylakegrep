@@ -1,8 +1,8 @@
-# local-mgrep accuracy roadmap
+# skylakegrep accuracy roadmap
 
-This document records the planned improvements to lift local-mgrep retrieval
+This document records the planned improvements to lift skylakegrep retrieval
 quality so that recall on unseen large repositories approaches
-`@mixedbread/mgrep` cloud parity, while keeping the token-reduction advantage
+`@mixedbread/skygrep` cloud parity, while keeping the token-reduction advantage
 over ripgrep.
 
 It is a strict execution plan. Items are ordered by ROI; each item names the
@@ -20,12 +20,12 @@ concrete code change, expected lift, and verification step.
 | P2-F+ (deterministic HyDE seed, ``mxbai-rerank-large-v2``, non-canonical path penalty) | **14/16** stable | **DONE** — 2 misses remain (websocket / billing) |
 | P2-Latency (measure daily-driver tradeoff) | base rerank + no HyDE = **10/16 @ 12.7 s** ; raw = 8/16 @ 3.3 s | **DONE** — speed × recall curve in `docs/parity-benchmarks.md` |
 | P2-MR (multi-resolution: file-level cosine top-30 → chunk-level) | every config ~2× faster, loses 0-1 / 16 recall. Daily = **10/16 @ 8.1 s**, accurate = **13/16 @ 25.3 s**, max = 14/16 @ 54 s with `--no-multi-resolution` | **DONE** — default on |
-| P2-D (daemon mode: ``mgrep serve`` + ``--daemon-url``) | single-query latency 27 s → 21 s; the dominant remaining cost is per-query rerank inference, not model load. Useful for interactive multi-query sessions | **DONE** — opt-in |
-| P2-Q (quantisation + device probe) | ``int8`` dynamic quant: no speedup on Apple Silicon (no VNNI). MPS: no speedup on the 2 B Qwen2 reranker (op fallbacks). The real Mac-CPU lever is the smaller ``mxbai-rerank-base-v2`` model (14.4 s cold vs 27 s) — already settable via ``MGREP_RERANK_MODEL`` | **DONE** — knobs added, findings recorded |
-| **P3-LP (lexical prefilter — new default first stage)** | ripgrep is the first stage of the pipeline; cosine + rerank only run on chunks of rg-matched files. **Daily-driver tier 8 s → 0.52 s (16× faster) at 9/16 recall**. Standard tier 8 s → 7 s @ 10/16. Max tier 25 s → 23 s @ 13/16. ``mgrep search`` runs ``rg -il -F`` against the working directory by default; falls back to corpus-wide cosine when rg returns fewer than ``--lexical-min-candidates`` (2) | **DONE** — default on |
+| P2-D (daemon mode: ``skygrep serve`` + ``--daemon-url``) | single-query latency 27 s → 21 s; the dominant remaining cost is per-query rerank inference, not model load. Useful for interactive multi-query sessions | **DONE** — opt-in |
+| P2-Q (quantisation + device probe) | ``int8`` dynamic quant: no speedup on Apple Silicon (no VNNI). MPS: no speedup on the 2 B Qwen2 reranker (op fallbacks). The real Mac-CPU lever is the smaller ``mxbai-rerank-base-v2`` model (14.4 s cold vs 27 s) — already settable via ``SKYGREP_RERANK_MODEL`` | **DONE** — knobs added, findings recorded |
+| **P3-LP (lexical prefilter — new default first stage)** | ripgrep is the first stage of the pipeline; cosine + rerank only run on chunks of rg-matched files. **Daily-driver tier 8 s → 0.52 s (16× faster) at 9/16 recall**. Standard tier 8 s → 7 s @ 10/16. Max tier 25 s → 23 s @ 13/16. ``skygrep search`` runs ``rg -il -F`` against the working directory by default; falls back to corpus-wide cosine when rg returns fewer than ``--lexical-min-candidates`` (2) | **DONE** — default on |
 | **P3-FR (file-rank: one best chunk per file)** | ``--rank-by file`` collapses results so each candidate file gets exactly one slot — its highest-scoring chunk. Stops chunk-volume imbalance from masking small canonical files. Standard tier 10/16 → **11/16** (+1) at 9.5 s. Max tier 13/16 → **14/16** at 21.8 s — same peak recall the chunk-only no-MR config previously needed 54 s to reach (**2.5× faster**) | **DONE** — opt-in flag |
 | P3-AR (agentic refine — multi-turn LLM-driven query rewrite) | implemented in worktree but **rejected**: B1 8/16 @ 1.0 s, B2 10/16 @ 17.5 s, B3 13/16 @ 59.3 s. No tier improved over plain prefilter+file-rank, and the LLM call adds latency. The bottleneck for misses is chunk-volume imbalance, not query wording — file-rank fixes the actual root cause | **NOT MERGED** — branch ``feature/agentic-refine`` retained for reference |
-| **P4-CC (confidence-gated cascade)** | `mgrep search --cascade` runs file-mean cosine first; if top-1 minus top-2 ≥ τ the cheap result is returned, otherwise it escalates to Round A ∪ Round C (HyDE) union. **τ=0.015 → 14/16 @ 1.49 s/q with 81% early-exit** — same recall as the previous max tier (21.8 s) at **14× lower latency**. New file `local_mgrep/src/storage.py::cascade_search`; benched in `benchmarks/cascade_production_bench.py` and probed in `benchmarks/cascade_probe.py` | **DONE** — opt-in via `--cascade` |
+| **P4-CC (confidence-gated cascade)** | `skygrep search --cascade` runs file-mean cosine first; if top-1 minus top-2 ≥ τ the cheap result is returned, otherwise it escalates to Round A ∪ Round C (HyDE) union. **τ=0.015 → 14/16 @ 1.49 s/q with 81% early-exit** — same recall as the previous max tier (21.8 s) at **14× lower latency**. New file `skylakegrep/src/storage.py::cascade_search`; benched in `benchmarks/cascade_production_bench.py` and probed in `benchmarks/cascade_probe.py` | **DONE** — opt-in via `--cascade` |
 | P4-LFA (LLM filename arbitration) | feed top-N rg paths to qwen2.5:3b, ask which 5 are most likely, then cosine. Tested 4 variants: LFA-only(20→5) 9/16 @ 0.91 s, LFA-only(30→5) 10/16 @ 1.17 s, LFA-rerank(20→5) 9/16 @ 1.05 s, LFA-rerank(30→5) 10/16 @ 1.10 s. **All worse than B-only baseline (11/16 @ 0.13 s)** — qwen2.5:3b cannot reliably localise from filenames alone. Bigger LLM might do better but adds prohibitive latency | **ABANDONED** — null result, probe retained at `benchmarks/llm_arbitration_probe.py` |
 | P4-CGC (code-graph centrality) | parse Rust `use crate::…` and `mod` to build per-file in-degree (1655 for `crates/<repo-D>ui/src/lib.rs`); add `α · log(1+indeg)` prior to Round B file-cosine. **Hurts recall**: α=0 11/16, α=0.05 9/16, α≥0.10 7/16. Hub files (`lib.rs`, `mod.rs`) systematically beat canonical leaf files — the centrality signal points the wrong direction for "where is X implemented" queries. Probe at `benchmarks/code_graph_probe.py` | **ABANDONED** — null result |
 | P4-MH (multi-HyDE union) | three independent HyDE prompts (sdk-call, ident-list, crate-path) per query, search each, union top-K. **Saturates at 14/16 @ 3.75 s/q** — same ceiling as cascade, 2.5× slower. The 2 remaining misses (`crates/ai/`, `app/src/billing/`) are hard semantic-disambiguation cases that no LLM-augmented variant catches. Probe at `benchmarks/multi_hyde_probe.py` | **ABANDONED** — no Pareto improvement over P4-CC |
@@ -70,10 +70,10 @@ all five.
 
 **P0-A: cross-encoder reranker as second-stage scorer.**
 
-- New module `local_mgrep/src/reranker.py` wrapping a `CrossEncoder` from
+- New module `skylakegrep/src/reranker.py` wrapping a `CrossEncoder` from
   `sentence-transformers`. Default model
   `mixedbread-ai/mxbai-rerank-base-v2` (≈150 M params, CPU-friendly).
-- Lazy import — basic `mgrep` install does not pull torch.
+- Lazy import — basic `skygrep` install does not pull torch.
 - `storage.search()` retrieves a wider candidate pool (default 50), the
   reranker scores `(query, chunk)` pairs, top-k by rerank score is returned.
 - CLI flag `--rerank / --no-rerank` (default on when extras installed,
@@ -86,12 +86,12 @@ all five.
 - Supports asymmetric `search_query: ` / `search_document: ` prefixes,
   giving us P2-G "for free" once enabled.
 - Add a runtime warning when the on-disk index vector dim does not match the
-  current model's vector dim, with a clear `mgrep index --reset` instruction.
+  current model's vector dim, with a clear `skygrep index --reset` instruction.
 
 **Verification.** Existing 14 unit tests pass; `agent_context_benchmark.py`
-on the local-mgrep self-test recall stays 30/30 with rerank enabled;
+on the skylakegrep self-test recall stays 30/30 with rerank enabled;
 `parity_vs_ripgrep.py --tasks benchmarks/cross_repo/repo-a.json` on repo-A
-re-indexed under nomic-embed-text + rerank lifts mgrep recall above 12/16.
+re-indexed under nomic-embed-text + rerank lifts skygrep recall above 12/16.
 
 ### P1 — within one week (target: repo-A recall 14-16/16)
 
@@ -145,7 +145,7 @@ before embedding.**
 **P2-H: expose `MAX_RESULTS_PER_FILE` and `RERANK_POOL` as CLI / env.**
 
 - `--max-per-file` and `--rerank-pool` flags.
-- Env vars `MGREP_MAX_PER_FILE`, `MGREP_RERANK_POOL`.
+- Env vars `SKYGREP_MAX_PER_FILE`, `SKYGREP_RERANK_POOL`.
 
 ### P3 — long-term
 
@@ -164,18 +164,18 @@ After each P-level lands:
 
 1. `pytest -q` — all existing unit tests pass.
 2. `.venv/bin/python benchmarks/agent_context_benchmark.py --top-k 10
-   --summary-only` — recall stays 30/30 on the local-mgrep self-test
+   --summary-only` — recall stays 30/30 on the skylakegrep self-test
    (regression guard).
 3. `.venv/bin/python benchmarks/parity_vs_ripgrep.py --top-k 10
    --summary-only` — same self-test, with the real-rg comparison.
 4. Re-index repo-A once per phase, then
    `.venv/bin/python benchmarks/parity_vs_ripgrep.py --root /path/to/repo-A
    --tasks benchmarks/cross_repo/repo-a.json --top-k 10 --summary-only`,
-   and append the phase's mgrep recall and token-reduction numbers as a
+   and append the phase's skygrep recall and token-reduction numbers as a
    new row in `docs/parity-benchmarks.md`.
 5. Commit, push, update `docs/parity-benchmarks.md` headline table.
 
-The headline check after P0 (A + B) is whether repo-A mgrep recall reaches
-≥ 12/16 with no more than a 4× rise in mgrep total tokens. If yes, proceed
+The headline check after P0 (A + B) is whether repo-A skygrep recall reaches
+≥ 12/16 with no more than a 4× rise in skygrep total tokens. If yes, proceed
 to P1. If no, diagnose which queries still miss and revisit P0 selection
 before adding P1 changes.

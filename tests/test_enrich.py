@@ -16,8 +16,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from local_mgrep.src import enrich as enrich_mod
-from local_mgrep.src.storage import init_db, store_chunks_batch
+from skylakegrep.src import enrich as enrich_mod
+from skylakegrep.src.storage import init_db, store_chunks_batch
 
 
 class KeywordEmbedder:
@@ -131,7 +131,7 @@ class EnrichTests(unittest.TestCase):
             }
 
             with patch(
-                "local_mgrep.src.enrich.requests.post",
+                "skylakegrep.src.enrich.requests.post",
                 side_effect=_path_aware_post,
             ):
                 n = enrich_mod.enrich_pending_chunks(
@@ -170,7 +170,7 @@ class EnrichTests(unittest.TestCase):
             conn = _seed_db(db_path)
 
             with patch(
-                "local_mgrep.src.enrich.requests.post",
+                "skylakegrep.src.enrich.requests.post",
                 side_effect=_path_aware_post,
             ):
                 first = enrich_mod.enrich_pending_chunks(
@@ -183,7 +183,7 @@ class EnrichTests(unittest.TestCase):
             self.assertEqual(enrich_mod.count_pending(conn), 2)
 
             with patch(
-                "local_mgrep.src.enrich.requests.post",
+                "skylakegrep.src.enrich.requests.post",
                 side_effect=_path_aware_post,
             ):
                 second = enrich_mod.enrich_pending_chunks(
@@ -208,7 +208,7 @@ class EnrichTests(unittest.TestCase):
             def boom(*args, **kwargs):
                 raise _requests.RequestException("ollama down")
 
-            with patch("local_mgrep.src.enrich.requests.post", side_effect=boom):
+            with patch("skylakegrep.src.enrich.requests.post", side_effect=boom):
                 n = enrich_mod.enrich_pending_chunks(
                     conn,
                     embedder=KeywordEmbedder(),
@@ -223,7 +223,7 @@ class EnrichTests(unittest.TestCase):
             conn = _seed_db(db_path)
             self.assertEqual(enrich_mod.count_enriched(conn), (0, 3))
             with patch(
-                "local_mgrep.src.enrich.requests.post",
+                "skylakegrep.src.enrich.requests.post",
                 side_effect=_path_aware_post,
             ):
                 enrich_mod.enrich_pending_chunks(

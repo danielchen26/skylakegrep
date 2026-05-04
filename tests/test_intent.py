@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from local_mgrep.src.intent import classify_intent, merge_results
+from skylakegrep.src.intent import classify_intent, merge_results
 
 
 # ---- classify_intent ------------------------------------------------

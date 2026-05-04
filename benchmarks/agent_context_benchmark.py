@@ -1,12 +1,12 @@
-"""Deterministic grep-agent vs local-mgrep-agent benchmark.
+"""Deterministic grep-agent vs skylakegrep-agent benchmark.
 
-This benchmark is closer to the original mgrep token-savings claim than
+This benchmark is closer to the original skygrep token-savings claim than
 `token_savings.py`, but it is still intentionally local and deterministic. It
 does not call Claude/OpenCode/Codex or read provider billing meters. Instead, it
 compares two context-gathering policies an agent could use before answering:
 
 1. grep-agent: issue several exact term searches and pass matching line windows.
-2. mgrep-agent: issue one local-mgrep semantic search and pass top-k snippets.
+2. skygrep-agent: issue one skylakegrep semantic search and pass top-k snippets.
 
 The benchmark reports context-only token ratios and estimated end-to-end ratios
 after adding configurable fixed prompt/output overhead. This approximates the
@@ -30,9 +30,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from local_mgrep.src.cli import render_json_results
-from local_mgrep.src.embeddings import get_embedder
-from local_mgrep.src.storage import search
+from skylakegrep.src.cli import render_json_results
+from skylakegrep.src.embeddings import get_embedder
+from skylakegrep.src.storage import search
 
 from benchmarks.token_savings import (
     DEFAULT_IGNORED_PARTS,
@@ -42,134 +42,134 @@ from benchmarks.token_savings import (
     count_files,
     is_benchmark_ignored,
 )
-from local_mgrep.src.indexer import collect_indexable_files
+from skylakegrep.src.indexer import collect_indexable_files
 
 
 DEFAULT_TASKS = [
     {
         "id": "hybrid-ranking-001",
         "question": "Where are lexical and semantic scores combined for ranking?",
-        "expected": "local_mgrep/src/storage.py",
+        "expected": "skylakegrep/src/storage.py",
     },
     {
         "id": "hybrid-ranking-002",
         "question": "How is query text tokenized for exact code-term matching?",
-        "expected": "local_mgrep/src/storage.py",
+        "expected": "skylakegrep/src/storage.py",
     },
     {
         "id": "semantic-only-001",
         "question": "Which CLI option disables lexical reranking and keeps pure vector ordering?",
-        "expected": "local_mgrep/src/cli.py",
+        "expected": "skylakegrep/src/cli.py",
     },
     {
         "id": "json-output-001",
         "question": "Where is the stable JSON result schema created for agents?",
-        "expected": "local_mgrep/src/cli.py",
+        "expected": "skylakegrep/src/cli.py",
     },
     {
         "id": "agentic-001",
         "question": "How does search split a broad question into local subqueries?",
-        "expected": "local_mgrep/src/cli.py",
+        "expected": "skylakegrep/src/cli.py",
     },
     {
         "id": "answer-mode-001",
         "question": "Where does answer mode synthesize an answer from retrieved snippets?",
-        "expected": "local_mgrep/src/cli.py",
+        "expected": "skylakegrep/src/cli.py",
     },
     {
         "id": "watch-mode-001",
         "question": "Where does watch mode update changed files in the index?",
-        "expected": "local_mgrep/src/cli.py",
+        "expected": "skylakegrep/src/cli.py",
     },
     {
         "id": "watch-mode-002",
         "question": "Where does watch mode remove records for deleted files?",
-        "expected": "local_mgrep/src/cli.py",
+        "expected": "skylakegrep/src/cli.py",
     },
     {
         "id": "indexing-001",
         "question": "Where are indexable source files collected while respecting ignore rules?",
-        "expected": "local_mgrep/src/indexer.py",
+        "expected": "skylakegrep/src/indexer.py",
     },
     {
         "id": "indexing-002",
         "question": "Where are .gitignore and .mgrepignore patterns loaded?",
-        "expected": "local_mgrep/src/indexer.py",
+        "expected": "skylakegrep/src/indexer.py",
     },
     {
         "id": "indexing-003",
         "question": "Where are vendor and generated directories skipped by default?",
-        "expected": "local_mgrep/src/indexer.py",
+        "expected": "skylakegrep/src/indexer.py",
     },
     {
         "id": "chunking-001",
         "question": "Where does the fallback splitter create line and byte ranges?",
-        "expected": "local_mgrep/src/indexer.py",
+        "expected": "skylakegrep/src/indexer.py",
     },
     {
         "id": "chunking-002",
         "question": "Where does tree-sitter extraction fall back to text chunking?",
-        "expected": "local_mgrep/src/indexer.py",
+        "expected": "skylakegrep/src/indexer.py",
     },
     {
         "id": "chunking-003",
         "question": "Where are per-file chunks prepared with language and mtime metadata?",
-        "expected": "local_mgrep/src/indexer.py",
+        "expected": "skylakegrep/src/indexer.py",
     },
     {
         "id": "embedding-001",
         "question": "Where does indexing use a batch embedding API when available?",
-        "expected": "local_mgrep/src/indexer.py",
+        "expected": "skylakegrep/src/indexer.py",
     },
     {
         "id": "embedding-002",
         "question": "Where does the Ollama embedder call the batch endpoint and fallback endpoint?",
-        "expected": "local_mgrep/src/embeddings.py",
+        "expected": "skylakegrep/src/embeddings.py",
     },
     {
         "id": "answerer-001",
         "question": "Where does local answer mode call an Ollama chat model?",
-        "expected": "local_mgrep/src/answerer.py",
+        "expected": "skylakegrep/src/answerer.py",
     },
     {
         "id": "answerer-002",
         "question": "Where are generated subqueries parsed from a local model response?",
-        "expected": "local_mgrep/src/answerer.py",
+        "expected": "skylakegrep/src/answerer.py",
     },
     {
         "id": "storage-001",
         "question": "Where is the SQLite chunk schema initialized with provenance columns?",
-        "expected": "local_mgrep/src/storage.py",
+        "expected": "skylakegrep/src/storage.py",
     },
     {
         "id": "storage-002",
         "question": "Where are deleted file chunks removed from both tables?",
-        "expected": "local_mgrep/src/storage.py",
+        "expected": "skylakegrep/src/storage.py",
     },
     {
         "id": "storage-003",
         "question": "Where does incremental cleanup remove rows for missing files?",
-        "expected": "local_mgrep/src/storage.py",
+        "expected": "skylakegrep/src/storage.py",
     },
     {
         "id": "storage-004",
         "question": "Where are include and exclude path filters applied?",
-        "expected": "local_mgrep/src/storage.py",
+        "expected": "skylakegrep/src/storage.py",
     },
     {
         "id": "storage-005",
         "question": "Where does vectorized scoring rank chunks with NumPy?",
-        "expected": "local_mgrep/src/storage.py",
+        "expected": "skylakegrep/src/storage.py",
     },
     {
         "id": "storage-006",
         "question": "Where are duplicate logical search results skipped?",
-        "expected": "local_mgrep/src/storage.py",
+        "expected": "skylakegrep/src/storage.py",
     },
     {
         "id": "config-001",
         "question": "Where are Ollama and database environment variables read?",
-        "expected": "local_mgrep/src/config.py",
+        "expected": "skylakegrep/src/config.py",
     },
     {
         "id": "tests-001",
@@ -315,7 +315,7 @@ def grep_agent_context(
     }
 
 
-def mgrep_agent_context(
+def skygrep_agent_context(
     conn: sqlite3.Connection,
     question: str,
     top_k: int,
@@ -332,7 +332,7 @@ def mgrep_agent_context(
     rank_by: str = "chunk",
 ) -> dict[str, object]:
     if daemon_url:
-        from local_mgrep.src.server import daemon_search
+        from skylakegrep.src.server import daemon_search
 
         started = time.perf_counter()
         resp = daemon_search(
@@ -360,7 +360,7 @@ def mgrep_agent_context(
     started = time.perf_counter()
     if hyde:
         try:
-            from local_mgrep.src.answerer import get_answerer
+            from skylakegrep.src.answerer import get_answerer
             embed_input = get_answerer().hyde(question)
         except Exception:
             embed_input = question
@@ -368,7 +368,7 @@ def mgrep_agent_context(
         embed_input = question
     candidate_paths = None
     if lexical_prefilter and lexical_root is not None:
-        from local_mgrep.src.hybrid import lexical_candidate_paths
+        from skylakegrep.src.hybrid import lexical_candidate_paths
 
         cands = lexical_candidate_paths(question, lexical_root)
         if len(cands) >= lexical_min_candidates:
@@ -420,7 +420,7 @@ def safe_ratio(numerator: float, denominator: float) -> float:
 def _expected_hit(expected: str, paths: list[str]) -> bool:
     """Substring match between an ``expected`` path and the returned paths.
 
-    Returned paths may be absolute (from ``mgrep index``) or repo-relative
+    Returned paths may be absolute (from ``skygrep index``) or repo-relative
     (from the bench's own ``build_index`` rewrite); ``expected`` is repo-
     relative. A substring check covers both cases and matches the convention
     used by ``parity_vs_ripgrep.expected_hit``.
@@ -431,7 +431,7 @@ def _expected_hit(expected: str, paths: list[str]) -> bool:
 
 def benchmark(args: argparse.Namespace) -> dict[str, object]:
     root = Path(args.root).resolve()
-    db_path = Path(args.db_path) if args.db_path else Path(tempfile.gettempdir()) / "local-mgrep-agent-benchmark.sqlite"
+    db_path = Path(args.db_path) if args.db_path else Path(tempfile.gettempdir()) / "skylakegrep-agent-benchmark.sqlite"
     indexed_files = [path for path in collect_indexable_files(root) if not is_benchmark_ignored(path, root)]
     source_doc_corpus = count_files(
         collect_source_doc_files(root, {".py", ".md", ".toml"}),
@@ -458,7 +458,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             context_lines=args.grep_context_lines,
             chars_per_token=args.chars_per_token,
         )
-        mgrep_result = mgrep_agent_context(
+        skygrep_result = skygrep_agent_context(
             conn,
             task["question"],
             top_k=args.top_k,
@@ -475,7 +475,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             rank_by=getattr(args, "rank_by", "chunk"),
         )
         grep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(grep_result["context_tokens"])
-        mgrep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(mgrep_result["context_tokens"])
+        mgrep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(skygrep_result["context_tokens"])
         rows.append(
             {
                 "id": task["id"],
@@ -486,27 +486,27 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
                     "hit": _expected_hit(expected, grep_result["paths"]),
                     "estimated_total_tokens": grep_total,
                 },
-                "mgrep": {
-                    **mgrep_result,
-                    "hit": _expected_hit(expected, mgrep_result["paths"]),
+                "skygrep": {
+                    **skygrep_result,
+                    "hit": _expected_hit(expected, skygrep_result["paths"]),
                     "estimated_total_tokens": mgrep_total,
                 },
                 "context_token_reduction_x": safe_ratio(
-                    float(grep_result["context_tokens"]), float(mgrep_result["context_tokens"])
+                    float(grep_result["context_tokens"]), float(skygrep_result["context_tokens"])
                 ),
                 "estimated_total_token_reduction_x": safe_ratio(grep_total, mgrep_total),
             }
         )
 
     grep_context = sum(int(row["grep"]["context_tokens"]) for row in rows)
-    mgrep_context = sum(int(row["mgrep"]["context_tokens"]) for row in rows)
+    mgrep_context = sum(int(row["skygrep"]["context_tokens"]) for row in rows)
     grep_total = sum(int(row["grep"]["estimated_total_tokens"]) for row in rows)
-    mgrep_total = sum(int(row["mgrep"]["estimated_total_tokens"]) for row in rows)
+    mgrep_total = sum(int(row["skygrep"]["estimated_total_tokens"]) for row in rows)
     return {
         "definition": {
             "benchmark_type": "deterministic context-gathering agent simulation",
             "grep_agent": "multiple exact term searches over indexed files, returning matching line windows",
-            "mgrep_agent": "one semantic local-mgrep top-k search per task",
+            "mgrep_agent": "one semantic skylakegrep top-k search per task",
             "token_note": "tokens are approximate chars/4; estimated totals add fixed prompt and final-answer overhead",
         },
         "parameters": {
@@ -528,28 +528,28 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
         },
         "summary": {
             "grep_context_tokens": grep_context,
-            "mgrep_context_tokens": mgrep_context,
+            "skygrep_context_tokens": mgrep_context,
             "context_token_reduction_x": safe_ratio(grep_context, mgrep_context),
             "grep_estimated_total_tokens": grep_total,
-            "mgrep_estimated_total_tokens": mgrep_total,
+            "skygrep_estimated_total_tokens": mgrep_total,
             "estimated_total_token_reduction_x": safe_ratio(grep_total, mgrep_total),
             "grep_hit_rate": f"{sum(1 for row in rows if row['grep']['hit'])}/{len(rows)}",
-            "mgrep_hit_rate": f"{sum(1 for row in rows if row['mgrep']['hit'])}/{len(rows)}",
+            "skygrep_hit_rate": f"{sum(1 for row in rows if row['skygrep']['hit'])}/{len(rows)}",
             "grep_avg_latency_seconds": round(
                 sum(float(row["grep"]["latency_seconds"]) for row in rows) / len(rows), 3
             ),
-            "mgrep_avg_latency_seconds": round(
-                sum(float(row["mgrep"]["latency_seconds"]) for row in rows) / len(rows), 3
+            "skygrep_avg_latency_seconds": round(
+                sum(float(row["skygrep"]["latency_seconds"]) for row in rows) / len(rows), 3
             ),
             "grep_tool_calls": sum(int(row["grep"]["tool_calls"]) for row in rows),
-            "mgrep_tool_calls": sum(int(row["mgrep"]["tool_calls"]) for row in rows),
+            "skygrep_tool_calls": sum(int(row["skygrep"]["tool_calls"]) for row in rows),
         },
         "tasks": rows,
     }
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Benchmark grep-agent vs local-mgrep-agent context usage.")
+    parser = argparse.ArgumentParser(description="Benchmark grep-agent vs skylakegrep-agent context usage.")
     parser.add_argument("--root", default=".")
     parser.add_argument("--db-path")
     parser.add_argument("--tasks", type=Path, help="Optional JSON task list")
@@ -597,7 +597,7 @@ def parse_args() -> argparse.Namespace:
         help="Disable two-stage retrieval; chunk-level cosine over the whole index",
     )
     parser.add_argument("--file-top", dest="file_top", type=int, default=30, help="Number of files surfaced by the file-level stage")
-    parser.add_argument("--daemon-url", dest="daemon_url", default=None, help="If set, route every mgrep search through a running mgrep daemon at this URL (skips per-query reranker cold load)")
+    parser.add_argument("--daemon-url", dest="daemon_url", default=None, help="If set, route every skygrep search through a running skygrep daemon at this URL (skips per-query reranker cold load)")
     parser.add_argument(
         "--lexical-prefilter",
         dest="lexical_prefilter",

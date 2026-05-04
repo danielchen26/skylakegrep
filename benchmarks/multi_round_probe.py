@@ -8,7 +8,7 @@ This is a probe, not a final pipeline. It writes no code into the search path â€
 it composes existing functions and reports the union recall after K rounds for
 K=1..4. Run:
 
-    OLLAMA_EMBED_MODEL=nomic-embed-text MGREP_DB_PATH=/tmp/<repo-D>_idx_p1.db \\
+    OLLAMA_EMBED_MODEL=nomic-embed-text SKYGREP_DB_PATH=/tmp/<repo-D>_idx_p1.db \\
       .venv/bin/python benchmarks/multi_round_probe.py
 """
 
@@ -23,18 +23,18 @@ import sys
 import time
 from pathlib import Path
 
-REPO = Path("/Users/tianchichen/Documents/github/local-mgrep")
+REPO = Path("/Users/tianchichen/Documents/github/skylakegrep")
 WARP = Path("/path/to/repo-A")
 sys.path.insert(0, str(REPO))
 
 import os
 
 os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")
-os.environ.setdefault("MGREP_DB_PATH", "/tmp/<repo-D>_idx_p1.db")
+os.environ.setdefault("SKYGREP_DB_PATH", "/tmp/<repo-D>_idx_p1.db")
 
-from local_mgrep.src.embeddings import get_embedder
-from local_mgrep.src.hybrid import lexical_candidate_paths
-from local_mgrep.src.storage import search
+from skylakegrep.src.embeddings import get_embedder
+from skylakegrep.src.hybrid import lexical_candidate_paths
+from skylakegrep.src.storage import search
 
 TASKS = json.loads((REPO / "benchmarks/cross_repo/repo-a.json").read_text())
 
@@ -66,7 +66,7 @@ def round_b_filemean(conn, embedder, q: str, candidate_paths: set[str]) -> list[
     """
     # Reuse the search() path with a high file_top + chunk-level off would be
     # tricky; instead, do file-level pick then look up the file's first chunk.
-    from local_mgrep.src.storage import file_level_search
+    from skylakegrep.src.storage import file_level_search
 
     qv = embedder.embed(q)
     import numpy as np
@@ -78,7 +78,7 @@ def round_b_filemean(conn, embedder, q: str, candidate_paths: set[str]) -> list[
 
 def round_c_hyde(conn, embedder, q: str, candidate_paths: set[str]) -> list[str]:
     """Round C: HyDE-augmented cosine."""
-    from local_mgrep.src.answerer import get_answerer
+    from skylakegrep.src.answerer import get_answerer
 
     try:
         h_query = get_answerer().hyde(q)
@@ -104,7 +104,7 @@ def round_d_rg_rank(question: str, root: Path) -> list[str]:
     if not rg:
         return []
     # Reuse hybrid.extract_query_terms via ripgrep parity script
-    from local_mgrep.src.hybrid import extract_query_terms
+    from skylakegrep.src.hybrid import extract_query_terms
 
     terms = extract_query_terms(question)
     file_hits: dict[str, int] = {}

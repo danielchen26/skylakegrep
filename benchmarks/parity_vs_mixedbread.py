@@ -1,7 +1,7 @@
-"""Mixedbread `@mixedbread/mgrep` cloud vs local-mgrep parity harness.
+"""Mixedbread `@mixedbread/skygrep` cloud vs skylakegrep parity harness.
 
-This script measures retrieval parity between the cloud Mixedbread mgrep
-(the original project at <https://github.com/mixedbread-ai/mgrep>) and
+This script measures retrieval parity between the cloud Mixedbread skygrep
+(the original project at <https://github.com/mixedbread-ai/skygrep>) and
 this fork's fully local implementation. It is the only parity benchmark
 in this repository that requires a third-party account and cloud upload.
 
@@ -9,22 +9,22 @@ PREREQUISITES (one-time, manual)
 --------------------------------
 1. Install the Mixedbread CLI somewhere reachable, e.g.
 
-       npm install -g @mixedbread/mgrep
-       # or (preferred, doesn't conflict with this repo's own /opt/homebrew/bin/mgrep
+       npm install -g @mixedbread/skygrep
+       # or (preferred, doesn't conflict with this repo's own /opt/homebrew/bin/skygrep
        # wrapper) install into a project-local node_modules:
-       mkdir -p ~/.local/share/mixedbread-mgrep && cd $_
+       mkdir -p ~/.local/share/mixedbread-skygrep && cd $_
        npm init -y
-       npm install @mixedbread/mgrep
+       npm install @mixedbread/skygrep
 
 2. Log in. The CLI uses an interactive OAuth flow:
 
-       <path-to>/node_modules/.bin/mgrep login
+       <path-to>/node_modules/.bin/skygrep login
 
 3. Sync the target repository to a Mixedbread store. The default store
-   name is ``mgrep``; pass ``--store NAME`` to use a separate one:
+   name is ``skygrep``; pass ``--store NAME`` to use a separate one:
 
        cd /path/to/repo
-       <path-to>/node_modules/.bin/mgrep search "test query" . --sync
+       <path-to>/node_modules/.bin/skygrep search "test query" . --sync
 
    This uploads the repository contents to Mixedbread cloud for
    indexing. Free-tier quotas apply.
@@ -32,7 +32,7 @@ PREREQUISITES (one-time, manual)
 4. Confirm authentication is healthy by running a search interactively
    and seeing results:
 
-       <path-to>/node_modules/.bin/mgrep search "..." . -c
+       <path-to>/node_modules/.bin/skygrep search "..." . -c
 
 Once these prerequisites are satisfied, point this script at the same
 repository and the same task list used by ``parity_vs_ripgrep.py`` to
@@ -43,12 +43,12 @@ USAGE
     .venv/bin/python benchmarks/parity_vs_mixedbread.py \
         --root /path/to/repo \
         --tasks benchmarks/cross_repo/repo-a.json \
-        --mixedbread-bin /Users/me/.local/share/mixedbread-mgrep/node_modules/.bin/mgrep \
+        --mixedbread-bin /Users/me/.local/share/mixedbread-skygrep/node_modules/.bin/skygrep \
         --top-k 10
 
 LIMITATIONS
 -----------
-- Mixedbread mgrep is a cloud service. The repository contents are
+- Mixedbread skygrep is a cloud service. The repository contents are
   uploaded to Mixedbread before the first search. This is an explicit
   privacy trade-off; do not run this benchmark on private code unless
   the upload is acceptable.
@@ -80,7 +80,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from benchmarks.agent_context_benchmark import (
     DEFAULT_TASKS,
-    mgrep_agent_context,
+    skygrep_agent_context,
     safe_ratio,
 )
 from benchmarks.parity_vs_ripgrep import expected_hit
@@ -91,10 +91,10 @@ from benchmarks.token_savings import (
     count_files,
     is_benchmark_ignored,
 )
-from local_mgrep.src.indexer import collect_indexable_files
+from skylakegrep.src.indexer import collect_indexable_files
 
 
-# Heuristic for parsing Mixedbread mgrep stdout. The CLI emits something
+# Heuristic for parsing Mixedbread skygrep stdout. The CLI emits something
 # along the lines of ``relative/path.ext:line: surrounding text``; we
 # extract the path token at the start of each line. If you see paths
 # being missed, log the raw stdout and tighten this regex.
@@ -102,7 +102,7 @@ PATH_LINE_RE = re.compile(r"^\s*([^\s:]+\.[A-Za-z0-9]+):(\d+)")
 
 
 def parse_mixedbread_output(stdout: str) -> tuple[list[str], int]:
-    """Best-effort parse of Mixedbread mgrep stdout into (paths, char_count).
+    """Best-effort parse of Mixedbread skygrep stdout into (paths, char_count).
 
     Returns the list of unique paths in encounter order plus the total
     character count of the parsed output (used to estimate context
@@ -172,16 +172,16 @@ def load_tasks(path: Path | None) -> list[dict[str, str]]:
 
 
 def benchmark(args: argparse.Namespace) -> dict[str, object]:
-    mxbread_bin = args.mixedbread_bin or shutil.which("mgrep")
+    mxbread_bin = args.mixedbread_bin or shutil.which("skygrep")
     if not mxbread_bin:
         sys.exit(
-            "Mixedbread mgrep CLI not found. Install via npm and pass\n"
-            "--mixedbread-bin /path/to/node_modules/.bin/mgrep, or put it\n"
+            "Mixedbread skygrep CLI not found. Install via npm and pass\n"
+            "--mixedbread-bin /path/to/node_modules/.bin/skygrep, or put it\n"
             "on PATH. See module docstring for one-time setup steps."
         )
-    if Path(mxbread_bin).resolve() == Path("/opt/homebrew/bin/mgrep").resolve():
+    if Path(mxbread_bin).resolve() == Path("/opt/homebrew/bin/skygrep").resolve():
         sys.exit(
-            f"Refusing to use {mxbread_bin}: that path is the local-mgrep\n"
+            f"Refusing to use {mxbread_bin}: that path is the skylakegrep\n"
             "wrapper installed by this repo, not the Mixedbread CLI.\n"
             "Pass --mixedbread-bin pointing at a separate Mixedbread install."
         )
@@ -190,7 +190,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
     db_path = (
         Path(args.db_path)
         if args.db_path
-        else Path(tempfile.gettempdir()) / "local-mgrep-mixedbread-parity.sqlite"
+        else Path(tempfile.gettempdir()) / "skylakegrep-mixedbread-parity.sqlite"
     )
 
     indexed_files = [
@@ -220,7 +220,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             chars_per_token=args.chars_per_token,
             extra_args=extra_args,
         )
-        mgrep_result = mgrep_agent_context(
+        skygrep_result = skygrep_agent_context(
             conn,
             task["question"],
             top_k=args.top_k,
@@ -236,12 +236,12 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
                     "hit": expected_hit(expected, mxbread_result["paths"]),
                 },
                 "mgrep_local": {
-                    **mgrep_result,
-                    "hit": expected_hit(expected, mgrep_result["paths"]),
+                    **skygrep_result,
+                    "hit": expected_hit(expected, skygrep_result["paths"]),
                 },
                 "context_token_reduction_x_local_vs_cloud": safe_ratio(
                     float(mxbread_result["context_tokens"]),
-                    float(mgrep_result["context_tokens"]),
+                    float(skygrep_result["context_tokens"]),
                 ),
             }
         )
@@ -251,9 +251,9 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
 
     return {
         "definition": {
-            "benchmark_type": "Mixedbread cloud mgrep vs local-mgrep retrieval parity",
-            "mixedbread_agent": "one Mixedbread `mgrep search` per task (cloud embeddings, paid quota)",
-            "local_agent": "one local-mgrep semantic top-k search per task (Ollama embeddings)",
+            "benchmark_type": "Mixedbread cloud skygrep vs skylakegrep retrieval parity",
+            "mixedbread_agent": "one Mixedbread `skygrep search` per task (cloud embeddings, paid quota)",
+            "local_agent": "one skylakegrep semantic top-k search per task (Ollama embeddings)",
             "note": "Both sides use the same task questions and expected files.",
         },
         "tooling": {
@@ -310,7 +310,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Benchmark Mixedbread cloud mgrep vs local-mgrep on the same task set."
+        description="Benchmark Mixedbread cloud skygrep vs skylakegrep on the same task set."
     )
     parser.add_argument("--root", default=".")
     parser.add_argument("--db-path")
@@ -320,8 +320,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--chars-per-token", type=int, default=4)
     parser.add_argument(
         "--mixedbread-bin",
-        help="Path to the Mixedbread mgrep binary. If omitted, uses `mgrep` from PATH; "
-        "the harness refuses to run if that resolves to the local-mgrep wrapper.",
+        help="Path to the Mixedbread skygrep binary. If omitted, uses `skygrep` from PATH; "
+        "the harness refuses to run if that resolves to the skylakegrep wrapper.",
     )
     parser.add_argument(
         "--mixedbread-store",

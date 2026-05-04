@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="bench-title bench-desc" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
-  <title id="bench-title">local-mgrep deterministic context benchmark</title>
-  <desc id="bench-desc">Combined chart comparing local-mgrep against a grep-agent baseline across top-k values 5, 10, 20, and 50. Bars show estimated total-token reduction and context-token reduction; markers show expected-file recall on a separate right axis.</desc>
+  <title id="bench-title">skylakegrep deterministic context benchmark</title>
+  <desc id="bench-desc">Combined chart comparing skylakegrep against a grep-agent baseline across top-k values 5, 10, 20, and 50. Bars show estimated total-token reduction and context-token reduction; markers show expected-file recall on a separate right axis.</desc>
 
   <defs>
     <linearGradient id="bar-primary" x1="0" y1="0" x2="0" y2="1">
@@ -146,7 +146,7 @@
 
   <!-- ===== Footnote ===== -->
   <text x="60" y="688" font-size="11.5" fill="#71717a">
-    Source: <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#a1a1aa">benchmarks/agent_context_benchmark.py --top-k {5,10,20,50} --summary-only</tspan>, run on the local-mgrep repository at v0.2.0.
+    Source: <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#a1a1aa">benchmarks/agent_context_benchmark.py --top-k {5,10,20,50} --summary-only</tspan>, run on the skylakegrep repository at v0.2.0.
   </text>
   <text x="60" y="706" font-size="11.5" fill="#71717a">
     Total-token reduction includes a fixed grep-agent prompt-and-overhead estimate; context-token reduction counts retrieved JSON only. This is a deterministic local benchmark, not provider billing data.

@@ -16,8 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from local_mgrep.src import binary_extract
-from local_mgrep.src.binary_extract import (
+from skylakegrep.src import binary_extract
+from skylakegrep.src.binary_extract import (
     ExtractedText,
     extract_docx,
     extract_pdf,

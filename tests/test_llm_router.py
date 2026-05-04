@@ -18,8 +18,8 @@ from unittest.mock import patch
 
 import pytest
 
-from local_mgrep.src import llm_router as router
-from local_mgrep.src.llm_router import RouterDecision, route_query
+from skylakegrep.src import llm_router as router
+from skylakegrep.src.llm_router import RouterDecision, route_query
 
 
 # ---- _parse_llm_json ------------------------------------------------
@@ -72,7 +72,7 @@ def test_low_confidence_overrides_skip_cascade():
         def json(self):
             return fake_response
 
-    with patch("local_mgrep.src.llm_router.requests.post",
+    with patch("skylakegrep.src.llm_router.requests.post",
                return_value=_FakeResp()):
         decision = router._llm_decision("test query")
 
@@ -104,7 +104,7 @@ def test_high_confidence_skip_cascade_honored():
         def json(self):
             return fake_response
 
-    with patch("local_mgrep.src.llm_router.requests.post",
+    with patch("skylakegrep.src.llm_router.requests.post",
                return_value=_FakeResp()):
         decision = router._llm_decision("where is eb1b file?")
 
@@ -120,7 +120,7 @@ def test_high_confidence_skip_cascade_honored():
 def test_llm_decision_returns_none_on_http_failure():
     import requests as r
     with patch(
-        "local_mgrep.src.llm_router.requests.post",
+        "skylakegrep.src.llm_router.requests.post",
         side_effect=r.ConnectionError("connection refused"),
     ):
         assert router._llm_decision("test") is None
@@ -136,7 +136,7 @@ def test_llm_decision_returns_none_on_malformed_json():
         def json(self):
             return fake_response
 
-    with patch("local_mgrep.src.llm_router.requests.post",
+    with patch("skylakegrep.src.llm_router.requests.post",
                return_value=_FakeResp()):
         assert router._llm_decision("test") is None
 
@@ -156,7 +156,7 @@ def test_llm_decision_clamps_invalid_intent_to_mixed():
         def json(self):
             return fake_response
 
-    with patch("local_mgrep.src.llm_router.requests.post",
+    with patch("skylakegrep.src.llm_router.requests.post",
                return_value=_FakeResp()):
         decision = router._llm_decision("test")
     assert decision.intent == "mixed"
@@ -190,7 +190,7 @@ def test_route_query_falls_back_when_llm_unavailable():
     """LLM HTTP raises → rule-based router takes over."""
     import requests as r
     with patch(
-        "local_mgrep.src.llm_router.requests.post",
+        "skylakegrep.src.llm_router.requests.post",
         side_effect=r.ConnectionError("ollama down"),
     ):
         d = route_query("where is foo file?")
@@ -201,7 +201,7 @@ def test_route_query_falls_back_when_llm_unavailable():
 def test_route_query_use_llm_false_skips_llm_entirely():
     """`--no-llm-router` flag must never call requests.post."""
     with patch(
-        "local_mgrep.src.llm_router.requests.post",
+        "skylakegrep.src.llm_router.requests.post",
         side_effect=AssertionError("should not be called"),
     ):
         d = route_query("how does X work", use_llm=False)
@@ -230,7 +230,7 @@ def test_route_query_caches_in_sqlite(tmp_path):
             return fake_response
 
     with patch(
-        "local_mgrep.src.llm_router.requests.post",
+        "skylakegrep.src.llm_router.requests.post",
         return_value=_FakeResp(),
     ) as mocked:
         d1 = route_query("where is eb1b file?", conn=conn)
