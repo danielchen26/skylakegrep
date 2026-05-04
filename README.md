@@ -180,6 +180,15 @@ also [installable from PyPI](https://pypi.org/project/local-mgrep/).
 
 The full sequence so far:
 
+  - **0.9.0** — e2e Claude Code agent benchmark extended to 14
+    hand-labelled tasks (8 hard semantic + 6 easy single-shot) across
+    Rust + Python + TypeScript. **−30 % tool calls and +2 / 14
+    answer-correctness** with mgrep on. Best-case task: **25× fewer
+    tool calls** on the <repo-D> editor cursor query. Worst-case task:
+    mgrep slightly worse on lexical-friendly signin question — both
+    published.
+  - **0.8.0** — first e2e Claude Code agent benchmark (6 easy
+    single-shot questions). Superseded by 0.9.0 with larger sample.
   - **0.7.0** — multi-language benchmark across Rust + Python +
     TypeScript: 38 / 40 (95 %) recall at 3.55 s/q on Mac CPU. New
     `benchmarks/cross_repo/<repo-A>.json` (12 Python tasks) and
