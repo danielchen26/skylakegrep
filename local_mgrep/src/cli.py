@@ -29,7 +29,7 @@ import click
 
 logger = logging.getLogger(__name__)
 
-from . import auto_index, bootstrap, code_graph, config as cfg_mod, enrich as enrich_mod
+from . import auto_index, bootstrap, code_graph, config as cfg_mod, enrich as enrich_mod, integrations as integrations_mod
 from .answerer import get_answerer
 from .config import get_config
 from .embeddings import get_embedder
@@ -94,7 +94,7 @@ def render_json_results(results: list[dict]) -> str:
 
 
 # Subcommand names that take precedence over bare-form query routing.
-_SUBCOMMANDS = {"index", "search", "watch", "serve", "stats", "doctor", "enrich"}
+_SUBCOMMANDS = {"index", "search", "watch", "serve", "stats", "doctor", "enrich", "setup"}
 
 
 class MgrepCLI(click.Group):
@@ -530,6 +530,19 @@ def search_cmd(
                 parts.append("tied")
     click.echo("\n[" + " · ".join(parts) + "]")
 
+    # First-run nudge: encourage the user to register local-mgrep with any
+    # detected LLM CLIs once. Suppressed under --json (machine consumers
+    # parsing the output), in non-TTY contexts (agents piping output), and
+    # after `mgrep setup` has been run at least once.
+    if (
+        not json_output
+        and sys.stdout.isatty()
+        and not integrations_mod.is_setup_done()
+    ):
+        msg = integrations_mod.first_run_banner_message()
+        if msg:
+            click.echo(msg, err=True)
+
     # Optional background auto-enrich. Off by default; users opt in by
     # exporting ``MGREP_AUTO_ENRICH=yes``. We only spawn when the index is
     # actually ready — never alongside the rg-fallback path — so we don't
@@ -732,6 +745,107 @@ def doctor():
     except ImportError:
         click.echo(f"{pad('Reranker (optional)')}— install: pip install 'local-mgrep[rerank]'")
     click.echo(f"{pad('Project root')}{cfg_mod.project_root()}")
+    # LLM-CLI integrations registered via ``mgrep setup``.
+    detected = [i for i in integrations_mod.all_integrations() if i.is_detected()]
+    if detected:
+        for i in detected:
+            mark = "✓" if i.is_registered() else "—"
+            click.echo(f"{pad(f'LLM CLI: {i.name}')}{mark} {'registered' if i.is_registered() else 'not registered (run `mgrep setup`)'}")
+
+
+@cli.command()
+@click.option("--list", "list_only", is_flag=True, help="List detected LLM CLIs and registration state, then exit.")
+@click.option("--uninstall", is_flag=True, help="Remove all snippets previously written by `mgrep setup`.")
+@click.option("--skip", is_flag=True, help="Mark setup as done without registering anything (suppresses the first-run banner).")
+@click.option("--yes", "-y", is_flag=True, help="Auto-confirm every detected integration without an interactive prompt.")
+def setup(list_only: bool, uninstall: bool, skip: bool, yes: bool):
+    """Register local-mgrep as preferred semantic search with installed LLM CLIs.
+
+    Detects Claude Code, Codex, OpenCode, Gemini CLI, and Cursor on
+    your machine and offers to write a tiny markdown snippet into each
+    one's user-level instructions file. The snippet hints to the agent
+    that it should prefer ``mgrep`` for natural-language code search and
+    fall back to ``rg`` otherwise.
+
+    Use ``--list`` to inspect without modifying. Use ``--uninstall`` to
+    remove every snippet previously written. Use ``--skip`` to suppress
+    the first-run banner without registering anything.
+    """
+    items = integrations_mod.all_integrations()
+
+    if list_only:
+        click.echo("Detected LLM CLIs (run `mgrep setup` to register):")
+        for i in items:
+            mark = "✓" if i.is_detected() else "·"
+            reg = " [registered]" if i.is_registered() else ""
+            click.echo(f"  {mark} {i.name:<14} {i.description}{reg}")
+            click.echo(f"      config: {i.config_path}")
+        return
+
+    if uninstall:
+        n_removed = 0
+        for i in items:
+            if i.unregister():
+                click.echo(f"  ✓ removed snippet from {i.name} ({i.config_path})")
+                n_removed += 1
+        click.echo(f"\nDone. Removed {n_removed} integration(s).")
+        return
+
+    if skip:
+        integrations_mod.mark_setup_done()
+        click.echo("Marked setup done. The first-run banner will no longer appear.")
+        click.echo("Re-run `mgrep setup` any time to register integrations.")
+        return
+
+    detected = [i for i in items if i.is_detected()]
+    if not detected:
+        click.echo("No supported LLM CLIs detected.")
+        click.echo("\nWe look for:")
+        for i in items:
+            click.echo(f"  · {i.name} — {i.description}")
+        click.echo("\nIf you do have one of these installed but it wasn't detected, "
+                   "either ensure its binary is on PATH or its config dir exists "
+                   "before running `mgrep setup` again.")
+        integrations_mod.mark_setup_done()
+        return
+
+    click.echo("Detected the following LLM CLIs on your machine:\n")
+    for i in detected:
+        already = " [already registered]" if i.is_registered() else ""
+        click.echo(f"  ✓ {i.name:<14} → {i.config_path}{already}")
+    click.echo()
+    if yes:
+        click.echo("--yes set; registering all without prompting.\n")
+
+    n_registered = 0
+    for i in detected:
+        if i.is_registered():
+            continue
+        if yes:
+            answer = "y"
+        else:
+            try:
+                answer = input(f"Register local-mgrep with {i.name}? [Y/n] ").strip().lower()
+            except EOFError:
+                answer = ""
+        if answer and answer not in {"y", "yes"}:
+            click.echo(f"  · skipped {i.name}")
+            continue
+        try:
+            wrote = i.register()
+            if wrote:
+                click.echo(f"  ✓ wrote snippet to {i.config_path}")
+                n_registered += 1
+            else:
+                click.echo(f"  · {i.name} already had the snippet (no change)")
+        except OSError as exc:
+            click.echo(f"  × {i.name}: failed to write {i.config_path}: {exc}", err=True)
+
+    integrations_mod.mark_setup_done()
+    click.echo(f"\nDone. Registered {n_registered} integration(s).")
+    if n_registered:
+        click.echo("Restart any open Claude Code / Codex / Gemini / Cursor sessions to pick up the change.")
+    click.echo("Run `mgrep setup --uninstall` to remove all snippets later.")
 
 
 def main():

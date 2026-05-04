@@ -180,6 +180,11 @@ also [installable from PyPI](https://pypi.org/project/local-mgrep/).
 
 The full sequence so far:
 
+  - **0.11.0** — `mgrep setup` auto-registers local-mgrep as the
+    preferred semantic search with **Claude Code, Codex, OpenCode,
+    Gemini CLI, and Cursor**. First-run banner nudges new users;
+    `mgrep setup --uninstall` removes all snippets cleanly. New
+    `mgrep doctor` row shows registration state per CLI.
   - **0.10.0** — multi-turn agent benchmark + single-turn sample
     expanded to 20 tasks. **−82 % tool calls in multi-turn <repo-D>
     session, −37.6 % across 20 single-turn tasks.** On 5 / 6

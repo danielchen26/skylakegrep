@@ -9,6 +9,7 @@ The Markdown files here are reference companions to that site.
 | File | Purpose |
 | --- | --- |
 | [`index.html`](index.html) | Rendered documentation site (published as <https://danielchen26.github.io/local-mgrep/>). |
+| [`local-mgrep-0.11.0.md`](local-mgrep-0.11.0.md) | Release notes for 0.11.0: `mgrep setup` interactive command auto-registers local-mgrep as preferred semantic search with **Claude Code, Codex, OpenCode, Gemini CLI, and Cursor**. First-run banner nudges new users; `mgrep setup --uninstall` removes all snippets cleanly. |
 | [`local-mgrep-0.10.0.md`](local-mgrep-0.10.0.md) | Release notes for 0.10.0: multi-turn benchmark + 6-task expansion. Headline: **−82 % tool calls in multi-turn sessions, −37.6 % across 20 single-turn tasks**. On 5 / 6 medium tasks, mgrep finishes in 1 tool call. |
 | [`local-mgrep-0.9.0.md`](local-mgrep-0.9.0.md) | Release notes for 0.9.0: e2e Claude Code agent benchmark extended with 8 hard semantic questions (14 total). Headline: **−30 % agent tool calls + 2 / 14 better answers** with mgrep across Rust + Python + TypeScript. Best-case 25 × fewer tool calls on the hardest semantic query; worst-case mgrep slightly worse on lexical-friendly questions. Honest worst-case publishing. |
 | [`local-mgrep-0.8.0.md`](local-mgrep-0.8.0.md) | Release notes for 0.8.0: end-to-end Claude Code agent benchmark (mgrep on/off across 6 questions × 3 languages). Headline: **−54 % agent tool calls** with mgrep, +1 task in answer correctness, equal token cost. (Superseded by 0.9.0 with larger sample.) |
