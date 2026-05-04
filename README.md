@@ -192,6 +192,13 @@ also [installable from PyPI](https://pypi.org/project/local-mgrep/).
 
 The full sequence so far:
 
+  - **0.14.0** — hierarchical merge: every enabled tier (filename /
+    lexical / semantic cascade) always runs, results dedupe by
+    path, and `classify_intent(query)` decides which tier wins
+    top slots. A query like `where is config file` returns the
+    `config.py` file **and** the cascade chunks discussing config
+    loading in one pass. Latency note: every query now pays
+    cascade cost; pass `--no-cascade` to opt out.
   - **0.13.0** — three-tier smart routing + framed card rendering.
     New filename-lookup tier (~10 ms) handles `where is eb1b file?` /
     `find package.json` / `show me README` queries via

@@ -34,6 +34,7 @@ from .answerer import get_answerer
 from .config import get_config
 from .embeddings import get_embedder
 from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
+from .intent import classify_intent, merge_results as merge_tiers
 from .render import render_compact_source, render_terminal_result
 from .storage import (
     CASCADE_DEFAULT_TAU,
@@ -313,32 +314,19 @@ def search_cmd(
 
     from . import auto_index as ai
 
-    # v0.13.0 filename-lookup shortcut. Fires BEFORE the index-ready
-    # check so queries like "where is eb1b file?" / "find package.json"
-    # get answered in ~10 ms even on a directory that has never been
-    # indexed (e.g. ~/Downloads). See ai.filename_shortcut for the
-    # four-condition gate.
+    # v0.14.0 hierarchical merge: collect filename-lookup results
+    # without short-circuiting. The merged results from all enabled
+    # tiers are ranked by `classify_intent(query)` later. This runs
+    # BEFORE the index-ready check so the filename tier works on
+    # un-indexed directories (~/Downloads etc.).
+    fn_results: list[dict] = []
+    fn_elapsed = 0.0
     if filename_shortcut and not agentic and not answer:
         fn_start = time.time()
-        fn_results = ai.filename_shortcut(query, project_root, top_k=top)
-        if fn_results is not None:
-            fn_elapsed = time.time() - fn_start
-            if json_output:
-                click.echo(render_json_results(fn_results))
-                return
-            for r in fn_results:
-                click.echo(
-                    render_terminal_result(
-                        r,
-                        content=content,
-                        project_root=str(project_root),
-                    )
-                )
-            click.echo(
-                f"\n[{fn_elapsed:.3f}s · filename-lookup · "
-                f"{len(fn_results)} match(es)]"
-            )
-            return
+        fn_hits = ai.filename_shortcut(query, project_root, top_k=top)
+        fn_elapsed = time.time() - fn_start
+        if fn_hits:
+            fn_results = fn_hits
 
     # Routing decision: ready → cascade; building or absent → rg fallback.
     conn = init_db(db_path)
@@ -351,10 +339,20 @@ def search_cmd(
             ai.spawn_background_index(project_root, db_path)
         except Exception as exc:
             logger.warning("background index spawn failed: %s", exc)
-        # Fall back to a pure-rg result for this query.
+        # Fall back to a pure-rg result for this query, merged with any
+        # filename-lookup hits collected above so the cold-start path
+        # also benefits from the v0.14.0 hierarchical-merge model.
         start = time.time()
-        results = ai.rg_fallback_results(query, project_root, top_k=top)
+        rg_cold = ai.rg_fallback_results(query, project_root, top_k=top)
         elapsed = time.time() - start
+        intent = classify_intent(query)
+        results = merge_tiers(
+            filename=fn_results,
+            lexical=[],
+            semantic=rg_cold,
+            intent=intent,
+            top_k=top,
+        )
         if json_output:
             click.echo(render_json_results(results))
             return
@@ -375,7 +373,9 @@ def search_cmd(
         building = ai.is_index_building(db_path)
         suffix = "building in background" if building else "queued"
         click.echo(
-            f"\n[{elapsed:.3f}s · ripgrep fallback · semantic index {suffix}]"
+            f"\n[{elapsed:.3f}s · ripgrep cold-start · "
+            f"intent={intent} · {len(fn_results)} filename + "
+            f"{len(rg_cold)} content · index {suffix}]"
         )
         return
 
@@ -440,31 +440,18 @@ def search_cmd(
             click.echo("[no indexed chunks]")
         return
 
-    # Lexical shortcut. If the query is short, ripgrep returns a small
-    # clustered candidate set, and the path tokens already encode the
-    # user's vocabulary, return the rg result directly and skip the
-    # semantic cascade. The four-condition gate (see
-    # ``ai.lexical_shortcut``) is conservative — borderline queries fall
-    # through to cascade so semantic recall is never sacrificed for
-    # speed. Disabled by ``--no-rg-shortcut``, ``--agentic``, ``--answer``.
+    # v0.14.0 hierarchical merge: collect lexical-content shortcut
+    # results without short-circuiting. The merged results from all
+    # enabled tiers are ranked by intent later — borderline queries
+    # always also run cascade so semantic recall is never sacrificed.
+    rg_results: list[dict] = []
+    rg_elapsed = 0.0
     if rg_shortcut and not agentic and not answer:
-        shortcut_start = time.time()
-        shortcut = ai.lexical_shortcut(query, project_root, top_k=top)
-        if shortcut is not None:
-            shortcut_elapsed = time.time() - shortcut_start
-            if json_output:
-                click.echo(render_json_results(shortcut))
-                return
-            for r in shortcut:
-                click.echo(
-                    render_terminal_result(
-                        r, content=content, project_root=str(project_root)
-                    )
-                )
-            click.echo(
-                f"\n[{shortcut_elapsed:.3f}s · rg-shortcut · cascade skipped]"
-            )
-            return
+        rg_start = time.time()
+        rg_hits = ai.lexical_shortcut(query, project_root, top_k=top)
+        rg_elapsed = time.time() - rg_start
+        if rg_hits:
+            rg_results = rg_hits
 
     embedder = get_embedder(role="query")
     start = time.time()
@@ -534,6 +521,20 @@ def search_cmd(
         )
     results = merge_results(result_groups, top)
     elapsed = time.time() - start
+
+    # v0.14.0 hierarchical merge across tiers: cascade (semantic) +
+    # lexical-shortcut hits + filename-lookup hits, deduplicated by
+    # path, ranked by classify_intent(query) so the right tier wins
+    # for the user's query phrasing. All three tiers always run when
+    # enabled — completeness over speed.
+    intent = classify_intent(query)
+    results = merge_tiers(
+        filename=fn_results,
+        lexical=rg_results,
+        semantic=results,
+        intent=intent,
+        top_k=top,
+    )
     if json_output:
         click.echo(render_json_results(results))
         return
@@ -555,6 +556,10 @@ def search_cmd(
         )
 
     parts: list[str] = [f"{elapsed:.3f}s"]
+    parts.append(
+        f"intent={intent} · {len(fn_results)} filename + "
+        f"{len(rg_results)} lexical + cascade"
+    )
     if cascade and cascade_telemetry is not None:
         kind = "cheap" if cascade_telemetry.get("early_exit") else "escalated"
         parts.append(
