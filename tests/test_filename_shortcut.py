@@ -219,6 +219,39 @@ def test_separator_token_beats_plain_alpha(tmp_path):
 
 
 @pytest.mark.skipif(not _has_find(), reason="find not on PATH")
+def test_excludes_editor_and_app_lock_files(tmp_path):
+    """v0.15.1 — Word `~$foo.docx` lock files, vim `.foo.swp`,
+    emacs `.#foo` and `foo~` backups must not appear in results."""
+    root = _project(
+        tmp_path,
+        {
+            "Tianchi Chen Eb1b Application.docx": "real doc",
+            "~$Tianchi Chen Eb1b Application.docx": "lock",
+            ".#Tianchi Chen Eb1b Application.docx": "emacs lock",
+            "Tianchi Chen Eb1b Application.docx~": "backup",
+            ".Tianchi Chen Eb1b Application.docx.swp": "vim swap",
+        },
+    )
+    out = auto_index.filename_shortcut(
+        "find Eb1b Application file", root, top_k=10
+    )
+    assert out is not None
+    paths = [r["path"] for r in out]
+    # Real doc must be returned
+    assert any(
+        Path(p).name == "Tianchi Chen Eb1b Application.docx" for p in paths
+    )
+    # No lock / swap / backup file
+    for p in paths:
+        name = Path(p).name
+        assert not name.startswith("~$"), f"Word lock leaked: {name}"
+        assert not name.startswith(".#"), f"emacs lock leaked: {name}"
+        assert not name.endswith(".swp"), f"vim swap leaked: {name}"
+        assert not name.endswith(".swo"), f"vim swap leaked: {name}"
+        assert not name.endswith("~"), f"backup tilde leaked: {name}"
+
+
+@pytest.mark.skipif(not _has_find(), reason="find not on PATH")
 def test_falls_through_when_priority_token_fails(tmp_path):
     """If the priority token has no matches, we should try the next
     candidate, not give up immediately."""

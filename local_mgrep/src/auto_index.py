@@ -628,6 +628,15 @@ def filename_shortcut(
                     "-not", "-path", "*/node_modules/*",
                     "-not", "-path", "*/.venv/*",
                     "-not", "-path", "*/__pycache__/*",
+                    # v0.15.1 — exclude editor / app lock & swap files
+                    # that share filename roots with the real document
+                    # (Word `~$foo.docx`, vim `.foo.swp`, emacs `.#foo`,
+                    # backup tildes `foo~`).
+                    "-not", "-name", "~$*",
+                    "-not", "-name", "*.swp",
+                    "-not", "-name", "*.swo",
+                    "-not", "-name", ".#*",
+                    "-not", "-name", "*~",
                     "-type", "f",
                 ],
                 capture_output=True,

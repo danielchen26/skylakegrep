@@ -192,6 +192,12 @@ also [installable from PyPI](https://pypi.org/project/local-mgrep/).
 
 The full sequence so far:
 
+  - **0.15.1** — fix: editor/app session-lock and swap files
+    (`~$*.docx`, `*.swp`, `.#*`, `*~`) no longer leak into
+    filename-lookup results. Two-layer fix: `find` filter at source
+    + lock-file detection in `extract_docx` with friendly hint.
+    Resolves Word `~$pert Letter ....docx` showing up with the
+    cryptic "Package not found" error.
   - **0.15.0** — LLM-driven query routing replaces hand-rolled
     heuristics as the primary source of routing decisions. A small
     local Ollama model (`qwen2.5:3b`) reads each query and returns

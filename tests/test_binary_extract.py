@@ -194,6 +194,20 @@ def test_extract_docx_round_trip(tmp_path):
     assert out.source == "python-docx"
 
 
+def test_extract_docx_word_lock_file_returns_friendly_hint(tmp_path):
+    """v0.15.1 — `~$foo.docx` is a Word session lock file, not the
+    real document. python-docx would emit 'Package not found' which
+    is mysterious to users; we should detect and explain instead."""
+    p = tmp_path / "~$Expert Letter.docx"
+    p.write_bytes(b"random session metadata bytes")
+    out = extract_docx(p)
+    assert out.text == ""
+    assert out.source == "lock-file"
+    assert "lock" in out.note.lower()
+    # Hint should suggest where the real doc is
+    assert "Expert Letter.docx" in out.note
+
+
 @pytest.mark.skipif(not _have_docx(), reason="python-docx required")
 def test_extract_docx_corrupt_returns_error(tmp_path):
     p = tmp_path / "broken.docx"

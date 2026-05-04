@@ -193,6 +193,19 @@ def extract_pdf(path: Path, *, ocr: bool = False) -> ExtractedText:
 
 def extract_docx(path: Path) -> ExtractedText:
     """Extract text from a .docx via python-docx."""
+    # MS Word session-lock files start with `~$` and are tiny
+    # (~0.2 KB session metadata, NOT OOXML zip). python-docx fails
+    # with the unhelpful "Package not found" — surface a friendly
+    # hint instead so the user understands this isn't the real doc.
+    if path.name.startswith("~$"):
+        return ExtractedText(
+            text="",
+            source="lock-file",
+            note=(
+                "Word session lock file (not the actual document); "
+                f"the real doc is likely '{path.name[2:]}' or similar"
+            ),
+        )
     try:
         from docx import Document
     except ImportError:
