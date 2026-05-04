@@ -2,7 +2,7 @@
 
 Each round queries the existing index with a different strategy and we union the
 top-K paths. The goal is to discover whether 2-4 cheap rounds (each <2s) can
-catch the canonical files our single-round pipeline misses on repo-A.
+catch the canonical files our single-round pipeline misses on Rust workspace.
 
 This is a probe, not a final pipeline. It writes no code into the search path —
 it composes existing functions and reports the union recall after K rounds for
@@ -24,7 +24,7 @@ import time
 from pathlib import Path
 
 REPO = Path("/Users/tianchichen/Documents/github/skylakegrep")
-WARP = Path("/path/to/repo-A")
+WARP = Path("/path/to/Rust workspace")
 sys.path.insert(0, str(REPO))
 
 import os
@@ -36,7 +36,7 @@ from skylakegrep.src.embeddings import get_embedder
 from skylakegrep.src.hybrid import lexical_candidate_paths
 from skylakegrep.src.storage import search
 
-TASKS = json.loads((REPO / "benchmarks/cross_repo/repo-a.json").read_text())
+TASKS = json.loads((REPO / "benchmarks/cross_repo/rust-workspace.json").read_text())
 
 
 def hit(expected: str, paths: list[str]) -> bool:

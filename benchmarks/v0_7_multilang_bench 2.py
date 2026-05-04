@@ -1,10 +1,10 @@
 """v0.7.0 multi-language layered benchmark.
 
-Generalizes the v0.5 16-task Rust benchmark to three languages:
+Generalizes the v0.5 <repo-D> 16-task benchmark to three languages:
 
-    * Rust    — Rust workspace                     (16 tasks, /tmp/<repo-D>_idx_p1.db legacy DB)
-    * Python  — Python codebase                      (12 tasks, per-project DB)
-    * TypeScript — TypeScript codebase (12 tasks, per-project DB)
+    * Rust    — <repo-D>                     (16 tasks, /tmp/<repo-D>_idx_p1.db legacy DB)
+    * Python  — <repo-A>                      (12 tasks, per-project DB)
+    * TypeScript — <repo-B> (12 tasks, per-project DB)
 
 For each repo we run the same Tier A/B/C/D cascade as v0.5_<repo-D>_bench
 (cascade only, +L2 symbol boost, +L4 graph tiebreaker, full 0.5.0) and report
@@ -32,12 +32,12 @@ sys.path.insert(0, str(REPO_ROOT))
 
 os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 
-from skylakegrep.src.answerer import get_answerer
-from skylakegrep.src.code_graph import populate_graph_table
-from skylakegrep.src.config import project_db_path
-from skylakegrep.src.embeddings import get_embedder
-from skylakegrep.src.hybrid import lexical_candidate_paths
-from skylakegrep.src.storage import (
+from local_mgrep.src.answerer import get_answerer
+from local_mgrep.src.code_graph import populate_graph_table
+from local_mgrep.src.config import project_db_path
+from local_mgrep.src.embeddings import get_embedder
+from local_mgrep.src.hybrid import lexical_candidate_paths
+from local_mgrep.src.storage import (
     cascade_search,
     init_db,
     populate_symbols,
@@ -49,31 +49,31 @@ class Bench:
     name: str
     tasks_path: Path
     repo_path: Path
-    db_path: Path  # explicit DB path (per-project for new benches, legacy for Rust workspace)
+    db_path: Path  # explicit DB path (per-project for new benches, legacy for <repo-D>)
 
 
-# Repo-A keeps its legacy /tmp index built under nomic-embed-text in earlier
-# P-phases. Python codebase and Repo-C use the standard per-project DB derived from
+# Warp keeps its legacy /tmp index built under nomic-embed-text in earlier
+# P-phases. <repo-A> and CCSB use the standard per-project DB derived from
 # ``project_db_path``.
 BENCHES: list[Bench] = [
     Bench(
-        name="Rust workspace (Rust)",
-        tasks_path=REPO_ROOT / "benchmarks/cross_repo/rust-workspace.json",
-        repo_path=Path("/path/to/Rust workspace"),
+        name="<repo-D> (Rust)",
+        tasks_path=REPO_ROOT / "benchmarks/cross_repo/<repo-D>.json",
+        repo_path=Path("/Users/tianchichen/Documents/github/<repo-D>"),
         db_path=Path("/tmp/<repo-D>_idx_p1.db"),
     ),
     Bench(
-        name="Python codebase (Python)",
-        tasks_path=REPO_ROOT / "benchmarks/cross_repo/python-codebase.json",
-        repo_path=Path("/Users/tianchichen/Documents/GitHub/Python codebase"),
-        db_path=project_db_path(Path("/Users/tianchichen/Documents/GitHub/Python codebase")),
+        name="<repo-A> (Python)",
+        tasks_path=REPO_ROOT / "benchmarks/cross_repo/<repo-A>.json",
+        repo_path=Path("/Users/tianchichen/Documents/GitHub/<repo-A>"),
+        db_path=project_db_path(Path("/Users/tianchichen/Documents/GitHub/<repo-A>")),
     ),
     Bench(
-        name="TypeScript codebase (TypeScript)",
-        tasks_path=REPO_ROOT / "benchmarks/cross_repo/typescript-codebase.json",
-        repo_path=Path("/Users/tianchichen/Documents/GitHub/TypeScript codebase"),
+        name="<repo-B> (TypeScript)",
+        tasks_path=REPO_ROOT / "benchmarks/cross_repo/<repo-B>.json",
+        repo_path=Path("/Users/tianchichen/Documents/GitHub/<repo-B>"),
         db_path=project_db_path(
-            Path("/Users/tianchichen/Documents/GitHub/TypeScript codebase")
+            Path("/Users/tianchichen/Documents/GitHub/<repo-B>")
         ),
     ),
 ]
@@ -167,7 +167,7 @@ def run_one_bench(b: Bench) -> dict[str, TierResult]:
     print(f"  db    : {b.db_path}")
     print(f"  repo  : {b.repo_path}")
     if not b.db_path.exists():
-        print(f"  [skip] DB not found, run `skygrep index` for {b.repo_path} first")
+        print(f"  [skip] DB not found, run `mgrep index` for {b.repo_path} first")
         return {}
     conn = init_db(b.db_path)
     ensure_migrations(conn, b.repo_path)

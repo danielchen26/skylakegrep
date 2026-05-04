@@ -1,0 +1,60 @@
+name: Release to PyPI
+
+# On tag push (vX.Y.Z), build sdist + wheel and upload to PyPI.
+#
+# Requires the repository secret PYPI_API_TOKEN (a project-scoped PyPI API
+# token). Generate at https://pypi.org/manage/account/token/ with
+# "Scope: Project · local-mgrep". The matching ``~/.pypirc`` flow we use
+# from a developer laptop is documented in CONTRIBUTING / docs/.
+#
+# This workflow does NOT trigger on master pushes. The author still
+# controls when a release happens by tagging.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+
+      - name: Verify the tag matches pyproject.toml
+        run: |
+          tag="${GITHUB_REF##*/}"
+          ver=$(python -c "import tomllib; print(tomllib.loads(open('pyproject.toml','rb').read().decode())['project']['version'])")
+          if [ "$tag" != "v$ver" ]; then
+            echo "Tag $tag does not match pyproject version $ver"
+            exit 1
+          fi
+          echo "Tag $tag matches pyproject version $ver"
+
+      - name: Build distributions
+        run: python -m build
+
+      - name: twine check
+        run: twine check dist/*
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: twine upload --non-interactive dist/*

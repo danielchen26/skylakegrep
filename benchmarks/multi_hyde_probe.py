@@ -28,7 +28,7 @@ import time
 from pathlib import Path
 
 REPO = Path("/Users/tianchichen/Documents/github/skylakegrep")
-WARP = Path("/path/to/repo-A")
+WARP = Path("/path/to/Rust workspace")
 sys.path.insert(0, str(REPO))
 
 os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")
@@ -41,7 +41,7 @@ from skylakegrep.src.embeddings import get_embedder
 from skylakegrep.src.hybrid import lexical_candidate_paths
 from skylakegrep.src.storage import search
 
-TASKS = json.loads((REPO / "benchmarks/cross_repo/repo-a.json").read_text())
+TASKS = json.loads((REPO / "benchmarks/cross_repo/rust-workspace.json").read_text())
 
 
 VARIANT_PROMPTS = [
@@ -105,7 +105,7 @@ def main() -> None:
     embedder = get_embedder(role="query")
 
     n = len(TASKS)
-    print(f"multi-HyDE probe over {n} repo-A tasks\n")
+    print(f"multi-HyDE probe over {n} Rust workspace tasks\n")
 
     # Strategy: union top-K from each variant, dedup, return top-N.
     for label, fn in [

@@ -1,6 +1,6 @@
 """Production cascade benchmark — calls the real ``storage.cascade_search``
 through the same code path that ``skygrep search --cascade`` uses, and verifies
-repo-A recall matches the probe (14/16 @ ~1.9 s/q at tau=0.015).
+Rust workspace recall matches the probe (14/16 @ ~1.9 s/q at tau=0.015).
 
 Run:
     OLLAMA_EMBED_MODEL=nomic-embed-text SKYGREP_DB_PATH=/tmp/<repo-D>_idx_p1.db \
@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 
 REPO = Path("/Users/tianchichen/Documents/github/skylakegrep")
-WARP = Path("/path/to/repo-A")
+WARP = Path("/path/to/Rust workspace")
 sys.path.insert(0, str(REPO))
 
 os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")
@@ -28,7 +28,7 @@ from skylakegrep.src.embeddings import get_embedder
 from skylakegrep.src.hybrid import lexical_candidate_paths
 from skylakegrep.src.storage import cascade_search
 
-TASKS = json.loads((REPO / "benchmarks/cross_repo/repo-a.json").read_text())
+TASKS = json.loads((REPO / "benchmarks/cross_repo/rust-workspace.json").read_text())
 
 
 def hit(expected: str, results: list[dict]) -> bool:
@@ -41,7 +41,7 @@ def main() -> None:
     answerer = get_answerer()
 
     n = len(TASKS)
-    print(f"production cascade_search() bench over {n} repo-A tasks\n")
+    print(f"production cascade_search() bench over {n} Rust workspace tasks\n")
     print(f"{'tau':>6}  {'recall':>7}  {'total_s':>8}  {'avg_s/q':>8}  {'#exit':>6}  {'exit%':>6}")
     for tau in [0.0, 0.005, 0.01, 0.015, 0.02, 0.03]:
         hits = 0

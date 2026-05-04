@@ -89,9 +89,9 @@ languages, 40 hand-labelled questions:
 
 | Repo | Language | Tasks | Recall | Avg s/q |
 | --- | --- | :-: | :-: | :-: |
-| `repo-A` | Rust | 16 | **16 / 16** | 4.17 |
-| `repo-B` | Python | 12 | **11 / 12** | 2.45 |
-| `repo-C` | TypeScript | 12 | **11 / 12** | 3.83 |
+| `Rust workspace` | Rust | 16 | **16 / 16** | 4.17 |
+| `Python codebase` | Python | 12 | **11 / 12** | 2.45 |
+| `TypeScript codebase` | TypeScript | 12 | **11 / 12** | 3.83 |
 | **Aggregate** | | **40** | **38 / 40 (95 %)** | **3.55** |
 
 Reproducible runner at `benchmarks/v0_7_multilang_bench.py`. Per-repo
@@ -103,7 +103,7 @@ Recall counts a query as a hit when at least one of the top-10
 returned chunks matches the canonical answer dirs (or any listed
 `expected_alternatives`).
 
-### Tier breakdown (repo-A 16-task)
+### Tier breakdown (16-task Rust)
 
 | Tier | What it does | Recall | Cold first query | Warm avg s/q |
 | --- | --- | :-: | :-: | :-: |
@@ -174,7 +174,7 @@ The full architecture diagram and module-by-module walk-through is at
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama server URL. |
 | `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Embedding model. Switching requires `skygrep index --reset`. |
 | `OLLAMA_LLM_MODEL` | `qwen2.5:3b` | Used for `--answer` and `--agentic`. |
-| `OLLAMA_HYDE_MODEL` | `qwen2.5:3b` | Used for cascade-escalation HyDE. Falls back to `OLLAMA_LLM_MODEL` if not installed. Set to `qwen2.5:1.5b` for ~30 % speedup at the cost of 1 task on repo-A 16-task. |
+| `OLLAMA_HYDE_MODEL` | `qwen2.5:3b` | Used for cascade-escalation HyDE. Falls back to `OLLAMA_LLM_MODEL` if not installed. Set to `qwen2.5:1.5b` for ~30 % speedup at the cost of 1 task on 16-task Rust. |
 | `OLLAMA_KEEP_ALIVE` | `-1` | Passed to every Ollama call. `-1` keeps models resident indefinitely (recommended). |
 | `SKYGREP_DB_PATH` | per-project | When set, skygrep treats the index as curated and disables auto-mutation. |
 | `SKYGREP_AUTO_PULL` | unset | Set `yes` to auto-`ollama pull` missing models without prompting. |
@@ -297,7 +297,7 @@ pip install -e ".[rerank]"
 .venv/bin/python benchmarks/agent_context_benchmark.py --top-k 10 --summary-only
 ```
 
-To reproduce a repo-A benchmark row, follow the indexing/run instructions
+To reproduce a Rust workspace benchmark row, follow the indexing/run instructions
 in [`docs/parity-benchmarks.md`](docs/parity-benchmarks.md).
 
 ## License

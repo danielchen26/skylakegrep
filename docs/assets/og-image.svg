@@ -75,7 +75,7 @@
       <rect width="300" height="38" rx="16" fill="url(#top-gleam)"/>
       <text x="150" y="48" text-anchor="middle" font-size="13" font-weight="600" fill="#a1a1aa" letter-spacing="0.08em">MULTI-TURN TOOL CALLS</text>
       <text x="150" y="92" text-anchor="middle" font-size="44" font-weight="700" fill="#ffffff" font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace">−82 %</text>
-      <text x="150" y="115" text-anchor="middle" font-size="12" fill="#71717a">3-turn repo-A session · Claude Code</text>
+      <text x="150" y="115" text-anchor="middle" font-size="12" fill="#71717a">3-turn Rust workspace session · Claude Code</text>
     </g>
 
     <!-- Tile 2: warm query -->

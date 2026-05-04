@@ -43,7 +43,7 @@ def main() -> None:
         pairs = _file_level_pairs(conn, qv, top_files=15, candidate_paths=None)
         print("\n  File-mean cosine top-15 (corpus-wide):")
         for i, (path, score) in enumerate(pairs, 1):
-            short = path.replace("/path/to/repo-A/", "")
+            short = path.replace("/path/to/Rust workspace/", "")
             in_target = expected_dir in path
             mark = "✓" if in_target else " "
             print(f"    {mark} {i:>2}.  {score:.4f}  {short}")
@@ -73,7 +73,7 @@ def main() -> None:
 
         print(f"\n  Top-5 enriched chunks under {expected_dir} (their cosine vs this query):")
         for score, file, desc in scored[:5]:
-            short = file.replace("/path/to/repo-A/", "")
+            short = file.replace("/path/to/Rust workspace/", "")
             print(f"    {score:.4f}  {short}")
             if desc:
                 print(f"           desc: {desc[:160]}…" if len(desc) > 160 else f"           desc: {desc}")

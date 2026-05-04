@@ -705,7 +705,7 @@ def search(
     # signals. Files matching ``_test.rs`` / ``/blocklist/`` / etc. are rarely
     # the canonical answer to "where is X implemented", and removing them
     # from the top of the result list directly closes the recall gap on
-    # repo-A queries where the tests of X consistently outranked the
+    # Rust workspace queries where the tests of X consistently outranked the
     # implementation of X.
     penalised = False
     for candidate in candidates:
@@ -819,7 +819,7 @@ def cascade_search(
     union — cosine + file-rank, then HyDE + cosine + file-rank — and union
     the result lists with score-preserving dedup.
 
-    On the repo-A 16-task benchmark this hits **14/16 recall at ~1.9 s/q
+    On the 16-task Rust benchmark this hits **14/16 recall at ~1.9 s/q
     (tau=0.015, 81% early-exit)**, matching the previous max-accurate tier
     (14/16 @ 21.8 s/q) at an order of magnitude lower latency.
 
@@ -871,7 +871,7 @@ def cascade_search(
     # disk-resident file text, but L3 enrichment lives in chunk
     # *embeddings* — files whose disk text doesn't contain query terms are
     # invisible to rg even when their enriched embeddings would be the
-    # right answer (the repo-A ``crates/ai/`` and ``app/src/billing/``
+    # right answer (the Rust workspace ``crates/ai/`` and ``app/src/billing/``
     # cases). When the cascade decides to escalate (i.e. confidence is
     # already low), we drop ``candidate_paths`` so the cosine + multi-
     # resolution stages run against the full corpus, letting enriched

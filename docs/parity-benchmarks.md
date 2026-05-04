@@ -10,15 +10,15 @@ self-contained and reproducible from a fresh clone.
 |---|---|:---:|:---:|:---:|---|
 | 1 | skylakegrep self-test vs **simulated grep-agent** | 30/30 vs 30/30 | **2.00×** | 2.90× | `benchmarks/agent_context_benchmark.py` |
 | 2 | skylakegrep self-test vs **real ripgrep 15.1.0** | 30/30 vs 30/30 | **17.71×** | 32.80× | `benchmarks/parity_vs_ripgrep.py` |
-| 3 | repo-A cross-repo vs **real ripgrep 15.1.0**, pre-P0 | 8/16 vs 16/16 | **868.6×** | 1256.98× | `benchmarks/parity_vs_ripgrep.py --tasks benchmarks/cross_repo/repo-a.json` |
-| 3a | repo-A cross-repo, **after P0** (nomic-embed-text + cross-encoder rerank) | 9/16 vs 16/16 | **860.4×** | 1239.87× | same script with `--rerank` (default on) |
-| 3b | repo-A cross-repo, **after P1** (P0 + chunk path/symbol prefix + chunker dedup) | 10/16 vs 16/16 | **528×** | 650× | `--rerank --reuse-index` after re-indexing |
-| 3c | repo-A cross-repo, **after P2-F (HyDE)** mean across 3 runs | **12/16 mean** (11-13/16 range) vs 16/16 | **524×** | 644× | `--rerank --hyde --reuse-index`; LLM is non-deterministic |
-| 3d | repo-A cross-repo, **after deterministic HyDE + `mxbai-rerank-large-v2`** | **14/16** vs 16/16 | ~525× | ~640× | same script with deterministic LLM seed and the larger reranker; 2 misses remain (websocket / billing) |
-| 3e | repo-A cross-repo, **daily-driver mode** (`mxbai-rerank-base-v2`, no HyDE) | **10/16** vs 16/16 | ~525× | ~640× | the practical default: ~12.7 s avg per query on Mac CPU, no LLM call, base reranker only |
-| 3f | repo-A cross-repo, **confidence-gated cascade** (`skygrep search --cascade`, τ=0.015) | **14/16** vs 16/16 | ~525× | ~640× | file-mean cosine first, escalate to HyDE-union only on uncertain queries — **1.49 s avg per query** (14× faster than tier 3d at the same recall) |
+| 3 | Rust workspace cross-repo vs **real ripgrep 15.1.0**, pre-P0 | 8/16 vs 16/16 | **868.6×** | 1256.98× | `benchmarks/parity_vs_ripgrep.py --tasks benchmarks/cross_repo/rust-workspace.json` |
+| 3a | Rust workspace cross-repo, **after P0** (nomic-embed-text + cross-encoder rerank) | 9/16 vs 16/16 | **860.4×** | 1239.87× | same script with `--rerank` (default on) |
+| 3b | Rust workspace cross-repo, **after P1** (P0 + chunk path/symbol prefix + chunker dedup) | 10/16 vs 16/16 | **528×** | 650× | `--rerank --reuse-index` after re-indexing |
+| 3c | Rust workspace cross-repo, **after P2-F (HyDE)** mean across 3 runs | **12/16 mean** (11-13/16 range) vs 16/16 | **524×** | 644× | `--rerank --hyde --reuse-index`; LLM is non-deterministic |
+| 3d | Rust workspace cross-repo, **after deterministic HyDE + `mxbai-rerank-large-v2`** | **14/16** vs 16/16 | ~525× | ~640× | same script with deterministic LLM seed and the larger reranker; 2 misses remain (websocket / billing) |
+| 3e | Rust workspace cross-repo, **daily-driver mode** (`mxbai-rerank-base-v2`, no HyDE) | **10/16** vs 16/16 | ~525× | ~640× | the practical default: ~12.7 s avg per query on Mac CPU, no LLM call, base reranker only |
+| 3f | Rust workspace cross-repo, **confidence-gated cascade** (`skygrep search --cascade`, τ=0.015) | **14/16** vs 16/16 | ~525× | ~640× | file-mean cosine first, escalate to HyDE-union only on uncertain queries — **1.49 s avg per query** (14× faster than tier 3d at the same recall) |
 
-### Latency × recall trade-off curve on repo-A (Mac CPU, no daemon, cold reranker load amortised over 16 tasks)
+### Latency × recall trade-off curve on Rust workspace (Mac CPU, no daemon, cold reranker load amortised over 16 tasks)
 
 Two retrieval modes: **chunk-only** (single-stage cosine over all chunks)
 and **multi-resolution** (file-level cosine top-30 first, then chunk-level
@@ -49,7 +49,7 @@ accurate tier at **13/16 @ 25.3 s**, and the maximum-accuracy tier
 `skygrep search --cascade` (added 2026-05-03) replaces the previous
 "max-accurate" config (`--rerank --hyde --rank-by file`, 14/16 @ 21.8 s)
 with a confidence-gated retrieval that only pays the LLM-driven escalation
-on queries the cheap path is uncertain about. Empirically on repo-A:
+on queries the cheap path is uncertain about. Empirically on Rust workspace:
 
 | Config (rg prefilter on, ``--cascade``, varying τ) | recall | avg latency / query | early-exit % |
 | --- | :-: | :-: | :-: |
@@ -83,7 +83,7 @@ The architecture was redrawn so that ripgrep is now the **first** stage of
 the pipeline, not just a benchmark baseline. ``skygrep search`` extracts up
 to 8 literal tokens from the query, asks ``rg -il -F`` for files
 containing any of them, and restricts the cosine + rerank stages to chunks
-of those files only. Empirically on repo-A:
+of those files only. Empirically on Rust workspace:
 
 | Config (with ``--lexical-prefilter`` on, multi-resolution intersected, ``--rank-by file``) | recall | avg latency / query |
 | --- | :-: | :-: |
@@ -198,7 +198,7 @@ on the roadmap (daemon-mode model retention, int8 quantization,
 multi-resolution file-level retrieval) target this latency directly.
 | 4 | skylakegrep vs **Mixedbread cloud skygrep** | not run (requires manual `skygrep login`) | n/a | n/a | `benchmarks/parity_vs_mixedbread.py` |
 
-### P0–P2 ablation on repo-A (top-k = 10, pool = 50 unless noted)
+### P0–P2 ablation on Rust workspace (top-k = 10, pool = 50 unless noted)
 
 | Config | skygrep recall | Notes |
 | --- | :-: | --- |
@@ -210,7 +210,7 @@ multi-resolution file-level retrieval) target this latency directly.
 | P0 + P1 + P2-F (HyDE), 3 runs | **11 / 12 / 13** | LLM-driven hypothetical doc; mean ≈ 12/16, best 13/16 |
 | above + deterministic HyDE seed (qwen2.5:3b, temperature 0) | **11/16** stable | non-determinism removed; reproducible runs |
 | above + `mxbai-rerank-large-v2` (Mixedbread cloud's flagship reranker) | **14/16** stable | +3 over deterministic base reranker; same model the cloud product uses |
-| above + non-canonical-path penalty (`/blocklist/`, `_test.rs`, etc., × 0.5) | 14/16 | no measurable lift on repo-A's task set; kept in code as a small principled guard |
+| above + non-canonical-path penalty (`/blocklist/`, `_test.rs`, etc., × 0.5) | 14/16 | no measurable lift on Rust workspace's task set; kept in code as a small principled guard |
 
 **Reading the P0 row.** The rerank stage cannot help when the right file is
 not in the top-N cosine candidate pool to begin with. Inspecting the failing
@@ -223,12 +223,12 @@ sees it because the chunk text we store is the raw code only.
 **Reading the P1 row.** Once each chunk's text is prefixed with
 `[file: …] [lang: …] [symbol: …]`, the embedder finally has a path-token
 anchor and recall lifts to 10/16. The chunker dedup change halves the
-indexed-chunk count (53 382 → 26 454 on repo-A) without losing recall, because
+indexed-chunk count (53 382 → 26 454 on Rust workspace) without losing recall, because
 emit-and-stop on the largest fitting node prevents redundant nested chunks.
 
 **Reading the P2 row.** HyDE generates a short hypothetical code answer with
 the local LLM (qwen2.5:3b) and combines it with the original question before
-embedding. On repo-A this lifts mean recall to ~12/16 (best 13/16) but introduces
+embedding. On Rust workspace this lifts mean recall to ~12/16 (best 13/16) but introduces
 non-determinism — the same query can land in a different top-10 across runs
 because the hypothetical doc varies. Switching to a deterministic LLM seed
 or a larger code-aware reasoning model would tighten this.
@@ -298,12 +298,12 @@ once fixed prompt and answer overhead are removed.
 This is the most direct answer to the question "is skylakegrep better than
 running rg locally?" for the agent-context use case on this codebase.
 
-## 3 — Cross-repo on repo-A (real ripgrep)
+## 3 — Cross-repo on Rust workspace (real ripgrep)
 
-**Source:** `benchmarks/parity_vs_ripgrep.py` + `benchmarks/cross_repo/repo-a.json`
+**Source:** `benchmarks/parity_vs_ripgrep.py` + `benchmarks/cross_repo/rust-workspace.json`
 
 To rule out the "tasks are tied to skylakegrep" critique, the same benchmark
-is run against the [repo-A](the Rust terminal source tree (URL redacted)) terminal source
+is run against the [Rust workspace](the Rust terminal source tree (URL redacted)) terminal source
 (~3.2k Rust files, 65+ crates) with a hand-curated 16-task set covering AI
 integration, computer-use, editor, LSP, vim mode, voice input, completion,
 fuzzy match, settings, websockets, secrets, markdown rendering, command
@@ -311,12 +311,12 @@ palette, auth, billing, and code review.
 
 ```bash
 .venv/bin/python benchmarks/parity_vs_ripgrep.py \
- --root /path/to/repo-A \
- --tasks benchmarks/cross_repo/repo-a.json \
+ --root /path/to/Rust workspace \
+ --tasks benchmarks/cross_repo/rust-workspace.json \
  --top-k 10 --summary-only
 ```
 
-**Result (top-k = 10, on the repo-A Rust workspace, ripgrep 15.1.0):**
+**Result (top-k = 10, on the Rust workspace Rust workspace, ripgrep 15.1.0):**
 
 | Metric | ripgrep 15.1.0 | skylakegrep | Notes |
 | --- | :-: | :-: | :-: |
@@ -329,7 +329,7 @@ palette, auth, billing, and code review.
 
 **Reading — and this is the most honest data point in this document:**
 
-On a large unfamiliar Rust codebase (repo-A, 65+ crates, ~3.2k files, ~46M
+On a large unfamiliar Rust codebase (Rust workspace, 65+ crates, ~3.2k files, ~46M
 chars / ~12M approx tokens), the trade-off is real and asymmetric:
 
 - **ripgrep recovers every expected file in raw output** but produces
@@ -342,7 +342,7 @@ chars / ~12M approx tokens), the trade-off is real and asymmetric:
  tasks**. The other 8 questions are answered in the corpus but the
  semantic ranker did not surface their expected directory in time.
 
-The ~50% recall on repo-A is materially worse than the 30/30 on the
+The ~50% recall on Rust workspace is materially worse than the 30/30 on the
 self-test. The likely contributors, in order:
 
 1. **Embedding model.** `mxbai-embed-large` (1024-d, 512-token context)
@@ -411,7 +411,7 @@ skygrep.
 
 ## Closing the recall gap — see the roadmap
 
-The 50% repo-A recall gap above is being addressed by the structured plan in
+The 50% Rust workspace recall gap above is being addressed by the structured plan in
 [`docs/roadmap.md`](roadmap.md). The first phase (P0) introduces a
 cross-encoder reranker as a second-stage scorer and switches the default
 embedding model to `nomic-embed-text`. Subsequent phases add path / symbol
@@ -436,7 +436,7 @@ The numbers above support narrow claims only.
 - **Embedding-model dependent.** Switching `OLLAMA_EMBED_MODEL` changes the
  retrieval numbers. Published results use `mxbai-embed-large`.
 - **Hand-curated task sets.** Both the 30-task self-test and the 16-task
- repo-A set were authored by hand. Generalization to arbitrary repositories
+ Rust workspace set were authored by hand. Generalization to arbitrary repositories
  requires a broader independent task set.
 - **No cross-encoder rerank.** The lexical reranker uses simple token and
  phrase overlap. A second-stage reranker over a larger candidate pool is
@@ -472,18 +472,18 @@ the cross-language evidence the bullet "task set of 30–50 questions on at
 least three different repositories" above asked for; it does not measure
 the end-to-end agent latency / token-cost story (that still needs the
 agent harness in items 2-5), but it does answer "does the cascade
-generalise beyond the repo-A Rust workspace?".
+generalise beyond the Rust workspace Rust workspace?".
 
 | Repo | Language | Files indexed | Tasks | Recall (cascade default) | Avg s/q | Cheap-path % |
 | --- | --- | :-: | :-: | :-: | :-: | :-: |
-| `repo-A` | Rust | 3 173 | 16 | **16 / 16** | 4.17 s | 19 % |
-| `repo-B` (this user's research repo) | Python | 142 | 12 | **11 / 12** | 2.45 s | 58 % |
-| `repo-C` | TypeScript | 1 903 | 12 | **11 / 12** | 3.83 s | 33 % |
+| `Rust workspace` | Rust | 3 173 | 16 | **16 / 16** | 4.17 s | 19 % |
+| `Python codebase` (this user's research repo) | Python | 142 | 12 | **11 / 12** | 2.45 s | 58 % |
+| `TypeScript codebase` | TypeScript | 1 903 | 12 | **11 / 12** | 3.83 s | 33 % |
 | **Aggregate** | | **5 218** | **40** | **38 / 40 (95 %)** | **3.55 s** | **35 %** |
 
 All four 0.5.0 layer tiers (cascade only, +L2 symbol boost, +L4 PageRank
 tiebreaker, full 0.5/0.7 default) hit the same recall on each repo, with
-< 0.4 s/q latency variation between tiers. As on repo-A, the symbol and
+< 0.4 s/q latency variation between tiers. As on Rust workspace, the symbol and
 graph layers don't add measurable headroom on these benchmarks because
 the cascade alone already gets close to the question-set ceiling — see
 the 0.5.1 release notes for why we believe these layers may still help
@@ -491,9 +491,9 @@ on harder benchmarks.
 
 The two misses are honest retrieval failures, not label problems:
 
- - **repo-B task 4** ("How does the V6 medical-grade <domain-y> benchmark
+ - **Python codebase task 4** ("How does the V6 medical-grade <domain-y> benchmark
  resolve and chain its acquire / extract / audit / score steps?")
- Expected `repo-B/<domain-y>_v6.py` (the orchestration
+ Expected `Python codebase/<domain-y>_v6.py` (the orchestration
  layer with `V6Resolution`, `resolve_v6`, `run_step`,
  `command_<domain-y>_v6`). The cascade returned the four
  implementation scripts under
@@ -503,7 +503,7 @@ The two misses are honest retrieval failures, not label problems:
  over the orchestration file's deeper semantic. A user could argue
  the scripts are also a valid answer.
 
- - **repo-C task 7** ("How does the assistant decide
+ - **TypeScript codebase task 7** ("How does the assistant decide
  when to automatically compact the conversation history before the
  context window fills?")
  Expected `src/services/compact/autoCompact.ts` (where
@@ -519,25 +519,25 @@ The two misses are honest retrieval failures, not label problems:
 
 Per-repo breakdown of how queries split across cheap vs. escalated path:
 
- - **repo-A** has 13/16 escalated queries because repo-A's natural-
+ - **Rust workspace** has 13/16 escalated queries because Rust workspace's natural-
  language questions rarely have surface-token overlap with the
  canonical Rust file paths (a query like "how does shell command
  autocompletion generate suggestions while the user is typing"
  needs HyDE to reach `crates/<repo-D>_completer/`).
- - **repo-B** has 7/12 cheap-path early-exits because repo-B's filenames
+ - **Python codebase** has 7/12 cheap-path early-exits because Python codebase's filenames
  are very semantic (`<domain-y>_v6.py`, `finite_field_runner.py`,
  `<component-v>.py`) so file-mean cosine alone is
  confident.
- - **repo-C** sits between (4/12 cheap) — TS
+ - **TypeScript codebase** sits between (4/12 cheap) — TS
  project conventions mix descriptive filenames with shorter ones
  (`client.ts`, `parser.ts`).
 
 Reproducible runner: ``benchmarks/v0_7_multilang_bench.py``. JSON task
-files: ``benchmarks/cross_repo/{repo-A,repo-b,repo-c}.json``. Reproducing the
+files: ``benchmarks/cross_repo/{Rust workspace,python-codebase,typescript-codebase}.json``. Reproducing the
 numbers requires that the three repos be cloned and the per-project
 indexes built (``skygrep index .`` from each repo). Index construction
-times measured here: repo-A 26 K chunks ~25 min, Repo-C 36 K chunks
-~17 min, repo-B 4 K chunks ~3 min, all on Mac CPU with
+times measured here: Rust workspace 26 K chunks ~25 min, Repo-C 36 K chunks
+~17 min, Python codebase 4 K chunks ~3 min, all on Mac CPU with
 ``OLLAMA_EMBED_MODEL=nomic-embed-text``.
 
 ## End-to-end agent benchmark
@@ -550,7 +550,7 @@ been answered across three rounds:
  sub-agents.
  - 8 single-turn hard semantic / vocab-mismatch
  questions × 2 conditions = 16 sub-agents.
- - (B) one 3-turn repo-A multi-turn session × 2
+ - (B) one 3-turn Rust workspace multi-turn session × 2
  conditions = 6 sub-agents (sequential, clean wall-time);
  (C) 6 unused medium-difficulty single-turn questions × 2
  conditions = 12 sub-agents.
@@ -563,7 +563,7 @@ wall-time totals from each sub-agent's own `usage` telemetry.
 
 | Bench | Tasks | rg-only tools | skygrep tools | Δ tools | Δ tokens |
 |---|:-:|:-:|:-:|:-:|:-:|
-| **Multi-turn (3-turn repo-A session)** | 1 × 3 | 38 | **7** | **−82 %** | −5 % |
+| **Multi-turn (3-turn Rust workspace session)** | 1 × 3 | 38 | **7** | **−82 %** | −5 % |
 | 6 medium tasks (-C) | 6 | 25 | **6** | **−76 %** | −8 % |
 | 14 single-turn | 14 | 124 | 87 | −30 % | +12 % |
 | **20-task single-turn aggregate** | 20 | **149** | **93** | **−37.6 %** | +6.5 % |
@@ -582,8 +582,8 @@ wall-time totals from each sub-agent's own `usage` telemetry.
  or wandered through multiple `skygrep` + `Read` rounds. **Don't
  cite skygrep as a token saver.**
  - **Quality slightly better with skygrep.** +2 strict / +3 lenient
- on the 20-task aggregate. skygrep solves the repo-A `<domain-y>_v6.py`
- famous miss and repo-c `client.ts` task that rg-only got wrong;
+ on the 20-task aggregate. skygrep solves the Rust workspace `<domain-y>_v6.py`
+ famous miss and typescript-codebase `client.ts` task that rg-only got wrong;
  doesn't lose any task rg-only got right.
  - **Wall-time data is contaminated** by parallel-spawn Ollama
  contention in batches. The multi-turn
@@ -606,7 +606,7 @@ and the per-version release notes (`docs/skylakegrep-0.{8,9,10}.0.md`).
 ## Strongest claims from this repository
 
  - **Multi-turn agent tool-call reduction**: −82 % fewer tool
- calls in a 3-turn repo-A Claude Code session (
+ calls in a 3-turn Rust workspace Claude Code session (
  e2e benchmark).
  - **Single-turn agent tool-call reduction**: −37.6 % across 20
  hand-labelled questions in Rust + Python + TypeScript (

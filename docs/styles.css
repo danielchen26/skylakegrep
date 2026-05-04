@@ -688,11 +688,13 @@ h2, h3 { scroll-margin-top: calc(var(--topbar-h) + 16px); }
 }
 .stat-num {
   font-family: var(--mono);
-  font-size: clamp(28px, 3.4vw, 36px);
+  font-size: clamp(22px, 2.6vw, 30px);
   font-weight: 700;
   color: var(--ink);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
+  line-height: 1.1;
+  letter-spacing: -0.018em;
+  word-break: break-word;
+  hyphens: auto;
 }
 .stat-num.accent { color: #67e8f9; }
 .stat-num.green { color: #34d399; }

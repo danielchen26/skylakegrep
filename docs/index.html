@@ -10,21 +10,21 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — semantic code search over a local index" />
- <meta property="og:description" content="Fully-offline semantic code search CLI. 16/16 repo-A recall, sub-second warm queries on Mac CPU, no remote service. PolyForm Noncommercial 1.0.0, powered by Ollama." />
+ <meta property="og:description" content="Fully-offline semantic code search CLI. 16/16 Rust workspace recall, sub-second warm queries on Mac CPU, no remote service. PolyForm Noncommercial 1.0.0, powered by Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
- <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (16/16 repo-A recall, sub-0.5 s warm queries, 100% local), and the latest version." />
+ <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (16/16 Rust workspace recall, sub-0.5 s warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — semantic code search over a local index" />
- <meta name="twitter:description" content="Fully-offline semantic code search CLI. 16/16 repo-A recall, sub-second warm queries on Mac CPU." />
+ <meta name="twitter:description" content="Fully-offline semantic code search CLI. 16/16 Rust workspace recall, sub-second warm queries on Mac CPU." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
  <link rel="preconnect" href="https://rsms.me/" />
  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
- <link rel="stylesheet" href="styles.css?v=3.1.1" />
+ <link rel="stylesheet" href="styles.css?v=3.1.2" />
  </head>
  <body>
  <header class="topbar">
@@ -103,27 +103,27 @@
  <a class="button secondary" href="https://github.com/danielchen26/skylakegrep">Source on GitHub</a>
  </div>
 
- <!-- Big stat tiles — honest numbers, best/typical labelled -->
- <div class="stat-grid" aria-label="Headline numbers">
+ <!-- Big stat tiles — pitched on the 4 things actually unique to this CLI -->
+ <div class="stat-grid" aria-label="What this CLI does that grep / rg / cloud RAG cannot">
  <div class="stat-tile">
- <div class="stat-num accent">Up&nbsp;to&nbsp;−82&nbsp;%</div>
- <div class="stat-label">Agent tool calls</div>
- <div class="stat-sub">best case · 3-turn multi-turn session vs <code>rg</code>-only</div>
+ <div class="stat-num accent">Auto-routed</div>
+ <div class="stat-label">Local-LLM intent router</div>
+ <div class="stat-sub"><code>qwen2.5:3b</code> picks <code>find</code> / <code>rg</code> / semantic per query — no flags</div>
  </div>
  <div class="stat-tile">
- <div class="stat-num">95 %</div>
- <div class="stat-label">Retrieval recall</div>
- <div class="stat-sub">38/40 hand-labeled queries · Rust + Python + TS</div>
+ <div class="stat-num">0 cloud</div>
+ <div class="stat-label">Fully on-device</div>
+ <div class="stat-sub">embeddings, router, reranker, optional synthesis — all via local Ollama</div>
  </div>
  <div class="stat-tile">
- <div class="stat-num">3&nbsp;tiers</div>
- <div class="stat-label">Auto-routed</div>
- <div class="stat-sub">filename · lexical · semantic — picked per query, no flags</div>
+ <div class="stat-num">3 formats</div>
+ <div class="stat-label">Code + PDF + docx</div>
+ <div class="stat-sub">lazy extraction · opt-in OCR · editor lock-files filtered out</div>
  </div>
  <div class="stat-tile">
- <div class="stat-num green">100 %</div>
- <div class="stat-label">Local &amp; offline</div>
- <div class="stat-sub">no telemetry · no cloud · NC license</div>
+ <div class="stat-num green">−82 %</div>
+ <div class="stat-label">Agent tool calls · <em>best case</em></div>
+ <div class="stat-sub">3-turn multi-turn session vs <code>rg</code>-only · typical 30–50 % less</div>
  </div>
  </div>
 
@@ -604,7 +604,7 @@ def search(conn, query_embedding, top_k=10, …):
  </thead>
  <tbody>
  <tr>
- <td><strong>Multi-turn (3-turn repo-A session)</strong></td>
+ <td><strong>Multi-turn (3-turn Rust workspace session)</strong></td>
  <td>1 × 3</td><td>38</td><td>7</td><td><strong>−82 %</strong></td><td>−5 %</td>
  </tr>
  <tr>
@@ -636,9 +636,9 @@ def search(conn, query_embedding, top_k=10, …):
  do not claim skygrep saves the LLM bill.
  </p>
  <p>
- Best-case task in the set: <em>repo-A editor cursor</em> — skygrep
+ Best-case task in the set: <em>Rust workspace editor cursor</em> — skygrep
  finishes in 1 tool call vs rg-only's 25 (25× fewer), at one
- eighth the wall time. Worst-case (in ): <em>repo-A
+ eighth the wall time. Worst-case (in ): <em>Rust workspace
  signin</em> — skygrep was 40 % more tool calls because the
  question's vocabulary (auth/session/token) overlapped directly
  with code-path tokens, so rg's straightforward scan was already
@@ -668,9 +668,9 @@ def search(conn, query_embedding, top_k=10, …):
  </tr>
  </thead>
  <tbody>
- <tr><td><code>repo-A</code></td><td>Rust</td><td>3 173</td><td>16</td><td><strong>16 / 16</strong></td><td>4.17 s</td></tr>
- <tr><td><code>repo-B</code> (scientific Python)</td><td>Python</td><td>142</td><td>12</td><td>11 / 12</td><td>2.45 s</td></tr>
- <tr><td><code>repo-C</code></td><td>TypeScript</td><td>1 903</td><td>12</td><td>11 / 12</td><td>3.83 s</td></tr>
+ <tr><td><code>Rust workspace</code></td><td>Rust</td><td>3 173</td><td>16</td><td><strong>16 / 16</strong></td><td>4.17 s</td></tr>
+ <tr><td><code>Python codebase</code> (scientific Python)</td><td>Python</td><td>142</td><td>12</td><td>11 / 12</td><td>2.45 s</td></tr>
+ <tr><td><code>TypeScript codebase</code></td><td>TypeScript</td><td>1 903</td><td>12</td><td>11 / 12</td><td>3.83 s</td></tr>
  <tr><td><strong>Aggregate</strong></td><td>3 langs</td><td><strong>5 218</strong></td><td><strong>40</strong></td><td><strong>38 / 40 (95 %)</strong></td><td><strong>3.55 s</strong></td></tr>
  </tbody>
  </table>
@@ -688,11 +688,11 @@ def search(conn, query_embedding, top_k=10, …):
  harness.
  </p>
 
- <h3 id="bench-repo-A">3. repo-A 16-task retrieval ceiling</h3>
+ <h3 id="bench-rust">3. 16-task Rust retrieval ceiling</h3>
  <p>
  The original headline benchmark since 0.5.0. Verified retrieval
  recall against hand-curated queries on the
- <code>repo-A</code> Rust workspace — a 3 K-file,
+ <code>Rust workspace</code> Rust workspace — a 3 K-file,
  26 K-chunk codebase that's a stress test for any local
  embedding-based retrieval.
  </p>
@@ -718,7 +718,7 @@ def search(conn, query_embedding, top_k=10, …):
  <p>
  With corrected ground-truth labels (the original
  <code>crates/ai/</code> and <code>app/src/billing/</code> labels
- were too narrow), the cascade default hits 16 / 16 on repo-A at
+ were too narrow), the cascade default hits 16 / 16 on Rust workspace at
  ~3 s/q on Mac CPU, no GPU. ~80 % of queries take the cheap path
  (file-mean cosine, no LLM call) and complete in well under 0.5 s
  warm; the remaining ~20 % escalate to a HyDE-augmented retrieval
@@ -787,7 +787,7 @@ def search(conn, query_embedding, top_k=10, …):
  </li>
  <li>
  <strong>"skygrep matches ripgrep file-set ceiling on a stress test"</strong> →
- <a href="#bench-repo-A">benchmark 3</a>: 16 / 16 on repo-A with
+ <a href="#bench-rust">benchmark 3</a>: 16 / 16 on Rust workspace with
  corrected ground-truth labels at ~3 s/q.
  </li>
  <li>

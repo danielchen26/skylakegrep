@@ -1,6 +1,6 @@
 """Lexical (ripgrep) prefilter — the high-recall first stage of search.
 
-Empirically on the repo-A 16-task benchmark, ripgrep with simple term extraction
+Empirically on the 16-task Rust benchmark, ripgrep with simple term extraction
 hits 16/16 recall in ~0.4 s, while our pre-existing semantic-only pipeline
 (cosine + cross-encoder rerank, no lexical prefilter) tops out at 14/16 in
 ~50 s. The right architecture for local code search is therefore:

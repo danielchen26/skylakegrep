@@ -1,17 +1,17 @@
-"""Real-ripgrep vs skylakegrep agent context benchmark.
+"""Real-ripgrep vs local-mgrep agent context benchmark.
 
 This is a tighter version of `agent_context_benchmark.py`: instead of
 simulating the grep agent in Python, it actually shells out to
 `rg` (ripgrep) for every term search, parses ripgrep's JSON output,
 and compares context-token usage and expected-file recall against a
-single `skygrep search` per task.
+single `mgrep search` per task.
 
-The skygrep agent path is identical to `agent_context_benchmark.skygrep_agent_context`
+The mgrep agent path is identical to `agent_context_benchmark.mgrep_agent_context`
 so the comparison is apples-to-apples on the retrieval side.
 
 Usage:
   .venv/bin/python benchmarks/parity_vs_ripgrep.py --top-k 10 --summary-only
-  .venv/bin/python benchmarks/parity_vs_ripgrep.py --root ../Rust workspace --tasks tasks.json
+  .venv/bin/python benchmarks/parity_vs_ripgrep.py --root ../<repo-D> --tasks tasks.json
 """
 
 from __future__ import annotations
@@ -30,12 +30,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from skylakegrep.src.indexer import collect_indexable_files
+from local_mgrep.src.indexer import collect_indexable_files
 
 from benchmarks.agent_context_benchmark import (
     DEFAULT_TASKS,
     extract_terms,
-    skygrep_agent_context,
+    mgrep_agent_context,
     safe_ratio,
 )
 from benchmarks.token_savings import (
@@ -150,7 +150,7 @@ def expected_hit(expected: str, paths: list[str]) -> bool:
     """Substring match: any returned path contains the expected token.
 
     Allows expected to be either an exact file path (e.g.
-    ``skylakegrep/src/storage.py``) or a directory prefix (e.g.
+    ``local_mgrep/src/storage.py``) or a directory prefix (e.g.
     ``crates/ai/``). The latter is useful for cross-repo tasks where
     the relevant chunk may live anywhere inside a feature crate.
     """
@@ -163,7 +163,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
     db_path = (
         Path(args.db_path)
         if args.db_path
-        else Path(tempfile.gettempdir()) / "skylakegrep-rg-parity.sqlite"
+        else Path(tempfile.gettempdir()) / "local-mgrep-rg-parity.sqlite"
     )
 
     indexed_files = [
@@ -197,7 +197,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             context_lines=args.rg_context_lines,
             chars_per_token=args.chars_per_token,
         )
-        skygrep_result = skygrep_agent_context(
+        mgrep_result = mgrep_agent_context(
             conn,
             task["question"],
             top_k=args.top_k,
@@ -211,7 +211,6 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             lexical_prefilter=getattr(args, "lexical_prefilter", True),
             lexical_root=root if getattr(args, "lexical_prefilter", True) else None,
             lexical_min_candidates=getattr(args, "lexical_min_candidates", 2),
-            rank_by=getattr(args, "rank_by", "chunk"),
         )
         rg_total = (
             args.fixed_prompt_tokens
@@ -221,7 +220,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
         mgrep_total = (
             args.fixed_prompt_tokens
             + args.final_answer_tokens
-            + int(skygrep_result["context_tokens"])
+            + int(mgrep_result["context_tokens"])
         )
         rows.append(
             {
@@ -233,29 +232,29 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
                     "hit": expected_hit(expected, rg_result["paths"]),
                     "estimated_total_tokens": rg_total,
                 },
-                "skygrep": {
-                    **skygrep_result,
-                    "hit": expected_hit(expected, skygrep_result["paths"]),
+                "mgrep": {
+                    **mgrep_result,
+                    "hit": expected_hit(expected, mgrep_result["paths"]),
                     "estimated_total_tokens": mgrep_total,
                 },
                 "context_token_reduction_x": safe_ratio(
                     float(rg_result["context_tokens"]),
-                    float(skygrep_result["context_tokens"]),
+                    float(mgrep_result["context_tokens"]),
                 ),
                 "estimated_total_token_reduction_x": safe_ratio(rg_total, mgrep_total),
             }
         )
 
     rg_context = sum(int(row["rg"]["context_tokens"]) for row in rows)
-    mgrep_context = sum(int(row["skygrep"]["context_tokens"]) for row in rows)
+    mgrep_context = sum(int(row["mgrep"]["context_tokens"]) for row in rows)
     rg_total = sum(int(row["rg"]["estimated_total_tokens"]) for row in rows)
-    mgrep_total = sum(int(row["skygrep"]["estimated_total_tokens"]) for row in rows)
+    mgrep_total = sum(int(row["mgrep"]["estimated_total_tokens"]) for row in rows)
 
     return {
         "definition": {
-            "benchmark_type": "real-ripgrep agent context vs skylakegrep top-k",
+            "benchmark_type": "real-ripgrep agent context vs local-mgrep top-k",
             "rg_agent": "one `rg --json -F -i -C 2 TERM ROOT` invocation per extracted query term",
-            "mgrep_agent": "one semantic skylakegrep top-k search per task",
+            "mgrep_agent": "one semantic local-mgrep top-k search per task",
             "token_note": "tokens approximate as chars/4; estimated totals add fixed prompt and final-answer overhead",
         },
         "tooling": {
@@ -285,21 +284,21 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
         },
         "summary": {
             "rg_context_tokens": rg_context,
-            "skygrep_context_tokens": mgrep_context,
+            "mgrep_context_tokens": mgrep_context,
             "context_token_reduction_x": safe_ratio(rg_context, mgrep_context),
             "rg_estimated_total_tokens": rg_total,
-            "skygrep_estimated_total_tokens": mgrep_total,
+            "mgrep_estimated_total_tokens": mgrep_total,
             "estimated_total_token_reduction_x": safe_ratio(rg_total, mgrep_total),
             "rg_hit_rate": f"{sum(1 for r in rows if r['rg']['hit'])}/{len(rows)}",
-            "skygrep_hit_rate": f"{sum(1 for r in rows if r['skygrep']['hit'])}/{len(rows)}",
+            "mgrep_hit_rate": f"{sum(1 for r in rows if r['mgrep']['hit'])}/{len(rows)}",
             "rg_avg_latency_seconds": round(
                 sum(float(r["rg"]["latency_seconds"]) for r in rows) / len(rows), 3
             ),
-            "skygrep_avg_latency_seconds": round(
-                sum(float(r["skygrep"]["latency_seconds"]) for r in rows) / len(rows), 3
+            "mgrep_avg_latency_seconds": round(
+                sum(float(r["mgrep"]["latency_seconds"]) for r in rows) / len(rows), 3
             ),
             "rg_tool_calls": sum(int(r["rg"]["tool_calls"]) for r in rows),
-            "skygrep_tool_calls": sum(int(r["skygrep"]["tool_calls"]) for r in rows),
+            "mgrep_tool_calls": sum(int(r["mgrep"]["tool_calls"]) for r in rows),
         },
         "tasks": rows,
     }
@@ -307,7 +306,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Benchmark real-ripgrep agent context vs skylakegrep top-k."
+        description="Benchmark real-ripgrep agent context vs local-mgrep top-k."
     )
     parser.add_argument("--root", default=".")
     parser.add_argument("--db-path")
@@ -371,7 +370,7 @@ def parse_args() -> argparse.Namespace:
         help="Disable two-stage retrieval; chunk-level cosine over the whole index",
     )
     parser.add_argument("--file-top", dest="file_top", type=int, default=30, help="Number of files surfaced by the file-level stage")
-    parser.add_argument("--daemon-url", dest="daemon_url", default=None, help="If set, route every skygrep search through a running skygrep daemon at this URL (skips per-query reranker cold load)")
+    parser.add_argument("--daemon-url", dest="daemon_url", default=None, help="If set, route every mgrep search through a running mgrep daemon at this URL (skips per-query reranker cold load)")
     parser.add_argument(
         "--lexical-prefilter",
         dest="lexical_prefilter",
@@ -386,7 +385,6 @@ def parse_args() -> argparse.Namespace:
         help="Disable the ripgrep prefilter; cosine over the full corpus",
     )
     parser.add_argument("--lexical-min-candidates", dest="lexical_min_candidates", type=int, default=2, help="Fall back to corpus-wide cosine when ripgrep returns fewer than this many candidate files")
-    parser.add_argument("--rank-by", dest="rank_by", default="chunk", choices=["chunk", "file"], help="Ranking strategy: 'chunk' (default) uses per-file diversity cap; 'file' returns one best chunk per file")
     return parser.parse_args()
 
 
