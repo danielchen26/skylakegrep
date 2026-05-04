@@ -35,6 +35,7 @@ from .config import get_config
 from .embeddings import get_embedder
 from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
 from .intent import classify_intent, merge_results as merge_tiers
+from .llm_router import RouterDecision, route_query
 from .render import render_compact_source, render_terminal_result
 from .storage import (
     CASCADE_DEFAULT_TAU,
@@ -230,6 +231,9 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--auto-index/--no-auto-index", default=None, help="Auto-build the index for this project on first query and refresh on subsequent queries. Default: on for the project-scoped DB; off when MGREP_DB_PATH is set externally so curated indexes are not auto-mutated.")
 @click.option("--rg-shortcut/--no-rg-shortcut", default=True, help="Lexical pre-gate: if the query is short and ripgrep returns a small, clustered, path-token-overlapping result set, return the rg result directly and skip the semantic cascade. Default on. Pass --no-rg-shortcut to force pure cascade (useful for benchmarking).")
 @click.option("--filename-shortcut/--no-filename-shortcut", default=True, help="Filename-lookup pre-gate (v0.13.0+): when the query looks like 'where is foo file' / 'find package.json', route to `find -iname '*token*'` and skip both content shortcuts. Default on. Pass --no-filename-shortcut to disable.")
+@click.option("--llm-router/--no-llm-router", default=True, help="LLM-driven query understanding (v0.15.0+). Routes queries via a small local Ollama model (default qwen2.5:3b) for generic intent classification. Falls back to v0.14.0 hand-rolled rules on any failure. Pass --no-llm-router to force the rule-based fallback.")
+@click.option("--detail", default="standard", type=click.Choice(["brief", "standard", "full", "summary"]), help="Output verbosity. `brief` = path + score one-liner. `standard` = +10 lines body (default). `full` = +full extracted PDF/docx content for filename matches. `summary` = +LLM 1-line summary per result.")
+@click.option("--ocr", is_flag=True, help="Run tesseract OCR on scanned PDFs (slow, ~5-30s/page). Opt-in only; requires tesseract + pdftoppm on PATH.")
 def search_cmd(
     query: str,
     top: int,
@@ -258,6 +262,9 @@ def search_cmd(
     auto_index: bool | None,
     rg_shortcut: bool,
     filename_shortcut: bool,
+    llm_router: bool,
+    detail: str,
+    ocr: bool,
 ):
     """Run a search. Aliased as the bare form: ``mgrep "<query>"``."""
 
@@ -295,7 +302,9 @@ def search_cmd(
                 click.echo(render_json_results(results))
                 return
             for r in results:
-                click.echo(render_terminal_result(r, content=content))
+                click.echo(render_terminal_result(
+                    r, content=content, detail=detail, ocr=ocr,
+                ))
             click.echo(
                 f"\n[Daemon search completed in {elapsed:.3f}s; "
                 f"daemon-side {payload.get('latency_seconds')}s]"
@@ -314,6 +323,15 @@ def search_cmd(
 
     from . import auto_index as ai
 
+    # v0.15.0 LLM-driven query routing. Resolves query intent + token
+    # selection + skip decisions via local Ollama. Falls back to the
+    # v0.14.0 rule-based classifier on any failure. The decision is
+    # consulted by the filename / lexical / cascade tier dispatchers
+    # below.
+    router_start = time.time()
+    decision: RouterDecision = route_query(query, conn=None, use_llm=llm_router)
+    router_elapsed = time.time() - router_start
+
     # v0.14.0 hierarchical merge: collect filename-lookup results
     # without short-circuiting. The merged results from all enabled
     # tiers are ranked by `classify_intent(query)` later. This runs
@@ -321,7 +339,7 @@ def search_cmd(
     # un-indexed directories (~/Downloads etc.).
     fn_results: list[dict] = []
     fn_elapsed = 0.0
-    if filename_shortcut and not agentic and not answer:
+    if filename_shortcut and not decision.skip_filename and not agentic and not answer:
         fn_start = time.time()
         fn_hits = ai.filename_shortcut(query, project_root, top_k=top)
         fn_elapsed = time.time() - fn_start
@@ -345,7 +363,7 @@ def search_cmd(
         start = time.time()
         rg_cold = ai.rg_fallback_results(query, project_root, top_k=top)
         elapsed = time.time() - start
-        intent = classify_intent(query)
+        intent = decision.intent
         results = merge_tiers(
             filename=fn_results,
             lexical=[],
@@ -367,7 +385,11 @@ def search_cmd(
         for r in results:
             click.echo(
                 render_terminal_result(
-                    r, content=content, project_root=str(project_root)
+                    r,
+                    content=content,
+                    project_root=str(project_root),
+                    detail=detail,
+                    ocr=ocr,
                 )
             )
         building = ai.is_index_building(db_path)
@@ -446,88 +468,95 @@ def search_cmd(
     # always also run cascade so semantic recall is never sacrificed.
     rg_results: list[dict] = []
     rg_elapsed = 0.0
-    if rg_shortcut and not agentic and not answer:
+    if rg_shortcut and not decision.skip_lexical and not agentic and not answer:
         rg_start = time.time()
         rg_hits = ai.lexical_shortcut(query, project_root, top_k=top)
         rg_elapsed = time.time() - rg_start
         if rg_hits:
             rg_results = rg_hits
 
-    embedder = get_embedder(role="query")
-    start = time.time()
-    queries = [query]
+    # v0.15.0 LLM-router can authorise skipping the cascade entirely
+    # when it is highly confident the query is a pure filename lookup.
+    # The decision is gated by MIN_CONFIDENCE_TO_SKIP_CASCADE — never
+    # skipped on a low-confidence call.
     answerer = None
-    if agentic:
-        answerer = get_answerer()
-        subqueries = answerer.decompose(query, max_queries=max_subqueries)
-        for subquery in subqueries:
-            if subquery not in queries:
-                queries.append(subquery)
-    pool = rerank_pool if rerank_pool is not None else config["rerank_pool"]
-    if hyde and not cascade:
-        if answerer is None:
-            answerer = get_answerer()
-        queries = [answerer.hyde(item) for item in queries]
-    candidate_paths = None
-    if lexical_prefilter:
-        from .hybrid import lexical_candidate_paths
-
-        prefilter_root = Path(lexical_root) if lexical_root else project_root
-        cands = lexical_candidate_paths(query, prefilter_root)
-        if len(cands) >= lexical_min_candidates:
-            candidate_paths = cands
-        # else fall through to corpus-wide cosine
-
-    result_groups: list[list[dict]] = []
     cascade_telemetry: dict | None = None
-    for item in queries:
-        query_embedding = embedder.embed(item)
-        if cascade:
+    if decision.skip_cascade and not agentic and not answer:
+        results: list[dict] = []
+        elapsed = 0.0
+    else:
+        embedder = get_embedder(role="query")
+        start = time.time()
+        queries = [query]
+        if agentic:
+            answerer = get_answerer()
+            subqueries = answerer.decompose(query, max_queries=max_subqueries)
+            for subquery in subqueries:
+                if subquery not in queries:
+                    queries.append(subquery)
+        pool = rerank_pool if rerank_pool is not None else config["rerank_pool"]
+        if hyde and not cascade:
             if answerer is None:
                 answerer = get_answerer()
-            cascade_results, cascade_telemetry = cascade_search(
-                conn,
-                query_embedding,
-                query_text=item,
-                embedder=embedder,
-                answerer=answerer,
-                top_k=max(top, top * 2),
-                candidate_paths=candidate_paths,
-                tau=cascade_tau,
-                languages=tuple(language),
-                include_patterns=tuple(include_patterns),
-                exclude_patterns=tuple(exclude_patterns),
+            queries = [answerer.hyde(item) for item in queries]
+        candidate_paths = None
+        if lexical_prefilter:
+            from .hybrid import lexical_candidate_paths
+
+            prefilter_root = Path(lexical_root) if lexical_root else project_root
+            cands = lexical_candidate_paths(query, prefilter_root)
+            if len(cands) >= lexical_min_candidates:
+                candidate_paths = cands
+            # else fall through to corpus-wide cosine
+
+        result_groups: list[list[dict]] = []
+        for item in queries:
+            query_embedding = embedder.embed(item)
+            if cascade:
+                if answerer is None:
+                    answerer = get_answerer()
+                cascade_results, cascade_telemetry = cascade_search(
+                    conn,
+                    query_embedding,
+                    query_text=item,
+                    embedder=embedder,
+                    answerer=answerer,
+                    top_k=max(top, top * 2),
+                    candidate_paths=candidate_paths,
+                    tau=cascade_tau,
+                    languages=tuple(language),
+                    include_patterns=tuple(include_patterns),
+                    exclude_patterns=tuple(exclude_patterns),
+                )
+                result_groups.append(cascade_results)
+                continue
+            result_groups.append(
+                search(
+                    conn,
+                    query_embedding,
+                    max(top, top * 2),
+                    languages=tuple(language),
+                    include_patterns=tuple(include_patterns),
+                    exclude_patterns=tuple(exclude_patterns),
+                    query_text=item,
+                    semantic_only=semantic_only,
+                    rerank=rerank,
+                    rerank_pool=pool,
+                    rerank_model=rerank_model,
+                    multi_resolution=multi_resolution,
+                    file_top=file_top,
+                    candidate_paths=candidate_paths,
+                    rank_by=rank_by,
+                )
             )
-            result_groups.append(cascade_results)
-            continue
-        result_groups.append(
-            search(
-                conn,
-                query_embedding,
-                max(top, top * 2),
-                languages=tuple(language),
-                include_patterns=tuple(include_patterns),
-                exclude_patterns=tuple(exclude_patterns),
-                query_text=item,
-                semantic_only=semantic_only,
-                rerank=rerank,
-                rerank_pool=pool,
-                rerank_model=rerank_model,
-                multi_resolution=multi_resolution,
-                file_top=file_top,
-                candidate_paths=candidate_paths,
-                rank_by=rank_by,
-            )
-        )
-    results = merge_results(result_groups, top)
-    elapsed = time.time() - start
+        results = merge_results(result_groups, top)
+        elapsed = time.time() - start
 
     # v0.14.0 hierarchical merge across tiers: cascade (semantic) +
     # lexical-shortcut hits + filename-lookup hits, deduplicated by
-    # path, ranked by classify_intent(query) so the right tier wins
-    # for the user's query phrasing. All three tiers always run when
-    # enabled — completeness over speed.
-    intent = classify_intent(query)
+    # path, ranked by the v0.15.0 router-supplied intent so the right
+    # tier wins for the user's query phrasing.
+    intent = decision.intent
     results = merge_tiers(
         filename=fn_results,
         lexical=rg_results,
@@ -551,14 +580,20 @@ def search_cmd(
     for r in results:
         click.echo(
             render_terminal_result(
-                r, content=content, project_root=str(project_root)
+                r,
+                content=content,
+                project_root=str(project_root),
+                detail=detail,
+                ocr=ocr,
             )
         )
 
     parts: list[str] = [f"{elapsed:.3f}s"]
     parts.append(
-        f"intent={intent} · {len(fn_results)} filename + "
-        f"{len(rg_results)} lexical + cascade"
+        f"router={decision.source} · intent={intent} "
+        f"({decision.confidence:.2f}) · "
+        f"{len(fn_results)} filename + {len(rg_results)} lexical + "
+        f"{'cascade' if not decision.skip_cascade else 'cascade-skipped'}"
     )
     if cascade and cascade_telemetry is not None:
         kind = "cheap" if cascade_telemetry.get("early_exit") else "escalated"

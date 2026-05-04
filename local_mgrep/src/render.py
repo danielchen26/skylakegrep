@@ -219,6 +219,8 @@ def render_terminal_result(
     max_chars: int = 600,
     color: bool | None = None,
     project_root: str | None = None,
+    detail: str = "standard",
+    ocr: bool = False,
 ) -> str:
     """Render one result card. Returns a string ready for ``click.echo``.
 
@@ -290,9 +292,17 @@ def render_terminal_result(
 
     out_lines: list[str] = ["", top]
 
+    # ----- v0.15.0 detail levels -----
+    # brief   : header-only, no body / corner
+    # summary : header + 1-line truncated body
+    # standard: existing default
+    # full    : standard + binary content extract for filename matches
+    if detail == "brief":
+        return "\n".join(out_lines)
+
     # ----- Body -----
     body_lines: list[str] = []
-    if symbol:
+    if symbol and detail != "summary":
         if use_color:
             body_lines.append(
                 f"{_DIM}symbol:{_RESET} {_FUNC_CYAN}{symbol}{_RESET}"
@@ -301,15 +311,60 @@ def render_terminal_result(
             body_lines.append(f"symbol: {symbol}")
         body_lines.append("")
 
+    # Lazy binary-content extraction for filename-lookup results in
+    # `--detail=full` mode. PDFs and docx are not in the chunk index,
+    # so the only way to surface their content is to extract on demand.
+    extracted_preview = ""
+    if detail == "full" and fallback == "filename-lookup":
+        from . import binary_extract
+        from pathlib import Path as _P
+        try:
+            ex = binary_extract.extract_text(_P(raw_path), ocr=ocr)
+            preview, was_truncated = binary_extract.truncate(ex.text, 1200)
+            if preview:
+                extracted_preview = (
+                    f"{_DIM}[{ex.source}{' · truncated' if was_truncated else ''}]{_RESET}\n"
+                    if use_color
+                    else f"[{ex.source}{' · truncated' if was_truncated else ''}]\n"
+                )
+                extracted_preview += preview
+            elif ex.note:
+                # Surface the friendly hint (e.g. "scanned PDF, rerun
+                # with --ocr") so the user sees WHY there's no body.
+                hint_color = _DIM if use_color else ""
+                reset = _RESET if use_color else ""
+                extracted_preview = f"{hint_color}{ex.note}{reset}"
+        except Exception:  # noqa: BLE001 — never let extraction crash a search
+            pass
+
+    if extracted_preview:
+        body_lines.extend(extracted_preview.split("\n"))
+        body_lines.append("")
+
     if content and body:
-        body_clip = body[:max_chars]
-        rendered = _render_body_by_type(
-            body_clip,
-            lang=lang,
-            fallback=fallback,
-            color=use_color,
-        )
-        body_lines.extend(rendered.split("\n"))
+        if detail == "summary":
+            # One-line preview only
+            first_line = next(
+                (ln for ln in body.split("\n") if ln.strip()), ""
+            )
+            summary_clip = first_line[:160].rstrip()
+            if summary_clip:
+                rendered = _render_body_by_type(
+                    summary_clip,
+                    lang=lang,
+                    fallback=fallback,
+                    color=use_color,
+                )
+                body_lines.append(rendered)
+        else:
+            body_clip = body[:max_chars]
+            rendered = _render_body_by_type(
+                body_clip,
+                lang=lang,
+                fallback=fallback,
+                color=use_color,
+            )
+            body_lines.extend(rendered.split("\n"))
 
     if not body_lines:
         # Even with no body, keep the card visible so there's always a

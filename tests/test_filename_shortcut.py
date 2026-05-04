@@ -170,3 +170,66 @@ def test_directories_excluded(tmp_path):
 def test_skips_on_empty_query(tmp_path):
     out = auto_index.filename_shortcut("   ", tmp_path, top_k=5)
     assert out is None
+
+
+# ---- v0.14.1 token-priority fix -------------------------------------
+
+
+@pytest.mark.skipif(not _has_find(), reason="find not on PATH")
+def test_identifier_token_with_digits_beats_longer_alpha_token(tmp_path):
+    """The user's real complaint: query
+        "where is eb1b support letter evidence in all files?"
+    has 'evidence' (8 chars, alpha) and 'eb1b' (4 chars, has digit).
+    v0.14.0 picked 'evidence' by length and matched the wrong CSV.
+    v0.14.1 must prefer the digit-bearing token."""
+    root = _project(
+        tmp_path,
+        {
+            "EB1B_filing.pdf": "x",
+            "EB1B_Denial_Analysis.pdf": "x",
+            "evidence_csv_red_herring.csv": "x",  # would catch on 'evidence'
+        },
+    )
+    out = auto_index.filename_shortcut(
+        "where is eb1b support letter evidence in all files?",
+        root,
+        top_k=10,
+    )
+    assert out is not None, "must fire on filename intent"
+    paths = [r["path"] for r in out]
+    assert all("EB1B" in p or "eb1b" in p for p in paths), (
+        f"must select 'eb1b' token (digit-bearing identifier), got {paths}"
+    )
+    assert not any("evidence_csv_red_herring" in p for p in paths)
+
+
+@pytest.mark.skipif(not _has_find(), reason="find not on PATH")
+def test_separator_token_beats_plain_alpha(tmp_path):
+    """`package.json` has a separator → preferred over `auth`."""
+    root = _project(
+        tmp_path,
+        {"src/auth/login.py": "x", "package.json": "{}"},
+    )
+    out = auto_index.filename_shortcut(
+        "find package.json auth file", root, top_k=10
+    )
+    assert out is not None
+    paths = [r["path"] for r in out]
+    assert any("package.json" in p for p in paths)
+
+
+@pytest.mark.skipif(not _has_find(), reason="find not on PATH")
+def test_falls_through_when_priority_token_fails(tmp_path):
+    """If the priority token has no matches, we should try the next
+    candidate, not give up immediately."""
+    root = _project(
+        tmp_path,
+        {"docs/README.md": "x"},
+    )
+    # 'foo123' is digit-bearing and ranks first, but won't match
+    # anything. The next priority candidate is 'README'.
+    out = auto_index.filename_shortcut(
+        "find foo123 README file", root, top_k=10
+    )
+    assert out is not None
+    assert any("README" in r["path"] for r in out)

@@ -192,6 +192,17 @@ also [installable from PyPI](https://pypi.org/project/local-mgrep/).
 
 The full sequence so far:
 
+  - **0.15.0** — LLM-driven query routing replaces hand-rolled
+    heuristics as the primary source of routing decisions. A small
+    local Ollama model (`qwen2.5:3b`) reads each query and returns
+    structured `{intent, primary_token, skip_cascade, extract_content,
+    confidence}` JSON. Three-layer fallback chain (LLM → v0.14.0
+    rules → mixed) keeps the CLI working air-gapped or when Ollama is
+    down. New `binary_extract.py` extracts PDF/docx content inline for
+    filename matches; `--detail=brief|standard|full|summary` and
+    `--ocr` (opt-in tesseract) round out the verbosity story.
+    Confidence threshold (0.7) protects accuracy: an unsure LLM never
+    skips the cascade. Filename queries return to ~150 ms.
   - **0.14.0** — hierarchical merge: every enabled tier (filename /
     lexical / semantic cascade) always runs, results dedupe by
     path, and `classify_intent(query)` decides which tier wins

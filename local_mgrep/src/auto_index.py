@@ -581,50 +581,77 @@ def filename_shortcut(
         if not re.search(r"\bfiles?\b", q_lower):
             return None
 
-    # Condition 2: extract a usable name token
+    # Condition 2: extract usable name tokens, ordered by how
+    # "filename-like" they look. v0.14.1 fixes a bug where the
+    # plain longest token won (e.g. picking "evidence" over "eb1b"
+    # for the query "where is eb1b support letter evidence in all
+    # files?", which then matched the wrong CSV).
     raw_tokens = _FN_TOKEN_RE.findall(query)
     candidates = [
         t for t in raw_tokens if t.lower() not in _FN_QUESTION_WORDS
     ]
+    candidates = [t for t in candidates if len(t) >= 3]
     if not candidates:
         return None
-    # Pick longest token (most specific identifier)
-    pattern = max(candidates, key=len)
-    if len(pattern) < 3:
-        return None
 
-    # Condition 3: find returns a clean small set
+    def _is_identifier_like(t: str) -> int:
+        """Higher score = more filename-identifier-like."""
+        score = 0
+        if any(c.isdigit() for c in t):
+            score += 100  # eb1b, v6, task001
+        if any(c in "._-" for c in t):
+            score += 50   # foo.py, my-file, snake_case
+        if t != t.lower() and t != t.upper():
+            score += 20   # CamelCase / PascalCase
+        return score
+
+    # Sort by (identifier-likeness desc, length desc) so we try
+    # `eb1b` before `evidence` and `package.json` before `parser`.
+    ordered = sorted(
+        candidates, key=lambda t: (-_is_identifier_like(t), -len(t))
+    )
+
     find_bin = shutil.which("find")
     if not find_bin:
         return None
-    try:
-        r = subprocess.run(
-            [
-                find_bin, str(project_root),
-                "-maxdepth", str(max_depth),
-                "-iname", f"*{pattern}*",
-                "-not", "-path", "*/.*",
-                "-not", "-path", "*/node_modules/*",
-                "-not", "-path", "*/.venv/*",
-                "-not", "-path", "*/__pycache__/*",
-                "-type", "f",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=4,
-        )
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        return None
 
-    paths = [
-        line.strip() for line in r.stdout.splitlines() if line.strip()
-    ]
-    if not paths or len(paths) > max_files:
-        return None
+    paths: list[str] = []
+    pattern: str = ""
+    for cand in ordered:
+        try:
+            r = subprocess.run(
+                [
+                    find_bin, str(project_root),
+                    "-maxdepth", str(max_depth),
+                    "-iname", f"*{cand}*",
+                    "-not", "-path", "*/.*",
+                    "-not", "-path", "*/node_modules/*",
+                    "-not", "-path", "*/.venv/*",
+                    "-not", "-path", "*/__pycache__/*",
+                    "-type", "f",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=4,
+            )
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            continue
+        cand_paths = [
+            line.strip() for line in r.stdout.splitlines() if line.strip()
+        ]
+        if not cand_paths or len(cand_paths) > max_files:
+            continue
+        cand_lower = cand.lower()
+        if not any(
+            cand_lower in Path(p).name.lower() for p in cand_paths
+        ):
+            continue
+        # First candidate that satisfies all conditions wins.
+        paths = cand_paths
+        pattern = cand
+        break
 
-    # Condition 4: at least one basename actually contains the token
-    pat_lower = pattern.lower()
-    if not any(pat_lower in Path(p).name.lower() for p in paths):
+    if not paths:
         return None
 
     # Rank: shorter path first (less nested = likely the canonical),
