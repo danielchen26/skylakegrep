@@ -160,9 +160,15 @@ it cleanly.
 
 ### Multi-language indexing
 
-Tree-sitter grammars for Python, JavaScript, TypeScript, plus
-generic chunking for any text-based source. `.gitignore` /
-`.skygrepignore` precedence honored.
+Tree-sitter grammars for **Python, JavaScript, TypeScript** are
+bundled by default (declared in `pyproject.toml`). The indexer can
+also use grammars for **Go, Rust, Java, C, C++, C#, Ruby, PHP,
+Swift, Kotlin, Scala** if the corresponding `tree-sitter-<lang>`
+package is installed manually (`pip install tree-sitter-rust` etc.).
+Files in unsupported languages fall back to generic line-based
+chunking.
+
+`.gitignore` / `.skygrepignore` precedence honored.
 
 ### Per-project, fully offline
 
@@ -173,12 +179,15 @@ via Ollama. No remote service required. No telemetry.
 ### CLI flags
 
 ```
-skygrep "<query>"                    # bare query
+skygrep "<query>"                    # bare query (default subcommand)
 skygrep search "<query>" -m 10       # explicit search subcommand
 skygrep index                         # build / refresh the index
-skygrep doctor                        # health check
+skygrep watch                         # incremental file watcher
+skygrep stats                         # per-project index info
+skygrep doctor                        # runtime + integrations health check
 skygrep setup                         # register with LLM CLIs
-skygrep watch                         # incremental watcher
+skygrep enrich                        # one-time chunk doc2query enrichment
+skygrep serve                         # daemon mode (avoids reranker cold-load)
 
 Common flags:
   --top, -m N                          number of results

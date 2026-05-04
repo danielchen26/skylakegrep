@@ -232,7 +232,7 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--rg-shortcut/--no-rg-shortcut", default=True, help="Lexical pre-gate: if the query is short and ripgrep returns a small, clustered, path-token-overlapping result set, return the rg result directly and skip the semantic cascade. Default on. Pass --no-rg-shortcut to force pure cascade (useful for benchmarking).")
 @click.option("--filename-shortcut/--no-filename-shortcut", default=True, help="Filename-lookup pre-gate (v0.13.0+): when the query looks like 'where is foo file' / 'find package.json', route to `find -iname '*token*'` and skip both content shortcuts. Default on. Pass --no-filename-shortcut to disable.")
 @click.option("--llm-router/--no-llm-router", default=True, help="LLM-driven query understanding (v0.15.0+). Routes queries via a small local Ollama model (default qwen2.5:3b) for generic intent classification. Falls back to v0.14.0 hand-rolled rules on any failure. Pass --no-llm-router to force the rule-based fallback.")
-@click.option("--detail", default="standard", type=click.Choice(["brief", "standard", "full", "summary"]), help="Output verbosity. `brief` = path + score one-liner. `standard` = +10 lines body (default). `full` = +full extracted PDF/docx content for filename matches. `summary` = +LLM 1-line summary per result.")
+@click.option("--detail", default="standard", type=click.Choice(["brief", "standard", "full", "summary"]), help="Output verbosity. `brief` = path + score one-liner. `standard` = +10 lines body (default). `full` = +full extracted PDF/docx content for filename matches. `summary` = +1-line truncated preview (first non-empty line, ≤160 chars; no LLM call).")
 @click.option("--ocr", is_flag=True, help="Run tesseract OCR on scanned PDFs (slow, ~5-30s/page). Opt-in only; requires tesseract + pdftoppm on PATH.")
 def search_cmd(
     query: str,
@@ -328,8 +328,28 @@ def search_cmd(
     # v0.14.0 rule-based classifier on any failure. The decision is
     # consulted by the filename / lexical / cascade tier dispatchers
     # below.
+    # Persistent global router-decision cache. The router's decision
+    # depends on query phrasing only, not on project content, so a
+    # single SQLite shared across projects is sound — same query
+    # never pays the LLM cost twice within or across sessions. Drop
+    # ~/.skylakegrep/router_cache.db to force re-classification.
     router_start = time.time()
-    decision: RouterDecision = route_query(query, conn=None, use_llm=llm_router)
+    _router_cache_db = None
+    try:
+        from pathlib import Path as _P
+        _cache_dir = _P.home() / ".skylakegrep"
+        _cache_dir.mkdir(parents=True, exist_ok=True)
+        _router_cache_db = sqlite3.connect(str(_cache_dir / "router_cache.db"))
+    except (OSError, sqlite3.Error):
+        _router_cache_db = None
+    decision: RouterDecision = route_query(
+        query, conn=_router_cache_db, use_llm=llm_router
+    )
+    if _router_cache_db is not None:
+        try:
+            _router_cache_db.close()
+        except sqlite3.Error:
+            pass
     router_elapsed = time.time() - router_start
 
     # v0.14.0 hierarchical merge: collect filename-lookup results
