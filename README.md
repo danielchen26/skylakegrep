@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://pypi.org/project/local-mgrep/"><img src="https://img.shields.io/pypi/v/local-mgrep?label=pypi&color=22d3ee&labelColor=0a0d12" alt="PyPI"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.9%2B-22d3ee?labelColor=0a0d12" alt="Python 3.9+"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-22d3ee?labelColor=0a0d12" alt="MIT License"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm--NC--1.0.0-f59e0b?labelColor=0a0d12" alt="PolyForm Noncommercial 1.0.0"></a>
   <a href="https://danielchen26.github.io/local-mgrep/"><img src="https://img.shields.io/badge/docs-published-22d3ee?labelColor=0a0d12" alt="Documentation"></a>
   <a href="https://github.com/danielchen26/local-mgrep/releases/latest"><img src="https://img.shields.io/github/v/release/danielchen26/local-mgrep?label=release&color=22d3ee&labelColor=0a0d12" alt="Latest release"></a>
 </p>
@@ -389,7 +389,21 @@ in [`docs/parity-benchmarks.md`](docs/parity-benchmarks.md).
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+**PolyForm Noncommercial 1.0.0** — see [`LICENSE`](LICENSE).
+
+> ⚠️ **License change as of v0.16.0.** This project is now licensed under
+> **PolyForm Noncommercial 1.0.0**. Personal, academic, research, hobby,
+> and any other non-commercial use is fully permitted, including
+> modification and redistribution. **Commercial use is NOT permitted**
+> under this license. To obtain a commercial license, open a GitHub
+> issue titled "Commercial license inquiry" or email
+> <chentianchi@gmail.com>.
+>
+> Earlier releases (v0.2.0 – v0.15.1) were originally distributed under
+> the MIT License at release time. The git history has been rewritten
+> retroactively so all checked-in `LICENSE` files now reflect the new
+> license; binaries that were already published under MIT remain so
+> wherever they exist in the wild.
 
 ## Acknowledgments
 

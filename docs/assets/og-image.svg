@@ -67,12 +67,12 @@
       <rect width="300" height="130" rx="14" fill="url(#stat-grad)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
       <text x="150" y="48" text-anchor="middle" font-size="14" font-weight="600" fill="#a1a1aa" letter-spacing="0.08em">EVERYTHING LOCAL</text>
       <text x="150" y="92" text-anchor="middle" font-size="44" font-weight="700" fill="#ffffff" font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace">100%</text>
-      <text x="150" y="115" text-anchor="middle" font-size="12" fill="#71717a">no remote service · MIT</text>
+      <text x="150" y="115" text-anchor="middle" font-size="12" fill="#71717a">no remote service · NC license</text>
     </g>
   </g>
 
   <!-- Bottom row: pip install + version -->
   <g font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" font-size="16" fill="#71717a" text-anchor="middle">
-    <text x="600" y="568"><tspan fill="#67e8f9">pip install local-mgrep</tspan>  ·  <tspan fill="#a5f3fc">v0.15.1</tspan>  ·  Python 3.9+  ·  powered by Ollama</text>
+    <text x="600" y="568"><tspan fill="#67e8f9">pip install local-mgrep</tspan>  ·  <tspan fill="#a5f3fc">v0.16.0</tspan>  ·  Python 3.9+  ·  powered by Ollama</text>
   </g>
 </svg>
