@@ -48,3 +48,15 @@ venv.bak/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# User-private benchmark fixtures.
+# The hand-labelled task JSONs in benchmarks/cross_repo/ encode
+# repo-specific directory structure and feature vocabulary in their
+# `expected` paths and `question` strings, which together identify
+# the underlying codebases to anyone familiar with them. They are
+# kept locally for reproduction but never tracked in version control.
+# The schema (cross_repo/README.md) and the harness scripts
+# (benchmarks/parity_vs_ripgrep.py, etc.) remain checked in so an
+# independent reader can build their own fixtures and reproduce the
+# protocol.
+benchmarks/cross_repo/*.json
