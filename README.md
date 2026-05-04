@@ -180,6 +180,11 @@ also [installable from PyPI](https://pypi.org/project/local-mgrep/).
 
 The full sequence so far:
 
+  - **0.10.0** — multi-turn agent benchmark + single-turn sample
+    expanded to 20 tasks. **−82 % tool calls in multi-turn <repo-D>
+    session, −37.6 % across 20 single-turn tasks.** On 5 / 6
+    medium-difficulty single-turn tasks, mgrep finds the canonical
+    file in 1 tool call vs rg-only's 4-8.
   - **0.9.0** — e2e Claude Code agent benchmark extended to 14
     hand-labelled tasks (8 hard semantic + 6 easy single-shot) across
     Rust + Python + TypeScript. **−30 % tool calls and +2 / 14
