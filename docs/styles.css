@@ -651,3 +651,166 @@ h2, h3 { scroll-margin-top: calc(var(--topbar-h) + 16px); }
   .topnav a:not(.topnav-cta) { display: none; }
   .sidebar nav { grid-template-columns: 1fr; }
 }
+
+/* ============== v0.1.0 overview punch — stats + comparison + use cases ============== */
+
+.hero-accent {
+  background: linear-gradient(180deg, #67e8f9 0%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 32px;
+}
+.stat-tile {
+  position: relative;
+  padding: 22px 20px 20px;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.012) 100%);
+  overflow: hidden;
+  transition: border-color 0.18s ease;
+}
+.stat-tile:hover { border-color: var(--rule-strong); }
+.stat-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(103,232,249,0.6), transparent);
+}
+.stat-num {
+  font-family: var(--mono);
+  font-size: clamp(28px, 3.4vw, 36px);
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+.stat-num.accent { color: #67e8f9; }
+.stat-num.green { color: #34d399; }
+.stat-label {
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.stat-sub {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--soft);
+}
+
+.overview-h2 {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 48px 0 16px;
+  color: var(--ink);
+  letter-spacing: -0.012em;
+}
+.overview-h2 code { font-size: 18px; }
+
+.compare-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(170px, 1.1fr)
+    minmax(170px, 1.1fr)
+    minmax(220px, 2fr);
+  gap: 0;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--panel);
+}
+.compare-head {
+  display: contents;
+}
+.compare-head > span {
+  padding: 12px 18px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--soft);
+  background: rgba(255,255,255,0.025);
+  border-bottom: 1px solid var(--rule-faint);
+}
+.compare-row {
+  display: contents;
+}
+.compare-row > span {
+  padding: 14px 18px;
+  border-top: 1px solid var(--rule-faint);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.compare-task { font-weight: 600; color: var(--text); }
+.compare-tool { color: var(--soft); }
+.compare-skygrep {
+  color: var(--text);
+  border-left: 1px solid var(--rule-faint);
+  background: linear-gradient(90deg, rgba(34,211,238,0.04), transparent 60%);
+}
+.compare-check { color: #34d399; font-weight: 700; margin-right: 4px; }
+
+.usecase-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.usecase-card {
+  padding: 20px 18px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--panel);
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+.usecase-card:hover {
+  border-color: var(--rule-strong);
+  background: var(--panel-2);
+  transform: translateY(-1px);
+}
+.usecase-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #67e8f9;
+  background: rgba(34,211,238,0.10);
+  border: 1px solid rgba(34,211,238,0.30);
+  margin-bottom: 10px;
+}
+.usecase-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.usecase-body {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.usecase-body code { font-size: 11.5px; }
+
+@media (max-width: 1100px) {
+  .stat-grid     { grid-template-columns: repeat(2, 1fr); }
+  .usecase-grid  { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 760px) {
+  .compare-grid  { grid-template-columns: 1fr; }
+  .compare-row > span:first-child { border-top: 1px solid var(--rule); padding-top: 16px; }
+  .compare-skygrep { border-left: none; border-top: 1px dashed var(--rule-faint) !important; }
+}

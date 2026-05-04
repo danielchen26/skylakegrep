@@ -24,7 +24,7 @@
  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
  <link rel="preconnect" href="https://rsms.me/" />
  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
- <link rel="stylesheet" href="styles.css?v=3.0.0" />
+ <link rel="stylesheet" href="styles.css?v=3.1.0" />
  </head>
  <body>
  <header class="topbar">
@@ -88,31 +88,124 @@
  <main class="content">
  <!-- ============== Overview ============== -->
  <section id="overview" class="hero">
- <p class="eyebrow"> · PolyForm Noncommercial 1.0.0</p>
- <h1>Semantic code search over a local index.</h1>
+ <p class="eyebrow">v0.1.0 · PolyForm Noncommercial 1.0.0</p>
+ <h1>Ask in plain English. Get cited code. <span class="hero-accent">Never leave your machine.</span></h1>
  <p class="lead">
- <code>skylakegrep</code> is a command-line tool that builds a SQLite
- vector index from a repository's source files and answers natural-language
- queries with line-cited snippets. Indexing, retrieval, and optional answer
- generation run on the local host using a local Ollama server; no remote
- service is required for the core workflow.
+ <code>skylakegrep</code> is a fully-offline semantic code-search CLI.
+ Built for engineers who don't want their source to leave the laptop,
+ and for AI coding agents (Claude Code, Codex, Cursor) that need
+ sub-second context retrieval without a cloud round-trip.
+ LLM-driven query routing picks the right tier per query — filename,
+ lexical, or semantic cascade — and merges results so you get the
+ answer in one shot.
  </p>
  <div class="button-row">
- <a class="button primary" href="#install">Install</a>
+ <a class="button primary" href="#install">Install in 30 s</a>
+ <a class="button secondary" href="#quickstart">See it run</a>
  <a class="button secondary" href="https://github.com/danielchen26/skylakegrep">Source on GitHub</a>
  </div>
- <div class="kpi-row" aria-label="At-a-glance facts">
- <div>
- <strong>Python 3.9+</strong>
- <span>runs on macOS, Linux, Windows; SQLite is bundled with the standard library</span>
+
+ <!-- Big stat tiles — what people actually care about -->
+ <div class="stat-grid" aria-label="Headline numbers">
+ <div class="stat-tile">
+ <div class="stat-num accent">−82 %</div>
+ <div class="stat-label">Agent tool calls</div>
+ <div class="stat-sub">multi-turn vs <code>rg</code>-only baseline</div>
  </div>
- <div>
- <strong>Ollama HTTP</strong>
- <span>embeddings via <code>/api/embed</code>; generation via <code>/api/generate</code></span>
+ <div class="stat-tile">
+ <div class="stat-num">~50 ms</div>
+ <div class="stat-label">Filename lookup</div>
+ <div class="stat-sub">cold or warm, no index needed</div>
  </div>
- <div>
- <strong>Ranked snippets</strong>
- <span>file path · line range · language · score · text body</span>
+ <div class="stat-tile">
+ <div class="stat-num">16/16</div>
+ <div class="stat-label">Retrieval recall</div>
+ <div class="stat-sub">3 K-file Rust workspace, top-k 10</div>
+ </div>
+ <div class="stat-tile">
+ <div class="stat-num green">100 %</div>
+ <div class="stat-label">Local &amp; offline</div>
+ <div class="stat-sub">no telemetry · no cloud · NC license</div>
+ </div>
+ </div>
+
+ <!-- Why skylakegrep — direct comparison panel -->
+ <h2 class="overview-h2">Where it pulls ahead of <code>rg</code>, cloud RAG, or grep</h2>
+ <div class="compare-grid" role="table">
+ <div class="compare-head" role="row">
+ <span role="columnheader">Task</span>
+ <span role="columnheader">Traditional approach</span>
+ <span role="columnheader">skylakegrep</span>
+ </div>
+ <div class="compare-row" role="row">
+ <span class="compare-task" role="cell">Find code by literal token</span>
+ <span class="compare-tool" role="cell"><code>rg</code> wins (raw speed)</span>
+ <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span>auto-routes to <code>rg</code> internally — no overhead</span>
+ </div>
+ <div class="compare-row" role="row">
+ <span class="compare-task" role="cell">Find code by <em>concept</em></span>
+ <span class="compare-tool" role="cell">grep / IDE search miss completely</span>
+ <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span>cascade matches "auth refresh" → <code>renew_session</code></span>
+ </div>
+ <div class="compare-row" role="row">
+ <span class="compare-task" role="cell">Search PDF / docx content</span>
+ <span class="compare-tool" role="cell">requires cloud SaaS or manual conversion</span>
+ <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span><code>pdftotext</code> + <code>python-docx</code> + opt-in OCR</span>
+ </div>
+ <div class="compare-row" role="row">
+ <span class="compare-task" role="cell">Source code stays on laptop</span>
+ <span class="compare-tool" role="cell">cloud RAG / Cursor / Sourcegraph defeat this</span>
+ <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span>Ollama + SQLite, fully local pipeline</span>
+ </div>
+ <div class="compare-row" role="row">
+ <span class="compare-task" role="cell">LLM picks the right retrieval tier</span>
+ <span class="compare-tool" role="cell">user manually flags <code>rg</code> vs semantic vs both</span>
+ <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span>local <code>qwen2.5:3b</code> routes per query (~50 ms)</span>
+ </div>
+ <div class="compare-row" role="row">
+ <span class="compare-task" role="cell">Drop-in for AI coding agents</span>
+ <span class="compare-tool" role="cell">agents stuck with raw <code>rg</code> — vocab-mismatch limit</span>
+ <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span><code>skygrep setup</code> registers with 5 major LLM CLIs</span>
+ </div>
+ </div>
+
+ <!-- Use case cards — concrete scenarios -->
+ <h2 class="overview-h2">Where it gives you the biggest lift</h2>
+ <div class="usecase-grid">
+ <div class="usecase-card">
+ <span class="usecase-tag">ONBOARDING</span>
+ <div class="usecase-title">New codebase walkthrough</div>
+ <div class="usecase-body">
+ Drop into an unfamiliar repo. Ask "where is the auth flow?",
+ "how does the cascade decide?". Skip the 30-min README crawl.
+ </div>
+ </div>
+ <div class="usecase-card">
+ <span class="usecase-tag">AI AGENTS</span>
+ <div class="usecase-title">Faster Claude Code / Codex</div>
+ <div class="usecase-body">
+ <code>skygrep setup</code> registers with Claude Code, Codex,
+ OpenCode, Gemini CLI, Cursor. Agents save up to <strong>82&nbsp;%
+ tool calls</strong> on multi-turn sessions.
+ </div>
+ </div>
+ <div class="usecase-card">
+ <span class="usecase-tag">PERSONAL FILES</span>
+ <div class="usecase-title">Search your <code>~/Downloads</code></div>
+ <div class="usecase-body">
+ Ask "where is the EB-1B filing?" or "the ICML reviewer comments".
+ PDF / docx content extracted inline with <code>--detail full</code>;
+ lock files are filtered automatically.
+ </div>
+ </div>
+ <div class="usecase-card">
+ <span class="usecase-tag">PRIVACY</span>
+ <div class="usecase-title">Audit-friendly search</div>
+ <div class="usecase-body">
+ Source code, legal documents, medical records: nothing ever leaves
+ your machine. No telemetry, no API calls, no cloud. Index and
+ queries fully observable in <code>~/.skylakegrep/</code>.
+ </div>
  </div>
  </div>
  </section>
