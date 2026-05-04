@@ -9,6 +9,7 @@ The Markdown files here are reference companions to that site.
 | File | Purpose |
 | --- | --- |
 | [`index.html`](index.html) | Rendered documentation site (published as <https://danielchen26.github.io/local-mgrep/>). |
+| [`local-mgrep-0.12.1.md`](local-mgrep-0.12.1.md) | Release notes for 0.12.1: terminal output rework — cyan repo-relative paths, right-aligned language pill + bold-green score, dim separator rule, lightweight ANSI syntax highlighting. Visually aligned with the landing-page hero. `--json` and pipe/redirect behaviour unchanged; `NO_COLOR=1` opt-out honoured. |
 | [`local-mgrep-0.12.0.md`](local-mgrep-0.12.0.md) | Release notes for 0.12.0: smart-routing release. A four-condition conservative lexical pre-gate short-circuits ripgrep-friendly queries (~50 ms) so calling `mgrep` is no longer ever a tax over `rg` for the easy cases. Vocabulary-mismatch queries still run the full semantic cascade. New `--rg-shortcut/--no-rg-shortcut` flag (default on). |
 | [`local-mgrep-0.11.0.md`](local-mgrep-0.11.0.md) | Release notes for 0.11.0: `mgrep setup` interactive command auto-registers local-mgrep as preferred semantic search with **Claude Code, Codex, OpenCode, Gemini CLI, and Cursor**. First-run banner nudges new users; `mgrep setup --uninstall` removes all snippets cleanly. |
 | [`local-mgrep-0.10.0.md`](local-mgrep-0.10.0.md) | Release notes for 0.10.0: multi-turn benchmark + 6-task expansion. Headline: **−82 % tool calls in multi-turn sessions, −37.6 % across 20 single-turn tasks**. On 5 / 6 medium tasks, mgrep finishes in 1 tool call. |

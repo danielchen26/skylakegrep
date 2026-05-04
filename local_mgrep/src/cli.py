@@ -34,6 +34,7 @@ from .answerer import get_answerer
 from .config import get_config
 from .embeddings import get_embedder
 from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
+from .render import render_compact_source, render_terminal_result
 from .storage import (
     CASCADE_DEFAULT_TAU,
     cascade_search,
@@ -291,12 +292,7 @@ def search_cmd(
                 click.echo(render_json_results(results))
                 return
             for r in results:
-                line_range = ""
-                if r.get("start_line") and r.get("end_line"):
-                    line_range = f":{r['start_line']}-{r['end_line']}"
-                click.echo(f"\n=== {r['path']}{line_range} (score: {r['score']:.3f}) ===")
-                if content:
-                    click.echo(r["snippet"][:500])
+                click.echo(render_terminal_result(r, content=content))
             click.echo(
                 f"\n[Daemon search completed in {elapsed:.3f}s; "
                 f"daemon-side {payload.get('latency_seconds')}s]"
@@ -342,12 +338,11 @@ def search_cmd(
             )
             return
         for r in results:
-            line_range = ""
-            if r.get("start_line") and r.get("end_line"):
-                line_range = f":{r['start_line']}-{r['end_line']}"
-            click.echo(f"\n=== {r['path']}{line_range} (score: {r['score']:.3f}) ===")
-            if content:
-                click.echo(r["snippet"][:500])
+            click.echo(
+                render_terminal_result(
+                    r, content=content, project_root=str(project_root)
+                )
+            )
         building = ai.is_index_building(db_path)
         suffix = "building in background" if building else "queued"
         click.echo(
@@ -432,15 +427,11 @@ def search_cmd(
                 click.echo(render_json_results(shortcut))
                 return
             for r in shortcut:
-                line_range = ""
-                if r.get("start_line") and r.get("end_line"):
-                    line_range = f":{r['start_line']}-{r['end_line']}"
                 click.echo(
-                    f"\n=== {r['path']}{line_range} "
-                    f"(score: {r['score']:.3f}) ==="
+                    render_terminal_result(
+                        r, content=content, project_root=str(project_root)
+                    )
                 )
-                if content:
-                    click.echo(r["snippet"][:500])
             click.echo(
                 f"\n[{shortcut_elapsed:.3f}s · rg-shortcut · cascade skipped]"
             )
@@ -524,21 +515,15 @@ def search_cmd(
         click.echo(synthesized)
         click.echo("\nSources:")
         for result in results:
-            line_range = ""
-            if result.get("start_line") and result.get("end_line"):
-                line_range = f":{result['start_line']}-{result['end_line']}"
-            click.echo(
-                f"- {result['path']}{line_range} (score: {result['score']:.3f})"
-            )
+            click.echo(render_compact_source(result))
         click.echo(f"\n[Answer completed in {elapsed:.3f}s]")
         return
     for r in results:
-        line_range = ""
-        if r.get("start_line") and r.get("end_line"):
-            line_range = f":{r['start_line']}-{r['end_line']}"
-        click.echo(f"\n=== {r['path']}{line_range} (score: {r['score']:.3f}) ===")
-        if content:
-            click.echo(r["snippet"][:500])
+        click.echo(
+            render_terminal_result(
+                r, content=content, project_root=str(project_root)
+            )
+        )
 
     parts: list[str] = [f"{elapsed:.3f}s"]
     if cascade and cascade_telemetry is not None:

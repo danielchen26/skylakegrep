@@ -192,6 +192,12 @@ also [installable from PyPI](https://pypi.org/project/local-mgrep/).
 
 The full sequence so far:
 
+  - **0.12.1** — terminal output rework: cyan repo-relative paths,
+    right-aligned language pill + bold-green score, dim separator
+    rule, lightweight ANSI syntax highlighting on the code body.
+    Visually aligned with the landing-page hero. `--json` and
+    pipe/redirect behaviour unchanged; `NO_COLOR=1` opt-out
+    honoured. No retrieval-pipeline change.
   - **0.12.0** — smart-routing: a four-condition lexical pre-gate
     short-circuits ripgrep-friendly queries (~50 ms) so calling
     `mgrep` is no longer ever a tax over `rg` for the easy cases.
