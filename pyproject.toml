@@ -1,6 +1,6 @@
 [project]
 name = "local-mgrep"
-version = "0.12.1"
+version = "0.13.0"
 description = "Free local semantic code search using Ollama"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -14,6 +14,7 @@ dependencies = [
     "tree-sitter-python>=0.23",
     "tree-sitter-javascript>=0.23",
     "tree-sitter-typescript>=0.23",
+    "pygments>=2.0",
 ]
 
 [project.optional-dependencies]

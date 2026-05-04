@@ -73,6 +73,6 @@
 
   <!-- Bottom row: pip install + version -->
   <g font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" font-size="16" fill="#71717a" text-anchor="middle">
-    <text x="600" y="568"><tspan fill="#67e8f9">pip install local-mgrep</tspan>  ·  <tspan fill="#a5f3fc">v0.12.1</tspan>  ·  Python 3.9+  ·  powered by Ollama</text>
+    <text x="600" y="568"><tspan fill="#67e8f9">pip install local-mgrep</tspan>  ·  <tspan fill="#a5f3fc">v0.13.0</tspan>  ·  Python 3.9+  ·  powered by Ollama</text>
   </g>
 </svg>

@@ -228,6 +228,7 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--cascade-tau", default=CASCADE_DEFAULT_TAU, type=float, help=f"Confidence threshold (top1 - top2 file-mean cosine) above which the cascade returns the cheap result. Default {CASCADE_DEFAULT_TAU}.")
 @click.option("--auto-index/--no-auto-index", default=None, help="Auto-build the index for this project on first query and refresh on subsequent queries. Default: on for the project-scoped DB; off when MGREP_DB_PATH is set externally so curated indexes are not auto-mutated.")
 @click.option("--rg-shortcut/--no-rg-shortcut", default=True, help="Lexical pre-gate: if the query is short and ripgrep returns a small, clustered, path-token-overlapping result set, return the rg result directly and skip the semantic cascade. Default on. Pass --no-rg-shortcut to force pure cascade (useful for benchmarking).")
+@click.option("--filename-shortcut/--no-filename-shortcut", default=True, help="Filename-lookup pre-gate (v0.13.0+): when the query looks like 'where is foo file' / 'find package.json', route to `find -iname '*token*'` and skip both content shortcuts. Default on. Pass --no-filename-shortcut to disable.")
 def search_cmd(
     query: str,
     top: int,
@@ -255,6 +256,7 @@ def search_cmd(
     cascade_tau: float,
     auto_index: bool | None,
     rg_shortcut: bool,
+    filename_shortcut: bool,
 ):
     """Run a search. Aliased as the bare form: ``mgrep "<query>"``."""
 
@@ -310,6 +312,33 @@ def search_cmd(
     db_path = config["db_path"]
 
     from . import auto_index as ai
+
+    # v0.13.0 filename-lookup shortcut. Fires BEFORE the index-ready
+    # check so queries like "where is eb1b file?" / "find package.json"
+    # get answered in ~10 ms even on a directory that has never been
+    # indexed (e.g. ~/Downloads). See ai.filename_shortcut for the
+    # four-condition gate.
+    if filename_shortcut and not agentic and not answer:
+        fn_start = time.time()
+        fn_results = ai.filename_shortcut(query, project_root, top_k=top)
+        if fn_results is not None:
+            fn_elapsed = time.time() - fn_start
+            if json_output:
+                click.echo(render_json_results(fn_results))
+                return
+            for r in fn_results:
+                click.echo(
+                    render_terminal_result(
+                        r,
+                        content=content,
+                        project_root=str(project_root),
+                    )
+                )
+            click.echo(
+                f"\n[{fn_elapsed:.3f}s · filename-lookup · "
+                f"{len(fn_results)} match(es)]"
+            )
+            return
 
     # Routing decision: ready → cascade; building or absent → rg fallback.
     conn = init_db(db_path)

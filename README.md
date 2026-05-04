@@ -192,6 +192,14 @@ also [installable from PyPI](https://pypi.org/project/local-mgrep/).
 
 The full sequence so far:
 
+  - **0.13.0** — three-tier smart routing + framed card rendering.
+    New filename-lookup tier (~10 ms) handles `where is eb1b file?` /
+    `find package.json` / `show me README` queries via
+    `find -iname` — no index needed. Result rendering rewritten to
+    proper rounded card frames with Pygments-driven syntax
+    highlighting (300+ languages) tuned to the website hero.
+    `--filename-shortcut/--no-filename-shortcut` flag; `pygments>=2.0`
+    is now a hard dependency.
   - **0.12.1** — terminal output rework: cyan repo-relative paths,
     right-aligned language pill + bold-green score, dim separator
     rule, lightweight ANSI syntax highlighting on the code body.

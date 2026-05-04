@@ -516,3 +516,161 @@ def lexical_shortcut(
     return results
 
 
+# ----- v0.13.0 filename-lookup shortcut -----------------------------
+#
+# Some queries are filename lookups, not content searches —
+# "where is eb1b file?", "find package.json", "show me the README".
+# Neither the cascade (semantic content) nor the rg pre-gate (lexical
+# content) handles them well: PDF / docx / binary files aren't even
+# indexed, so semantic search is hopeless; ripgrep matching content
+# returns the wrong files because the query token may not appear
+# inside any text. The right tool is `find -iname '*token*'`.
+#
+# We add a third routing tier that fires BEFORE the lexical content
+# shortcut. Conservative four-condition gate (same philosophy as
+# v0.12.0): only fires when the query clearly looks like a filename
+# lookup AND find returns a small, well-defined match set.
+
+_FN_LOOKUP_INTENT = (
+    "find ", "where is", "where's", "locate ", "show me",
+    "look for", "search for", "open ",
+)
+_FN_TOKEN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._\-]{2,40}")
+_FN_QUESTION_WORDS = frozenset({
+    "is", "are", "the", "a", "an", "of", "for", "me", "my", "to",
+    "in", "on", "at", "by", "from", "with", "where", "find",
+    "locate", "show", "look", "search", "open", "list", "get",
+    "file", "files", "folder", "directory", "dir",
+    "any", "some", "all", "this", "that", "these", "those",
+    "and", "or", "but", "not",
+})
+
+
+def filename_shortcut(
+    query: str,
+    project_root: Path,
+    *,
+    top_k: int,
+    max_files: int = 30,
+    max_depth: int = 6,
+) -> list[dict] | None:
+    """Try to short-circuit search by interpreting the query as a
+    filename lookup. Returns a result list (shaped like
+    ``rg_fallback_results`` plus a ``size_kb`` / ``mtime_str`` metadata
+    line) if all four conservative conditions hold; ``None`` to fall
+    through to the lexical content shortcut and then the cascade.
+
+    Conditions (ALL required):
+      1. Query lowercased contains an explicit lookup-intent phrase
+         (``find / where is / locate / show me / open ...``) **or**
+         the standalone word ``file`` / ``files``.
+      2. After stripping stop-words, at least one ``name-like`` token
+         remains (length 3-40, alphanumeric with optional ``._-``).
+      3. ``find -iname '*<token>*'`` returns >= 1 and <= ``max_files``
+         actual files (not dirs, not dotfiles).
+      4. The longest matching path's basename literally contains the
+         token (case-insensitive). Guards against fluke substring
+         matches deep in the tree.
+    """
+    q_lower = query.lower()
+
+    # Condition 1: explicit lookup intent
+    has_intent = any(phrase in q_lower for phrase in _FN_LOOKUP_INTENT)
+    if not has_intent:
+        # Allow standalone "file" / "files" as a softer trigger
+        if not re.search(r"\bfiles?\b", q_lower):
+            return None
+
+    # Condition 2: extract a usable name token
+    raw_tokens = _FN_TOKEN_RE.findall(query)
+    candidates = [
+        t for t in raw_tokens if t.lower() not in _FN_QUESTION_WORDS
+    ]
+    if not candidates:
+        return None
+    # Pick longest token (most specific identifier)
+    pattern = max(candidates, key=len)
+    if len(pattern) < 3:
+        return None
+
+    # Condition 3: find returns a clean small set
+    find_bin = shutil.which("find")
+    if not find_bin:
+        return None
+    try:
+        r = subprocess.run(
+            [
+                find_bin, str(project_root),
+                "-maxdepth", str(max_depth),
+                "-iname", f"*{pattern}*",
+                "-not", "-path", "*/.*",
+                "-not", "-path", "*/node_modules/*",
+                "-not", "-path", "*/.venv/*",
+                "-not", "-path", "*/__pycache__/*",
+                "-type", "f",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=4,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+
+    paths = [
+        line.strip() for line in r.stdout.splitlines() if line.strip()
+    ]
+    if not paths or len(paths) > max_files:
+        return None
+
+    # Condition 4: at least one basename actually contains the token
+    pat_lower = pattern.lower()
+    if not any(pat_lower in Path(p).name.lower() for p in paths):
+        return None
+
+    # Rank: shorter path first (less nested = likely the canonical),
+    # then most-recently-modified within the same depth.
+    def _sort_key(p: str) -> tuple:
+        st = Path(p).stat() if Path(p).exists() else None
+        depth = p.count("/")
+        mtime = -st.st_mtime if st else 0.0
+        return (depth, mtime)
+
+    paths.sort(key=_sort_key)
+    paths = paths[:top_k]
+
+    results: list[dict] = []
+    for p in paths:
+        path_obj = Path(p)
+        try:
+            st = path_obj.stat()
+            size_kb = st.st_size / 1024.0
+            mtime_str = time.strftime(
+                "%Y-%m-%d %H:%M", time.localtime(st.st_mtime)
+            )
+        except OSError:
+            size_kb = 0.0
+            mtime_str = "?"
+        suffix = path_obj.suffix.lstrip(".") or "file"
+        snippet = (
+            f"size: {size_kb:>7.1f} KB    "
+            f"modified: {mtime_str}    "
+            f"type: {suffix}"
+        )
+        results.append({
+            "path": p,
+            "file": p,
+            "chunk": snippet,
+            "snippet": snippet,
+            "language": suffix,
+            "start_line": None,
+            "end_line": None,
+            "start_byte": None,
+            "end_byte": None,
+            "score": 1.0,
+            "semantic_score": 0.0,
+            "lexical_score": 1.0,
+            "fallback": "filename-lookup",
+        })
+    return results
+
+
