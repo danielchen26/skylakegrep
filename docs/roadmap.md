@@ -8,14 +8,14 @@ over ripgrep.
 It is a strict execution plan. Items are ordered by ROI; each item names the
 concrete code change, expected lift, and verification step.
 
-## Status (<repo-D> 16-task benchmark)
+## Status (repo-A 16-task benchmark)
 
-| Phase | <repo-D> recall | Status |
+| Phase | repo-A recall | Status |
 | --- | :-: | --- |
 | pre-P0 baseline | 8/16 | — |
 | P0-A (cross-encoder rerank) + P0-B (nomic-embed-text + asymmetric prefixes) | 9/16 | **DONE** |
 | P1-C (chunk path/symbol prefix) + P1-E (tree-sitter dedup + max_chars 2000) | 10/16 | **DONE** |
-| P1-D (BM25 + path-segment-exact bonus) | 10/16 (no net lift; reverted) | **ABANDONED** — surface-token shape on <repo-D> doesn't reward this; LLM-driven HyDE is the better lever |
+| P1-D (BM25 + path-segment-exact bonus) | 10/16 (no net lift; reverted) | **ABANDONED** — surface-token shape on repo-A doesn't reward this; LLM-driven HyDE is the better lever |
 | P2-F (HyDE) | 11–13/16 (mean ~12/16) | **DONE** |
 | P2-F+ (deterministic HyDE seed, ``mxbai-rerank-large-v2``, non-canonical path penalty) | **14/16** stable | **DONE** — 2 misses remain (websocket / billing) |
 | P2-Latency (measure daily-driver tradeoff) | base rerank + no HyDE = **10/16 @ 12.7 s** ; raw = 8/16 @ 3.3 s | **DONE** — speed × recall curve in `docs/parity-benchmarks.md` |
@@ -40,7 +40,7 @@ concrete code change, expected lift, and verification step.
 ## Why we are not at parity today
 
 Five structural shortfalls in the current pipeline, ranked by their
-contribution to the <repo-D> recall miss:
+contribution to the repo-A recall miss:
 
 1. **No cross-encoder rerank.** `storage.py:247` ranks final results by a
    linear blend `0.8 · cosine + 0.2 · lexical`. Mixedbread's flagship product
@@ -61,12 +61,12 @@ contribution to the <repo-D> recall miss:
    = 2 cap is a band-aid for this.
 
 The headline trade-off in benchmark #3 of `parity-benchmarks.md`
-(869× fewer tokens, 50% recall on <repo-D>) is the mathematical consequence of
+(869× fewer tokens, 50% recall on repo-A) is the mathematical consequence of
 all five.
 
 ## Execution plan
 
-### P0 — immediate (target: <repo-D> recall 8/16 → 12-14/16)
+### P0 — immediate (target: repo-A recall 8/16 → 12-14/16)
 
 **P0-A: cross-encoder reranker as second-stage scorer.**
 
@@ -90,10 +90,10 @@ all five.
 
 **Verification.** Existing 14 unit tests pass; `agent_context_benchmark.py`
 on the local-mgrep self-test recall stays 30/30 with rerank enabled;
-`parity_vs_ripgrep.py --tasks benchmarks/cross_repo/<repo-D>.json` on <repo-D>
+`parity_vs_ripgrep.py --tasks benchmarks/cross_repo/repo-a.json` on repo-A
 re-indexed under nomic-embed-text + rerank lifts mgrep recall above 12/16.
 
-### P1 — within one week (target: <repo-D> recall 14-16/16)
+### P1 — within one week (target: repo-A recall 14-16/16)
 
 **P1-C: prepend `[file: …] [lang: …] [symbol: …]` header to chunk text
 before embedding.**
@@ -168,14 +168,14 @@ After each P-level lands:
    (regression guard).
 3. `.venv/bin/python benchmarks/parity_vs_ripgrep.py --top-k 10
    --summary-only` — same self-test, with the real-rg comparison.
-4. Re-index <repo-D> once per phase, then
-   `.venv/bin/python benchmarks/parity_vs_ripgrep.py --root /path/to/<repo-D>
-   --tasks benchmarks/cross_repo/<repo-D>.json --top-k 10 --summary-only`,
+4. Re-index repo-A once per phase, then
+   `.venv/bin/python benchmarks/parity_vs_ripgrep.py --root /path/to/repo-A
+   --tasks benchmarks/cross_repo/repo-a.json --top-k 10 --summary-only`,
    and append the phase's mgrep recall and token-reduction numbers as a
    new row in `docs/parity-benchmarks.md`.
 5. Commit, push, update `docs/parity-benchmarks.md` headline table.
 
-The headline check after P0 (A + B) is whether <repo-D> mgrep recall reaches
+The headline check after P0 (A + B) is whether repo-A mgrep recall reaches
 ≥ 12/16 with no more than a 4× rise in mgrep total tokens. If yes, proceed
 to P1. If no, diagnose which queries still miss and revisit P0 selection
 before adding P1 changes.

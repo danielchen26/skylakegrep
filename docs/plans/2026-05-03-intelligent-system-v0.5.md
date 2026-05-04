@@ -7,7 +7,7 @@ takes longer than budgeted).
 This is the concrete implementation plan for the "5-layer progressive
 enhancement" architecture decided in conversation on 2026-05-03. Every
 layer is offline-paid and query-time-free — the goal is **sub-300 ms
-queries with 16/16 <repo-D> recall** on a fully-enriched index.
+queries with 16/16 repo-A recall** on a fully-enriched index.
 
 The plan covers three new layers on top of the 0.4.1 base:
 
@@ -296,7 +296,7 @@ status-line text. Conflicts here are mechanical merges.
     agent implements L4.
 
 After all three report 'tests pass', the integrator (main session)
-merges A → B → C onto a release branch, runs the full <repo-D> benchmark,
+merges A → B → C onto a release branch, runs the full repo-A benchmark,
 adjusts weights if needed, and releases as 0.5.0.
 
 ## 6. Status-line evolution
@@ -315,7 +315,7 @@ visible to the user:
 Before tagging 0.5.0:
 
   - 24 / 24 unit tests pass.
-  - `benchmarks/parity_vs_ripgrep.py --tasks benchmarks/cross_repo/<repo-D>.json`
+  - `benchmarks/parity_vs_ripgrep.py --tasks benchmarks/cross_repo/repo-a.json`
     shows recall ≥ 14 / 16 with mean latency ≤ 1.5 s/q (i.e. no
     regression vs 0.4.1).
   - The two hard misses (`crates/ai/`, `app/src/billing/`) attempt
@@ -325,7 +325,7 @@ Before tagging 0.5.0:
 
 Stretch (would push to 0.6.0 instead of 0.5.0):
 
-  - Full doc2query enrichment of a fresh <repo-D> index measured on the
+  - Full doc2query enrichment of a fresh repo-A index measured on the
     16-task benchmark; target 15 / 16 recall with mean latency
     ≤ 0.5 s/q (no LLM call at query time).
 

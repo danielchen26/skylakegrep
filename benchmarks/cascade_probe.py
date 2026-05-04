@@ -24,7 +24,7 @@ import time
 from pathlib import Path
 
 REPO = Path("/Users/tianchichen/Documents/github/local-mgrep")
-WARP = Path("/Users/tianchichen/Documents/github/<repo-D>")
+WARP = Path("/path/to/repo-A")
 sys.path.insert(0, str(REPO))
 
 os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")
@@ -36,7 +36,7 @@ from local_mgrep.src.embeddings import get_embedder
 from local_mgrep.src.hybrid import lexical_candidate_paths
 from local_mgrep.src.storage import search
 
-TASKS = json.loads((REPO / "benchmarks/cross_repo/<repo-D>.json").read_text())
+TASKS = json.loads((REPO / "benchmarks/cross_repo/repo-a.json").read_text())
 
 
 def hit(expected: str, paths: list[str]) -> bool:
@@ -140,7 +140,7 @@ def main() -> None:
     taus = [0.0, 0.005, 0.01, 0.015, 0.02, 0.03, 0.05]
 
     # Pre-compute Round B once per query (deterministic), and prepare cands.
-    print(f"Cascade probe over {len(TASKS)} <repo-D> tasks; sweeping tau ∈ {taus}\n")
+    print(f"Cascade probe over {len(TASKS)} repo-A tasks; sweeping tau ∈ {taus}\n")
     print(f"{'tau':>6}  {'recall':>7}  {'total_s':>8}  {'avg_s/q':>8}  {'#exit':>6}  {'exit%':>6}")
 
     for tau in taus:

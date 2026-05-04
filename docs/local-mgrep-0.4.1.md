@@ -32,9 +32,9 @@ isn't ready yet, the CLI:
 ```
 $ time mgrep "where is the <domain-y> neural network architecture defined?" --top 3 --no-content
 
-=== /Users/tian/<repo-A>/docs/companion_notes/<module-x>_companion_note.tex:14-37 (score: 0.800) ===
-=== /Users/tian/<repo-A>/docs/plans/2026-04-20-<draft-z>.md:138-161 (score: 0.800) ===
-=== /Users/tian/<repo-A>/.../<dataset-y>.json:760-783 (score: 0.800) ===
+=== /Users/tian/repo-B/docs/companion_notes/<module-x>_companion_note.tex:14-37 (score: 0.800) ===
+=== /Users/tian/repo-B/docs/plans/2026-04-20-<draft-z>.md:138-161 (score: 0.800) ===
+=== /Users/tian/repo-B/.../<dataset-y>.json:760-783 (score: 0.800) ===
 
 [0.672s · ripgrep fallback · semantic index building in background]
 real    0m1.505s
@@ -78,8 +78,8 @@ same query again in a minute, or run `mgrep stats` to see progress.
 running tally even while the indexer is mid-run:
 
 ```
-DB:           /Users/.../local-mgrep/repos/<repo-A>-21aa34e5.db
-Project root: /Users/.../<repo-A>
+DB:           /Users/.../local-mgrep/repos/repo-B-21aa34e5.db
+Project root: /Users/.../repo-B
 Total chunks: 198
 Total files:  6
 ```

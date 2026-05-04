@@ -1,7 +1,7 @@
 # local-mgrep 0.6.0 — release notes
 
 A latency-focused release. Average per-query latency on Mac CPU drops
-substantially without changing recall on the <repo-D> 16-task benchmark
+substantially without changing recall on the repo-A 16-task benchmark
 (still 16/16 with corrected labels). Two simple but compounding
 changes:
 
@@ -20,7 +20,7 @@ changes:
     session hits a warm model. Override with
     ``OLLAMA_KEEP_ALIVE=30m`` or ``=0`` to opt out.
 
-Net effect: average <repo-D> 16-task latency on Mac CPU **3 s/q → ~1 s/q
+Net effect: average repo-A 16-task latency on Mac CPU **3 s/q → ~1 s/q
 band** (workload-dependent — cheap-path queries stay 0.1-0.3 s, only
 the ~20% that escalate benefit). First query in a shell session is
 slower by the LLM cold-load (~5-10 s for the smaller model), every
@@ -109,7 +109,7 @@ not block on the fallback path.
   - The cascade architecture is unchanged. L0 / L1 / L2 / L3 / L4
     layers all behave the same. Only the LLM models they invoke and
     the ``keep_alive`` they pass are different.
-  - Recall on <repo-D> 16-task: still 16/16 with corrected labels.
+  - Recall on repo-A 16-task: still 16/16 with corrected labels.
   - The ``--rerank`` cross-encoder path is untouched.
   - L3 doc2query enrichment remains opt-in via ``mgrep enrich`` and
     is honestly documented as not yet validated to move recall on

@@ -38,7 +38,7 @@ file is consumed by `benchmarks/parity_vs_ripgrep.py` (and by
 
 | File | Target repository | Tasks | Notes |
 | --- | --- | :---: | --- |
-| `<repo-D>.json` | the [Warp terminal](https://github.com/<repo-D>dotdev/<repo-D>) Rust workspace | 16 | Mix of `crates/` features (AI, computer-use, editor, LSP, vim, voice, completer, fuzzy match, settings, websocket, secrets, markdown) and `app/src/` features (command palette, auth, billing, code review). |
+| `repo-a.json` | the [Repo-A terminal](the Rust terminal source tree (URL redacted)) Rust workspace | 16 | Mix of `crates/` features (AI, computer-use, editor, LSP, vim, voice, completer, fuzzy match, settings, websocket, secrets, markdown) and `app/src/` features (command palette, auth, billing, code review). |
 
 ## Adding a new task set
 

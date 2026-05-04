@@ -1,5 +1,5 @@
-"""Enrich only the chunks under crates/ai/ and app/src/billing/ in the <repo-D>
-index — the two paths the <repo-D> 16-task benchmark currently misses with
+"""Enrich only the chunks under crates/ai/ and app/src/billing/ in the repo-A
+index — the two paths the repo-A 16-task benchmark currently misses with
 14/16 recall.
 
 If targeted enrichment of those two directories flips the bench to 15 or

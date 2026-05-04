@@ -28,7 +28,7 @@ import time
 from pathlib import Path
 
 REPO = Path("/Users/tianchichen/Documents/github/local-mgrep")
-WARP = Path("/Users/tianchichen/Documents/github/<repo-D>")
+WARP = Path("/path/to/repo-A")
 sys.path.insert(0, str(REPO))
 
 os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")
@@ -41,7 +41,7 @@ from local_mgrep.src.embeddings import get_embedder
 from local_mgrep.src.hybrid import lexical_candidate_paths
 from local_mgrep.src.storage import search
 
-TASKS = json.loads((REPO / "benchmarks/cross_repo/<repo-D>.json").read_text())
+TASKS = json.loads((REPO / "benchmarks/cross_repo/repo-a.json").read_text())
 
 
 VARIANT_PROMPTS = [
@@ -105,7 +105,7 @@ def main() -> None:
     embedder = get_embedder(role="query")
 
     n = len(TASKS)
-    print(f"multi-HyDE probe over {n} <repo-D> tasks\n")
+    print(f"multi-HyDE probe over {n} repo-A tasks\n")
 
     # Strategy: union top-K from each variant, dedup, return top-N.
     for label, fn in [

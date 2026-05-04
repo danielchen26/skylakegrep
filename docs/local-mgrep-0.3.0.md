@@ -7,7 +7,7 @@ so future work doesn't re-litigate them.
 
 ## Headline change
 
-`mgrep search --cascade` (opt-in) hits **14/16 recall on the <repo-D> 16-task
+`mgrep search --cascade` (opt-in) hits **14/16 recall on the repo-A 16-task
 benchmark at 1.49 s/q on Mac CPU** — the same recall as the previous
 max-accurate tier (`--rerank --hyde --rank-by file`, 21.8 s/q) at **14×
 lower latency**.
@@ -41,7 +41,7 @@ query
   └─ result list
 ```
 
-Cheap path runs on ~80% of <repo-D> queries at τ=0.015 (`exit% = 81%`); the
+Cheap path runs on ~80% of repo-A queries at τ=0.015 (`exit% = 81%`); the
 remaining ~20% pay the full LLM-augmented escalation. Aggregate latency is
 dominated by the cheap branch.
 
@@ -62,7 +62,7 @@ threshold for your corpus:
 
 ## Recall ceiling and remaining misses
 
-Two <repo-D> queries still miss at 14/16 across every tested configuration:
+Two repo-A queries still miss at 14/16 across every tested configuration:
 
 - task 0: *"Where does the assistant call a language model backend to answer
   a user question?"* → `crates/ai/`

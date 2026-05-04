@@ -3,18 +3,18 @@
 Date: 2026-04-28
 
 Objective: migrate Claude Code source build capabilities into Skylake Code as
-native Rust behavior, using `./<repo-B>/` as the reference and
+native Rust behavior, using `./repo-C/` as the reference and
 `./<repo-C>/` as the implementation target.
 
 Nexus North Star:
 
-Skylake Code is not a Claude Code clone. It is an <repo-A>-driven AI harness
+Skylake Code is not a Claude Code clone. It is an repo-B-driven AI harness
 foundation. Claude Code compatibility is only one input into the design, not the
 final product boundary. The long-term system should selectively absorb:
 
 - Claude Code's agent loop: tools, permissions, sessions, slash commands,
   context, memory, model switching, and terminal-native coding workflows.
-- Warp's agentic development environment principles: rich terminal UX, clean
+- Repo-A's agentic development environment principles: rich terminal UX, clean
   separation between shell and agent conversations, visible multi-agent/task
   management, model/status surfaces, diff/file panels, and interactive
   permission/setup flows.
@@ -22,13 +22,13 @@ final product boundary. The long-term system should selectively absorb:
   delegation, role-based workers, task ownership, verification loops, and
   harness-level coordination.
 
-<repo-A> is the top-level management framework for this system. It should decide
+repo-B is the top-level management framework for this system. It should decide
 when to stay single-agent, when to spawn agents, how to decompose work, which
 agent owns which scope, what permissions and memory each agent receives, how
 results are verified, when synthesis happens, and when the system should pause,
 ask, retry, or escalate. No feature should be added only to mimic another tool;
 every feature should strengthen controllable, verifiable, scalable AI harness
-management under <repo-A>. AMM naming is reserved only for the lower worker
+management under repo-B. AMM naming is reserved only for the lower worker
 execution/orchestration manager where legacy code still exposes that term.
 
 Principles:
@@ -100,46 +100,46 @@ Completed in the current implementation slice:
   using Anthropic's private hosted cloud protocol.
 - TCMode: Skylake now has a native Rust `SpecialMode::TCMode` surface with
   persisted `TcModeSettings`, `ThinkingLevel`, `/tcmode` as the direct user
-  entrypoint, `/tc status/on/off/cycle/mode/level/auto/prep/<repo-A>/run` for
+  entrypoint, `/tc status/on/off/cycle/mode/level/auto/prep/repo-b/run` for
   lower-level management, Shift+Tab mode cycling through `Normal > Plan > Think
   > TC`, and adaptive auto-routing into AMM worker orchestration only for
-  AMM/<repo-A>-level prompts when TCMode is enabled. TCMode now applies a Rust-native <repo-A>
+  AMM/repo-B-level prompts when TCMode is enabled. TCMode now applies a Rust-native repo-B
   framework orchestration layer before AMM execution: it fixes the problem family and
   boundary, classifies source events as admitted/repaired/rejected, defines
   field/evolution stages and observables, and turns the framework state into AMM
   worker topology, dependencies, ownership, and readout contracts. `/tc prep
-  <task>` renders this <repo-A> plan without running workers; `/tc run <task>` uses
-  it to drive AMM. `/tc <repo-A> <path>` records the <repo-A> source location for
-  optional substrate evidence runs, and `/tc <repo-A> run` executes the configured
-  <repo-A> substrate runner adapter only when explicitly requested, persists the substrate run record,
+  <task>` renders this repo-B plan without running workers; `/tc run <task>` uses
+  it to drive AMM. `/tc repo-b <path>` records the repo-B source location for
+  optional substrate evidence runs, and `/tc repo-b run` executes the configured
+  repo-B substrate runner adapter only when explicitly requested, persists the substrate run record,
   parses finite-field artifact summaries, and exposes admitted/repaired/rejected
   event counts plus `P_f/Q_f/r_f` verifier values. The REPL footer keeps the
   active model visible, renders mode-specific input-panel state, then switches
   TCMode into an operator channel with AMM state and `/panes watch tc` exposing
-  latest AMM events, visible reasoning summaries, <repo-A> framework state,
-  optional <repo-A> substrate state, and mobile relay state. The scientific substrate
-  implementation remains owned by the <repo-A> repo; Skylake owns the Rust <repo-A>
+  latest AMM events, visible reasoning summaries, repo-B framework state,
+  optional repo-B substrate state, and mobile relay state. The scientific substrate
+  implementation remains owned by the repo-B repo; Skylake owns the Rust repo-B
   orchestration layer, adapter contract, state, and UI wiring.
 - Adaptive harness routing: Skylake should not use a brittle raw-vs-agent
   binary. Routing is now modeled as graduated Raw, Light, Module, Tool,
-  Agentic, <repo-A>, and TCMode-gated <repo-A>-substrate routes. The policy preserves direct model quality for
+  Agentic, repo-B, and TCMode-gated repo-B-substrate routes. The policy preserves direct model quality for
   simple knowledge prompts, uses light identity/session context when useful,
   dispatches direct module requests into local surfaces, exposes tools only when
   evidence is likely to improve the answer, escalates edits and debugging to the
-  agentic loop, and reserves <repo-A> for explicit multi-agent or TCMode
-  orchestration. The <repo-A> substrate route only becomes eligible inside TCMode,
+  agentic loop, and reserves repo-B for explicit multi-agent or TCMode
+  orchestration. The repo-B substrate route only becomes eligible inside TCMode,
   where the internal coordination layer may deliberately select it.
 - Mode UX contract: Normal, Plan, Think, and TC are input-panel states, not
   transcript events. Shift+Tab updates the live panel below the input line and
   must not append `/tc cycle` reports into conversation history. Normal, Plan,
   and Think show only their own lightweight mode panels. TCMode is the only
-  mode allowed to reveal TC Secret/<repo-A>-gated status, AMM worker state, or <repo-A>
+  mode allowed to reveal TC Secret/repo-B-gated status, AMM worker state, or repo-B
   bridge controls. Simple prompts inside TCMode still pass through adaptive
-  routing first; only AMM/<repo-A>-level routes should trigger TCMode worker
+  routing first; only AMM/repo-B-level routes should trigger TCMode worker
   orchestration automatically. `/route` is a dry-run/explanation surface for
   the adaptive routing decision and should not be required to enter a mode.
 - Terminal graph rendering: Skylake now has a native Rust graph renderer for
-  Mermaid-style flowcharts, simple edge lists, <repo-A> framework plans, and AMM
+  Mermaid-style flowcharts, simple edge lists, repo-B framework plans, and AMM
   worker topology. `/graph` renders ASCII code graphs, Unicode terminal graphs,
   SVG source, and Kitty/iTerm2 rich terminal image payloads; `/panes graph`
   shows the latest AMM topology or a default Skylake Agent Brain graph.
@@ -150,24 +150,24 @@ Completed in the current implementation slice:
   through the local `/graph` renderer instead of only printing a code block.
 - Routing naming correction: raw/direct turns report `Direct model` as the
   coordinator. When the harness policy layer is involved, route traces refer to
-  the `<repo-A> routing layer`; AMM remains the worker execution/orchestration
+  the `repo-B routing layer`; AMM remains the worker execution/orchestration
   manager, not the label for the raw/direct route classifier.
 - Natural-language module routing: graph is no longer a one-off branch.
-  Skylake has an <repo-A> module router that maps requests to local handlers for
+  Skylake has an repo-B module router that maps requests to local handlers for
   graph, status, model, panes, MCP, voice, route, config, memory, diff, version,
-  TCMode, and <repo-A>. Future modules should register here instead of adding
+  TCMode, and repo-B. Future modules should register here instead of adding
   bespoke routing logic.
-- <repo-A> module-router governance: `./<repo-C>/docs/<repo-A>-module-router-rules/`
+- repo-B module-router governance: `./<repo-C>/docs/repo-b-module-router-rules/`
   now records the durable naming, route-order, safety, registration, testing,
   and notes contract for all future local capability modules. Raw/direct routes
-  must say `Direct model`; any actual coordination policy layer must use <repo-A>
+  must say `Direct model`; any actual coordination policy layer must use repo-B
   naming; AMM remains the worker execution/orchestration manager rather than a
   generic route label.
-- Dynamic routing direction: the <repo-A> routing framework should evolve from a
+- Dynamic routing direction: the repo-B routing framework should evolve from a
   static branch list into a modular capability graph. Future modules should
   declare intent hints, preconditions, effects, evidence needs, risk, UI
   surfaces, and fallback behavior so the router can gradually self-rewire and
-  adapt to more route types without losing safety. TCMode is where <repo-A> may
+  adapt to more route types without losing safety. TCMode is where repo-B may
   qualitatively improve routing boundaries for complex multi-agent work by
   defining the problem family, evidence threshold, worker topology, verification
   readout, and escalation/de-escalation conditions before orchestration begins.
@@ -185,7 +185,7 @@ Completed in the current implementation slice:
   `.sc/` plus `.DS_Store` are ignored in the shared `.gitignore`.
 - Extracted adaptive route selection into a dedicated Rust routing module,
   corrected direct route display to `Direct model`, kept local capability
-  calls behind the <repo-A> module router, and added weather/default-location
+  calls behind the repo-B module router, and added weather/default-location
   routing support as another module example.
 - Generalized the weather routing lesson into a `Live Lookup` capability
   module. Weather remains one specialized branch, but any request that depends
@@ -207,9 +207,9 @@ Remaining intentional differences:
    scheduling remain future work on top of the now-implemented local parallel
    worker process execution and event console. Skylake shows visible reasoning
    summaries and tool/output events, not private hidden chain-of-thought.
-3. A Rust-native <repo-A> finite-field substrate remains future work. TCMode can
-   execute and summarize the configured <repo-A> substrate runner adapter as optional
-   evidence, but the default TCMode orchestration path is the Rust-native <repo-A>
+3. A Rust-native repo-B finite-field substrate remains future work. TCMode can
+   execute and summarize the configured repo-B substrate runner adapter as optional
+   evidence, but the default TCMode orchestration path is the Rust-native repo-B
    framework layer over AMM workers, not an external app runner.
 
 Design exploration added on 2026-04-29:
@@ -259,14 +259,14 @@ Design exploration added on 2026-04-29:
   event model, session data model, AMM planning rules, security model,
   persistence/resume, Rust runtime integration path, Electron/Tauri/Qt decision,
   roadmap, testing strategy, risks, and definition of done.
-- Expanded the Agent OS direction into a proactive <repo-A> operating-layer vision:
-  Skylake Code remains the terminal/core engine, <repo-A> becomes the higher-level
+- Expanded the Agent OS direction into a proactive repo-B operating-layer vision:
+  Skylake Code remains the terminal/core engine, repo-B becomes the higher-level
   harness brain that understands problem boundaries and chooses the minimum
   useful multi-agent topology, and the desktop shell becomes a native
   visualization/control layer over the same runtime session. Future behavior
   should be proactive in awareness and suggestion, but explicit in risky action.
 - Documented that the desktop itself is the agent canvas: `Option+Space` opens a
-  small bottom launcher, a Harness Planner window appears immediately, <repo-A> plans
+  small bottom launcher, a Harness Planner window appears immediately, repo-B plans
   the workflow, transparent future-styled native agent windows emerge on the
   desktop, directional wiring shows dependencies/fan-out/fan-in, and a
   lower-left hierarchy/control panel keeps the run readable, closeable,

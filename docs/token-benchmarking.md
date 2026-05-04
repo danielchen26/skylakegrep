@@ -5,7 +5,7 @@ and what they explicitly do not measure.
 
 > **See also:** [`docs/parity-benchmarks.md`](parity-benchmarks.md) consolidates
 > the headline numbers, including the real-ripgrep comparison and the
-> cross-repo (<repo-D>) results, in a single table.
+> cross-repo (repo-A) results, in a single table.
 
 The benchmarks live in `benchmarks/` in the project root:
 

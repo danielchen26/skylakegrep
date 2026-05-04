@@ -26,8 +26,8 @@ and the new "End-to-end agent benchmark (v0.8.0)" section of
 ## How the experiment was run
 
   - 6 questions drawn from the v0.7.0 multi-language benchmark
-    (2 per repo across <repo-D> Rust, <repo-A> Python,
-    <repo-B> TypeScript).
+    (2 per repo across repo-A Rust, repo-B Python,
+    repo-C TypeScript).
   - 12 sub-agents spawned in parallel via the Claude Code `Agent` tool
     (general-purpose). Each agent received the same question with
     one of two prompts:
@@ -60,7 +60,7 @@ not on the agent's overall token usage.
 The **wall-time signal is contaminated** by spawning 6 mgrep-on
 agents in parallel against a single Ollama instance — the cascade-
 escalation HyDE + embed calls queued behind each other, inflating
-wall time on <repo-A> (117 s and 154 s vs ~30 s rg-only). In normal
+wall time on repo-B (117 s and 154 s vs ~30 s rg-only). In normal
 single-user usage Ollama is not contended and warm queries land in
 the 0.1-0.5 s range demonstrated in the 0.6.x demos. **The wall
 time row in the benchmark table is flagged as not-clean** and is

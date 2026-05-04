@@ -31,7 +31,7 @@ from collections import defaultdict
 from pathlib import Path
 
 REPO = Path("/Users/tianchichen/Documents/github/local-mgrep")
-WARP = Path("/Users/tianchichen/Documents/github/<repo-D>")
+WARP = Path("/path/to/repo-A")
 sys.path.insert(0, str(REPO))
 
 os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")
@@ -42,7 +42,7 @@ import numpy as np
 from local_mgrep.src.embeddings import get_embedder
 from local_mgrep.src.hybrid import lexical_candidate_paths
 
-TASKS = json.loads((REPO / "benchmarks/cross_repo/<repo-D>.json").read_text())
+TASKS = json.loads((REPO / "benchmarks/cross_repo/repo-a.json").read_text())
 
 
 _USE_CRATE_RE = re.compile(r"\buse\s+crate::([A-Za-z0-9_:]+)")
@@ -54,7 +54,7 @@ _MOD_RE = re.compile(r"^\s*(?:pub\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*;", re.MU
 def _path_to_module(path: Path, root: Path) -> tuple[str | None, str | None]:
     """Return (crate_name, module_path) for a Rust source file, or (None, None).
 
-    A file ``<repo-D>/crates/foo/src/bar/baz.rs`` resolves to crate=foo,
+    A file ``repo-A/crates/foo/src/bar/baz.rs`` resolves to crate=foo,
     module=bar::baz. ``mod.rs`` and ``lib.rs`` collapse to the parent module.
     """
     try:
@@ -76,7 +76,7 @@ def _path_to_module(path: Path, root: Path) -> tuple[str | None, str | None]:
             else:
                 mod_parts[-1] = last.removesuffix(".rs")
             return crate, "::".join(mod_parts)
-    # app/src/<...>.rs (<repo-D>'s binary crate-ish layout)
+    # app/src/<...>.rs (repo-A's binary crate-ish layout)
     if len(parts) >= 2 and parts[0] == "app" and parts[1] == "src":
         mod_parts = list(parts[2:])
         if not mod_parts:
@@ -197,7 +197,7 @@ def main() -> None:
     t0 = time.perf_counter()
     indeg = build_indegree(WARP)
     t_idx = time.perf_counter() - t0
-    print(f"  scanned <repo-D> in {t_idx:.2f}s; {len(indeg)} files have non-zero in-degree")
+    print(f"  scanned repo-A in {t_idx:.2f}s; {len(indeg)} files have non-zero in-degree")
     if indeg:
         top = sorted(indeg.items(), key=lambda kv: -kv[1])[:8]
         for path, deg in top:

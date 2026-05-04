@@ -14,13 +14,13 @@ canonical file in **1** tool call vs rg-only's 4-8.
 
 | Bench | Tasks × conds | rg-only tools | mgrep tools | Δ tools | Δ tokens |
 |---|:-:|:-:|:-:|:-:|:-:|
-| **0.10.0 multi-turn (<repo-D> 3-turn session)** | 1 × 3 | 38 | **7** | **−82 %** | −5 % |
+| **0.10.0 multi-turn (repo-A 3-turn session)** | 1 × 3 | 38 | **7** | **−82 %** | −5 % |
 | **0.10.0 single-turn (6 medium tasks)** | 6 | 25 | **6** | **−76 %** | −8 % |
 | 20-task aggregate (0.8.0 + 0.9.0 + 0.10.0 single-turn) | 20 | 149 | **93** | **−37.6 %** | +6.5 % |
 
 ## What was tested
 
-### B — multi-turn 3-turn <repo-D> session
+### B — multi-turn 3-turn repo-A session
 
 Three sequential follow-up questions about the same area
 (LLM-backend → streaming-into-UI → retry/error-handling). Each
@@ -48,12 +48,12 @@ already used in 0.8.0 or 0.9.0):
 
 | Task | rg-only | mgrep | Δ tools |
 |---|:-:|:-:|:-:|
-| <repo-D> computer_use | 28 849 / 3 | 30 864 / **1** | −67 % |
-| <repo-D> fuzzy_match | 32 038 / 4 | 29 208 / **1** | −75 % |
-| <repo-A> <component-w> | 28 630 / 2 | 29 325 / **1** | −50 % |
-| <repo-A> <component-v> | 32 981 / 8 | 27 544 / **1** | −88 % |
-| <repo-B> keybindings parser | 32 320 / 4 | 27 805 / **1** | −75 % |
-| <repo-B> LSPClient | 32 623 / 4 | 28 158 / **1** | −75 % |
+| repo-A computer_use | 28 849 / 3 | 30 864 / **1** | −67 % |
+| repo-A fuzzy_match | 32 038 / 4 | 29 208 / **1** | −75 % |
+| repo-B <component-w> | 28 630 / 2 | 29 325 / **1** | −50 % |
+| repo-B <component-v> | 32 981 / 8 | 27 544 / **1** | −88 % |
+| repo-c keybindings parser | 32 320 / 4 | 27 805 / **1** | −75 % |
+| repo-c LSPClient | 32 623 / 4 | 28 158 / **1** | −75 % |
 | **Sum** | **187 441 / 25** | **172 904 / 6** | **−76 %** |
 
 5 of 6 mgrep agents finished in **1 tool call**. Token total **−8 %**.
@@ -80,7 +80,7 @@ strict label match 5/6.
     hard-task subset where mgrep agents wandered. Net: roughly
     flat. **Don't claim mgrep saves the LLM bill.**
   - **Quality slightly better with mgrep.** +2 strict, +3 lenient
-    on the 20-task aggregate. mgrep solves the <repo-D> `<domain-y>_v6`
+    on the 20-task aggregate. mgrep solves the repo-A `<domain-y>_v6`
     famous miss; doesn't lose any task rg-only got right.
   - **Wall-time data is contaminated** by parallel Ollama
     contention from the benchmark methodology. Single-user usage
@@ -125,7 +125,7 @@ different efficiency dimension from the LLM bill.
   - `docs/parity-benchmarks.md` — refreshed end-to-end agent
     benchmark section with 20-task aggregate and multi-turn row.
   - `docs/assets/og-image.{svg,png}` — recall tile updated to
-    "−82 % MULTI-TURN TOOL CALLS · 3-turn <repo-D> session".
+    "−82 % MULTI-TURN TOOL CALLS · 3-turn repo-A session".
   - `docs/assets/hero-dark.svg` — version v0.9.0 → v0.10.0.
   - `pyproject.toml` — version bump.
   - `README.md` — Releases list adds 0.10.0; Performance section

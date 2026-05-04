@@ -18,7 +18,7 @@ changes; the search and index code paths are byte-for-byte identical.
   version (cross-encoder rerank, HyDE, multi-resolution, lexical
   prefilter, file-rank, daemon mode, quantisation knobs, and the
   cascade are all flagged as 0.3.0).
-- **Benchmark section** restructured into two subsections: the <repo-D>
+- **Benchmark section** restructured into two subsections: the repo-A
   16-task cross-repo benchmark (the headline 14/16 @ 1.49 s/q cascade
   number) and the 30/30 self-test regression guard.
 - **Releases section** added — links every version's GitHub Release and

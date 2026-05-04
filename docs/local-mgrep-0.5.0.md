@@ -148,9 +148,9 @@ by the PageRank prior — `test_tiebreaker_does_not_flip_clear_gaps`.
     query time** because the doc2query semantic is already
     embedded into chunk vectors.
 
-The full <repo-D> 16-task benchmark sweep across all 5 layers will land
+The full repo-A 16-task benchmark sweep across all 5 layers will land
 in the next iteration of `docs/parity-benchmarks.md` once the
-<repo-D> index has been re-built and (optionally) enriched. The
+repo-A index has been re-built and (optionally) enriched. The
 intermediate target is the 14 / 16 ceiling with
 mean ≤ 1.5 s/q (no regression vs 0.4.1); the stretch target is
 15 / 16 with ≤ 0.5 s/q on a fully-enriched index.

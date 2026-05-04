@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="og-title og-desc" font-family="Inter, ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
   <title id="og-title">local-mgrep — semantic code search over a local index</title>
-  <desc id="og-desc">Social preview card for local-mgrep showing the wordmark, tagline, three performance highlights (16/16 <repo-D> recall, sub-second warm queries, fully offline), and the latest version.</desc>
+  <desc id="og-desc">Social preview card for local-mgrep showing the wordmark, tagline, three performance highlights (16/16 repo-A recall, sub-second warm queries, fully offline), and the latest version.</desc>
 
   <defs>
     <radialGradient id="orb-cy" cx="14%" cy="0%" r="58%">
@@ -53,7 +53,7 @@
       <rect width="300" height="130" rx="14" fill="url(#stat-grad)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
       <text x="150" y="48" text-anchor="middle" font-size="14" font-weight="600" fill="#a1a1aa" letter-spacing="0.08em">MULTI-TURN TOOL CALLS</text>
       <text x="150" y="92" text-anchor="middle" font-size="44" font-weight="700" fill="#ffffff" font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace">−82 %</text>
-      <text x="150" y="115" text-anchor="middle" font-size="12" fill="#71717a">3-turn <repo-D> session · Claude Code</text>
+      <text x="150" y="115" text-anchor="middle" font-size="12" fill="#71717a">3-turn repo-A session · Claude Code</text>
     </g>
     <!-- Tile 2: latency -->
     <g transform="translate(450 380)">

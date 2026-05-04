@@ -5,10 +5,10 @@ Multi-repository workspace. All code lives in the child repositories listed belo
 Do not initialize git or create source files in this root directory.
 
 ## Repositories
-- `./<repo-A>/`
-- `./<repo-B>/`
+- `./repo-B/`
+- `./repo-C/`
 - `./<repo-C>/`
-- `./<repo-D>/`
+- `./repo-A/`
 
 ## Working Guidelines
 - Perform all git operations within individual repository directories

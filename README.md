@@ -89,9 +89,9 @@ languages, 40 hand-labelled questions:
 
 | Repo | Language | Tasks | Recall | Avg s/q |
 | --- | --- | :-: | :-: | :-: |
-| `<repo-D>-terminal/<repo-D>` | Rust | 16 | **16 / 16** | 4.17 |
-| `<repo-A>` | Python | 12 | **11 / 12** | 2.45 |
-| `<repo-B>` | TypeScript | 12 | **11 / 12** | 3.83 |
+| `repo-A` | Rust | 16 | **16 / 16** | 4.17 |
+| `repo-B` | Python | 12 | **11 / 12** | 2.45 |
+| `repo-C` | TypeScript | 12 | **11 / 12** | 3.83 |
 | **Aggregate** | | **40** | **38 / 40 (95 %)** | **3.55** |
 
 Reproducible runner at `benchmarks/v0_7_multilang_bench.py`. Per-repo
@@ -103,7 +103,7 @@ Recall counts a query as a hit when at least one of the top-10
 returned chunks matches the canonical answer dirs (or any listed
 `expected_alternatives`).
 
-### Tier breakdown (<repo-D> 16-task)
+### Tier breakdown (repo-A 16-task)
 
 | Tier | What it does | Recall | Cold first query | Warm avg s/q |
 | --- | --- | :-: | :-: | :-: |
@@ -174,7 +174,7 @@ The full architecture diagram and module-by-module walk-through is at
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama server URL. |
 | `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Embedding model. Switching requires `mgrep index --reset`. |
 | `OLLAMA_LLM_MODEL` | `qwen2.5:3b` | Used for `--answer` and `--agentic`. |
-| `OLLAMA_HYDE_MODEL` | `qwen2.5:3b` | Used for cascade-escalation HyDE. Falls back to `OLLAMA_LLM_MODEL` if not installed. Set to `qwen2.5:1.5b` for ~30 % speedup at the cost of 1 task on <repo-D> 16-task. |
+| `OLLAMA_HYDE_MODEL` | `qwen2.5:3b` | Used for cascade-escalation HyDE. Falls back to `OLLAMA_LLM_MODEL` if not installed. Set to `qwen2.5:1.5b` for ~30 % speedup at the cost of 1 task on repo-A 16-task. |
 | `OLLAMA_KEEP_ALIVE` | `-1` | Passed to every Ollama call. `-1` keeps models resident indefinitely (recommended). |
 | `MGREP_DB_PATH` | per-project | When set, mgrep treats the index as curated and disables auto-mutation. |
 | `MGREP_AUTO_PULL` | unset | Set `yes` to auto-`ollama pull` missing models without prompting. |
@@ -198,7 +198,7 @@ The full sequence so far:
     `mgrep setup --uninstall` removes all snippets cleanly. New
     `mgrep doctor` row shows registration state per CLI.
   - **0.10.0** — multi-turn agent benchmark + single-turn sample
-    expanded to 20 tasks. **−82 % tool calls in multi-turn <repo-D>
+    expanded to 20 tasks. **−82 % tool calls in multi-turn repo-A
     session, −37.6 % across 20 single-turn tasks.** On 5 / 6
     medium-difficulty single-turn tasks, mgrep finds the canonical
     file in 1 tool call vs rg-only's 4-8.
@@ -206,15 +206,15 @@ The full sequence so far:
     hand-labelled tasks (8 hard semantic + 6 easy single-shot) across
     Rust + Python + TypeScript. **−30 % tool calls and +2 / 14
     answer-correctness** with mgrep on. Best-case task: **25× fewer
-    tool calls** on the <repo-D> editor cursor query. Worst-case task:
+    tool calls** on the repo-A editor cursor query. Worst-case task:
     mgrep slightly worse on lexical-friendly signin question — both
     published.
   - **0.8.0** — first e2e Claude Code agent benchmark (6 easy
     single-shot questions). Superseded by 0.9.0 with larger sample.
   - **0.7.0** — multi-language benchmark across Rust + Python +
     TypeScript: 38 / 40 (95 %) recall at 3.55 s/q on Mac CPU. New
-    `benchmarks/cross_repo/<repo-A>.json` (12 Python tasks) and
-    `<repo-B>.json` (12 TypeScript tasks); unified runner at
+    `benchmarks/cross_repo/repo-b.json` (12 Python tasks) and
+    `repo-c.json` (12 TypeScript tasks); unified runner at
     `benchmarks/v0_7_multilang_bench.py`. Two honest misses
     documented in `docs/parity-benchmarks.md`.
   - **0.6.2** — Ollama preheat (fire-and-forget warm-up at search
@@ -222,14 +222,14 @@ The full sequence so far:
     1200×630 social preview card.
   - **0.6.1** — Ollama `keep_alive=-1` correctness fix (was sending
     string ``"-1"`` causing 400 Bad Request); HyDE default model
-    reverted to ``qwen2.5:3b`` after the <repo-D> benchmark showed
+    reverted to ``qwen2.5:3b`` after the repo-A benchmark showed
     ``qwen2.5:1.5b`` cost 1 task in recall; tag-aware model presence
     check in ``mgrep doctor`` (no more false-positives when only
     a different tag of the same base name is installed).
   - **0.6.0** — introduced ``OLLAMA_HYDE_MODEL`` and Ollama
     ``keep_alive`` plumbing; superseded by 0.6.1 for default
     correctness.
-  - **0.5.1** — cascade file-mean cosine corpus-wide; <repo-D> benchmark
+  - **0.5.1** — cascade file-mean cosine corpus-wide; repo-A benchmark
     relabeled to acceptable-alternatives form (16/16 with corrected
     labels).
   - **0.5.0** — symbol-aware indexing, doc2query enrichment, file-export
@@ -340,7 +340,7 @@ pip install -e ".[rerank]"
 .venv/bin/python benchmarks/agent_context_benchmark.py --top-k 10 --summary-only
 ```
 
-To reproduce a <repo-D> benchmark row, follow the indexing/run instructions
+To reproduce a repo-A benchmark row, follow the indexing/run instructions
 in [`docs/parity-benchmarks.md`](docs/parity-benchmarks.md).
 
 ## License

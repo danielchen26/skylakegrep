@@ -11,7 +11,7 @@ so the comparison is apples-to-apples on the retrieval side.
 
 Usage:
   .venv/bin/python benchmarks/parity_vs_ripgrep.py --top-k 10 --summary-only
-  .venv/bin/python benchmarks/parity_vs_ripgrep.py --root ../<repo-D> --tasks tasks.json
+  .venv/bin/python benchmarks/parity_vs_ripgrep.py --root ../repo-A --tasks tasks.json
 """
 
 from __future__ import annotations

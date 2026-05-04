@@ -12,7 +12,7 @@ through every embed and generate request. The default value
 as the JSON string ``"-1"``, which Ollama's HTTP API rejects with
 ``400 Bad Request: invalid duration "-1"``. The result was that
 both the embedder and the answerer fell back to zero-vectors and
-empty strings on every cascade-escalation, which made <repo-D>
+empty strings on every cascade-escalation, which made repo-A
 benchmark recall and latency meaningless.
 
 0.6.1 adds ``answerer._coerce_keep_alive`` to convert numeric
@@ -28,7 +28,7 @@ intended.
 that "write a plausible code snippet" is a small-model-friendly
 job and the 3-5× speedup justified using it. After the
 ``keep_alive`` bug was fixed and a clean benchmark could be run,
-the smaller model **lost 1 task on <repo-D> 16-task recall**:
+the smaller model **lost 1 task on repo-A 16-task recall**:
 
 | Config | Recall | Avg s/q |
 | --- | :-: | :-: |
@@ -73,7 +73,7 @@ to the missing tag would 404 and silently fall back to
   - 40 / 40 unit tests pass.
   - Existing project indexes are picked up as-is.
   - All 0.5.x / 0.6.0 flags remain valid.
-  - Recall on <repo-D> 16-task with default config: **16 / 16** (back
+  - Recall on repo-A 16-task with default config: **16 / 16** (back
     to 0.5.1's empirically-validated baseline).
 
 ## Install

@@ -1,0 +1,80 @@
+[
+  {
+    "id": "<repo-A>-cli-001",
+    "question": "Where is the root command-line entry point that wires up subcommand parsers for the package?",
+    "expected": "<module-x>/cli.py",
+    "expected_alternatives": [
+      "<module-x>/app.py"
+    ],
+    "ground_truth_note": "<module-x>/cli.py is the canonical CLI module that imports and registers every subcommand parser (<domain-y>_v5, <domain-y>_v6, finite-field runner, susceptibility, etc.). <module-x>/app.py is a thin shim that just calls cli.main()."
+  },
+  {
+    "id": "<repo-A>-finite-field-001",
+    "question": "How are source events validated against the schema and admitted into the finite-field run?",
+    "expected": "<module-x>/finite_field_runner.py",
+    "ground_truth_note": "finite_field_runner.py contains validate_schema, validate_source_events, validate_event, calibrate_support_events, and the run_instances loop that admits events into the field."
+  },
+  {
+    "id": "<repo-A>-susceptibility-001",
+    "question": "Where is the two-time response operator computed by injecting signed perturbations after event admission?",
+    "expected": "<module-x>/finite_susceptibility.py",
+    "expected_alternatives": [
+      "<module-x>/response_kernel.py"
+    ],
+    "ground_truth_note": "finite_susceptibility.py is the explicit susceptibility estimator script. response_kernel.py builds the underlying two-time kernel and is where the trace evolution and source-channel coupling primitives live."
+  },
+  {
+    "id": "<repo-A>-llm-live-001",
+    "question": "Where does the package call an OpenAI-compatible chat completions endpoint to obtain proposed source events from a model?",
+    "expected": "<module-x>/live_preparation.py",
+    "ground_truth_note": "live_preparation.py defines call_openai_compatible, chat_completions_url, build_source_event_prompt, and run_live_adapter — the live-model HTTP path. This is the only file that does outbound LLM calls."
+  },
+  {
+    "id": "<repo-A>-<domain-y>-v6-001",
+    "question": "How does the V6 medical-grade <domain-y> benchmark resolve and chain its acquire / extract / audit / score steps?",
+    "expected": "<module-x>/<domain-y>_v6.py",
+    "ground_truth_note": "<domain-y>_v6.py defines V6Resolution, resolve_v6, run_step, command_<domain-y>_v6, and add_<domain-y>_v6_parser — the orchestration layer for the v6_medical_grade pipeline."
+  },
+  {
+    "id": "<repo-A>-graph-refinement-001",
+    "question": "Where is the graph-refinement convergence study that compares discrete impulse kernels against the periodic continuum Green's function?",
+    "expected": "<module-x>/graph_time_refinement.py",
+    "ground_truth_note": "graph_time_refinement.py owns periodic_laplacian, continuum_green_periodic, branch_response, impulse_kernel_from_eigenvalues, and the build_report function that ties them together."
+  },
+  {
+    "id": "<repo-A>-stability-001",
+    "question": "Where are susceptibility tensors compared across epsilon grids to assess perturbation stability?",
+    "expected": "<module-x>/response_stability.py",
+    "ground_truth_note": "response_stability.py defines tensor_map, compare_tensor_maps, parse_epsilon_grids, and build_stability_report. It is the only file that takes two finite-field reports and produces a per-tensor comparison."
+  },
+  {
+    "id": "<repo-A>-release-manifest-001",
+    "question": "How are release artifacts hashed and a manifest written so that downstream releases are reproducible?",
+    "expected": "<module-x>/release_manifest.py",
+    "ground_truth_note": "release_manifest.py defines FileRecord, sha256_file, build_manifest, write_manifest, and write_checksums — the exact functions that produce the release manifest + checksums.txt."
+  },
+  {
+    "id": "<repo-A>-scaling-report-001",
+    "question": "Where are power-law exponents fit from heterogeneous benchmark artifacts to summarize scaling behavior?",
+    "expected": "<module-x>/scaling_report.py",
+    "ground_truth_note": "scaling_report.py defines fit_power_exponent, summarize_typed_scaling_case_artifact, summarize_response_context, and build_report. It is the canonical scaling-summary builder."
+  },
+  {
+    "id": "<repo-A>-public-live-scope-001",
+    "question": "Where are GAIA, SuperGPQA, and BFCL public benchmark slice files audited for evidence of live-tool usage?",
+    "expected": "<module-x>/public_live_scope.py",
+    "ground_truth_note": "public_live_scope.py defines audit_gaia_file, audit_supergpqa_file, audit_bfcl_file, and audit_public_tree — the exact audit hooks for the three public benchmarks named in the question."
+  },
+  {
+    "id": "<repo-A>-cross-family-001",
+    "question": "Where are critical exponents and finite intervals collected across families to produce a cross-family response report?",
+    "expected": "<module-x>/cross_family_response.py",
+    "ground_truth_note": "cross_family_response.py defines critical_exponent, finite_interval, family_names, and build_cross_family_response_report. The whole file is dedicated to the cross-family rollup."
+  },
+  {
+    "id": "<repo-A>-production-audit-001",
+    "question": "Where is the audit that checks the finite-field interface, command surface, and existing output artifacts for production closure?",
+    "expected": "<module-x>/<component-v>.py",
+    "ground_truth_note": "<component-v>.py is dedicated to auditing the documented finite-field interface, the root command surface, public-live scope evidence, and existing output artifacts (per its module docstring)."
+  }
+]

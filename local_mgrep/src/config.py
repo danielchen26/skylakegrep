@@ -12,13 +12,13 @@ DEFAULT_OLLAMA_URL = "http://localhost:11434"
 DEFAULT_EMBED_MODEL = "nomic-embed-text"
 DEFAULT_LLM_MODEL = "qwen2.5:3b"
 # HyDE / cascade-escalation default. We keep the same 3B model used by
-# ``--answer`` because empirical <repo-D> 16-task benchmarking showed that
+# ``--answer`` because empirical repo-A 16-task benchmarking showed that
 # smaller (qwen2.5:1.5b) drops recall by 1 task (the
 # ``app/src/command_palette.rs`` query: HyDE-generated keystroke /
 # command-palette identifiers are less plausible from the smaller
 # model). Users who prefer faster cascade-escalations can set
 # ``OLLAMA_HYDE_MODEL=qwen2.5:1.5b`` explicitly: ~30 % per-query
-# speedup at the cost of one task on <repo-D>.
+# speedup at the cost of one task on repo-A.
 DEFAULT_HYDE_MODEL = "qwen2.5:3b"
 # Ollama keep-alive: -1 keeps a model resident indefinitely after the first
 # load, which is what we want for an interactive CLI — the next query in

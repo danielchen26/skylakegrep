@@ -46,7 +46,7 @@ quality-of-life improvements:
 
   - 40 / 40 unit tests pass.
   - All 0.5.x / 0.6.x flags remain valid.
-  - Recall on <repo-D> 16-task with default config: **16 / 16**.
+  - Recall on repo-A 16-task with default config: **16 / 16**.
   - Preheat is best-effort and silently swallows network / DNS /
     timeout failures — disabling Ollama still produces the same
     error-handling path on the real search call as before.

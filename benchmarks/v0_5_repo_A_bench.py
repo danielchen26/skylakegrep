@@ -1,4 +1,4 @@
-"""v0.5.0 <repo-D> 16-task layered benchmark.
+"""v0.5.0 repo-A 16-task layered benchmark.
 
 Measures the recall + latency contribution of each retrieval layer added
 in 0.5.0 vs the 0.4.1 baseline:
@@ -31,7 +31,7 @@ import time
 from pathlib import Path
 
 REPO = Path("/Users/tianchichen/Documents/github/local-mgrep")
-WARP = Path("/Users/tianchichen/Documents/github/<repo-D>")
+WARP = Path("/path/to/repo-A")
 sys.path.insert(0, str(REPO))
 
 os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")
@@ -47,13 +47,13 @@ from local_mgrep.src.storage import (
     populate_symbols,
 )
 
-TASKS = json.loads((REPO / "benchmarks/cross_repo/<repo-D>.json").read_text())
+TASKS = json.loads((REPO / "benchmarks/cross_repo/repo-a.json").read_text())
 
 
 def hit(task: dict, results: list[dict]) -> bool:
     """A task hits if any returned path contains ``expected`` *or* any of
     the ``expected_alternatives`` substrings (set when the original label
-    is too narrow). See ground-truth notes in <repo-D>.json for the
+    is too narrow). See ground-truth notes in repo-a.json for the
     re-labelled tasks."""
     accepted = [task["expected"], *task.get("expected_alternatives", [])]
     paths = [r.get("path") or "" for r in results]
@@ -124,7 +124,7 @@ def main() -> None:
     conn = init_db(Path(os.environ["MGREP_DB_PATH"]))
     ensure_migrations(conn)
     print()
-    print(f"v0.5.0 <repo-D> benchmark over {len(TASKS)} tasks "
+    print(f"v0.5.0 repo-A benchmark over {len(TASKS)} tasks "
           f"(index has {conn.execute('SELECT COUNT(*) FROM chunks').fetchone()[0]} chunks)\n")
     embedder = get_embedder(role="query")
     answerer = get_answerer()
@@ -155,7 +155,7 @@ def main() -> None:
     print(f"\n[L3 enrichment status: {n_enriched} chunks enriched]")
     if n_enriched == 0:
         print("  → run `MGREP_DB_PATH=/tmp/<repo-D>_idx_p1.db mgrep enrich` "
-              "from the <repo-D> directory to add Tier E to this benchmark.")
+              "from the repo-A directory to add Tier E to this benchmark.")
 
 
 if __name__ == "__main__":

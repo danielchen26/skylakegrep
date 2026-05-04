@@ -1,0 +1,106 @@
+[
+  {
+    "id": "<repo-B>-vim-001",
+    "question": "How are vim-style motions like w, b, e, $, 0, gg, G interpreted into cursor moves?",
+    "expected": "src/vim/motions.ts",
+    "expected_alternatives": [
+      "src/vim/operators.ts",
+      "src/vim/textObjects.ts"
+    ],
+    "ground_truth_note": "src/vim/motions.ts is the canonical motions module. operators.ts and textObjects.ts are sibling vim primitives; either is plausible if a user phrases the question more broadly."
+  },
+  {
+    "id": "<repo-B>-keybindings-001",
+    "question": "Where is a keystroke string like 'cmd+shift+p' parsed into a structured chord?",
+    "expected": "src/keybindings/parser.ts",
+    "ground_truth_note": "src/keybindings/parser.ts exports parseKeystroke, parseChord, parseBindings — the canonical keystroke parser. resolver.ts dispatches the parsed chords; match.ts checks runtime keypresses."
+  },
+  {
+    "id": "<repo-B>-voice-stt-001",
+    "question": "Where does the client open a websocket to stream microphone audio frames for speech-to-text transcription?",
+    "expected": "src/services/voiceStreamSTT.ts",
+    "ground_truth_note": "voiceStreamSTT.ts is the only file that opens the Anthropic voice_stream WebSocket and streams binary audio frames; it parses TranscriptText / TranscriptEndpoint server messages."
+  },
+  {
+    "id": "<repo-B>-oauth-001",
+    "question": "How does the CLI exchange an OAuth authorization code for access and refresh tokens?",
+    "expected": "src/services/oauth/client.ts",
+    "expected_alternatives": [
+      "src/services/oauth/auth-code-listener.ts"
+    ],
+    "ground_truth_note": "src/services/oauth/client.ts defines exchangeCodeForTokens, refreshOAuthToken, and buildAuthUrl. auth-code-listener.ts is the local HTTP server that catches the redirect; it's a plausible secondary answer for callers focused on the listener side."
+  },
+  {
+    "id": "<repo-B>-keychain-001",
+    "question": "Where are credentials stored in the macOS Keychain so they survive across sessions?",
+    "expected": "src/utils/secureStorage/macOsKeychainStorage.ts",
+    "expected_alternatives": [
+      "src/utils/secureStorage/macOsKeychainHelpers.ts",
+      "src/utils/secureStorage/keychainPrefetch.ts"
+    ],
+    "ground_truth_note": "macOsKeychainStorage.ts holds the get/set/delete adapter; macOsKeychainHelpers.ts has the lower-level security CLI shell-out; keychainPrefetch.ts is the parallel-prefetch wrapper used at startup."
+  },
+  {
+    "id": "<repo-B>-bash-perm-001",
+    "question": "How does the CLI decide whether a bash command needs an allow / ask / deny permission prompt?",
+    "expected": "src/utils/permissions/bashClassifier.ts",
+    "expected_alternatives": [
+      "src/utils/permissions/classifierDecision.ts",
+      "src/utils/permissions/yoloClassifier.ts"
+    ],
+    "ground_truth_note": "bashClassifier.ts owns classifyBashCommand and the prompt-rule scaffolding. classifierDecision.ts and yoloClassifier.ts are the surrounding decision pieces and are reasonable secondary hits."
+  },
+  {
+    "id": "<repo-B>-retry-001",
+    "question": "Where are 429 / 529 / overloaded API errors retried with exponential backoff?",
+    "expected": "src/services/api/withRetry.ts",
+    "ground_truth_note": "withRetry.ts is the canonical retry generator: BASE_DELAY_MS, getRetryDelay, withRetry, is529Error, getDefaultMaxRetries. Nothing else in the codebase implements API retry."
+  },
+  {
+    "id": "<repo-B>-autocompact-001",
+    "question": "How does the assistant decide when to automatically compact the conversation history before the context window fills?",
+    "expected": "src/services/compact/autoCompact.ts",
+    "expected_alternatives": [
+      "src/services/compact/compact.ts",
+      "src/services/compact/microCompact.ts"
+    ],
+    "ground_truth_note": "autoCompact.ts owns AUTOCOMPACT_BUFFER_TOKENS, getAutoCompactThreshold, calculateTokenWarningState, shouldAutoCompact, and autoCompactIfNeeded. compact.ts holds the actual compaction routine; microCompact.ts is the partial variant."
+  },
+  {
+    "id": "<repo-B>-mcp-001",
+    "question": "Where is an MCP server connected to and managed by the client, including timeouts and session-expiry handling?",
+    "expected": "src/services/mcp/client.ts",
+    "expected_alternatives": [
+      "src/services/mcp/MCPConnectionManager.tsx"
+    ],
+    "ground_truth_note": "client.ts owns ensureConnectedClient, McpAuthError, isMcpSessionExpiredError, wrapFetchWithTimeout, getServerCacheKey. MCPConnectionManager.tsx is the React component that drives lifecycle."
+  },
+  {
+    "id": "<repo-B>-lsp-001",
+    "question": "How does the CLI talk to a language-server-protocol child process and route diagnostics back to the user?",
+    "expected": "src/services/lsp/LSPClient.ts",
+    "expected_alternatives": [
+      "src/services/lsp/LSPServerManager.ts",
+      "src/services/lsp/LSPDiagnosticRegistry.ts",
+      "src/services/lsp/LSPServerInstance.ts"
+    ],
+    "ground_truth_note": "LSPClient.ts is the JSON-RPC client (createLSPClient). LSPServerManager.ts owns lifecycle, LSPServerInstance.ts is the per-server process wrapper, LSPDiagnosticRegistry.ts surfaces diagnostics. Any of those is a fair answer."
+  },
+  {
+    "id": "<repo-B>-gitignore-001",
+    "question": "Where does the CLI check whether a file path is excluded by a project's .gitignore rules?",
+    "expected": "src/utils/git/gitignore.ts",
+    "ground_truth_note": "gitignore.ts owns isPathGitignored, getGlobalGitignorePath, addFileGlobRuleToGitignore. It is the only gitignore-aware module in the tree."
+  },
+  {
+    "id": "<repo-B>-computer-use-001",
+    "question": "Where is the wrapper that drives the model's screenshot-and-click computer-use loop?",
+    "expected": "src/utils/computerUse/",
+    "expected_alternatives": [
+      "src/utils/computerUse/executor.ts",
+      "src/utils/computerUse/wrapper.tsx",
+      "src/utils/computerUse/mcpServer.ts"
+    ],
+    "ground_truth_note": "src/utils/computerUse/ is the whole subsystem: executor.ts launches the CLI, wrapper.tsx is the React glue, mcpServer.ts is the spawned MCP-over-stdio server, gates.ts enforces preconditions. Any path under the directory is a valid answer."
+  }
+]

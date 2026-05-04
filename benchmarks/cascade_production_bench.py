@@ -1,6 +1,6 @@
 """Production cascade benchmark — calls the real ``storage.cascade_search``
 through the same code path that ``mgrep search --cascade`` uses, and verifies
-<repo-D> recall matches the probe (14/16 @ ~1.9 s/q at tau=0.015).
+repo-A recall matches the probe (14/16 @ ~1.9 s/q at tau=0.015).
 
 Run:
     OLLAMA_EMBED_MODEL=nomic-embed-text MGREP_DB_PATH=/tmp/<repo-D>_idx_p1.db \
@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 
 REPO = Path("/Users/tianchichen/Documents/github/local-mgrep")
-WARP = Path("/Users/tianchichen/Documents/github/<repo-D>")
+WARP = Path("/path/to/repo-A")
 sys.path.insert(0, str(REPO))
 
 os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")
@@ -28,7 +28,7 @@ from local_mgrep.src.embeddings import get_embedder
 from local_mgrep.src.hybrid import lexical_candidate_paths
 from local_mgrep.src.storage import cascade_search
 
-TASKS = json.loads((REPO / "benchmarks/cross_repo/<repo-D>.json").read_text())
+TASKS = json.loads((REPO / "benchmarks/cross_repo/repo-a.json").read_text())
 
 
 def hit(expected: str, results: list[dict]) -> bool:
@@ -41,7 +41,7 @@ def main() -> None:
     answerer = get_answerer()
 
     n = len(TASKS)
-    print(f"production cascade_search() bench over {n} <repo-D> tasks\n")
+    print(f"production cascade_search() bench over {n} repo-A tasks\n")
     print(f"{'tau':>6}  {'recall':>7}  {'total_s':>8}  {'avg_s/q':>8}  {'#exit':>6}  {'exit%':>6}")
     for tau in [0.0, 0.005, 0.01, 0.015, 0.02, 0.03]:
         hits = 0

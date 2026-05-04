@@ -117,7 +117,7 @@ def build_index(
 
     With ``reuse_existing=True`` and a non-empty index already at ``db_path``,
     skip the embed loop and return a connection to the existing index. This
-    lets long-running benchmarks (e.g. <repo-D>) be re-run against a pre-built
+    lets long-running benchmarks (e.g. repo-A) be re-run against a pre-built
     index without paying the multi-minute re-embed cost on every invocation.
     """
 

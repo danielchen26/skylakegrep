@@ -44,7 +44,7 @@ loop the agent's own thinking dominates the bill. Don't expect mgrep
 to halve your Claude Code subscription cost; expect it to make the
 agent **faster, simpler, and slightly more accurate**.
 
-## Best case in the set (<repo-D> editor cursor)
+## Best case in the set (repo-A editor cursor)
 
 The clearest single-task win is task 2 in the hard set ("How does the
 in-line text editor handle cursor movement and keystroke input?"):
@@ -60,7 +60,7 @@ rg-only agent burned through 25 `rg` / `find` / `Read` calls
 triangulating across the editor crate and the application's editor
 module before settling on the same file. Pure efficiency delta.
 
-## Worst case in the set (<repo-D> signin)
+## Worst case in the set (repo-A signin)
 
 We also publish where mgrep didn't help:
 
@@ -82,8 +82,8 @@ match is lexical-friendly.
 
 ## How the experiment was run
 
-  - 14 questions: 6 easy from 0.8.0 + 8 hard new ones (4 <repo-D> Rust,
-    2 <repo-A> Python, 2 <repo-B> TypeScript).
+  - 14 questions: 6 easy from 0.8.0 + 8 hard new ones (4 repo-A Rust,
+    2 repo-B Python, 2 repo-c TypeScript).
   - 28 sub-agents spawned via the Claude Code `Agent` tool in 2
     rounds (16 hard parallel + 12 easy from 0.8.0).
   - Two prompt conditions per question:
