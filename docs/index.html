@@ -480,35 +480,177 @@ def search(conn, query_embedding, top_k=10, …):
 
         <!-- ============== Benchmarks ============== -->
         <section id="benchmarks" class="doc-section">
-          <p class="eyebrow">Evaluation · benchmark</p>
-          <h2>Deterministic context-gathering benchmark.</h2>
+          <p class="eyebrow">Evaluation · benchmarks</p>
+          <h2>Empirical results across four benchmark dimensions.</h2>
           <p>
-            The repository ships a deterministic benchmark in
-            <code>benchmarks/agent_context_benchmark.py</code>. It compares
-            two ways of assembling search context for a fixed set of 30 repository
-            navigation tasks:
+            local-mgrep ships four reproducible benchmarks. Each measures a
+            different question; quoting the right number for the right claim
+            matters. The repository's
+            <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>
+            holds the full raw tables, methodology, and per-task data; this
+            page is the curated summary.
           </p>
-          <ul>
-            <li>a <strong>grep-agent simulation</strong> that performs exact-token searches and returns matching line windows; and</li>
-            <li><strong>local-mgrep</strong> issuing a single semantic query per task and returning the top-k JSON snippets.</li>
-          </ul>
-          <p>Token volumes are estimated as <code>chars / 4</code>.</p>
+
+          <h3 id="bench-e2e">1. End-to-end Claude Code agent (v0.8.0 → v0.10.0)</h3>
+          <p>
+            Real Claude Code sub-agents answering hand-labelled code-search
+            questions in two prompted conditions —
+            <strong>rg-only</strong> (mgrep forbidden) vs
+            <strong>mgrep-on</strong> (rg/grep/find forbidden) — across
+            21 questions and 1 multi-turn session in three repos.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Bench</th>
+                  <th>Tasks</th>
+                  <th>rg-only tools</th>
+                  <th>mgrep tools</th>
+                  <th>Δ tools</th>
+                  <th>Δ tokens</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Multi-turn (3-turn <repo-D> session)</strong></td>
+                  <td>1 × 3</td><td>38</td><td>7</td><td><strong>−82 %</strong></td><td>−5 %</td>
+                </tr>
+                <tr>
+                  <td>6 medium tasks (v0.10.0-C)</td>
+                  <td>6</td><td>25</td><td>6</td><td>−76 %</td><td>−8 %</td>
+                </tr>
+                <tr>
+                  <td>14 single-turn (v0.8.0 + v0.9.0)</td>
+                  <td>14</td><td>124</td><td>87</td><td>−30 %</td><td>+12 %</td>
+                </tr>
+                <tr>
+                  <td><strong>20-task single-turn aggregate</strong></td>
+                  <td>20</td><td><strong>149</strong></td><td><strong>93</strong></td><td><strong>−37.6 %</strong></td><td>+6.5 %</td>
+                </tr>
+                <tr>
+                  <td><strong>Strict-label correctness (20 tasks)</strong></td>
+                  <td>—</td><td>12 / 20</td><td><strong>14 / 20</strong></td><td><strong>+2 tasks</strong></td><td>—</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            The cleanest, most consistent signal is
+            <strong>tool-call reduction</strong>: −37.6 % single-turn, −82 %
+            multi-turn. Each agent tool call costs an LLM round-trip + network
+            RTT + serialization + context-window growth, so reducing them
+            shortens the agent loop even when total tokens are equal. Token
+            cost across the 20-task aggregate is roughly flat (+6.5 %); we
+            do not claim mgrep saves the LLM bill.
+          </p>
+          <p>
+            Best-case task in the set: <em><repo-D> editor cursor</em> — mgrep
+            finishes in 1 tool call vs rg-only's 25 (25× fewer), at one
+            eighth the wall time. Worst-case: <em><repo-D> signin</em> — mgrep
+            is 40 % more tool calls because the question's vocabulary
+            (auth/session/token) overlaps directly with code-path tokens, so
+            rg's straightforward scan was already efficient. Both cases are
+            published in
+            <a href="local-mgrep-0.10.0.md">the v0.10.0 release notes</a>.
+          </p>
+
+          <h3 id="bench-multilang">2. Multi-language retrieval recall (v0.7.0)</h3>
+          <p>
+            Three repositories, three languages, 40 hand-labelled questions:
+            does the cascade generalise beyond Rust?
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Repo</th>
+                  <th>Language</th>
+                  <th>Files indexed</th>
+                  <th>Tasks</th>
+                  <th>Recall (cascade default)</th>
+                  <th>Avg s/q (Mac CPU)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><code><repo-D>-terminal/<repo-D></code></td><td>Rust</td><td>3 173</td><td>16</td><td><strong>16 / 16</strong></td><td>4.17 s</td></tr>
+                <tr><td><code><repo-A></code> (scientific Python)</td><td>Python</td><td>142</td><td>12</td><td>11 / 12</td><td>2.45 s</td></tr>
+                <tr><td><code><repo-B></code></td><td>TypeScript</td><td>1 903</td><td>12</td><td>11 / 12</td><td>3.83 s</td></tr>
+                <tr><td><strong>Aggregate</strong></td><td>3 langs</td><td><strong>5 218</strong></td><td><strong>40</strong></td><td><strong>38 / 40 (95 %)</strong></td><td><strong>3.55 s</strong></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Recall counts a query as a hit when at least one of the top-10
+            returned chunks matches the canonical answer dirs (or any listed
+            <code>expected_alternatives</code>). The two honest misses
+            (<code><domain-y>_v6.py</code> orchestration vs implementation
+            scripts; <code>autoCompact.ts</code> decision logic vs
+            neighbouring config files) are documented in
+            <a href="local-mgrep-0.7.0.md">v0.7.0 release notes</a>. Both
+            tasks have since been re-tried in the e2e agent benchmark and
+            mgrep solves the <code><domain-y>_v6</code> case in the agent
+            harness.
+          </p>
+
+          <h3 id="bench-<repo-D>">3. <repo-D> 16-task retrieval ceiling (v0.5.1)</h3>
+          <p>
+            The original headline benchmark since 0.5.0. Verified retrieval
+            recall against hand-curated queries on the
+            <code><repo-D>-terminal/<repo-D></code> Rust workspace — a 3 K-file,
+            26 K-chunk codebase that's a stress test for any local
+            embedding-based retrieval.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tier</th>
+                  <th>Command</th>
+                  <th>Recall</th>
+                  <th>Avg s/q warm</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>ultra-fast (cheap-only)</td><td><code>mgrep "..." --cascade-tau 0.0</code></td><td>11 / 16</td><td>0.10 s</td></tr>
+                <tr><td>chunk-only (no rerank)</td><td><code>mgrep "..." --no-cascade --no-rerank</code></td><td>9 / 16</td><td>0.52 s</td></tr>
+                <tr><td>chunk + rerank</td><td><code>mgrep "..." --no-cascade --rerank</code></td><td>11 / 16</td><td>9.5 s</td></tr>
+                <tr><td><strong>cascade (default)</strong></td><td><code>mgrep "..."</code></td><td><strong>16 / 16</strong></td><td><strong>~3 s</strong></td></tr>
+                <tr><td>ripgrep raw</td><td><code>rg -il -F</code> token-OR</td><td>16 / 16</td><td>0.1 s</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            With the v0.5.1 corrected ground-truth labels (the original
+            <code>crates/ai/</code> and <code>app/src/billing/</code> labels
+            were too narrow), the cascade default hits 16 / 16 on <repo-D> at
+            ~3 s/q on Mac CPU, no GPU. ~80 % of queries take the cheap path
+            (file-mean cosine, no LLM call) and complete in well under 0.5 s
+            warm; the remaining ~20 % escalate to a HyDE-augmented retrieval
+            and complete in the 1-2 s band. Full τ sweep, methodology, and
+            ablation tables are in
+            <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>.
+          </p>
+
+          <h3 id="bench-self">4. local-mgrep self-test (regression guard, since v0.2.0)</h3>
+          <p>
+            Deterministic local benchmark over 30 repository-navigation tasks
+            against this very repo. Compares a single <code>mgrep search</code>
+            call against a simulated grep-agent. Token volumes are estimated
+            as <code>chars / 4</code>. Every release is verified to keep
+            <strong>30 / 30 at top-k 10</strong>.
+          </p>
 
           <figure>
             <img src="assets/benchmark.svg" alt="Bar chart of token reduction and recall against top-k values 5, 10, 20, 50." />
             <figcaption>
-              Bars: token reduction (left axis). Markers and dashed line: expected-file
-              recall (right axis). Reproduce with the commands below.
+              Bars: token reduction (left axis). Markers and dashed line:
+              expected-file recall (right axis). Reproduce with the
+              <code>benchmarks/agent_context_benchmark.py --top-k N</code>
+              command.
             </figcaption>
           </figure>
 
-          <h3>Reproducing the numbers</h3>
-<pre><code>.venv/bin/python benchmarks/agent_context_benchmark.py --top-k 5  --summary-only
-.venv/bin/python benchmarks/agent_context_benchmark.py --top-k 10 --summary-only
-.venv/bin/python benchmarks/agent_context_benchmark.py --top-k 20 --summary-only
-.venv/bin/python benchmarks/agent_context_benchmark.py --top-k 50 --summary-only</code></pre>
-
-          <h3>Tabular summary</h3>
           <div class="table-wrap">
             <table>
               <thead>
@@ -521,19 +663,49 @@ def search(conn, query_embedding, top_k=10, …):
               </thead>
               <tbody>
                 <tr><td>5</td><td>28 / 30</td><td>2.66×</td><td>5.53×</td></tr>
-                <tr><td>10</td><td>30 / 30</td><td>2.00×</td><td>2.90×</td></tr>
+                <tr><td><strong>10</strong></td><td><strong>30 / 30</strong></td><td><strong>2.00×</strong></td><td><strong>2.90×</strong></td></tr>
                 <tr><td>20</td><td>30 / 30</td><td>1.36×</td><td>1.53×</td></tr>
                 <tr><td>50</td><td>30 / 30</td><td>0.67×</td><td>0.60×</td></tr>
               </tbody>
             </table>
           </div>
           <p>
-            Top-k 10 is currently the only setting in this table where
-            local-mgrep matches the grep-agent baseline on recall while reducing
-            the estimated total-token volume below 1×. See
-            <a href="local-mgrep-0.2.0.md">the 0.2.0 capability guide</a>
-            and <a href="token-benchmarking.md">the benchmark protocol</a> for
-            the underlying definitions.
+            Vs real ripgrep (not the simulated grep-agent), this same task set
+            shows <strong>~17.7× total-token reduction at equal recall</strong>.
+            See <a href="token-benchmarking.md">the benchmark protocol</a>
+            for definitions and limitations.
+          </p>
+
+          <h3 id="bench-honest-framing">Which number to cite for which claim</h3>
+          <ul>
+            <li>
+              <strong>"mgrep cuts agent tool calls"</strong> →
+              <a href="#bench-e2e">benchmark 1</a>: −37.6 % single-turn,
+              −82 % multi-turn (real Claude Code sub-agents, 20 + 1
+              hand-labelled tasks).
+            </li>
+            <li>
+              <strong>"mgrep generalises across languages"</strong> →
+              <a href="#bench-multilang">benchmark 2</a>: 38 / 40 (95 %)
+              across Rust + Python + TypeScript at 3.55 s/q (40
+              hand-labelled retrieval tasks).
+            </li>
+            <li>
+              <strong>"mgrep matches ripgrep file-set ceiling on a stress test"</strong> →
+              <a href="#bench-<repo-D>">benchmark 3</a>: 16 / 16 on <repo-D> with
+              corrected ground-truth labels at ~3 s/q.
+            </li>
+            <li>
+              <strong>"mgrep is more token-efficient than ripgrep when feeding LLM context"</strong> →
+              <a href="#bench-self">benchmark 4</a>: ~17.7× total-token
+              reduction at equal recall on the 30-task self-test.
+            </li>
+          </ul>
+          <p>
+            Don't combine these into a single number; they answer different
+            questions. The honest framing is in
+            <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>'s
+            "Strongest claims" section.
           </p>
         </section>
 
@@ -543,28 +715,49 @@ def search(conn, query_embedding, top_k=10, …):
           <h2>What the current data does and does not show.</h2>
           <ul>
             <li>
-              The benchmark measures retrieved <em>context</em> and an
-              estimated total-token figure built from a fixed grep-agent overhead model.
-              It does not measure provider billing or wall-clock token consumption
-              of any specific coding agent.
+              <strong>Sample sizes are measurement-grade, not study-grade.</strong>
+              The e2e agent benchmark is n = 20 single-turn + 1 multi-turn
+              session; the multi-language benchmark is n = 40; statistical
+              significance is improving but small.
             </li>
             <li>
-              Answer-quality is not yet evaluated against a rubric. The synthesized
-              answer mode is offered, but its outputs are not scored in this benchmark.
+              <strong>Token cost is roughly flat in the agent loop</strong>
+              (+6.5 % aggregate). The agent's own reasoning tokens dominate
+              the bill; trimming retrieval payload doesn't move the total.
+              The "17.7× reduction" cited in the self-test (benchmark 4)
+              is static retrieval-output volume, not an agent's reasoning
+              loop. Don't conflate the two.
             </li>
             <li>
-              Retrieval quality is bounded by the embedding model in use. Results
-              are not directly comparable across embedding models and a stored index
-              must be rebuilt when the model changes.
+              <strong>Wall-time data is partially contaminated</strong> by
+              parallel-spawn Ollama contention in the v0.8.0 / v0.9.0 / v0.10.0-C
+              batches. The 3-turn multi-turn session ran sequentially and
+              is reportable; single-user usage has no contention.
             </li>
             <li>
-              The lexical reranker uses simple token and phrase overlap; it does
-              not implement BM25, a cross-encoder rerank, or multi-vector retrieval.
+              <strong>Tool-list compliance was prompt-instructed, not
+              API-enforced.</strong> Each sub-agent published a TOOLS audit
+              line; manual inspection confirms compliance, but it is not a
+              hard guarantee.
             </li>
             <li>
-              The task set in <code>benchmarks/agent_context_benchmark.py</code> is
-              specific to this repository. Results on other codebases may differ
-              and should be measured against an independent task set.
+              <strong>Answer correctness is graded by path substring</strong>
+              against a hand-labelled ground truth (with explicit
+              <code>expected_alternatives</code> for multi-file cases).
+              Rubric-graded answer quality of <code>--answer</code> mode is
+              not yet evaluated.
+            </li>
+            <li>
+              <strong>Retrieval quality is bounded by the embedding model</strong>
+              in use. Switching <code>OLLAMA_EMBED_MODEL</code> after indexing
+              produces a dim/semantic mismatch and requires
+              <code>mgrep index --reset</code>.
+            </li>
+            <li>
+              <strong>Task sets are hand-curated, not user-collected.</strong>
+              Real-world questions from real users likely exhibit more
+              vocabulary mismatch than benchmark-curated questions, so the
+              production gap likely widens, not narrows.
             </li>
           </ul>
         </section>
@@ -573,12 +766,75 @@ def search(conn, query_embedding, top_k=10, …):
         <section id="roadmap" class="doc-section">
           <p class="eyebrow">Roadmap</p>
           <h2>Planned work.</h2>
+
+          <h3>Recently shipped</h3>
           <ul>
-            <li>MCP server and editor integrations for use inside coding agents.</li>
-            <li>Multi-repository benchmark suite with an independent task set.</li>
-            <li>Configurable second-stage local reranker (token blend or local cross-encoder) over a larger candidate pool.</li>
-            <li>Expanded ignore semantics and language coverage.</li>
-            <li>Packaged benchmark fixtures so third parties can reproduce numbers without copying internal scripts.</li>
+            <li>
+              <strong>Editor / agent integrations (v0.11.0).</strong>
+              <code>mgrep setup</code> auto-registers local-mgrep as the
+              preferred semantic search for Claude Code, Codex, OpenCode,
+              Gemini CLI, and Cursor — markdown snippet between
+              BEGIN/END markers, cleanly removable via
+              <code>mgrep setup --uninstall</code>.
+            </li>
+            <li>
+              <strong>Multi-repository benchmark (v0.7.0).</strong>
+              40 hand-labelled queries across Rust + Python + TypeScript
+              repos, 38 / 40 (95 %) recall at 3.55 s/q.
+            </li>
+            <li>
+              <strong>End-to-end Claude Code agent benchmark
+              (v0.8.0 → v0.10.0).</strong> Real sub-agent harness measuring
+              tool-call efficiency: −37.6 % single-turn, −82 % multi-turn.
+            </li>
+            <li>
+              <strong>Cross-encoder reranker (v0.3.0).</strong>
+              <code>--rerank</code> flag for an optional cross-encoder
+              second pass on the top candidates.
+            </li>
+            <li>
+              <strong>Confidence-gated cascade (v0.3.0 → v0.5.x).</strong>
+              ~80 % of queries take a sub-second cheap path; the rest
+              escalate to HyDE-augmented retrieval.
+            </li>
+          </ul>
+
+          <h3>In progress / planned</h3>
+          <ul>
+            <li>
+              <strong>Native MCP server.</strong> The v0.11.0
+              <code>mgrep setup</code> integration writes a
+              "prefer mgrep over rg" instruction into agent rules files;
+              a true MCP server (so agents can call mgrep as a structured
+              tool rather than a shell command) is the next step.
+            </li>
+            <li>
+              <strong>Multi-vector / late-interaction retrieval (ColBERT-style).</strong>
+              Current retrieval is single-vector cosine + lexical rerank;
+              token-level late interaction over a larger candidate pool
+              is the most promising lever for the remaining ~5 % miss
+              rate.
+            </li>
+            <li>
+              <strong>Larger benchmark task sets.</strong> Push n from
+              20 single-turn / 1 multi-turn into the n = 100+ range so
+              statistical significance moves from "directional" to
+              "tight." Real-user query corpora are the goal.
+            </li>
+            <li>
+              <strong>Packaged benchmark fixtures.</strong> Third parties
+              should be able to reproduce every published number without
+              copying internal scripts; needs a
+              <code>benchmarks/</code> CLI plus fixture repos pinned to
+              specific commits.
+            </li>
+            <li>
+              <strong>Expanded ignore semantics + language coverage.</strong>
+              Tree-sitter grammars and chunk heuristics for additional
+              languages (Go, Java, Kotlin, Swift); richer
+              <code>.gitignore</code> / <code>.mgrepignore</code>
+              precedence rules.
+            </li>
           </ul>
         </section>
       </main>
