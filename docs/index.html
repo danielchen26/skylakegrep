@@ -24,7 +24,7 @@
  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
  <link rel="preconnect" href="https://rsms.me/" />
  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
- <link rel="stylesheet" href="styles.css?v=3.1.0" />
+ <link rel="stylesheet" href="styles.css?v=3.1.1" />
  </head>
  <body>
  <header class="topbar">
@@ -89,15 +89,13 @@
  <!-- ============== Overview ============== -->
  <section id="overview" class="hero">
  <p class="eyebrow">v0.1.0 · PolyForm Noncommercial 1.0.0</p>
- <h1>Ask in plain English. Get cited code. <span class="hero-accent">Never leave your machine.</span></h1>
+ <h1>Find what you <span class="hero-accent">mean</span>, not what you typed.</h1>
  <p class="lead">
- <code>skylakegrep</code> is a fully-offline semantic code-search CLI.
- Built for engineers who don't want their source to leave the laptop,
- and for AI coding agents (Claude Code, Codex, Cursor) that need
- sub-second context retrieval without a cloud round-trip.
- LLM-driven query routing picks the right tier per query — filename,
- lexical, or semantic cascade — and merges results so you get the
- answer in one shot.
+ <code>skylakegrep</code> is a fully-offline semantic code-search CLI
+ for engineers and AI coding agents. Local Ollama + SQLite, no cloud,
+ no telemetry. A small local model decides per query whether to route
+ to <code>find</code>, <code>rg</code>, or the semantic cascade — so
+ you stop choosing flags and start getting answers.
  </p>
  <div class="button-row">
  <a class="button primary" href="#install">Install in 30 s</a>
@@ -105,22 +103,22 @@
  <a class="button secondary" href="https://github.com/danielchen26/skylakegrep">Source on GitHub</a>
  </div>
 
- <!-- Big stat tiles — what people actually care about -->
+ <!-- Big stat tiles — honest numbers, best/typical labelled -->
  <div class="stat-grid" aria-label="Headline numbers">
  <div class="stat-tile">
- <div class="stat-num accent">−82 %</div>
+ <div class="stat-num accent">Up&nbsp;to&nbsp;−82&nbsp;%</div>
  <div class="stat-label">Agent tool calls</div>
- <div class="stat-sub">multi-turn vs <code>rg</code>-only baseline</div>
+ <div class="stat-sub">best case · 3-turn multi-turn session vs <code>rg</code>-only</div>
  </div>
  <div class="stat-tile">
- <div class="stat-num">~50 ms</div>
- <div class="stat-label">Filename lookup</div>
- <div class="stat-sub">cold or warm, no index needed</div>
- </div>
- <div class="stat-tile">
- <div class="stat-num">16/16</div>
+ <div class="stat-num">95 %</div>
  <div class="stat-label">Retrieval recall</div>
- <div class="stat-sub">3 K-file Rust workspace, top-k 10</div>
+ <div class="stat-sub">38/40 hand-labeled queries · Rust + Python + TS</div>
+ </div>
+ <div class="stat-tile">
+ <div class="stat-num">3&nbsp;tiers</div>
+ <div class="stat-label">Auto-routed</div>
+ <div class="stat-sub">filename · lexical · semantic — picked per query, no flags</div>
  </div>
  <div class="stat-tile">
  <div class="stat-num green">100 %</div>
