@@ -119,17 +119,30 @@ benchmark dimension must stay at least as good as v0.11.0.
   - **CLI smoke test**: `mgrep "config defaults" -m 5` returns the
     same top result with and without `--rg-shortcut` (cascade falls
     through correctly on a query that the gate rejects).
+  - **Self-test 30-task benchmark**: **30 / 30 hit-rate** at
+    top-k 10, 2.19× context-token reduction vs the simulated
+    grep-agent baseline. (Run
+    `.venv/bin/python benchmarks/agent_context_benchmark.py
+    --top-k 10 --summary-only` to reproduce.)
   - **By construction**: the shortcut is purely additive — it can
     only add a fast path, never displace cascade results, because
     when the gate rejects a query the cascade runs exactly as before.
 
-The repository's `benchmarks/agent_context_benchmark.py` self-test
-currently shows 0/30 due to a pre-existing issue inside
-`mgrep_agent_context()` (it calls `storage.search()` directly via the
-Python API, not through `cli.search_cmd`, and the in-memory tmp DB
-does not exercise the same code path). This was not introduced by
-v0.12.0 — the lexical shortcut lives in `cli.py` and is not invoked
-by that benchmark — and is tracked for a follow-up release.
+### Benchmark bug found and fixed during v0.12.0 release
+
+While running the accuracy gate I discovered the bench had been
+silently reporting `mgrep_hit_rate: 0/30` for every task because of
+a path-form mismatch between the in-bench index (which stores chunks
+**repo-relative**) and `lexical_candidate_paths()` (which returns
+**absolute** paths). When the bench passed those absolute candidate
+paths as a filter to `search()`, the entire candidate set wiped to
+empty — silent and total. This was a pre-existing issue, not
+introduced by v0.12.0; my v0.12.0 lexical shortcut sits in
+`cli.search_cmd` and isn't even reached by this Python-API
+benchmark. The one-line fix lives in
+`benchmarks/agent_context_benchmark.py` (normalise candidate paths
+to repo-relative before passing them to `search()`); after the fix,
+the bench reports a clean 30/30.
 
 ## Install
 

@@ -372,7 +372,17 @@ def mgrep_agent_context(
 
         cands = lexical_candidate_paths(question, lexical_root)
         if len(cands) >= lexical_min_candidates:
-            candidate_paths = cands
+            # build_index stores paths repo-relative; convert absolute
+            # ripgrep results to the same form so the candidate filter
+            # actually matches stored chunks. Without this normalisation
+            # the entire candidate filter wipes the result set to 0
+            # (silent and total — every task returns []).
+            candidate_paths = {
+                str(Path(p).relative_to(lexical_root))
+                if Path(p).is_absolute()
+                else p
+                for p in cands
+            }
     results = search(
         conn,
         embedder.embed(embed_input),
