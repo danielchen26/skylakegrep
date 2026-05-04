@@ -540,43 +540,80 @@ times measured here: <repo-D> 26 K chunks ~25 min, CCSB 36 K chunks
 ~17 min, <repo-A> 4 K chunks ~3 min, all on Mac CPU with
 ``OLLAMA_EMBED_MODEL=nomic-embed-text``.
 
-## End-to-end agent benchmark (v0.8.0)
+## End-to-end agent benchmark (v0.8.0 → v0.10.0)
 
 The four bullets above (items 2-5: real agent harness, controlled model
-+ prompt + repo, real agent runs, baseline-vs-treatment headline) are
-now answered for n = 6 tasks. We spawned 12 sub-agents in parallel via
-the Claude Code `Agent` tool — 6 questions × 2 conditions (`rg-only`
-forbidding mgrep, `mgrep-on` forbidding rg/grep/find) — and recorded
-each sub-agent's own `usage` telemetry.
++ prompt + repo, real agent runs, baseline-vs-treatment headline) have
+been answered across three rounds:
 
-| | rg-only | mgrep-on | Δ |
-|---|:-:|:-:|:-:|
-| **Tokens (sum, 6 tasks)** | 194 403 | 201 926 | +3.9 % |
-| **Tool calls (sum)** | 46 | 21 | **−54 %** |
-| **Tool calls (avg / task)** | 7.7 | 3.5 | **−54 %** |
-| **Strict-label correct** | 4 / 6 | 5 / 6 | +1 task |
-| **Lenient-label correct** | 5 / 6 | 6 / 6 | +1 task |
+  - **v0.8.0** — 6 single-turn easy questions × 2 conditions = 12
+    sub-agents.
+  - **v0.9.0** — 8 single-turn hard semantic / vocab-mismatch
+    questions × 2 conditions = 16 sub-agents.
+  - **v0.10.0** — (B) one 3-turn <repo-D> multi-turn session × 2
+    conditions = 6 sub-agents (sequential, clean wall-time);
+    (C) 6 unused medium-difficulty single-turn questions × 2
+    conditions = 12 sub-agents.
 
-The clean signal is the **−54 % tool-call reduction**. mgrep's semantic
-top-K replaces several rounds of `rg` / `Read` / `head` triangulation,
-and the agent's reasoning loop stays cleaner. Token totals are roughly
-equal because the agent's own reasoning tokens dominate. Wall time
-data was contaminated by 6-way parallel Ollama contention from the
-benchmark methodology (single-user usage doesn't have this contention)
-and is not reported as a headline number.
+Each agent reported a single canonical-file JSON answer plus a
+`TOOLS:` audit line of every shell call it made. Token / tool-call /
+wall-time totals from each sub-agent's own `usage` telemetry.
+
+### Headline (v0.10.0)
+
+| Bench | Tasks | rg-only tools | mgrep tools | Δ tools | Δ tokens |
+|---|:-:|:-:|:-:|:-:|:-:|
+| **Multi-turn (3-turn <repo-D> session)** | 1 × 3 | 38 | **7** | **−82 %** | −5 % |
+| 6 medium tasks (v0.10.0-C) | 6 | 25 | **6** | **−76 %** | −8 % |
+| 14 single-turn (v0.8.0 + v0.9.0) | 14 | 124 | 87 | −30 % | +12 % |
+| **20-task single-turn aggregate** | 20 | **149** | **93** | **−37.6 %** | +6.5 % |
+| **Strict-label correct (20 tasks)** | — | 12 / 20 | **14 / 20** | **+2** | — |
+| Lenient-label correct (20 tasks) | — | 14 / 20 | **17 / 20** | **+3** | — |
+
+### What the data actually shows
+
+  - **Tool-call reduction is the cleanest, most consistent signal.**
+    Across single-turn (−37.6 %) and multi-turn (−82 %) the
+    direction is the same; multi-turn amplifies the gap because
+    rg's wandering compounds across turns while mgrep stays decisive.
+  - **Tokens are noisy.** mgrep agents are roughly flat on tokens
+    (+6.5 % aggregate), with subset-level swings −8 % to +18 %
+    depending on whether the mgrep agent was decisive (1 tool call)
+    or wandered through multiple `mgrep` + `Read` rounds. **Don't
+    cite mgrep as a token saver.**
+  - **Quality slightly better with mgrep.** +2 strict / +3 lenient
+    on the 20-task aggregate. mgrep solves the <repo-D> `<domain-y>_v6.py`
+    famous miss and <repo-B> `client.ts` task that rg-only got wrong;
+    doesn't lose any task rg-only got right.
+  - **Wall-time data is contaminated** by parallel-spawn Ollama
+    contention in v0.8.0/v0.9.0 batches. The v0.10.0 multi-turn
+    session ran sequentially and is reportable: rg 179 s vs mgrep
+    158 s (−12 %).
+
+### Why this matters even when token cost is roughly flat
+
+Each tool call in a Claude Code agent loop costs an LLM round-trip +
+network RTT + serialization + context-window growth. A 30-80 %
+tool-call reduction means the agent loop is **shorter, faster, and
+cleaner** even when total tokens are equal. Different efficiency
+dimension from the LLM bill.
 
 Per-task data, full caveats, and the explicit relationship to the
 simulated-grep-agent benchmark (#2) are in
-[`benchmarks/agent_e2e_results.md`](../benchmarks/agent_e2e_results.md).
+[`benchmarks/agent_e2e_results.md`](../benchmarks/agent_e2e_results.md)
+and the per-version release notes (`docs/local-mgrep-0.{8,9,10}.0.md`).
 
 ## Strongest claims from this repository
 
+  - **Multi-turn agent tool-call reduction**: −82 % fewer tool
+    calls in a 3-turn <repo-D> Claude Code session (v0.10.0
+    e2e benchmark).
+  - **Single-turn agent tool-call reduction**: −37.6 % across 20
+    hand-labelled questions in Rust + Python + TypeScript (v0.8.0
+    + v0.9.0 + v0.10.0 single-turn aggregate).
   - **Cross-language retrieval recall**: 38 / 40 (95 %) at 3.55 s/q
     average on Mac CPU across Rust, Python, TypeScript (multi-
     language benchmark, v0.7.0).
-  - **Agent tool-call reduction**: 54 % fewer tool calls in real
-    Claude Code agent loops over 6 hand-labelled questions in
-    3 languages (e2e benchmark, v0.8.0).
   - **Static-retrieval token reduction vs ripgrep**: ~17.7× on the
     30-task self-test (simulated grep-agent benchmark #2 above) at
     equal recall.
