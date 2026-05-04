@@ -57,18 +57,30 @@ local LLM kept warm in memory.
 ```bash
 pip install local-mgrep
 ollama pull nomic-embed-text qwen2.5:1.5b qwen2.5:3b   # ~3 GB total
-cd /your/project
 
+# One-time: register local-mgrep with detected LLM CLIs
+# (Claude Code / Codex / OpenCode / Gemini CLI / Cursor)
+mgrep setup
+
+cd /your/project
 mgrep "<your question>"
-mgrep doctor                # verify runtime + models + index
+mgrep doctor                # verify runtime + models + index + integrations
 mgrep stats                 # show current project's index info
 ```
 
 `mgrep` derives the project root from `git rev-parse --show-toplevel`
 (falling back to the working directory) and keeps a per-project index
 under `~/.local-mgrep/repos/`. Subcommand names (`index`, `doctor`,
-`stats`, `watch`, `serve`) take precedence — anything else is treated as
-a query, so `mgrep "stats and metrics"` (quoted) is unambiguous.
+`stats`, `watch`, `serve`, `setup`, `enrich`) take precedence — anything
+else is treated as a query, so `mgrep "stats and metrics"` (quoted) is
+unambiguous.
+
+**`mgrep setup`** writes a small markdown snippet to each detected LLM
+CLI's user-level instructions file (e.g. `~/.claude/CLAUDE.md`,
+`~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`) telling the agent to
+prefer `mgrep` for natural-language code search and fall back to `rg`
+otherwise. Snippets are delimited by markers; `mgrep setup --uninstall`
+removes them cleanly without touching your other instructions.
 
 ## Performance
 
@@ -233,6 +245,7 @@ The full sequence so far:
 ## CLI reference
 
 ```
+mgrep setup    [--list|--uninstall|--yes] # register with Claude Code / Codex / OpenCode / Gemini / Cursor
 mgrep "<query>" [OPTIONS]                 # bare-form search
 mgrep search   "<query>" [OPTIONS]        # explicit search
 mgrep doctor                              # health check
