@@ -146,15 +146,24 @@ def load_tasks(path: Path | None) -> list[dict[str, str]]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def expected_hit(expected: str, paths: list[str]) -> bool:
-    """Substring match: any returned path contains the expected token.
+def expected_hit(
+    expected: str,
+    paths: list[str],
+    alternatives: list[str] | None = None,
+) -> bool:
+    """Substring match: any returned path contains the expected token,
+    OR any path in ``alternatives`` (the task's ``expected_alternatives``).
 
     Allows expected to be either an exact file path (e.g.
     ``skylakegrep/src/storage.py``) or a directory prefix (e.g.
     ``crates/ai/``). The latter is useful for cross-repo tasks where
     the relevant chunk may live anywhere inside a feature crate.
+    Alternatives are useful when a question has multiple plausible
+    canonical answers (e.g. "URL → view dispatcher" matches both
+    `urls/resolvers.py` and `core/handlers/base.py`).
     """
-    return any(expected in path for path in paths)
+    candidates = [expected] + list(alternatives or [])
+    return any(any(c in path for path in paths) for c in candidates if c)
 
 
 def benchmark(args: argparse.Namespace) -> dict[str, object]:
@@ -230,12 +239,12 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
                 "expected": expected,
                 "rg": {
                     **rg_result,
-                    "hit": expected_hit(expected, rg_result["paths"]),
+                    "hit": expected_hit(expected, rg_result["paths"], task.get("expected_alternatives")),
                     "estimated_total_tokens": rg_total,
                 },
                 "skygrep": {
                     **skygrep_result,
-                    "hit": expected_hit(expected, skygrep_result["paths"]),
+                    "hit": expected_hit(expected, skygrep_result["paths"], task.get("expected_alternatives")),
                     "estimated_total_tokens": mgrep_total,
                 },
                 "context_token_reduction_x": safe_ratio(

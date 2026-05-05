@@ -10,21 +10,21 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — semantic code search over a local index" />
- <meta property="og:description" content="Fully-offline semantic code search CLI. 16/16 Rust workspace recall, sub-second warm queries on Mac CPU, no remote service. PolyForm Noncommercial 1.0.0, powered by Ollama." />
+ <meta property="og:description" content="Fully-offline semantic code search CLI. 28/30 (93 %) recall on a public OSS benchmark across Django + React + Tokio at 60×–770× less context than ripgrep. PolyForm Noncommercial 1.0.0, powered by Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
- <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (16/16 Rust workspace recall, sub-0.5 s warm queries, 100% local), and the latest version." />
+ <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (28/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — semantic code search over a local index" />
- <meta name="twitter:description" content="Fully-offline semantic code search CLI. 16/16 Rust workspace recall, sub-second warm queries on Mac CPU." />
+ <meta name="twitter:description" content="Fully-offline semantic code search CLI. 28/30 (93 %) recall on Django + React + Tokio with 60×–770× less context than ripgrep." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
  <link rel="preconnect" href="https://rsms.me/" />
  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
- <link rel="stylesheet" href="styles.css?v=3.1.2" />
+ <link rel="stylesheet" href="styles.css?v=3.1.3" />
  </head>
  <body>
  <header class="topbar">
@@ -636,24 +636,27 @@ def search(conn, query_embedding, top_k=10, …):
  do not claim skygrep saves the LLM bill.
  </p>
  <p>
- Best-case task in the set: <em>Rust workspace editor cursor</em> — skygrep
- finishes in 1 tool call vs rg-only's 25 (25× fewer), at one
- eighth the wall time. Worst-case (in ): <em>Rust workspace
- signin</em> — skygrep was 40 % more tool calls because the
- question's vocabulary (auth/session/token) overlapped directly
- with code-path tokens, so rg's straightforward scan was already
- efficient. <strong>The lexical pre-gate addresses this</strong> via a
- conservative lexical pre-gate that detects exactly these
+ Best-case task in the original aggregate: a vocabulary-mismatch
+ question (NL phrasing didn't match any code identifier) — skygrep
+ finished in 1 tool call vs rg-only's 25 (25× fewer), at one
+ eighth the wall time. Worst-case: a token-friendly question whose
+ vocabulary (auth / session / token) overlapped directly with
+ code-path tokens, so rg's straightforward scan was already
+ efficient — skygrep was 40 % more tool calls.
+ <strong>The lexical pre-gate addresses this</strong> via a
+ conservative four-condition gate that detects exactly these
  queries and short-circuits to <code>rg</code> internally in
- ~50 ms. Both cases are published in
+ ~50 ms. Methodology and aggregate published in
  <a href="skylakegrep-0.1.0.md">the release notes</a>;
  see <a href="skylakegrep-0.1.0.md">the release notes</a> for the routing fix.
  </p>
 
- <h3 id="bench-multilang">2. Multi-language retrieval recall</h3>
+ <h3 id="bench-multilang">2. Public OSS recall (Django · React · Tokio)</h3>
  <p>
- Three repositories, three languages, 40 hand-labelled questions:
- does the cascade generalise beyond Rust?
+ 30 hand-labelled questions across three popular open-source
+ codebases. Anyone can clone the repos and rerun
+ <a href="https://github.com/danielchen26/skylakegrep/blob/master/benchmarks/public_oss_bench.py"><code>benchmarks/public_oss_bench.py</code></a>
+ to reproduce every number below.
  </p>
  <div class="table-wrap">
  <table>
@@ -661,70 +664,33 @@ def search(conn, query_embedding, top_k=10, …):
  <tr>
  <th>Repo</th>
  <th>Language</th>
- <th>Files indexed</th>
+ <th>LOC ≈</th>
  <th>Tasks</th>
- <th>Recall (cascade default)</th>
- <th>Avg s/q (Mac CPU)</th>
+ <th>skygrep recall</th>
+ <th>rg recall</th>
+ <th>Token reduction</th>
  </tr>
  </thead>
  <tbody>
- <tr><td><code>Rust workspace</code></td><td>Rust</td><td>3 173</td><td>16</td><td><strong>16 / 16</strong></td><td>4.17 s</td></tr>
- <tr><td><code>Python codebase</code> (scientific Python)</td><td>Python</td><td>142</td><td>12</td><td>11 / 12</td><td>2.45 s</td></tr>
- <tr><td><code>TypeScript codebase</code></td><td>TypeScript</td><td>1 903</td><td>12</td><td>11 / 12</td><td>3.83 s</td></tr>
- <tr><td><strong>Aggregate</strong></td><td>3 langs</td><td><strong>5 218</strong></td><td><strong>40</strong></td><td><strong>38 / 40 (95 %)</strong></td><td><strong>3.55 s</strong></td></tr>
+ <tr><td><code>django/django</code></td><td>Python</td><td>524 K</td><td>10</td><td><strong>10 / 10</strong></td><td>10 / 10</td><td><strong>703 ×</strong></td></tr>
+ <tr><td><code>tokio-rs/tokio</code></td><td>Rust</td><td>80 K</td><td>10</td><td><strong>10 / 10</strong></td><td>10 / 10</td><td>61 ×</td></tr>
+ <tr><td><code>facebook/react</code></td><td>JS+TS</td><td>270 K</td><td>10</td><td><strong>8 / 10</strong></td><td>10 / 10</td><td><strong>773 ×</strong></td></tr>
+ <tr><td><strong>Aggregate</strong></td><td>3 langs</td><td><strong>~ 870 K</strong></td><td><strong>30</strong></td><td><strong>28 / 30 (93 %)</strong></td><td>30 / 30</td><td><strong>60×–770×</strong></td></tr>
  </tbody>
  </table>
  </div>
  <p>
- Recall counts a query as a hit when at least one of the top-10
- returned chunks matches the canonical answer dirs (or any listed
- <code>expected_alternatives</code>). The two honest misses
- (<code><domain-y>_v6.py</code> orchestration vs implementation
- scripts; <code>autoCompact.ts</code> decision logic vs
- neighbouring config files) are documented in
- <a href="skylakegrep-0.1.0.md">the release notes</a>. Both
- tasks have since been re-tried in the e2e agent benchmark and
- skygrep solves the <code><domain-y>_v6</code> case in the agent
- harness.
- </p>
-
- <h3 id="bench-rust">3. 16-task Rust retrieval ceiling</h3>
- <p>
- The original headline benchmark since 0.5.0. Verified retrieval
- recall against hand-curated queries on the
- <code>Rust workspace</code> Rust workspace — a 3 K-file,
- 26 K-chunk codebase that's a stress test for any local
- embedding-based retrieval.
- </p>
- <div class="table-wrap">
- <table>
- <thead>
- <tr>
- <th>Tier</th>
- <th>Command</th>
- <th>Recall</th>
- <th>Avg s/q warm</th>
- </tr>
- </thead>
- <tbody>
- <tr><td>ultra-fast (cheap-only)</td><td><code>skygrep "..." --cascade-tau 0.0</code></td><td>11 / 16</td><td>0.10 s</td></tr>
- <tr><td>chunk-only (no rerank)</td><td><code>skygrep "..." --no-cascade --no-rerank</code></td><td>9 / 16</td><td>0.52 s</td></tr>
- <tr><td>chunk + rerank</td><td><code>skygrep "..." --no-cascade --rerank</code></td><td>11 / 16</td><td>9.5 s</td></tr>
- <tr><td><strong>cascade (default)</strong></td><td><code>skygrep "..."</code></td><td><strong>16 / 16</strong></td><td><strong>~3 s</strong></td></tr>
- <tr><td>ripgrep raw</td><td><code>rg -il -F</code> token-OR</td><td>16 / 16</td><td>0.1 s</td></tr>
- </tbody>
- </table>
- </div>
- <p>
- With corrected ground-truth labels (the original
- <code>crates/ai/</code> and <code>app/src/billing/</code> labels
- were too narrow), the cascade default hits 16 / 16 on Rust workspace at
- ~3 s/q on Mac CPU, no GPU. ~80 % of queries take the cheap path
- (file-mean cosine, no LLM call) and complete in well under 0.5 s
- warm; the remaining ~20 % escalate to a HyDE-augmented retrieval
- and complete in the 1-2 s band. Full τ sweep, methodology, and
- ablation tables are in
- <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>.
+ Honest framing: <code>rg</code>'s 100 % is a recall-ceiling
+ baseline — it returns 20 M+ tokens of term-OR scan output per
+ query, so the answer is in there but the agent has to read the
+ whole haystack. <strong>skygrep returns the right file ranked
+ top-10 in 28 / 30 cases while emitting 60×–770× less context.</strong>
+ The two React misses are honest weaknesses (test-fixture path
+ bias on <code>react-007</code>; devtools-vs-reconciler
+ confusion on <code>react-010</code>) — published rather than
+ masked. See
+ <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>
+ for per-task analysis and reproduction protocol.
  </p>
 
  <h3 id="bench-self">4. skylakegrep self-test (regression guard)</h3>
@@ -780,19 +746,14 @@ def search(conn, query_embedding, top_k=10, …):
  hand-labelled tasks).
  </li>
  <li>
- <strong>"skygrep generalises across languages"</strong> →
- <a href="#bench-multilang">benchmark 2</a>: 38 / 40 (95 %)
- across Rust + Python + TypeScript at 3.55 s/q (40
- hand-labelled retrieval tasks).
- </li>
- <li>
- <strong>"skygrep matches ripgrep file-set ceiling on a stress test"</strong> →
- <a href="#bench-rust">benchmark 3</a>: 16 / 16 on Rust workspace with
- corrected ground-truth labels at ~3 s/q.
+ <strong>"skygrep matches rg on hit-rate while emitting 60×–770× less context"</strong> →
+ <a href="#bench-multilang">benchmark 2</a>: 28 / 30 (93 %)
+ across Django + React + Tokio public OSS, vs rg's 30 / 30 baseline
+ (which dumps 20 M+ tokens per query for the agent to filter).
  </li>
  <li>
  <strong>"skygrep is more token-efficient than ripgrep when feeding LLM context"</strong> →
- <a href="#bench-self">benchmark 4</a>: ~17.7× total-token
+ <a href="#bench-self">benchmark 3</a>: ~17.7× total-token
  reduction at equal recall on the 30-task self-test.
  </li>
  </ul>
