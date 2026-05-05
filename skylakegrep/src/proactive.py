@@ -59,7 +59,17 @@ from typing import Any, Callable, Optional
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_TOTAL_BUDGET_MS = 500
+# Total proactive wall-clock budget. The 0.2.7-0.2.9 default of 500 ms
+# was set against simple-shape `find` benchmarks but turned out to be
+# unrealistic for actual home-directory walks at depth 4 — `find` on a
+# few-hundred-file ``~/Downloads`` measured ~160 ms / dir, ``~/Documents``
+# at ~600 ms / dir. With three dirs in parallel + thread-pool overhead +
+# Python-level result handling, real wall-clock is ~700 ms. The 0.2.10
+# default is 2000 ms, which keeps a comfortable margin for slower disks
+# and busier home dirs without making the user perceptibly wait —
+# `should_fire` still gates this so normal queries (cosine returned good
+# results) pay zero cost.
+DEFAULT_TOTAL_BUDGET_MS = 2000
 
 
 # ---------------------------------------------------------------------------
@@ -347,91 +357,68 @@ def _filename_token(query: str, decision: Any) -> str:
     return best[0]
 
 
-def _looks_like_identifier(token: str) -> bool:
-    """Content-shape check: is this token plausibly a filename
-    identifier? Three signals (any one suffices):
-
-      - has digits  (``eb1b``, ``task-001``, ``v6.2``)
-      - has internal punctuation  (``foo.bar``, ``my-file``, ``snake_case``)
-      - mixed case  (``CamelCase``, ``PascalCase``)
-
-    This is **token morphology**, not keyword enumeration —
-    consistent with Principle 1. The LLM router's prompt uses the
-    same family of signals to score candidate ``primary_token``
-    choices, so we share the criterion at the code level.
-    """
-
-    if not token or len(token) < 3:
-        return False
-    return (
-        any(c.isdigit() for c in token)
-        or any(c in "._-" for c in token)
-        or (token != token.lower() and token != token.upper())
-    )
-
-
 def filename_extend_should_fire(
     query: str, decision: Any, results: list[dict],
 ) -> bool:
-    """Fire when there is evidence the user's query references a
-    specific file / identifier the cascade may have missed.
+    """Fire when conventional retrieval can't answer the user's
+    query under the current scope.
 
-    Three eligibility cases (in priority order):
+    Per Principle 6 (Proactive over Passive) **with no auxiliary
+    gating**: the gate looks at exactly one signal — did the cascade
+    return useful results? It does NOT inspect ``decision.intent``
+    (that would re-introduce intent-shape gating which the user has
+    explicitly rejected), it does NOT enumerate trigger phrases, it
+    does NOT do token-shape morphology checks. Token-shape /
+    morphology decisions belong INSIDE ``filename_extend_execute``,
+    where the enhancer can early-return ``None`` without firing
+    ``find`` if no usable token can be extracted — keeping the
+    latency cost at exactly zero for queries where filename search
+    would be useless.
 
-      1. ``decision.intent`` is ``"filename"`` or ``"mixed"`` —
-         the LLM router (or its rule-based fallback) classified
-         the query as a filename lookup.
-      2. ``decision.primary_token`` is non-empty — the LLM
-         identified a high-signal identifier in the query, even
-         if it labelled the overall ``intent`` as semantic /
-         lexical. (E.g. "do I have files related to <token>"
-         is semantic in *intent* but the user named a specific
-         token they care about.)
-      3. ``results`` is empty AND the query contains an
-         identifier-shaped token via ``_looks_like_identifier``.
-         This is the last-resort path for the case where the
-         LLM is unreachable / produced low-confidence output but
-         the query still has a clearly-shaped identifier we can
-         filename-match against.
+    Two cases (the only two):
 
-    All three cases use ONLY (a) LLM-fed fields or (b) content-shape
-    morphology — never a hand-curated list of trigger phrases. Per
-    ``docs/PRINCIPLES.md`` Principle 1 ("Understanding >
-    Enumeration").
+      - ``results`` empty → conventional retrieval failed; fire.
+      - ``results`` non-empty → fire only if the LLM-provided
+        ``primary_token`` does NOT appear in any result's basename
+        (cascade returned semantically-related noise but not the
+        actual file the user asked for). When the LLM didn't
+        provide a token, trust that the cascade answered and don't
+        fire — there's nothing to validate against.
+
+    Why this is the right shape:
+
+      - **No intent gating.** Whatever the LLM classified the
+        intent as, if the cascade couldn't answer, the user is
+        worse off than if we tried. Per Principle 6, we try.
+      - **No keyword gating.** Trigger phrases (``where is`` / ``在哪``
+        / ``find me`` / ``我的``) are gone — that was the 0.2.7 lapse
+        and is not coming back.
+      - **No token-shape gating at the gate.** The 0.2.9 attempt to
+        gate on identifier morphology was correctly criticised by
+        the user as the same anti-pattern wearing different
+        clothes. Token-shape decisions live one layer deeper, in
+        ``filename_extend_execute``, so they affect what the
+        enhancer DOES, not whether it's eligible.
+      - **Zero latency penalty in the common case.** Pure-NL queries
+        with 0 results (``how does cascade work``) reach
+        ``execute``, which calls ``_filename_token``, which returns
+        an empty string because the regex finds no
+        identifier-eligible candidate, which causes early ``return
+        None``. ``find`` is never invoked, no subprocess started,
+        no parallelism overhead beyond the thread-pool startup.
+        Queries that DO have an identifier token pay the
+        ``find`` cost — but those are the exact queries we want
+        to extend.
     """
 
     if decision is None:
         return False
-    intent = getattr(decision, "intent", "")
-    primary_token = getattr(decision, "primary_token", "") or ""
-
-    # --- Eligibility cases ---
-    if intent in ("filename", "mixed"):
-        eligible = True
-    elif primary_token and len(primary_token.strip()) >= 2:
-        # LLM picked out a specific token regardless of overall
-        # intent — that's a strong signal the user wants something
-        # by name.
-        eligible = True
-    elif not results:
-        # Last-resort: cascade returned nothing and the query has
-        # an identifier-shape token. Use ``_filename_token`` to pick
-        # the best candidate via the same scoring used by the
-        # in-project filename_shortcut.
-        candidate = _filename_token(query, decision)
-        eligible = bool(candidate and _looks_like_identifier(candidate))
-    else:
-        eligible = False
-    if not eligible:
-        return False
-
-    # --- When eligible: fire unless cascade already surfaced the file ---
     if not results:
         return True
-    token_to_check = primary_token or _filename_token(query, decision)
-    if not token_to_check:
+    primary_token = (getattr(decision, "primary_token", "") or "").strip()
+    if not primary_token:
         return False
-    token_lower = token_to_check.lower()
+    token_lower = primary_token.lower()
     return not any(
         token_lower in Path(r.get("path", "")).name.lower()
         for r in results
@@ -465,9 +452,20 @@ def filename_extend_execute(
     if not dirs:
         return None
 
-    # Per-dir timeout. Min 100 ms so we don't auto-fail on slow disks;
-    # ``find`` will exit early when it finishes regardless.
-    per_dir_s = max(0.1, (individual_budget_ms / 1000.0) / max(len(dirs), 1))
+    # Per-dir timeout. **Each dir runs in its own thread + subprocess
+    # in parallel** (see the ``ThreadPoolExecutor`` below), so each
+    # one should receive the FULL ``individual_budget_ms`` — not
+    # ``budget / N``. The wall-clock cap on the whole enhancer is
+    # already enforced by ``as_completed(timeout=...)`` below.
+    #
+    # The 0.2.7–0.2.9 versions divided by ``len(dirs)``, which on a
+    # 400 ms budget across 3 dirs gave only 133 ms per dir. ``find``
+    # in a busy ``~/Downloads`` (a few hundred files at depth 4)
+    # measured ~160 ms — over the budget by a hair, so subprocess
+    # was killed before yielding stdout, and the user got 0 hits
+    # despite having matching files. This fix gives each dir the
+    # full budget; parallelism keeps the total wall clock bounded.
+    per_dir_s = max(0.2, individual_budget_ms / 1000.0)
 
     all_hits: list[tuple[str, str]] = []
     with ThreadPoolExecutor(max_workers=min(len(dirs), 4)) as pool:
@@ -568,7 +566,14 @@ register_enhancer(
         name="filename_extend",
         should_fire=filename_extend_should_fire,
         execute=filename_extend_execute,
-        individual_budget_ms=400,
+        # 1500 ms covers the slowest measured ``find`` on a real home
+        # directory at depth 4 (``~/Documents`` ≈ 600 ms in our
+        # development laptop benchmarks), with comfortable headroom.
+        # The 0.2.7–0.2.9 default was 400 ms which was too tight even
+        # for ``~/Downloads`` (≈ 160 ms with a ``find`` of a few
+        # hundred files), and the per-dir budget was further divided
+        # by the number of dirs — a double bug fixed in 0.2.10.
+        individual_budget_ms=1500,
     )
 )
 
