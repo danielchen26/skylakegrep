@@ -105,6 +105,96 @@ release is done until every surface is updated.
 
 ---
 
+## Principle 6 — Proactive over Passive
+
+**The anti-pattern:** when the system can't answer the user's
+query under its current bounded scope, it shrugs — "no matches",
+"index is building", "try a different query later". The user has
+to guess what to do next, possibly across multiple invocations,
+sometimes hitting `Ctrl-C` because they think the tool is broken.
+
+**The pattern:** the system should **try extra work in parallel
+within a strict latency budget** to surface help the user can act
+on. If the answer is "no match in this directory", surface what
+the answer would be in a likely alternative directory. If the
+answer is "low-confidence top hit", surface the confidence and
+suggest a refinement. If the top hit is a markdown file, surface
+its linked references. **Proactivity is not optional; it's the
+default — bounded by latency, gated by should-fire, and
+content-agnostic by construction.**
+
+### Bounds (the contract)
+
+Proactive work is only acceptable when ALL these hold:
+
+  1. **Bounded latency.** Total wall-clock cap (default 500 ms,
+     `SKYGREP_PROACTIVE_BUDGET_MS`); each enhancer also has its
+     own `individual_budget_ms`. The runner uses
+     `ThreadPoolExecutor.shutdown(wait=False, cancel_futures=True)`
+     so over-budget work doesn't bleed into the user's perceived
+     latency.
+  2. **Gated by should-fire.** Each enhancer declares cheap
+     conditions under which it's worth running. We don't pay the
+     budget for enhancers that aren't going to produce useful
+     output. Should-fire is O(1) on already-computed inputs
+     (query, decision, results) — no I/O, no LLM calls.
+  3. **Content-agnostic by registry.** New enhancers plug in via
+     `register_enhancer()` — same architectural shape as
+     `reference_graph.register_extractor()` (Principle 1).
+     Filename-extend is content-agnostic by accident; markdown
+     link-traversal, PDF section extraction, git-history
+     traversal, query refinement etc. are all eligible plug-ins.
+  4. **Failure-isolated.** One enhancer raising / hanging /
+     misbehaving must NOT break the others. The runner runs each
+     in its own thread + catches all exceptions + drops their
+     result silently.
+  5. **Killable.** `SKYGREP_NO_PROACTIVE=1` (or
+     `SKYGREP_NO_HINTS=1`) disables the whole framework so users
+     who need a quiet CLI / strictly-deterministic CI can opt
+     out.
+
+### What proactive should NOT do
+
+  - **Latency creep on the common case.** The 95 % of queries
+    where the cascade returned good results should pay zero
+    extra cost. The should-fire gate is the protection.
+  - **Mutate state silently.** Proactive enhancers produce
+    *suggestions* and *additional read-only results*. They do not
+    create files, run shell commands, modify the index, etc.,
+    without an explicit user confirmation step (which we do not
+    yet provide; future enhancers requiring action must ask).
+  - **Replace the user.** Proactive output is additional
+    information, never a substitute for the main results. The
+    main cascade results render first; proactive output appears
+    as a footer block.
+
+### Receipts (proactive enhancers shipped)
+
+| Enhancer | What | Released in |
+| --- | --- | :-: |
+| **`filename_extend`** | When the user asks for a file by name (`intent=filename` or `where is …` / `在哪 / 找一下 …` phrases) and the in-project search returns 0 hits, parallel `find` across `~/Downloads`, `~/Desktop`, `~/Documents` (depth=4, individual budget 400 ms). Surfaces matches that would have required the user to `cd` and re-issue the query. | `0.2.7` ✓ |
+| `query_refinement` (open) | When the cascade returns top-1 < floor AND σ-gap < floor, ask the LLM router for a refined query suggestion. Bounded by individual_budget_ms ≤ 400 ms. | open |
+| `markdown_link_traverse` (open) | When a top hit is a `.md` file, surface notes linked from it via `extractors.markdown` (already shipped in 0.2.0). Pure SQL on the existing reference graph; budget ≤ 100 ms. | open |
+| `pdf_section_extract` (open) | When a top hit is a `.pdf`, surface section titles. Reuses the 0.1.0 `pypdf` extraction. Budget ≤ 300 ms. | open |
+| `git_history_related` (open) | When a top hit is in a git repo, surface the last 5 commits that touched the same file. Budget ≤ 150 ms. | open |
+
+### The rule (for every enhancer PR)
+
+Before adding a new enhancer:
+
+  1. State the **should-fire** signal that gates it. Cheap, O(1).
+  2. State the **individual budget** in milliseconds. Justify.
+  3. Confirm it doesn't mutate state.
+  4. Add a contract test in `tests/test_proactive.py`
+     demonstrating that should-fire returns False on the common
+     case (so the enhancer doesn't bleed budget on every query).
+
+If the enhancer wants to do ONLINE work (LLM call, network), the
+individual budget must be measured against `qwen2.5:3b`'s 90th
+percentile response time, not its mean.
+
+---
+
 ## Principle 5 — Honest evaluation over hopeful claims
 
 Numbers in headlines must be measurable, reproducible, and named

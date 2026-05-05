@@ -82,8 +82,10 @@ register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)
 | **Routing transparency (0.2.2)** | per-query telemetry footer leads with `path=…`, σ-evidence reason, recovery state, and `quality=BEST/DEGRADED-recovery` tag | Users see which retrieval path answered every query and why. The σ-evidence line explains the cascade's choice in Bayesian terms; the recovery line shows live coverage % + ETA when a worker is active. |
 | **Intelligent CLI assistance (0.2.4)** | out-of-scope query detection, typo correction for unknown flags, low-confidence result hints, first-run nudge — all gated by `SKYGREP_NO_HINTS=1` | The CLI proactively helps instead of silently shrugging. Metadata queries like *"我最近工作上的十个文件"* get a `git log` suggestion before the search runs; typoed flags get a "did you mean `--top`?" line; uncertain results get a recovery menu (`--agentic`, `--top 30`, etc.); fresh-project queries get a one-time three-line onboarding greeting. |
 | **Critical recovery bug fix + hierarchical footer (0.2.5)** | `detect_mismatch` now triggers recovery on pre-0.2.2 indexes with stale-dim chunks; multi-line telemetry footer with `path` / `router` / `evidence` / `pool` / `index` / `recovery` rows + ✓/⚠ glyph; `昨天 / 今天 / 上周` now caught by out-of-scope detection (stopgap; LLM-based fix in 0.2.6) | 0.2.2-era recovery silently skipped pre-0.2.2 indexes — users could lose access to PDFs / older chunks without realising. Footer rewrite makes the routing decision and the recovery state scannable at a glance. The keyword patch is documented as a stopgap in [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md) (Principle 1: Understanding over Enumeration). |
+| **LLM-driven scope classification (0.2.6)** | `RouterDecision.out_of_scope` set by the same `qwen2.5:3b` call that already ran for retrieval-intent classification; `intelligent_cli.detect_out_of_scope(query, decision)` consults the LLM first, keyword list demoted to **offline fallback only** | The principled fix that 0.2.5 explicitly called a stopgap. The LLM understands new vocabulary (`我前几天写的代码`, `the last sprint's edits`) without us enumerating tokens. Zero added latency: the router LLM call already ran on every query. |
+| **Proactive enhancement framework + `filename_extend` (0.2.7)** | New `skylakegrep.src.proactive` module — content-agnostic enhancer registry that runs IN PARALLEL after the cascade with a 500 ms budget; first enhancer searches `~/Downloads / ~/Desktop / ~/Documents` when the in-project filename lookup returned 0 hits | Principle 6 ("Proactive over Passive") in [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md). The system no longer just shrugs when it can't find a file in the current dir — it goes looking. Normal queries pay zero extra cost (should-fire gate). Future enhancers (`query_refinement`, `markdown_link_traverse`, `pdf_section_extract`, `git_history_related`) plug in via `register_enhancer()`. |
 
-Full release notes: [`0.2.0`](docs/skylakegrep-0.2.0.md) · [`0.2.1`](docs/skylakegrep-0.2.1.md) · [`0.2.2`](docs/skylakegrep-0.2.2.md) · [`0.2.3`](docs/skylakegrep-0.2.3.md) · [`0.2.4`](docs/skylakegrep-0.2.4.md) · [`0.2.5`](docs/skylakegrep-0.2.5.md)
+Full release notes: [`0.2.0`](docs/skylakegrep-0.2.0.md) · [`0.2.1`](docs/skylakegrep-0.2.1.md) · [`0.2.2`](docs/skylakegrep-0.2.2.md) · [`0.2.3`](docs/skylakegrep-0.2.3.md) · [`0.2.4`](docs/skylakegrep-0.2.4.md) · [`0.2.5`](docs/skylakegrep-0.2.5.md) · [`0.2.6`](docs/skylakegrep-0.2.6.md) · [`0.2.7`](docs/skylakegrep-0.2.7.md)
 
 **Project principles** (architecture rules contributors should
 follow): [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md) — substrate
@@ -395,6 +397,10 @@ skygrep enrich   [--max N] [--batch B]      # opt-in doc2query enrichment
 | LLM-driven scope classification (`RouterDecision.out_of_scope`) — primary | 0.2.6 |
 | Keyword `_METADATA_TOKENS` demoted to offline-only fallback | 0.2.6 |
 | Router cache forward/backward compat (filter unknown keys on read) | 0.2.6 |
+| Proactive enhancement framework (`proactive.register_enhancer()`) | 0.2.7 |
+| Built-in `filename_extend` enhancer (parallel `find` across home dirs) | 0.2.7 |
+| `SKYGREP_PROACTIVE_BUDGET_MS` (default 500) and `SKYGREP_NO_PROACTIVE=1` env vars | 0.2.7 |
+| Principle 6 — Proactive over Passive (in [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md)) | 0.2.7 |
 | Tree-sitter chunking + line-window fallback | 0.2.0 |
 | `.gitignore` / `.skygrepignore` hygiene | 0.2.0 |
 | Incremental indexing (mtime-based) | 0.2.0 |

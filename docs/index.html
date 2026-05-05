@@ -88,7 +88,7 @@
  <main class="content">
  <!-- ============== Overview ============== -->
  <section id="overview" class="hero">
- <p class="eyebrow">v0.2.6 · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.2.7 · PolyForm Noncommercial 1.0.0</p>
  <h1>Find what you <span class="hero-accent">mean</span>, not what you typed.</h1>
  <p class="lead">
  <code>skylakegrep</code> is a fully-offline semantic search CLI for
@@ -403,6 +403,22 @@ register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)</code></pre
  will be replaced with a substrate / registry / LLM-driven
  generic path. <code>CLAUDE.md</code> imports it so any AI agent
  in the repo loads the principles automatically.
+ </div>
+ </div>
+ <div class="usecase-card">
+ <span class="usecase-tag">PROACTIVE · 0.2.7</span>
+ <div class="usecase-title">Proactive enhancement framework</div>
+ <div class="usecase-body">
+ <strong>Principle 6 in <a href="https://github.com/danielchen26/skylakegrep/blob/master/docs/PRINCIPLES.md"><code>docs/PRINCIPLES.md</code></a></strong>
+ — when the system can't answer under bounded scope, it tries
+ extra work in parallel within a 500 ms budget rather than
+ shrug. Built-in <code>filename_extend</code> enhancer searches
+ <code>~/Downloads</code> / <code>~/Desktop</code> /
+ <code>~/Documents</code> when the in-project filename lookup
+ returned 0 hits. Failure-isolated, content-agnostic by registry,
+ killable via <code>SKYGREP_NO_PROACTIVE=1</code>. Normal queries
+ pay zero extra cost (should-fire gate). Future enhancers plug
+ in via <code>register_enhancer()</code>.
  </div>
  </div>
  <div class="usecase-card">

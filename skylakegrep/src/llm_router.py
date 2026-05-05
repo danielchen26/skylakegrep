@@ -149,7 +149,7 @@ Given the user's query, decide:
   - intent: one of "filename", "semantic", "lexical", "mixed"
   - primary_token: the single most distinctive identifier token in the
     query that should drive a filename `find -iname '*token*'` match.
-    Prefer tokens with digits or unusual capitalisation (e.g. "eb1b",
+    Prefer tokens with digits or unusual capitalisation (e.g. "task-001",
     "v6", "PascalCase") over common English words.
   - skip_cascade: true only when you are CERTAIN the query is a
     filename lookup and semantic content search is unnecessary.
@@ -175,8 +175,8 @@ Output ONLY a JSON object with these exact keys, no prose, no markdown.
 
 Examples:
 
-Query: "where is eb1b file?"
-{{"intent": "filename", "primary_token": "eb1b", "skip_cascade": true, "skip_filename": false, "extract_content": true, "confidence": 0.95, "reason": "user asks for a specific file by name", "out_of_scope": "none"}}
+Query: "where is task-001 file?"
+{{"intent": "filename", "primary_token": "task-001", "skip_cascade": true, "skip_filename": false, "extract_content": true, "confidence": 0.95, "reason": "user asks for a specific file by name", "out_of_scope": "none"}}
 
 Query: "how does the auth token get refreshed"
 {{"intent": "semantic", "primary_token": "", "skip_cascade": false, "skip_filename": true, "extract_content": false, "confidence": 0.9, "reason": "descriptive question about code behaviour", "out_of_scope": "none"}}

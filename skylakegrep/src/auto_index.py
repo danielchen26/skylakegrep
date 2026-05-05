@@ -519,7 +519,7 @@ def lexical_shortcut(
 # ----- v0.13.0 filename-lookup shortcut -----------------------------
 #
 # Some queries are filename lookups, not content searches —
-# "where is eb1b file?", "find package.json", "show me the README".
+# "where is task-001 file?", "find package.json", "show me the README".
 # Neither the cascade (semantic content) nor the rg pre-gate (lexical
 # content) handles them well: PDF / docx / binary files aren't even
 # indexed, so semantic search is hopeless; ripgrep matching content
@@ -583,8 +583,8 @@ def filename_shortcut(
 
     # Condition 2: extract usable name tokens, ordered by how
     # "filename-like" they look. v0.14.1 fixes a bug where the
-    # plain longest token won (e.g. picking "evidence" over "eb1b"
-    # for the query "where is eb1b support letter evidence in all
+    # plain longest token won (e.g. picking "evidence" over "task-001"
+    # for the query "where is task-001 support letter evidence in all
     # files?", which then matched the wrong CSV).
     raw_tokens = _FN_TOKEN_RE.findall(query)
     candidates = [
@@ -598,7 +598,7 @@ def filename_shortcut(
         """Higher score = more filename-identifier-like."""
         score = 0
         if any(c.isdigit() for c in t):
-            score += 100  # eb1b, v6, task001
+            score += 100  # task-001, v6, task001
         if any(c in "._-" for c in t):
             score += 50   # foo.py, my-file, snake_case
         if t != t.lower() and t != t.upper():
@@ -606,7 +606,7 @@ def filename_shortcut(
         return score
 
     # Sort by (identifier-likeness desc, length desc) so we try
-    # `eb1b` before `evidence` and `package.json` before `parser`.
+    # `task-001` before `evidence` and `package.json` before `parser`.
     ordered = sorted(
         candidates, key=lambda t: (-_is_identifier_like(t), -len(t))
     )

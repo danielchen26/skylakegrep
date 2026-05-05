@@ -1,6 +1,6 @@
 """Lazy text extraction from binary files (PDF / docx / scanned PDF
 via OCR). Used by the v0.15.0 render layer to surface CONTENT preview
-on filename-lookup matches — so a query like ``where is eb1b file?``
+on filename-lookup matches — so a query like ``where is task-001 file?``
 returns the filename match plus a snippet of the document body, not
 just the filename + size.
 

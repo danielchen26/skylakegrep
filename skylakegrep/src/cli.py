@@ -810,13 +810,44 @@ def search_cmd(
         for label, value in rows:
             click.echo(f"   {label.ljust(label_w)} : {value}")
 
+    # Proactive enhancement framework (0.2.7+). Runs registered
+    # enhancers (filename_extend, ...) IN PARALLEL with a hard
+    # ``SKYGREP_PROACTIVE_BUDGET_MS`` cap (default 500 ms) so normal
+    # queries pay zero extra latency — only the should-fire-eligible
+    # enhancers get scheduled, and over-budget ones are cancelled by
+    # the thread pool. See ``docs/PRINCIPLES.md`` Principle 6
+    # ("Proactive over Passive") for the contract every enhancer
+    # must honour.
+    proactive_results: list = []
+    if not json_output:
+        try:
+            from . import proactive as _proactive
+
+            proactive_results, _proactive_telemetry = (
+                _proactive.run_enhancers_parallel(
+                    query, decision, results, top_k=top,
+                )
+            )
+            if proactive_results:
+                rendered = _proactive.render_proactive_output(proactive_results)
+                if rendered:
+                    click.echo(rendered)
+        except Exception:
+            logger.exception("proactive enhancer runner failed; ignoring")
+
     # Intelligent CLI hint — low-confidence result quality (0.2.4+).
     # When top-1 cosine and σ-gap are both below floor, the result is
     # in the noise band; offer a recovery menu rather than letting the
     # user quit thinking the tool failed. Hint is silenced when the
     # query produced no results AND was already routed through rg
-    # fallback (the user will know they need to refine).
-    if not hints_disabled() and not json_output:
+    # fallback (the user will know they need to refine), and also when
+    # the proactive framework already surfaced extra hits — the user
+    # has more to look at, no need to also nag.
+    if (
+        not hints_disabled()
+        and not json_output
+        and not proactive_results
+    ):
         _quality_hint = assess_result_quality(results, cascade_telemetry)
         if _quality_hint:
             click.echo(_quality_hint, err=True)
