@@ -360,13 +360,39 @@ class FilenameExtendShouldFireTests(unittest.TestCase):
         )
 
     def test_does_not_fire_when_results_present_and_no_primary_token(self):
-        # Results came back AND the LLM didn't give us a primary
-        # token to validate against → trust the cascade. Don't fire.
+        # 0.2.12 update: when LLM didn't provide primary_token AND
+        # the query has no identifier-shape token at all (pure NL),
+        # the morphology-fallback returns "" too — trust the cascade.
         d = _MockDecision(intent="semantic", primary_token="")
         self.assertFalse(
             filename_extend_should_fire(
                 "how does cascade work", d,
                 [{"path": "/some/file.py"}],
+            )
+        )
+
+    def test_fires_on_lexical_noise_when_llm_unreachable(self):
+        """0.2.12 regression: rule-based fallback (LLM unavailable)
+        leaves ``primary_token=''``. Cold-start cascade can return
+        noisy ``rg`` hits — e.g. ``Project.toml`` files containing
+        the user's lookup token as a substring inside Julia package
+        UUIDs. None of those file basenames contain ``eb1b``, so the
+        gate must fall back to ``_filename_token(query)`` morphology
+        extraction, recognise that the cascade missed, and fire
+        proactive search to find the actual files in
+        ``~/Downloads`` / etc.
+
+        The 0.2.10–0.2.11 gate gave up at ``primary_token=''``, leaving
+        the user with the wrong-results-no-extend UX the user
+        reported on Desktop with their EB1B query."""
+        d = _MockDecision(intent="lexical", primary_token="")  # rule-based shape
+        rg_noise_results = [
+            {"path": "/proj/LotkaVolterra/Project.toml", "score": 1.0},
+            {"path": "/proj/LotkaVolterra/Manifest.toml", "score": 1.0},
+        ]
+        self.assertTrue(
+            filename_extend_should_fire(
+                '我有没有跟"eb1b"有关的文件？', d, rg_noise_results,
             )
         )
 

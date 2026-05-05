@@ -433,6 +433,37 @@ def _filename_token(query: str, decision: Any) -> str:
     return best[0]
 
 
+def _looks_like_identifier(token: str) -> bool:
+    """Token-shape classifier (content morphology, NOT keyword
+    enumeration): is this token specific enough to be worth
+    filename-matching against?
+
+    Three signals (any one suffices):
+      - has digits  (``eb1b``, ``task-001``, ``v6.2``)
+      - has internal punctuation  (``foo.bar``, ``my-file``)
+      - mixed case  (``CamelCase``, ``PascalCase``)
+
+    Used in the gate's morphology-fallback path (when LLM didn't
+    supply ``primary_token``) to decide whether the candidate token
+    is identifier-quality. Without this filter, queries like
+    ``"how does cascade work"`` would treat ``cascade`` as a
+    filename candidate, surfacing false positives. With it, only
+    structurally-distinctive tokens trigger filename-extend.
+
+    The LLM router prompt uses the same family of signals to score
+    candidate ``primary_token`` choices, so we share the criterion
+    at the code level.
+    """
+
+    if not token or len(token) < 3:
+        return False
+    return (
+        any(c.isdigit() for c in token)
+        or any(c in "._-" for c in token)
+        or (token != token.lower() and token != token.upper())
+    )
+
+
 def filename_extend_should_fire(
     query: str, decision: Any, results: list[dict],
 ) -> bool:
@@ -491,8 +522,40 @@ def filename_extend_should_fire(
         return False
     if not results:
         return True
+    # Validation against existing results: do any of them actually
+    # match the user's lookup token in their basename? If yes, the
+    # cascade answered. If no, the cascade returned noise (e.g. rg
+    # cold-start matched the token as a substring inside unrelated
+    # files like UUIDs in Julia ``Project.toml`` / ``Manifest.toml``)
+    # — we should still extend the search.
+    #
+    # Token source priority: (1) LLM-supplied ``primary_token`` if
+    # present (Principle 1: trust the LLM). (2) ``_filename_token``
+    # morphology fallback when LLM was unreachable / didn't fill the
+    # field. The 0.2.10 gate gave up at step (1) without (2), which
+    # silenced proactive on every cold-start where the rule-based
+    # router runs (no Ollama available, network down, etc.). This
+    # is a content-shape fallback, not keyword enumeration —
+    # ``_filename_token`` runs the same regex + identifier-shape
+    # scoring the LLM router uses internally to score
+    # ``primary_token`` candidates.
     primary_token = (getattr(decision, "primary_token", "") or "").strip()
     if not primary_token:
+        candidate = (_filename_token(query, decision) or "").strip()
+        # Only accept a morphology-extracted token if it looks like
+        # an identifier (digit / punctuation / mixed case). Without
+        # this check, queries like ``"how does cascade work"`` would
+        # treat ``cascade`` as a filename candidate and fire on
+        # any non-cascade result, surfacing irrelevant matches from
+        # ``~/Downloads``. The LLM-supplied ``primary_token`` (when
+        # present) is already vetted against the same shape signals
+        # in the router prompt; the morphology check here aligns the
+        # rule-based-fallback path with that contract.
+        if candidate and _looks_like_identifier(candidate):
+            primary_token = candidate
+    if not primary_token:
+        # Genuinely no usable identifier in the query (pure NL).
+        # Trust the cascade.
         return False
     token_lower = primary_token.lower()
     return not any(
