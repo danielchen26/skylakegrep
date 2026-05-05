@@ -214,8 +214,77 @@ def init_db(db_path: Path):
             file_mtime REAL
         )
     """)
+    # Free-form key/value table used by the intelligent-recovery worker
+    # (0.2.2+) to record the embedder fingerprint a given index was built
+    # against, plus the recovery worker's progress / ETA / heartbeat. A
+    # single typed key/value table is simpler than one column per fact and
+    # leaves room to record other index-level metadata later (e.g. the
+    # chunker version, the symbol-extractor version) without schema churn.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS metadata (
+            key   TEXT PRIMARY KEY,
+            value TEXT
+        )
+    """)
     conn.commit()
     return conn
+
+
+def get_meta(conn, key: str) -> Optional[str]:
+    """Read a single metadata key. ``None`` when missing or table absent."""
+
+    try:
+        row = conn.execute(
+            "SELECT value FROM metadata WHERE key = ?", (key,)
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    return row[0] if row else None
+
+
+def set_meta(conn, key: str, value: str) -> None:
+    """Idempotent upsert of one metadata key. Best-effort — silent on a DB
+    that hasn't been migrated past 0.2.2 yet (no ``metadata`` table)."""
+
+    try:
+        conn.execute(
+            "INSERT INTO metadata (key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, value),
+        )
+        conn.commit()
+    except sqlite3.OperationalError:
+        return
+
+
+def count_stale_chunks(conn, expected_dim: int) -> int:
+    """Return the number of chunks whose stored vector blob doesn't match
+    ``expected_dim`` float32 scalars.
+
+    Used by the recovery worker to size the ETA before starting and to tell
+    the user how many chunks will be re-embedded. SQLite's ``length()`` on a
+    BLOB returns the byte count, which divided by 4 gives the float32 dim.
+    """
+
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM vectors "
+            "WHERE embedding IS NOT NULL AND length(embedding) / 4 != ?",
+            (expected_dim,),
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return 0
+    return int(row[0]) if row else 0
+
+
+def count_total_chunks(conn) -> int:
+    """Return total chunk count, used to compute recovery coverage %."""
+
+    try:
+        row = conn.execute("SELECT COUNT(*) FROM vectors").fetchone()
+    except sqlite3.OperationalError:
+        return 0
+    return int(row[0]) if row else 0
 
 
 def populate_file_embeddings(conn) -> int:
@@ -987,7 +1056,8 @@ def cascade_search(
             use_graph_tiebreak=use_graph_tiebreak,
         )
         return cheap, {"early_exit": True, "gap": gap, "tau": tau_eff,
-                       "tau_static": tau, "tau_mode": tau_mode}
+                       "tau_static": tau, "tau_mode": tau_mode,
+                       "path": "cosine-cheap"}
 
     # Escalation: Round A (cosine + file-rank) ∪ Round C (HyDE + cosine +
     # file-rank). 0.5.1 fix: the rg prefilter is a hard filter against
@@ -1046,7 +1116,8 @@ def cascade_search(
             merged[key] = r
     out = sorted(merged.values(), key=lambda r: r.get("score", 0.0), reverse=True)[:top_k]
     return out, {"early_exit": False, "gap": gap, "tau": tau_eff,
-                 "tau_static": tau, "tau_mode": tau_mode}
+                 "tau_static": tau, "tau_mode": tau_mode,
+                 "path": "cosine-escalated-rerank"}
 
 
 def get_indexed_files(conn) -> dict:

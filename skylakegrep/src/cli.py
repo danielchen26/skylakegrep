@@ -36,6 +36,11 @@ from .embeddings import get_embedder
 from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
 from .intent import classify_intent, merge_results as merge_tiers
 from .llm_router import RouterDecision, route_query
+from .recovery import (
+    get_recovery_state,
+    maybe_start_recovery,
+    render_recovery_footer,
+)
 from .render import render_compact_source, render_terminal_result
 from .storage import (
     CASCADE_DEFAULT_TAU,
@@ -501,11 +506,46 @@ def search_cmd(
     # skipped on a low-confidence call.
     answerer = None
     cascade_telemetry: dict | None = None
+    recovery_state: dict | None = None
     if decision.skip_cascade and not agentic and not answer:
         results: list[dict] = []
         elapsed = 0.0
     else:
         embedder = get_embedder(role="query")
+        # Intelligent-recovery hook (0.2.2+). Embed the user's query first
+        # to get the current embedder dim — that probe gives us
+        # ``current_dim`` for free since we'd embed it for the cascade
+        # below anyway. ``maybe_start_recovery`` compares the dim against
+        # the index's stored embedder fingerprint and spawns a daemon
+        # thread to re-embed stale chunks in mtime-DESC order. The thread
+        # never blocks the user; the existing ``_filter_to_matching_dim``
+        # helper hides stale-dim rows from the cascade so this query
+        # returns instantly with whatever has been recovered so far,
+        # progressively gaining semantic coverage as the worker commits.
+        _probe_vec = embedder.embed(query)
+        _probe_dim = len(_probe_vec)
+        try:
+            recovery_state = maybe_start_recovery(
+                db_path, conn, embedder, _probe_dim
+            )
+        except Exception:
+            logger.exception(
+                "recovery hook failed; continuing with whatever the index has"
+            )
+            recovery_state = None
+        if recovery_state and recovery_state.get("just_started"):
+            stale = recovery_state.get("stale_count", 0)
+            eta_min = recovery_state.get("eta_seconds")
+            click.echo(
+                f"⟳ Embedder upgraded "
+                f"({recovery_state.get('stored_fingerprint', '?')} → "
+                f"{recovery_state.get('current_fingerprint', '?')}); "
+                f"re-embedding {stale} stale chunks in the background "
+                f"(mtime-DESC priority). This query falls back to rg "
+                f"+ partial semantic; full semantic resumes "
+                f"progressively as files re-embed.",
+                err=True,
+            )
         start = time.time()
         queries = [query]
         if agentic:
@@ -609,18 +649,32 @@ def search_cmd(
         )
 
     parts: list[str] = [f"{elapsed:.3f}s"]
+    # ``path=`` is the headline routing decision the user actually cares
+    # about: which retrieval strategy answered this specific query. We
+    # surface it ahead of router/intent so it's the first thing they read.
+    path_label = "rg-only" if decision.skip_cascade else "cascade-skipped"
+    if cascade and cascade_telemetry is not None:
+        path_label = cascade_telemetry.get("path") or (
+            "cosine-cheap" if cascade_telemetry.get("early_exit") else "cosine-escalated-rerank"
+        )
+    parts.append(f"path={path_label}")
     parts.append(
         f"router={decision.source} · intent={intent} "
         f"({decision.confidence:.2f}) · "
-        f"{len(fn_results)} filename + {len(rg_results)} lexical + "
-        f"{'cascade' if not decision.skip_cascade else 'cascade-skipped'}"
+        f"{len(fn_results)} filename + {len(rg_results)} lexical"
     )
     if cascade and cascade_telemetry is not None:
-        kind = "cheap" if cascade_telemetry.get("early_exit") else "escalated"
-        parts.append(
-            f"cascade={kind} (gap={cascade_telemetry.get('gap', 0):.4f} "
-            f"τ={cascade_telemetry.get('tau', 0):.4f})"
-        )
+        gap = cascade_telemetry.get('gap', 0)
+        tau = cascade_telemetry.get('tau', 0)
+        tau_mode = cascade_telemetry.get('tau_mode', 'static')
+        # σ is a Bayesian-evidence proxy (top-K spread); flag the reason
+        # the cascade chose its path so the user can see WHY this query
+        # took whichever route it took.
+        if cascade_telemetry.get("early_exit"):
+            reason = f"σ-gap={gap:.4f} ≥ τ={tau:.4f} ({tau_mode}) → high-confidence early-exit"
+        else:
+            reason = f"σ-gap={gap:.4f} < τ={tau:.4f} ({tau_mode}) → escalated to rerank"
+        parts.append(reason)
     parts.append(f"index {ai.index_age_human(conn)} · {status['files']} files")
     if _symbols_table_populated(conn):
         parts.append("L2 symbols on")
@@ -634,6 +688,17 @@ def search_cmd(
                 parts.append(f"tied (Δ={gap:.3f})")
             else:
                 parts.append("tied")
+    # Recovery footer: surfaces the in-progress background re-embed so
+    # the user can read coverage % + ETA without running ``skygrep doctor``.
+    # Live recovery state is read fresh from the metadata table — even if
+    # the search-cmd-time snapshot is stale by the time results print.
+    live_recovery = get_recovery_state(conn) if recovery_state is not None else None
+    recovery_footer = render_recovery_footer(live_recovery) if live_recovery else None
+    if recovery_footer:
+        parts.append(recovery_footer)
+        parts.append("quality=DEGRADED-recovery")
+    else:
+        parts.append("quality=BEST")
     click.echo("\n[" + " · ".join(parts) + "]")
 
     # First-run nudge: encourage the user to register skylakegrep with any
