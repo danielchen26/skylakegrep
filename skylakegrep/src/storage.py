@@ -70,6 +70,60 @@ NON_CANONICAL_PATH_FACTOR = 0.5
 _dim_warning_emitted = False
 
 
+def _filter_to_matching_dim(rows, blob_index, expected_dim, *, label="vectors"):
+    """Return ``(filtered_rows, matrix)`` keeping only rows whose blob
+    matches ``expected_dim`` float32 scalars.
+
+    Why this exists
+    ---------------
+    The crash this prevents:
+    ``np.vstack([np.frombuffer(blob, dtype=np.float32) for ...])`` raises
+    ``ValueError: all the input array dimensions except for the
+    concatenation axis must match exactly`` when ``rows`` mixes blobs of
+    different dimensions — and the post-vstack
+    ``if matrix.shape[1] != query_embedding.shape[0]`` guard never gets
+    a chance to fire. Stale rows of a different dim end up in the index
+    when the user upgrades the default embedder without rebuilding
+    (e.g. ``nomic-embed-text`` 768-d → ``bge-m3`` 1024-d, or any other
+    cross-dim swap). A partial re-index then leaves the chunks/files
+    tables with a mix of old-dim and new-dim entries.
+
+    Behavior
+    --------
+    Filters to ``expected_dim`` (the dim of the query the caller just
+    embedded). Emits a single-shot ``logger.warning`` with the recovery
+    command so the user knows to ``skygrep index <repo> --reset``.
+    Returns an empty matrix (``(0, expected_dim)``) when every row was
+    stale; callers should treat that as "no candidates".
+    """
+
+    global _dim_warning_emitted
+    kept_rows = []
+    kept_vecs = []
+    stale_count = 0
+    for row in rows:
+        blob = row[blob_index]
+        if blob is None:
+            continue
+        actual_dim = len(blob) // 4
+        if actual_dim != expected_dim:
+            stale_count += 1
+            continue
+        kept_rows.append(row)
+        kept_vecs.append(np.frombuffer(blob, dtype=np.float32))
+    if stale_count > 0 and not _dim_warning_emitted:
+        logger.warning(
+            "Skipped %d %s with stale embedding dim (current embedder is %d-d). "
+            "This usually means the default embedder was upgraded without rebuilding "
+            "the index. Run `skygrep index <repo> --reset` to rebuild from scratch.",
+            stale_count, label, expected_dim,
+        )
+        _dim_warning_emitted = True
+    if not kept_vecs:
+        return kept_rows, np.zeros((0, expected_dim), dtype=np.float32)
+    return kept_rows, np.vstack(kept_vecs)
+
+
 def _is_non_canonical(path: str) -> bool:
     # Prepend "/" so leading-slash-anchored patterns like ``/tests/`` and
     # ``/fixtures/`` match relative paths too — chunks store paths relative
@@ -185,7 +239,22 @@ def populate_file_embeddings(conn) -> int:
             continue
         files.setdefault(file_path, []).append(vec / norm)
     conn.execute("DELETE FROM files")
+    skipped_mixed = 0
     for file_path, vectors in files.items():
+        # Defensive guard: a file's chunks should all share the same
+        # embedding dim (re-index drops a file's chunks atomically before
+        # inserting fresh ones), but if a partial / aborted re-index across
+        # an embedder swap left a file with mixed-dim chunks, ``np.vstack``
+        # below would raise. Skip and log instead of crashing the whole
+        # rebuild.
+        dims = {v.shape[0] for v in vectors}
+        if len(dims) > 1:
+            skipped_mixed += 1
+            logger.warning(
+                "Skipping file %s with mixed-dim chunks %s — re-index this file with --reset",
+                file_path, sorted(dims),
+            )
+            continue
         mean = np.mean(np.vstack(vectors), axis=0).astype(np.float32)
         mean_norm = float(np.linalg.norm(mean))
         if mean_norm > 0.0:
@@ -195,7 +264,7 @@ def populate_file_embeddings(conn) -> int:
             (file_path, len(vectors), mean.tobytes()),
         )
     conn.commit()
-    return len(files)
+    return len(files) - skipped_mixed
 
 
 def populate_symbols(conn, root: Path) -> int:
@@ -351,8 +420,11 @@ def file_level_search(
         rows = conn.execute("SELECT file, embedding FROM files").fetchall()
     if not rows:
         return []
-    matrix = np.vstack([np.frombuffer(blob, dtype=np.float32) for _, blob in rows])
-    if matrix.shape[1] != query_embedding.shape[0]:
+    rows, matrix = _filter_to_matching_dim(
+        rows, blob_index=1, expected_dim=query_embedding.shape[0],
+        label="file embeddings",
+    )
+    if matrix.shape[0] == 0:
         return []
     qn = float(np.linalg.norm(query_embedding))
     denom = np.linalg.norm(matrix, axis=1) * qn + 1e-8
@@ -669,16 +741,11 @@ def search(
     ]
     if not rows:
         return []
-    matrix = np.vstack([np.frombuffer(row[8], dtype=np.float32) for row in rows])
-    if matrix.shape[1] != query_vec.shape[0] and not _dim_warning_emitted:
-        logger.warning(
-            "embedding dim mismatch: query is %d-d but the index stores %d-d "
-            "vectors. The current results will be wrong. Re-index with the "
-            "current model: skygrep index <repo> --reset",
-            query_vec.shape[0],
-            matrix.shape[1],
-        )
-        _dim_warning_emitted = True
+    rows, matrix = _filter_to_matching_dim(
+        rows, blob_index=8, expected_dim=query_vec.shape[0],
+        label="chunk embeddings",
+    )
+    if matrix.shape[0] == 0:
         return []
     denom = np.linalg.norm(matrix, axis=1) * np.linalg.norm(query_vec) + 1e-8
     semantic_scores = matrix @ query_vec / denom
@@ -813,8 +880,11 @@ def _file_level_pairs(
         rows = conn.execute("SELECT file, embedding FROM files").fetchall()
     if not rows:
         return []
-    matrix = np.vstack([np.frombuffer(blob, dtype=np.float32) for _, blob in rows])
-    if matrix.shape[1] != query_embedding.shape[0]:
+    rows, matrix = _filter_to_matching_dim(
+        rows, blob_index=1, expected_dim=query_embedding.shape[0],
+        label="file embeddings",
+    )
+    if matrix.shape[0] == 0:
         return []
     qn = float(np.linalg.norm(query_embedding))
     denom = np.linalg.norm(matrix, axis=1) * qn + 1e-8
