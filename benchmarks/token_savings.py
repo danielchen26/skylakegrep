@@ -24,7 +24,13 @@ from typing import Iterable
 from skylakegrep.src.cli import render_json_results
 from skylakegrep.src.embeddings import get_embedder
 from skylakegrep.src.indexer import batch_embed, collect_indexable_files, prepare_file_chunks
-from skylakegrep.src.storage import delete_missing_files, init_db, search, store_chunks_batch
+from skylakegrep.src.storage import (
+    delete_missing_files,
+    init_db,
+    populate_symbols,
+    search,
+    store_chunks_batch,
+)
 
 
 DEFAULT_QUERIES = [
@@ -107,6 +113,29 @@ def is_benchmark_ignored(path: Path, root: Path) -> bool:
     return any(part in DEFAULT_IGNORED_PARTS for part in relative.parts)
 
 
+def _ensure_symbols_populated(conn: sqlite3.Connection, root: Path) -> int:
+    """Populate ``symbols`` for the chunks in ``conn`` if it is empty.
+
+    Mirrors the file-graph-build pattern used elsewhere: best-effort,
+    silently skips when the table is already non-empty so re-runs of
+    the bench don't pay the extraction cost twice. Returns the number
+    of rows inserted (0 when the table was already populated). The
+    symbol channel relies on this table being non-empty to contribute
+    anything; without it, ``multi_channel_search`` silently degrades to
+    cosine-only.
+    """
+
+    try:
+        existing = conn.execute("SELECT COUNT(*) FROM symbols").fetchone()[0]
+    except sqlite3.OperationalError:
+        # ``symbols`` table missing — caller should have run ``init_db``
+        # first; nothing more we can do here.
+        return 0
+    if existing > 0:
+        return 0
+    return populate_symbols(conn, root)
+
+
 def build_index(
     root: Path,
     db_path: Path,
@@ -125,6 +154,11 @@ def build_index(
         conn = sqlite3.connect(db_path)
         existing = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
         if existing > 0:
+            # Re-bench against an already-built index. Make sure the
+            # symbols table exists for the symbol channel; mirrors the
+            # ``populate_file_embeddings`` / ``populate_graph_table``
+            # one-time migration pattern in cli.py.
+            _ensure_symbols_populated(conn, root)
             return conn, 0.0
         conn.close()
     if db_path.exists():
@@ -143,7 +177,15 @@ def build_index(
         for chunk in chunks:
             chunk["file"] = relative
         store_chunks_batch(conn, batch_embed(chunks, embedder, batch_size=batch_size))
-    return conn, time.perf_counter() - started
+    elapsed = time.perf_counter() - started
+    # Populate the symbols table now so the symbol channel has something
+    # to query against. Best-effort: failures here must not hide the
+    # successful chunk index.
+    try:
+        _ensure_symbols_populated(conn, root)
+    except Exception:
+        pass
+    return conn, elapsed
 
 
 def run_queries(
