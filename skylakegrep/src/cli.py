@@ -452,7 +452,7 @@ def search_cmd(
             return
         # 0.2.8: try proactive enhancers in the cold-start path too.
         # 0.2.7 only ran proactive on the main cascade path, which
-        # meant the EB1B-style case (filename lookup against an
+        # meant the user-reported case (filename lookup against an
         # un-indexed dir, rg can't grep the binary target) hit the
         # ``return`` below before proactive ever got a chance to
         # search ~/Downloads / ~/Desktop / ~/Documents. Let the

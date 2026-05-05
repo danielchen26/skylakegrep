@@ -439,7 +439,7 @@ def _looks_like_identifier(token: str) -> bool:
     filename-matching against?
 
     Three signals (any one suffices):
-      - has digits  (``eb1b``, ``task-001``, ``v6.2``)
+      - has digits  (``v6.2``, ``task-001``, ``inv-2024``)
       - has internal punctuation  (``foo.bar``, ``my-file``)
       - mixed case  (``CamelCase``, ``PascalCase``)
 
