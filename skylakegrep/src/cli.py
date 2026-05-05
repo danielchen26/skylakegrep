@@ -686,58 +686,116 @@ def search_cmd(
             )
         )
 
-    parts: list[str] = [f"{elapsed:.3f}s"]
     # ``path=`` is the headline routing decision the user actually cares
-    # about: which retrieval strategy answered this specific query. We
-    # surface it ahead of router/intent so it's the first thing they read.
+    # about: which retrieval strategy answered this specific query.
     path_label = "rg-only" if decision.skip_cascade else "cascade-skipped"
     if cascade and cascade_telemetry is not None:
         path_label = cascade_telemetry.get("path") or (
             "cosine-cheap" if cascade_telemetry.get("early_exit") else "cosine-escalated-rerank"
         )
-    parts.append(f"path={path_label}")
-    parts.append(
-        f"router={decision.source} · intent={intent} "
-        f"({decision.confidence:.2f}) · "
-        f"{len(fn_results)} filename + {len(rg_results)} lexical"
-    )
-    if cascade and cascade_telemetry is not None:
-        gap = cascade_telemetry.get('gap', 0)
-        tau = cascade_telemetry.get('tau', 0)
-        tau_mode = cascade_telemetry.get('tau_mode', 'static')
-        # σ is a Bayesian-evidence proxy (top-K spread); flag the reason
-        # the cascade chose its path so the user can see WHY this query
-        # took whichever route it took.
-        if cascade_telemetry.get("early_exit"):
-            reason = f"σ-gap={gap:.4f} ≥ τ={tau:.4f} ({tau_mode}) → high-confidence early-exit"
-        else:
-            reason = f"σ-gap={gap:.4f} < τ={tau:.4f} ({tau_mode}) → escalated to rerank"
-        parts.append(reason)
-    parts.append(f"index {ai.index_age_human(conn)} · {status['files']} files")
-    if _symbols_table_populated(conn):
-        parts.append("L2 symbols on")
-    if graph_ready:
-        parts.append("graph prior on")
-        if any(r.get("graph_tiebreak") for r in results):
-            # Surface the tied gap (top1-top2 of the pre-tiebreak rankings is
-            # not retained, so report the post-tiebreak top1-top2 as a proxy).
-            if len(results) >= 2:
-                gap = float(results[0].get("score", 0)) - float(results[1].get("score", 0))
-                parts.append(f"tied (Δ={gap:.3f})")
-            else:
-                parts.append("tied")
-    # Recovery footer: surfaces the in-progress background re-embed so
-    # the user can read coverage % + ETA without running ``skygrep doctor``.
-    # Live recovery state is read fresh from the metadata table — even if
-    # the search-cmd-time snapshot is stale by the time results print.
+    # Recovery state — read fresh from the metadata table even if the
+    # search-cmd-time snapshot is stale by the time results print.
     live_recovery = get_recovery_state(conn) if recovery_state is not None else None
     recovery_footer = render_recovery_footer(live_recovery) if live_recovery else None
-    if recovery_footer:
-        parts.append(recovery_footer)
-        parts.append("quality=DEGRADED-recovery")
+    quality = "DEGRADED-recovery" if recovery_footer else "BEST"
+
+    # ``SKYGREP_FOOTER_COMPACT=1`` keeps the legacy single-line format
+    # for users / scripts that prefer terse output. Default is the
+    # 0.2.5 hierarchical multi-line footer with category groups so
+    # the user can scan path / router / evidence / pool / index
+    # vertically rather than parsing one long ``·``-separated line.
+    compact = _os.environ.get("SKYGREP_FOOTER_COMPACT") == "1"
+
+    if compact:
+        # Legacy footer — preserved verbatim for any tooling that grepped
+        # the old format. New behaviour is the hierarchical block below.
+        parts: list[str] = [f"{elapsed:.3f}s", f"path={path_label}"]
+        parts.append(
+            f"router={decision.source} · intent={intent} "
+            f"({decision.confidence:.2f}) · "
+            f"{len(fn_results)} filename + {len(rg_results)} lexical"
+        )
+        if cascade and cascade_telemetry is not None:
+            gap = cascade_telemetry.get('gap', 0)
+            tau = cascade_telemetry.get('tau', 0)
+            tau_mode = cascade_telemetry.get('tau_mode', 'static')
+            if cascade_telemetry.get("early_exit"):
+                parts.append(
+                    f"σ-gap={gap:.4f} ≥ τ={tau:.4f} ({tau_mode}) → high-confidence early-exit"
+                )
+            else:
+                parts.append(
+                    f"σ-gap={gap:.4f} < τ={tau:.4f} ({tau_mode}) → escalated to rerank"
+                )
+        parts.append(f"index {ai.index_age_human(conn)} · {status['files']} files")
+        if _symbols_table_populated(conn):
+            parts.append("L2 symbols on")
+        if graph_ready:
+            parts.append("graph prior on")
+        if recovery_footer:
+            parts.append(recovery_footer)
+        parts.append(f"quality={quality}")
+        click.echo("\n[" + " · ".join(parts) + "]")
     else:
-        parts.append("quality=BEST")
-    click.echo("\n[" + " · ".join(parts) + "]")
+        # Hierarchical footer. One header line with elapsed + quality
+        # (with a ✓ / ⚠ glyph that's scannable at a glance), then
+        # indented category rows. Each row is a single semantic group
+        # so the user can read top-down without parsing separators.
+        glyph = "⚠" if recovery_footer else "✓"
+        path_detail = ""
+        if cascade and cascade_telemetry is not None:
+            if cascade_telemetry.get("early_exit"):
+                path_detail = " (high-confidence early-exit)"
+            else:
+                path_detail = " (escalated to rerank)"
+        rows: list[tuple[str, str]] = []
+        rows.append(("path", f"{path_label}{path_detail}"))
+        rows.append((
+            "router",
+            f"{decision.source} → intent={intent} ({decision.confidence:.2f})",
+        ))
+        if cascade and cascade_telemetry is not None:
+            gap = cascade_telemetry.get('gap', 0)
+            tau = cascade_telemetry.get('tau', 0)
+            tau_mode = cascade_telemetry.get('tau_mode', 'static')
+            cmp = "≥" if cascade_telemetry.get("early_exit") else "<"
+            rows.append((
+                "evidence",
+                f"σ-gap={gap:.4f} {cmp} τ={tau:.4f} ({tau_mode})",
+            ))
+        pool_pieces = [
+            f"{len(fn_results)} filename",
+            f"{len(rg_results)} lexical",
+        ]
+        if cascade and not decision.skip_cascade:
+            pool_pieces.append("cascade")
+        elif decision.skip_cascade:
+            pool_pieces.append("cascade-skipped")
+        rows.append(("pool", " + ".join(pool_pieces[:2]) + " · " + pool_pieces[2]))
+        index_pieces = [f"{ai.index_age_human(conn)} ago", f"{status['files']} files"]
+        index_extras: list[str] = []
+        if _symbols_table_populated(conn):
+            index_extras.append("L2 symbols")
+        if graph_ready:
+            index_extras.append("graph prior")
+        if index_extras:
+            index_pieces.append(" + ".join(index_extras))
+        if any(r.get("graph_tiebreak") for r in results) and len(results) >= 2:
+            tie_gap = float(results[0].get("score", 0)) - float(results[1].get("score", 0))
+            index_pieces.append(f"tied (Δ={tie_gap:.3f})")
+        rows.append(("index", " · ".join(index_pieces)))
+        if recovery_footer:
+            # The recovery_footer already returns a "key=value · key=value"
+            # string ("recovery=in-progress chunks=N/T coverage=N% ETA=Nm");
+            # strip the leading "recovery=in-progress " so the row reads
+            # cleanly under the "recovery" label.
+            cleaned = recovery_footer.replace("recovery=in-progress", "in-progress")
+            rows.append(("recovery", cleaned))
+        # Render
+        click.echo(f"\n{glyph} {elapsed:.3f}s · quality={quality}")
+        label_w = max(len(label) for label, _ in rows)
+        for label, value in rows:
+            click.echo(f"   {label.ljust(label_w)} : {value}")
 
     # Intelligent CLI hint — low-confidence result quality (0.2.4+).
     # When top-1 cosine and σ-gap are both below floor, the result is

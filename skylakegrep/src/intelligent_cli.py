@@ -58,22 +58,29 @@ from typing import Any, Iterable, Optional
 # A query that contains one of these AND no semantic-intent token
 # (below) is flagged.
 _METADATA_TOKENS = {
-    # English — mtime / recency
+    # English — mtime / recency (absolute and relative)
     "recent", "latest", "newest", "oldest", "lately",
+    "yesterday", "today", "this morning", "last week", "this week",
     # English — size
     "largest", "biggest", "smallest", "tiniest",
     # English — listing / counting
     "all", "list", "count", "every", "all the",
     # English — quantifiers that pair with file metadata
     "how many",
-    # Chinese — mtime / recency
+    # Chinese — mtime / recency (absolute and day-relative — added 0.2.5
+    # after the 昨天 miss reported on the 我昨天打开过的十个文件 query)
     "最近", "最新", "最旧", "新近", "近期",
+    "昨天", "今天", "前天", "上周", "本周",
+    "刚刚",
     # Chinese — size
     "最大", "最小", "最长", "最短",
     # Chinese — listing / counting
     "列出", "列举", "所有", "全部", "几个", "多少",
     # Chinese — sorting
     "排序",
+    # Chinese — verbs that imply mtime ("opened", "edited"; pure
+    # filesystem-event vocab the ``find -mtime`` family answers)
+    "打开过", "改过", "编辑过", "修改过",
 }
 
 # If a query contains one of these, it is asking about *content* / *intent*
@@ -133,7 +140,10 @@ def detect_out_of_scope(query: str) -> Optional[dict]:
     # three common families: recency / size / listing-and-counting.
     if matched in {
         "recent", "latest", "newest", "oldest", "lately",
+        "yesterday", "today", "this morning", "last week", "this week",
         "最近", "最新", "最旧", "新近", "近期",
+        "昨天", "今天", "前天", "上周", "本周", "刚刚",
+        "打开过", "改过", "编辑过", "修改过",
     }:
         return {
             "reason": f"contains '{matched}' (recency-by-mtime)",

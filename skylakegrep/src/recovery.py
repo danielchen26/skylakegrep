@@ -102,17 +102,32 @@ def detect_mismatch(conn, embedder, current_dim: int) -> Optional[dict]:
 
     stored = get_meta(conn, "embedder_fingerprint")
     current = embedder_fingerprint(embedder, current_dim)
-    if stored is None:
-        # Fresh index, or pre-0.2.2 index with no fingerprint yet — record
-        # the current one so future runs have something to compare against.
-        # Do not trigger recovery: the chunks were just written by the
-        # current embedder.
-        set_meta(conn, "embedder_fingerprint", current)
-        return None
     if stored == current:
         return None
     stale = count_stale_chunks(conn, current_dim)
     total = count_total_chunks(conn)
+    if stored is None:
+        # Pre-0.2.2 index with no fingerprint key yet OR truly-fresh
+        # index. Distinguish via the chunks table:
+        #   - stale > 0  ⇒ pre-0.2.2 index whose chunks were embedded
+        #     with a different model than the current one. **Trigger
+        #     recovery** (this was the 0.2.4 bug — we used to silently
+        #     stamp the current fingerprint and skip recovery, leaving
+        #     the user with their old 768-d chunks invisible to the
+        #     bge-m3 cosine query).
+        #   - stale == 0 ⇒ either a brand-new empty index or one
+        #     already coherent with the current embedder. Record the
+        #     fingerprint and return.
+        if stale == 0:
+            set_meta(conn, "embedder_fingerprint", current)
+            return None
+        return {
+            "stored_fingerprint": "(unrecorded)",
+            "current_fingerprint": current,
+            "stale_count": stale,
+            "total_count": total,
+            "coverage_pct": int(100 * (total - stale) / total) if total else 0,
+        }
     if stale == 0:
         # Fingerprint changed but every chunk is already at the current
         # dim — likely a model rename inside the same vector space. Just

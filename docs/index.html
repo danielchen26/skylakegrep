@@ -88,7 +88,7 @@
  <main class="content">
  <!-- ============== Overview ============== -->
  <section id="overview" class="hero">
- <p class="eyebrow">v0.2.4 · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.2.5 · PolyForm Noncommercial 1.0.0</p>
  <h1>Find what you <span class="hero-accent">mean</span>, not what you typed.</h1>
  <p class="lead">
  <code>skylakegrep</code> is a fully-offline semantic search CLI for
@@ -357,6 +357,52 @@ register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)</code></pre
  greeting in fresh projects so users don't think the tool is
  broken or slow on cold start. All gated by
  <code>SKYGREP_NO_HINTS=1</code>.
+ </div>
+ </div>
+ <div class="usecase-card">
+ <span class="usecase-tag">CRITICAL FIX · 0.2.5</span>
+ <div class="usecase-title">Recovery now triggers on pre-0.2.2 indexes</div>
+ <div class="usecase-body">
+ 0.2.2's recovery worker had a logic bug:
+ <code>detect_mismatch</code> short-circuited when the metadata
+ fingerprint was unset, even if the chunks table held stale-dim
+ vectors. Pre-0.2.2 users were silently filtered down to nothing
+ — PDFs / older chunks invisible to the bge-m3 cosine query.
+ <strong>0.2.5 fixes this</strong>: <code>detect_mismatch</code>
+ now distinguishes truly-fresh indexes (no fingerprint, no chunks)
+ from pre-0.2.2 indexes (no fingerprint, stale chunks &gt; 0) and
+ triggers recovery for the latter. Lock-in regression tests in
+ <code>tests/test_recovery.py</code>.
+ </div>
+ </div>
+ <div class="usecase-card">
+ <span class="usecase-tag">FOOTER · 0.2.5</span>
+ <div class="usecase-title">Hierarchical telemetry footer</div>
+ <div class="usecase-body">
+ The single-line <code>·</code>-separated footer in 0.2.2–0.2.4
+ was a wall of text. Now multi-line with category rows
+ (<code>path</code>, <code>router</code>, <code>evidence</code>,
+ <code>pool</code>, <code>index</code>, <code>recovery</code>)
+ and a ✓/⚠ glyph for at-a-glance quality status.
+ <code>SKYGREP_FOOTER_COMPACT=1</code> opts back into the
+ single-line format.
+ </div>
+ </div>
+ <div class="usecase-card">
+ <span class="usecase-tag">PRINCIPLES · 0.2.5</span>
+ <div class="usecase-title">Architecture principles document</div>
+ <div class="usecase-body">
+ New <a href="https://github.com/danielchen26/skylakegrep/blob/master/docs/PRINCIPLES.md"><code>docs/PRINCIPLES.md</code></a>
+ records the architecture rules every contributor (human or
+ agent) should follow — substrate over enumeration, latency
+ ordering, release discipline. The receipts table documents
+ four past lapses (<code>code_graph.py</code> regex /
+ <code>mxbai-embed-large</code> substrate /
+ <code>symbol_channel.py</code> tree-sitter /
+ <code>_METADATA_TOKENS</code> keyword) and how each was or
+ will be replaced with a substrate / registry / LLM-driven
+ generic path. <code>CLAUDE.md</code> imports it so any AI agent
+ in the repo loads the principles automatically.
  </div>
  </div>
  <div class="usecase-card">

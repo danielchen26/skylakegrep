@@ -81,8 +81,18 @@ register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)
 | **Intelligent recovery (0.2.2)** | embedder upgrades auto-detected; daemon-thread re-embed in mtime-DESC priority, no `--reset` needed | Manual `skygrep index --reset` is no longer required after upgrading the embedder. Background worker re-embeds chunks in place; the user is never blocked, the existing `_filter_to_matching_dim` helper hides stale-dim chunks during recovery. Crash-safe and resumable. |
 | **Routing transparency (0.2.2)** | per-query telemetry footer leads with `path=…`, σ-evidence reason, recovery state, and `quality=BEST/DEGRADED-recovery` tag | Users see which retrieval path answered every query and why. The σ-evidence line explains the cascade's choice in Bayesian terms; the recovery line shows live coverage % + ETA when a worker is active. |
 | **Intelligent CLI assistance (0.2.4)** | out-of-scope query detection, typo correction for unknown flags, low-confidence result hints, first-run nudge — all gated by `SKYGREP_NO_HINTS=1` | The CLI proactively helps instead of silently shrugging. Metadata queries like *"我最近工作上的十个文件"* get a `git log` suggestion before the search runs; typoed flags get a "did you mean `--top`?" line; uncertain results get a recovery menu (`--agentic`, `--top 30`, etc.); fresh-project queries get a one-time three-line onboarding greeting. |
+| **Critical recovery bug fix + hierarchical footer (0.2.5)** | `detect_mismatch` now triggers recovery on pre-0.2.2 indexes with stale-dim chunks; multi-line telemetry footer with `path` / `router` / `evidence` / `pool` / `index` / `recovery` rows + ✓/⚠ glyph; `昨天 / 今天 / 上周` now caught by out-of-scope detection (stopgap; LLM-based fix in 0.2.6) | 0.2.2-era recovery silently skipped pre-0.2.2 indexes — users could lose access to PDFs / older chunks without realising. Footer rewrite makes the routing decision and the recovery state scannable at a glance. The keyword patch is documented as a stopgap in [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md) (Principle 1: Understanding over Enumeration). |
 
-Full release notes: [`0.2.0`](docs/skylakegrep-0.2.0.md) · [`0.2.1`](docs/skylakegrep-0.2.1.md) · [`0.2.2`](docs/skylakegrep-0.2.2.md) · [`0.2.3`](docs/skylakegrep-0.2.3.md) · [`0.2.4`](docs/skylakegrep-0.2.4.md)
+Full release notes: [`0.2.0`](docs/skylakegrep-0.2.0.md) · [`0.2.1`](docs/skylakegrep-0.2.1.md) · [`0.2.2`](docs/skylakegrep-0.2.2.md) · [`0.2.3`](docs/skylakegrep-0.2.3.md) · [`0.2.4`](docs/skylakegrep-0.2.4.md) · [`0.2.5`](docs/skylakegrep-0.2.5.md)
+
+**Project principles** (architecture rules contributors should
+follow): [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md) — substrate
+over enumeration, latency / quality / correctness ordering,
+release-discipline, honest evaluation. The receipts table at the
+top documents past lapses (`code_graph.py` regex / `mxbai-embed-large`
+substrate / `symbol_channel.py` tree-sitter / `_METADATA_TOKENS`
+keyword) and how each was or will be replaced with a substrate /
+registry / LLM-driven generic path.
 
 ## In 30 seconds
 
@@ -377,6 +387,11 @@ skygrep enrich   [--max N] [--batch B]      # opt-in doc2query enrichment
 | Low-confidence result hints (top-1 score + σ-gap floor) | 0.2.4 |
 | First-run nudge (one-time onboarding greeting per project) | 0.2.4 |
 | `SKYGREP_NO_HINTS=1` to silence all intelligent-CLI hints | 0.2.4 |
+| Recovery worker triggers on pre-0.2.2 indexes (fingerprint-unset + stale chunks) | 0.2.5 |
+| Hierarchical multi-line telemetry footer with ✓/⚠ glyph + category rows | 0.2.5 |
+| `SKYGREP_FOOTER_COMPACT=1` to keep the legacy single-line footer | 0.2.5 |
+| Day-relative recency tokens caught (`昨天 / 今天 / 上周 / yesterday / this week`) | 0.2.5 |
+| Project principles document ([`docs/PRINCIPLES.md`](docs/PRINCIPLES.md)) | 0.2.5 |
 | Tree-sitter chunking + line-window fallback | 0.2.0 |
 | `.gitignore` / `.skygrepignore` hygiene | 0.2.0 |
 | Incremental indexing (mtime-based) | 0.2.0 |

@@ -42,6 +42,37 @@ class OutOfScopeDetectionTests(unittest.TestCase):
         self.assertIsNotNone(hint)
         self.assertIn("git log", hint["suggested_command"])
 
+    def test_chinese_day_relative_recency_is_flagged(self):
+        # Regression: 0.2.4 missed "昨天" (yesterday) and similar
+        # day-relative recency tokens because the metadata-token list
+        # only covered "最近" / "最新" / "近期".
+        for q in [
+            "我昨天打开过的十个文件",
+            "今天写过的代码",
+            "前天的pdf",
+            "上周改过的文件",
+            "本周编辑过的笔记",
+        ]:
+            with self.subTest(query=q):
+                self.assertIsNotNone(
+                    detect_out_of_scope(q),
+                    msg=f"day-relative recency query {q!r} should be flagged",
+                )
+
+    def test_english_day_relative_recency_is_flagged(self):
+        # "what I worked on today" is intentionally NOT in this list:
+        # the "what" interrogative is genuinely ambiguous (could be
+        # asking for a list, could be asking semantically), and the
+        # safer fallback is to let it run as a content query rather
+        # than nag the user with a hint that may not apply.
+        for q in [
+            "files I opened yesterday",
+            "today opened",
+            "this week's edits",
+        ]:
+            with self.subTest(query=q):
+                self.assertIsNotNone(detect_out_of_scope(q))
+
     def test_english_recency_query_is_flagged(self):
         hint = detect_out_of_scope("recent files I changed")
         self.assertIsNotNone(hint)
