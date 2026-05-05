@@ -304,34 +304,64 @@ class KillSwitchTests(unittest.TestCase):
 
 
 class FilenameExtendShouldFireTests(unittest.TestCase):
+    """Per Principle 1, the gate trusts ``decision.intent`` only.
+    We do NOT keyword-match the query against ``where is`` / ``在哪`` /
+    etc. — that's the enumeration anti-pattern the user has flagged
+    multiple times. The LLM router (or its rule-based fallback) is
+    where intent classification lives."""
+
     def test_fires_on_filename_intent_and_zero_results(self):
         d = _MockDecision(intent="filename")
         self.assertTrue(
             filename_extend_should_fire("Where is my file?", d, [])
         )
 
-    def test_does_not_fire_when_results_already_present(self):
-        d = _MockDecision(intent="filename")
+    def test_fires_on_mixed_intent_and_zero_results(self):
+        # Mixed intent treated as filename-eligible because the
+        # LLM was uncertain — we still want proactive to help.
+        d = _MockDecision(intent="mixed")
+        self.assertTrue(filename_extend_should_fire("anything", d, []))
+
+    def test_does_not_fire_when_intent_is_semantic(self):
+        # LLM said semantic — trust it, do NOT enumerate phrases.
+        d = _MockDecision(intent="semantic")
+        self.assertFalse(filename_extend_should_fire("Where is my doc?", d, []))
+        self.assertFalse(filename_extend_should_fire("找一下任务清单", d, []))
+        self.assertFalse(filename_extend_should_fire("我的笔记在哪里", d, []))
+
+    def test_does_not_fire_when_intent_is_lexical(self):
+        d = _MockDecision(intent="lexical")
         self.assertFalse(
-            filename_extend_should_fire("anything", d, [{"path": "x"}])
+            filename_extend_should_fire("auth login", d, [])
         )
 
-    def test_fires_on_natural_language_lookup_phrase(self):
-        d = _MockDecision(intent="semantic")
-        self.assertTrue(filename_extend_should_fire("Where is my doc?", d, []))
-        self.assertTrue(filename_extend_should_fire("找一下任务清单", d, []))
-        self.assertTrue(filename_extend_should_fire("我的笔记在哪里", d, []))
+    def test_does_not_fire_with_none_decision(self):
+        # Principle 1: when no understanding is available, refuse
+        # rather than enumerate keyword phrases. The CLI always
+        # passes a decision; non-CLI callers must too.
+        self.assertFalse(filename_extend_should_fire("where is my doc?", None, []))
 
-    def test_no_intent_no_phrase_does_not_fire(self):
-        d = _MockDecision(intent="semantic")
-        self.assertFalse(
-            filename_extend_should_fire("how does cascade work", d, [])
+    def test_fires_when_results_lack_token_match(self):
+        # 0.2.8 update: even with non-empty cascade results, if NONE
+        # of them have the lookup token in their basename, fire so
+        # the user gets a chance to discover the actual file.
+        d = _MockDecision(intent="filename", primary_token="task-001")
+        results = [
+            {"path": "/some/dir/unrelated.md"},
+            {"path": "/another/place/reference.txt"},
+        ]
+        self.assertTrue(
+            filename_extend_should_fire("where is my task-001 file", d, results)
         )
 
-    def test_none_decision_falls_back_to_phrase_check(self):
-        # Decision can be None when the LLM router was bypassed.
-        # Phrase-only check still works.
-        self.assertTrue(filename_extend_should_fire("where is my doc?", None, []))
+    def test_does_not_fire_when_results_have_token_match(self):
+        # When the cascade already surfaced the file, don't bother
+        # re-running the proactive search.
+        d = _MockDecision(intent="filename", primary_token="task-001")
+        results = [{"path": "/somewhere/task-001-spec.md"}]
+        self.assertFalse(
+            filename_extend_should_fire("where is my task-001 file", d, results)
+        )
 
 
 class FilenameExtendExecuteTests(unittest.TestCase):

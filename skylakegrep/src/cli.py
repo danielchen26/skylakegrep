@@ -450,7 +450,25 @@ def search_cmd(
         if json_output:
             click.echo(render_json_results(results))
             return
-        if not results:
+        # 0.2.8: try proactive enhancers in the cold-start path too.
+        # 0.2.7 only ran proactive on the main cascade path, which
+        # meant the EB1B-style case (filename lookup against an
+        # un-indexed dir, rg can't grep the binary target) hit the
+        # ``return`` below before proactive ever got a chance to
+        # search ~/Downloads / ~/Desktop / ~/Documents. Let the
+        # framework run here so cold-start users get the same
+        # proactive helpfulness as warm queries.
+        cold_proactive_results: list = []
+        try:
+            from . import proactive as _proactive
+            cold_proactive_results, _ = _proactive.run_enhancers_parallel(
+                query, decision, results, top_k=top,
+            )
+        except Exception:
+            logger.exception(
+                "proactive enhancer in cold-start path failed; ignoring"
+            )
+        if not results and not cold_proactive_results:
             click.echo(
                 "No matches yet. Semantic index is building in the background; "
                 "try the same query again in a minute, or run `skygrep stats` to "
@@ -468,10 +486,18 @@ def search_cmd(
                     ocr=ocr,
                 )
             )
+        if cold_proactive_results:
+            rendered = _proactive.render_proactive_output(cold_proactive_results)
+            if rendered:
+                click.echo(rendered)
         building = ai.is_index_building(db_path)
         suffix = "building in background" if building else "queued"
+        proactive_tag = (
+            f" + {len(cold_proactive_results)} proactive"
+            if cold_proactive_results else ""
+        )
         click.echo(
-            f"\n[{elapsed:.3f}s · ripgrep cold-start · "
+            f"\n[{elapsed:.3f}s · ripgrep cold-start{proactive_tag} · "
             f"intent={intent} · {len(fn_results)} filename + "
             f"{len(rg_cold)} content · index {suffix}]"
         )

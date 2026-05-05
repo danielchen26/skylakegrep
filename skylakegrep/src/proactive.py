@@ -350,23 +350,43 @@ def _filename_token(query: str, decision: Any) -> str:
 def filename_extend_should_fire(
     query: str, decision: Any, results: list[dict],
 ) -> bool:
-    """Fire when the user clearly wants a filename / file-location
-    answer AND the in-project search returned zero hits. The hint
-    here is the same ``intent="filename"`` (or mixed) signal the
-    cascade already uses, plus a couple of natural-language phrases
-    that work without an LLM router."""
+    """Fire when the LLM router classified the user's query as a
+    filename lookup AND either (a) the in-project cascade returned
+    zero hits or (b) returned hits but NONE of them contain the
+    user's lookup token in the basename (cascade surfaced
+    semantically-related noise but not the file the user actually
+    asked for).
 
-    if results:
+    Per ``docs/PRINCIPLES.md`` Principle 1 ("Understanding >
+    Enumeration"): the gate trusts ``decision.intent`` from the
+    local LLM router exclusively. We do NOT keyword-match the
+    query against an enumeration of "where is" / "在哪" / "find me"
+    / etc. phrases. The whole point of the LLM router is that it
+    handles novel phrasings (``the doc I worked on yesterday``,
+    ``my Q3 budget spreadsheet``, ``下载里那个 PDF``) without us
+    having to enumerate every possible way a user might phrase a
+    file lookup. When the LLM is unreachable, the rule-based
+    classifier in ``llm_router._rule_based_decision`` still
+    produces an ``intent`` — that's the offline fallback path,
+    not this gate's job.
+    """
+
+    if decision is None:
+        # No understanding available — refuse rather than enumerate.
         return False
-    intent = getattr(decision, "intent", "") if decision is not None else ""
-    if intent in ("filename", "mixed"):
+    intent = getattr(decision, "intent", "")
+    if intent not in ("filename", "mixed"):
+        return False
+    if not results:
         return True
-    q = (query or "").lower()
-    en_phrases = ("where is", "find me", "find my", "locate", "show me my", "open my")
-    zh_phrases = ("在哪", "在哪里", "找一下", "找到", "我的")
-    return (
-        any(p in q for p in en_phrases)
-        or any(p in (query or "") for p in zh_phrases)
+    primary_token = _filename_token(query, decision)
+    if not primary_token:
+        return False
+    token_lower = primary_token.lower()
+    return not any(
+        token_lower in Path(r.get("path", "")).name.lower()
+        for r in results
+        if r.get("path")
     )
 
 
