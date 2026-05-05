@@ -347,42 +347,91 @@ def _filename_token(query: str, decision: Any) -> str:
     return best[0]
 
 
+def _looks_like_identifier(token: str) -> bool:
+    """Content-shape check: is this token plausibly a filename
+    identifier? Three signals (any one suffices):
+
+      - has digits  (``eb1b``, ``task-001``, ``v6.2``)
+      - has internal punctuation  (``foo.bar``, ``my-file``, ``snake_case``)
+      - mixed case  (``CamelCase``, ``PascalCase``)
+
+    This is **token morphology**, not keyword enumeration —
+    consistent with Principle 1. The LLM router's prompt uses the
+    same family of signals to score candidate ``primary_token``
+    choices, so we share the criterion at the code level.
+    """
+
+    if not token or len(token) < 3:
+        return False
+    return (
+        any(c.isdigit() for c in token)
+        or any(c in "._-" for c in token)
+        or (token != token.lower() and token != token.upper())
+    )
+
+
 def filename_extend_should_fire(
     query: str, decision: Any, results: list[dict],
 ) -> bool:
-    """Fire when the LLM router classified the user's query as a
-    filename lookup AND either (a) the in-project cascade returned
-    zero hits or (b) returned hits but NONE of them contain the
-    user's lookup token in the basename (cascade surfaced
-    semantically-related noise but not the file the user actually
-    asked for).
+    """Fire when there is evidence the user's query references a
+    specific file / identifier the cascade may have missed.
 
-    Per ``docs/PRINCIPLES.md`` Principle 1 ("Understanding >
-    Enumeration"): the gate trusts ``decision.intent`` from the
-    local LLM router exclusively. We do NOT keyword-match the
-    query against an enumeration of "where is" / "在哪" / "find me"
-    / etc. phrases. The whole point of the LLM router is that it
-    handles novel phrasings (``the doc I worked on yesterday``,
-    ``my Q3 budget spreadsheet``, ``下载里那个 PDF``) without us
-    having to enumerate every possible way a user might phrase a
-    file lookup. When the LLM is unreachable, the rule-based
-    classifier in ``llm_router._rule_based_decision`` still
-    produces an ``intent`` — that's the offline fallback path,
-    not this gate's job.
+    Three eligibility cases (in priority order):
+
+      1. ``decision.intent`` is ``"filename"`` or ``"mixed"`` —
+         the LLM router (or its rule-based fallback) classified
+         the query as a filename lookup.
+      2. ``decision.primary_token`` is non-empty — the LLM
+         identified a high-signal identifier in the query, even
+         if it labelled the overall ``intent`` as semantic /
+         lexical. (E.g. "do I have files related to <token>"
+         is semantic in *intent* but the user named a specific
+         token they care about.)
+      3. ``results`` is empty AND the query contains an
+         identifier-shaped token via ``_looks_like_identifier``.
+         This is the last-resort path for the case where the
+         LLM is unreachable / produced low-confidence output but
+         the query still has a clearly-shaped identifier we can
+         filename-match against.
+
+    All three cases use ONLY (a) LLM-fed fields or (b) content-shape
+    morphology — never a hand-curated list of trigger phrases. Per
+    ``docs/PRINCIPLES.md`` Principle 1 ("Understanding >
+    Enumeration").
     """
 
     if decision is None:
-        # No understanding available — refuse rather than enumerate.
         return False
     intent = getattr(decision, "intent", "")
-    if intent not in ("filename", "mixed"):
+    primary_token = getattr(decision, "primary_token", "") or ""
+
+    # --- Eligibility cases ---
+    if intent in ("filename", "mixed"):
+        eligible = True
+    elif primary_token and len(primary_token.strip()) >= 2:
+        # LLM picked out a specific token regardless of overall
+        # intent — that's a strong signal the user wants something
+        # by name.
+        eligible = True
+    elif not results:
+        # Last-resort: cascade returned nothing and the query has
+        # an identifier-shape token. Use ``_filename_token`` to pick
+        # the best candidate via the same scoring used by the
+        # in-project filename_shortcut.
+        candidate = _filename_token(query, decision)
+        eligible = bool(candidate and _looks_like_identifier(candidate))
+    else:
+        eligible = False
+    if not eligible:
         return False
+
+    # --- When eligible: fire unless cascade already surfaced the file ---
     if not results:
         return True
-    primary_token = _filename_token(query, decision)
-    if not primary_token:
+    token_to_check = primary_token or _filename_token(query, decision)
+    if not token_to_check:
         return False
-    token_lower = primary_token.lower()
+    token_lower = token_to_check.lower()
     return not any(
         token_lower in Path(r.get("path", "")).name.lower()
         for r in results

@@ -329,10 +329,44 @@ class FilenameExtendShouldFireTests(unittest.TestCase):
         self.assertFalse(filename_extend_should_fire("找一下任务清单", d, []))
         self.assertFalse(filename_extend_should_fire("我的笔记在哪里", d, []))
 
-    def test_does_not_fire_when_intent_is_lexical(self):
+    def test_does_not_fire_when_intent_is_lexical_and_no_identifier(self):
+        # 0.2.9: lexical intent with no identifier-shaped token in the
+        # query → don't fire. ("auth login" — no digits, no dashes,
+        # no mixed case → no identifier shape.)
         d = _MockDecision(intent="lexical")
         self.assertFalse(
             filename_extend_should_fire("auth login", d, [])
+        )
+
+    def test_fires_when_llm_set_primary_token_even_on_semantic_intent(self):
+        # 0.2.9 case 2: LLM classified the query as semantic but
+        # filled in primary_token. User mentioned a specific
+        # identifier — fire so we can look for it as a filename.
+        d = _MockDecision(intent="semantic", primary_token="eb1b")
+        self.assertTrue(
+            filename_extend_should_fire(
+                "我有没有跟\"eb1b\"有关的文件？", d, [],
+            )
+        )
+
+    def test_fires_on_zero_results_with_identifier_shape_token(self):
+        # 0.2.9 case 3: LLM fallback didn't fill primary_token, intent
+        # is lexical, BUT the query contains a token that has
+        # identifier morphology (digits + non-trivial length). Fire as
+        # a last resort before giving up.
+        d = _MockDecision(intent="lexical", primary_token="")
+        self.assertTrue(
+            filename_extend_should_fire(
+                "我有没有跟\"task-001\"有关的文件？", d, [],
+            )
+        )
+
+    def test_does_not_fire_on_zero_results_pure_natural_language(self):
+        # No identifier shape in the query → don't fire even with 0
+        # results. Avoids spurious filename lookups on pure NL queries.
+        d = _MockDecision(intent="semantic", primary_token="")
+        self.assertFalse(
+            filename_extend_should_fire("how does the cascade work", d, [])
         )
 
     def test_does_not_fire_with_none_decision(self):
