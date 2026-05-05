@@ -78,6 +78,33 @@ DEFAULT_TOTAL_BUDGET_MS = 2000
 
 
 @dataclass
+class ProactiveContext:
+    """Runtime state passed to enhancers that need access beyond
+    the ``(query, decision, results)`` triple.
+
+    Older enhancers (``filename_extend``) don't need any of this and
+    accept ``ctx=None`` for forward-compat. Added in 0.2.11 so
+    ``recovery_progress_hint`` can read live recovery state.
+
+    Important: ``conn`` is the main-thread sqlite handle and
+    **MUST NOT** be passed to enhancer worker threads (sqlite's
+    ``check_same_thread`` would raise). The runner pre-fetches any
+    state worker enhancers might need (``recovery_state``) on the
+    main thread before submitting to the pool, so worker threads
+    only see immutable snapshots — no cross-thread sqlite access.
+    """
+
+    conn: Any | None = None
+    project_root: Any | None = None
+    # Pre-fetched on the main thread by ``run_enhancers_parallel``
+    # before the worker pool starts. Snapshot of recovery progress
+    # at the moment the search command launched; enhancers read
+    # this dict instead of the live ``conn`` to avoid sqlite's
+    # cross-thread restrictions.
+    recovery_state: dict | None = None
+
+
+@dataclass
 class ProactiveResult:
     """One enhancer's contribution to the user-visible output.
 
@@ -172,6 +199,7 @@ def run_enhancers_parallel(
     *,
     top_k: int,
     total_budget_ms: int | None = None,
+    ctx: ProactiveContext | None = None,
 ) -> tuple[list[ProactiveResult], dict]:
     """Run all registered enhancers whose ``should_fire`` gate
     returns ``True`` in parallel. Return whatever finishes within
@@ -198,6 +226,21 @@ def run_enhancers_parallel(
             "budget_ms": 0, "elapsed_ms": 0,
         }
 
+    if ctx is None:
+        ctx = ProactiveContext()
+
+    # Pre-fetch recovery state on the main thread so worker threads
+    # that need it (``recovery_progress_hint``) don't try to cross
+    # sqlite's check_same_thread guard. Best-effort: enhancers fall
+    # through to ``recovery_state=None`` if the read fails.
+    if ctx.conn is not None and ctx.recovery_state is None:
+        try:
+            from .recovery import get_recovery_state
+            ctx.recovery_state = get_recovery_state(ctx.conn)
+        except Exception:
+            logger.debug("failed to pre-fetch recovery state for proactive ctx", exc_info=True)
+            ctx.recovery_state = None
+
     budget_ms = total_budget_ms if total_budget_ms is not None else _total_budget_ms()
     if budget_ms <= 0:
         return [], {
@@ -211,7 +254,9 @@ def run_enhancers_parallel(
     eligible: list[ProactiveEnhancement] = []
     for enh in _REGISTRY:
         try:
-            if enh.should_fire(query, decision, results):
+            if _call_with_optional_ctx(
+                enh.should_fire, query, decision, results, ctx=ctx,
+            ):
                 eligible.append(enh)
         except Exception:
             logger.debug("enhancer %r should_fire raised; skipping", enh.name, exc_info=True)
@@ -246,6 +291,7 @@ def run_enhancers_parallel(
         future_to_enh = {
             pool.submit(
                 _safe_execute, enh, query, decision, top_k, enh.individual_budget_ms,
+                ctx,
             ): enh
             for enh in eligible
         }
@@ -286,6 +332,7 @@ def _safe_execute(
     decision: Any,
     top_k: int,
     individual_budget_ms: int,
+    ctx: ProactiveContext,
 ) -> Optional[ProactiveResult]:
     """Wrapper that enforces the individual budget at the wall
     clock level. The enhancer is responsible for honouring the
@@ -294,10 +341,39 @@ def _safe_execute(
     the runner."""
 
     try:
-        return enh.execute(query, decision, top_k, individual_budget_ms)
+        return _call_with_optional_ctx(
+            enh.execute, query, decision, top_k, individual_budget_ms,
+            ctx=ctx,
+        )
     except Exception:
         logger.debug("enhancer %r raised inside execute", enh.name, exc_info=True)
         return None
+
+
+def _call_with_optional_ctx(fn, *args, ctx: ProactiveContext):
+    """Pass ``ctx`` to ``fn`` only if its signature accepts it.
+
+    Older enhancers (``filename_extend``) were written before the
+    0.2.11 ``ProactiveContext`` parameter existed. Their signatures
+    don't include ``ctx``, so calling them with ``ctx=...`` would
+    raise ``TypeError``. This shim inspects the function and only
+    passes ``ctx`` when it's a recognised parameter — keeping the
+    runner backward-compatible with all enhancers (built-in or
+    third-party) regardless of when they were written.
+    """
+
+    import inspect
+
+    try:
+        sig = inspect.signature(fn)
+        if "ctx" in sig.parameters or any(
+            p.kind == inspect.Parameter.VAR_KEYWORD
+            for p in sig.parameters.values()
+        ):
+            return fn(*args, ctx=ctx)
+    except (TypeError, ValueError):
+        pass
+    return fn(*args)
 
 
 # ---------------------------------------------------------------------------
@@ -558,6 +634,94 @@ def _find_one_dir(d: Path, token: str, timeout_s: float) -> list[str]:
     return out
 
 
+# ---------------------------------------------------------------------------
+# Built-in enhancer: recovery_progress_hint (semantic queries during recovery)
+# ---------------------------------------------------------------------------
+
+
+# Threshold below which a top-1 cosine score is considered "low
+# confidence" — when the index is partially built, even legitimate
+# matches can score in the 0.3-0.5 band because the semantically-
+# closest chunks haven't been re-embedded yet. The 0.5 floor is
+# chosen to match the rule used elsewhere in the cascade for
+# rerank-vs-trust decisions.
+_RECOVERY_HINT_TOP1_FLOOR = 0.5
+
+
+def recovery_progress_should_fire(
+    query: str, decision: Any, results: list[dict], ctx: ProactiveContext = None,
+) -> bool:
+    """Fire when the user asked a semantic / content query but the
+    semantic index is still being re-embedded by the 0.2.2 recovery
+    worker, AND the cascade either returned nothing or only
+    low-confidence hits. Tells the user to re-run after the index
+    finishes — content matches that are currently invisible
+    (because their owning files haven't been re-embedded yet) will
+    surface then.
+
+    Reads ``ctx.recovery_state`` (pre-fetched by the runner on the
+    main thread) rather than ``ctx.conn`` — sqlite forbids
+    cross-thread connection sharing.
+    """
+
+    if decision is None or ctx is None or ctx.recovery_state is None:
+        return False
+    intent = getattr(decision, "intent", "")
+    if intent != "semantic":
+        return False
+    if results:
+        try:
+            top1 = float(results[0].get("score", 0.0))
+        except (TypeError, ValueError):
+            top1 = 0.0
+        if top1 >= _RECOVERY_HINT_TOP1_FLOOR:
+            return False
+    return bool(ctx.recovery_state.get("in_progress"))
+
+
+def recovery_progress_execute(
+    query: str, decision: Any, top_k: int, individual_budget_ms: int,
+    ctx: ProactiveContext = None,
+) -> Optional[ProactiveResult]:
+    """Render a one-line note explaining the partial index state
+    and pointing the user at the right next steps. Reads
+    ``ctx.recovery_state`` (the snapshot pre-fetched by the
+    runner)."""
+
+    if ctx is None or ctx.recovery_state is None:
+        return None
+    state = ctx.recovery_state
+    progress = state.get("progress") or "?/?"
+    coverage = state.get("coverage_pct")
+    eta_seconds = state.get("eta_seconds")
+
+    eta_str = "?"
+    if eta_seconds:
+        m = int(eta_seconds) // 60
+        s = int(eta_seconds) % 60
+        eta_str = f"{m}m{s:02d}s" if m else f"{s}s"
+
+    coverage_str = f"{coverage}%" if coverage is not None else "?"
+
+    note = (
+        f"Your query is content-based but the semantic index is still "
+        f"being re-embedded ({progress} chunks · {coverage_str} coverage · "
+        f"ETA ~{eta_str}). Re-run this query after the recovery worker "
+        f"finishes — files whose chunks haven't been re-embedded yet are "
+        f"currently invisible to cosine search."
+    )
+
+    return ProactiveResult(
+        enhancer_name="recovery_progress_hint",
+        extra_hits=[],
+        note=note,
+        commands=[
+            "skygrep stats     # current chunks / coverage",
+            "skygrep doctor    # health + recovery status",
+        ],
+    )
+
+
 # Register the built-in filename-extend enhancer at import time so
 # the CLI doesn't have to remember to do it. Tests can call
 # ``clear_registry()`` to reset.
@@ -574,6 +738,17 @@ register_enhancer(
         # hundred files), and the per-dir budget was further divided
         # by the number of dirs — a double bug fixed in 0.2.10.
         individual_budget_ms=1500,
+    )
+)
+
+register_enhancer(
+    ProactiveEnhancement(
+        name="recovery_progress_hint",
+        should_fire=recovery_progress_should_fire,
+        execute=recovery_progress_execute,
+        # The execute body is a single SQL select on the metadata
+        # table; 100 ms is plenty.
+        individual_budget_ms=100,
     )
 )
 

@@ -458,11 +458,16 @@ def search_cmd(
         # search ~/Downloads / ~/Desktop / ~/Documents. Let the
         # framework run here so cold-start users get the same
         # proactive helpfulness as warm queries.
+        # 0.2.11: pass ctx with conn so enhancers like
+        # ``recovery_progress_hint`` can read live recovery state.
         cold_proactive_results: list = []
         try:
             from . import proactive as _proactive
             cold_proactive_results, _ = _proactive.run_enhancers_parallel(
                 query, decision, results, top_k=top,
+                ctx=_proactive.ProactiveContext(
+                    conn=conn, project_root=project_root,
+                ),
             )
         except Exception:
             logger.exception(
@@ -852,6 +857,9 @@ def search_cmd(
             proactive_results, _proactive_telemetry = (
                 _proactive.run_enhancers_parallel(
                     query, decision, results, top_k=top,
+                    ctx=_proactive.ProactiveContext(
+                        conn=conn, project_root=project_root,
+                    ),
                 )
             )
             if proactive_results:

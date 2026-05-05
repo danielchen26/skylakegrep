@@ -500,6 +500,183 @@ class BuiltInRegistrationTests(unittest.TestCase):
         # added ``filename_extend`` to the registry on import.
         self.assertIn("filename_extend", list_enhancers())
 
+    def test_recovery_progress_hint_is_registered_at_import(self):
+        # 0.2.11: the recovery_progress_hint enhancer must auto-
+        # register so cold-start content queries against an
+        # in-progress index get the user-visible "still building"
+        # notice for free.
+        self.assertIn("recovery_progress_hint", list_enhancers())
+
+
+class RecoveryProgressHintTests(unittest.TestCase):
+    """0.2.11 enhancer regression coverage. Builds a real DB with
+    recovery state set + a fake LLM-router decision and verifies
+    the should_fire / execute / output triple end-to-end."""
+
+    def _conn_with_recovery(self, in_progress=True, progress="100/200",
+                            coverage_pct=50, eta_seconds=600):
+        from skylakegrep.src.storage import init_db, set_meta
+        tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        tmp.close()
+        path = Path(tmp.name)
+        conn = init_db(path)
+        set_meta(conn, "recovery_in_progress", "1" if in_progress else "0")
+        set_meta(conn, "recovery_progress", progress)
+        set_meta(conn, "recovery_coverage_pct", str(coverage_pct))
+        set_meta(conn, "recovery_eta_seconds", str(eta_seconds))
+        # Fresh heartbeat so get_recovery_state doesn't mark as crashed.
+        import time
+        from skylakegrep.src.storage import set_meta as _sm
+        _sm(conn, "recovery_heartbeat_at", str(time.time()))
+        return conn, path
+
+    def _ctx_for_recovery(self, conn, *, in_progress_state=None):
+        """Build a ``ProactiveContext`` with ``recovery_state`` already
+        populated, simulating what ``run_enhancers_parallel`` does on
+        the main thread before scheduling enhancers."""
+        from skylakegrep.src.proactive import ProactiveContext
+        from skylakegrep.src.recovery import get_recovery_state
+        state = (
+            in_progress_state if in_progress_state is not None
+            else get_recovery_state(conn)
+        )
+        return ProactiveContext(conn=conn, recovery_state=state)
+
+    def test_fires_on_semantic_query_with_zero_results_during_recovery(self):
+        from skylakegrep.src.proactive import (
+            ProactiveContext, recovery_progress_should_fire,
+        )
+        conn, path = self._conn_with_recovery()
+        try:
+            d = _MockDecision(intent="semantic")
+            ctx = self._ctx_for_recovery(conn)
+            self.assertTrue(
+                recovery_progress_should_fire(
+                    "what does this paper say about quantum tunneling",
+                    d, [], ctx=ctx,
+                )
+            )
+        finally:
+            conn.close()
+            path.unlink(missing_ok=True)
+
+    def test_does_not_fire_when_recovery_not_in_progress(self):
+        from skylakegrep.src.proactive import (
+            ProactiveContext, recovery_progress_should_fire,
+        )
+        conn, path = self._conn_with_recovery(in_progress=False)
+        try:
+            d = _MockDecision(intent="semantic")
+            ctx = self._ctx_for_recovery(conn)
+            self.assertFalse(
+                recovery_progress_should_fire("any", d, [], ctx=ctx)
+            )
+        finally:
+            conn.close()
+            path.unlink(missing_ok=True)
+
+    def test_does_not_fire_on_filename_intent(self):
+        # filename_extend handles the filename case; recovery
+        # progress is content-search-specific.
+        from skylakegrep.src.proactive import (
+            ProactiveContext, recovery_progress_should_fire,
+        )
+        conn, path = self._conn_with_recovery()
+        try:
+            d = _MockDecision(intent="filename")
+            ctx = self._ctx_for_recovery(conn)
+            self.assertFalse(
+                recovery_progress_should_fire(
+                    "where is my file", d, [], ctx=ctx,
+                )
+            )
+        finally:
+            conn.close()
+            path.unlink(missing_ok=True)
+
+    def test_does_not_fire_when_top1_score_is_high(self):
+        # Cascade returned a confident hit even mid-recovery; no
+        # need to nag the user with the partial-index notice.
+        from skylakegrep.src.proactive import (
+            ProactiveContext, recovery_progress_should_fire,
+        )
+        conn, path = self._conn_with_recovery()
+        try:
+            d = _MockDecision(intent="semantic")
+            ctx = self._ctx_for_recovery(conn)
+            self.assertFalse(
+                recovery_progress_should_fire(
+                    "any", d,
+                    [{"path": "/a/b.py", "score": 0.85}],
+                    ctx=ctx,
+                )
+            )
+        finally:
+            conn.close()
+            path.unlink(missing_ok=True)
+
+    def test_does_not_fire_with_no_ctx_or_no_recovery_state(self):
+        from skylakegrep.src.proactive import (
+            ProactiveContext, recovery_progress_should_fire,
+        )
+        d = _MockDecision(intent="semantic")
+        self.assertFalse(recovery_progress_should_fire("q", d, [], ctx=None))
+        self.assertFalse(
+            recovery_progress_should_fire(
+                "q", d, [], ctx=ProactiveContext(),
+            )
+        )
+
+    def test_execute_renders_progress_and_eta(self):
+        from skylakegrep.src.proactive import (
+            ProactiveContext, recovery_progress_execute,
+        )
+        conn, path = self._conn_with_recovery(
+            progress="1234/5000", coverage_pct=24, eta_seconds=754,
+        )
+        try:
+            d = _MockDecision(intent="semantic")
+            ctx = self._ctx_for_recovery(conn)
+            res = recovery_progress_execute("q", d, 10, 100, ctx=ctx)
+            self.assertIsNotNone(res)
+            self.assertEqual(res.enhancer_name, "recovery_progress_hint")
+            self.assertIn("1234/5000", res.note)
+            self.assertIn("24%", res.note)
+            self.assertIn("12m34s", res.note)
+            # Commands list points the user at next steps.
+            self.assertTrue(
+                any("skygrep stats" in c for c in res.commands),
+            )
+        finally:
+            conn.close()
+            path.unlink(missing_ok=True)
+
+    def test_end_to_end_via_run_enhancers_parallel(self):
+        """The full production code path: register_enhancer
+        already happened at import; we only need to set up the
+        recovery state + decision + ctx and run the parallel
+        runner. Verifies the wired-up `recovery_progress_hint`
+        actually surfaces in the live registry."""
+        from skylakegrep.src.proactive import (
+            ProactiveContext, run_enhancers_parallel,
+        )
+        conn, path = self._conn_with_recovery(
+            progress="2000/8000", coverage_pct=25, eta_seconds=300,
+        )
+        try:
+            d = _MockDecision(intent="semantic")
+            ctx = self._ctx_for_recovery(conn)
+            results, telemetry = run_enhancers_parallel(
+                "what does the paper say", d, [], top_k=10, ctx=ctx,
+                total_budget_ms=2000,
+            )
+            names = [r.enhancer_name for r in results]
+            self.assertIn("recovery_progress_hint", names)
+            self.assertIn("recovery_progress_hint", telemetry["completed"])
+        finally:
+            conn.close()
+            path.unlink(missing_ok=True)
+
 
 if __name__ == "__main__":
     unittest.main()
