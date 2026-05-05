@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="skylakegrep — semantic code search over a local index" src="docs/assets/hero-dark.svg" width="100%">
+  <img alt="skylakegrep — fully-offline semantic search over your local files" src="docs/assets/hero-dark.svg" width="100%">
 </p>
 
 <p align="center">
@@ -15,6 +15,10 @@
   &nbsp;·&nbsp;
   <a href="#in-30-seconds"><b>30s demo</b></a>
   &nbsp;·&nbsp;
+  <a href="#what-you-can-search"><b>What you can search</b></a>
+  &nbsp;·&nbsp;
+  <a href="#whats-new-in-02x"><b>What's new in 0.2.x</b></a>
+  &nbsp;·&nbsp;
   <a href="#performance"><b>Performance</b></a>
   &nbsp;·&nbsp;
   <a href="#how-it-works"><b>How it works</b></a>
@@ -26,11 +30,56 @@
 
 ---
 
-`skygrep` is a fully-offline semantic code-search CLI for natural-language
-questions about your codebase. **Ask in plain English, get the right file
-and line range.** Indexing, retrieval, and optional answer synthesis all
-run locally against your own Ollama server. No remote service, no
-subscription, no data leaves your machine.
+`skygrep` is a fully-offline semantic search CLI for your local files —
+**code, markdown, PDFs, Word docs, plain text, anything you index**.
+**Ask in plain English, get the right file and line range.** The
+content-agnostic retrieval substrate (Karpathy "knowledge graph as
+prior") works across content types via a pluggable extractor registry —
+not a code-only tool. Indexing, retrieval, and optional answer
+synthesis all run locally against your own Ollama server. No remote
+service, no subscription, no data leaves your machine.
+
+## What you can search
+
+The retrieval substrate is **content-agnostic** by design — the
+embedder (`bge-m3`, multilingual XLM-RoBERTa), the cascade, and the
+reference graph all abstract over "A references B" rather than over
+any specific programming language or document format. New content
+types plug in via a one-line `register_extractor()` call.
+
+| Content type | How it's parsed | Reference graph | Since |
+| --- | --- | --- | :-: |
+| **Code** — Rust · Python · JS · TS | tree-sitter symbol-aware chunking + line-window fallback | imports / `use` / `require` / dynamic `import()` | 0.1.0 |
+| **Markdown** | line-window chunks; `[](link)`, `![]()`, `[[wiki]]` link extraction | relative-path resolution + Obsidian-style wiki links | 0.2.0 |
+| **PDF** | `pypdf` text extraction; opt-in OCR for scanned pages | — | 0.1.0 |
+| **Word docs (`.docx`)** | `python-docx` paragraph extraction | — | 0.1.0 |
+| **Plain text · TOML · YAML · CSV · JSON · …** | line-window chunking via the default text path | — | 0.1.0 |
+| **Custom (your content type)** | register an extractor returning `(source, target)` edges | your call | 0.2.0 |
+
+Register a new content type in one line:
+
+```python
+from skylakegrep.src.reference_graph import register_extractor
+
+def yaml_anchor_extractor(path):
+    """Return list of (source, target) reference edges."""
+    ...
+
+register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)
+```
+
+## What's new in 0.2.x
+
+| | What | Why it matters |
+| --- | --- | --- |
+| **Substrate** | `bge-m3` default embedder (1024-d, multilingual, symmetric, 8k context) replaces `mxbai-embed-large` | Single largest accuracy contributor — React bench 8/10 → 10/10. Existing indexes must rebuild (`--reset`). |
+| **Reference graph** | `register_extractor()` registry; `code_graph.py` is a back-compat facade | Content-agnostic abstraction ("A references B"). Markdown shipped in 0.2.0. New types in one line, no retrieval-code changes. |
+| **Cascade** | σ-adaptive threshold `max(τ_floor, k·σ_topK)` | Derived from cosine evidence (MacKay/Williams Bayesian framing), not a magic number. Auto-recalibrates when embedder swaps. New `tau_mode` telemetry. |
+| **Path filter** | 24 universal aux-path conventions (`/fixtures/`, `/vendor/`, `/dist/`, `.development.js`, `.min.js`, …) | Structural prior, not language-specific. Applies to any corpus with similar conventions. |
+| **Bench** | 30 / 30 on Django + React + Tokio public OSS bench | Was 28 / 30 in 0.1.0; latency aggregate −19 % (Tokio +57 % is the real trade-off). |
+| **Symbol channel** | `multi_channel_search` with RRF k=60 fusion (internal, opt-in) | Tree-sitter symbol-as-retriever experimental primitive. Not in default CLI yet — auto-router is a 0.3.0 follow-up. |
+
+Full release notes: [`docs/skylakegrep-0.2.0.md`](docs/skylakegrep-0.2.0.md) · [`docs/skylakegrep-0.2.1.md`](docs/skylakegrep-0.2.1.md)
 
 ## In 30 seconds
 
@@ -78,7 +127,7 @@ unambiguous.
 **`skygrep setup`** writes a small markdown snippet to each detected LLM
 CLI's user-level instructions file (e.g. `~/.claude/CLAUDE.md`,
 `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`) telling the agent to
-prefer `skygrep` for natural-language code search and fall back to `rg`
+prefer `skygrep` for natural-language search across local files and fall back to `rg`
 otherwise. Snippets are delimited by markers; `skygrep setup --uninstall`
 removes them cleanly without touching your other instructions.
 
@@ -269,7 +318,14 @@ skygrep enrich   [--max N] [--batch B]      # opt-in doc2query enrichment
 
 | Capability | Since |
 | --- | --- |
-| Semantic code search via local Ollama | 0.1.0 |
+| Semantic file search via local Ollama (code + docs + PDFs) | 0.1.0 |
+| `bge-m3` multilingual substrate as default embedder | 0.2.0 |
+| Content-agnostic reference-graph registry (`register_extractor()`) | 0.2.0 |
+| Built-in markdown link extractor (`[](link)`, `![]()`, `[[wiki]]`) | 0.2.0 |
+| σ-adaptive cascade threshold (`max(τ_floor, k·σ_topK)`) | 0.2.0 |
+| Universal non-canonical-path filter (24 patterns: fixtures/vendor/dist/.min.js/…) | 0.2.0 |
+| Symbol-as-retriever channel (internal, opt-in) | 0.2.0 |
+| Public-OSS bench: 30 / 30 (Django · React · Tokio) | 0.2.0 |
 | Tree-sitter chunking + line-window fallback | 0.2.0 |
 | `.gitignore` / `.skygrepignore` hygiene | 0.2.0 |
 | Incremental indexing (mtime-based) | 0.2.0 |

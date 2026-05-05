@@ -1,7 +1,7 @@
 [project]
 name = "skylakegrep"
-version = "0.2.0"
-description = "Free local semantic code search using Ollama"
+version = "0.2.1"
+description = "Fully-offline semantic search over your local files — powered by Ollama"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {file = "LICENSE"}

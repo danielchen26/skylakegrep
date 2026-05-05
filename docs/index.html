@@ -3,21 +3,21 @@
  <head>
  <meta charset="utf-8" />
  <meta name="viewport" content="width=device-width, initial-scale=1" />
- <meta name="description" content="skylakegrep is a command-line semantic code search tool that builds a local SQLite vector index from a repository's source files and answers natural-language queries with line-cited snippets. Fully offline, PolyForm Noncommercial 1.0.0 licensed, powered by Ollama." />
+ <meta name="description" content="skylakegrep is a command-line tool for fully-offline semantic search over your local files — code, markdown, PDFs, Word docs, plain text. It builds a local SQLite vector index and answers natural-language queries with line-cited snippets. Content-agnostic retrieval via a pluggable extractor registry, PolyForm Noncommercial 1.0.0 licensed, powered by Ollama." />
  <meta name="theme-color" content="#0a0d12" />
 
  <!-- Open Graph / Twitter social preview -->
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
- <meta property="og:title" content="skylakegrep — semantic code search over a local index" />
- <meta property="og:description" content="Fully-offline semantic code search CLI. 30/30 (100 %) recall on a public OSS benchmark across Django + React + Tokio at 60×–770× less context than ripgrep. PolyForm Noncommercial 1.0.0, powered by Ollama." />
+ <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
+ <meta property="og:description" content="Fully-offline semantic search over your local files — code, markdown, PDFs, Word docs, plain text. 30/30 (100 %) recall on a public OSS benchmark across Django + React + Tokio at 60×–770× less context than ripgrep. Content-agnostic retrieval, PolyForm Noncommercial 1.0.0, powered by Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
- <meta name="twitter:title" content="skylakegrep — semantic code search over a local index" />
- <meta name="twitter:description" content="Fully-offline semantic code search CLI. 30/30 (100 %) recall on Django + React + Tokio with 60×–770× less context than ripgrep." />
+ <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
+ <meta name="twitter:description" content="Fully-offline semantic search over your local files — code, markdown, PDFs, docs. 30/30 (100 %) recall on Django + React + Tokio with 60×–770× less context than ripgrep." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -88,14 +88,18 @@
  <main class="content">
  <!-- ============== Overview ============== -->
  <section id="overview" class="hero">
- <p class="eyebrow">v0.1.0 · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.2.1 · PolyForm Noncommercial 1.0.0</p>
  <h1>Find what you <span class="hero-accent">mean</span>, not what you typed.</h1>
  <p class="lead">
- <code>skylakegrep</code> is a fully-offline semantic code-search CLI
- for engineers and AI coding agents. Local Ollama + SQLite, no cloud,
+ <code>skylakegrep</code> is a fully-offline semantic search CLI for
+ your local files — <strong>code, markdown, PDFs, Word docs, plain
+ text, anything you index</strong>. Local Ollama + SQLite, no cloud,
  no telemetry. A small local model decides per query whether to route
  to <code>find</code>, <code>rg</code>, or the semantic cascade — so
- you stop choosing flags and start getting answers.
+ you stop choosing flags and start getting answers. The
+ content-agnostic retrieval substrate (`bge-m3` multilingual
+ embedder + a pluggable extractor registry) makes this work across
+ content types, not just code.
  </p>
  <div class="button-row">
  <a class="button primary" href="#install">Install in 30 s</a>
@@ -116,9 +120,9 @@
  <div class="stat-sub">embeddings, router, reranker, optional synthesis — all via local Ollama</div>
  </div>
  <div class="stat-tile">
- <div class="stat-num">3 formats</div>
- <div class="stat-label">Code + PDF + docx</div>
- <div class="stat-sub">lazy extraction · opt-in OCR · editor lock-files filtered out</div>
+ <div class="stat-num">Any file</div>
+ <div class="stat-label">Code · markdown · PDFs · docx · text</div>
+ <div class="stat-sub">pluggable <code>register_extractor()</code> registry — register your own content type in one line</div>
  </div>
  <div class="stat-tile">
  <div class="stat-num green">−82 %</div>
@@ -171,11 +175,13 @@
  <h2 class="overview-h2">Where it gives you the biggest lift</h2>
  <div class="usecase-grid">
  <div class="usecase-card">
- <span class="usecase-tag">ONBOARDING</span>
- <div class="usecase-title">New codebase walkthrough</div>
+ <span class="usecase-tag">CODEBASE</span>
+ <div class="usecase-title">New repo walkthrough</div>
  <div class="usecase-body">
  Drop into an unfamiliar repo. Ask "where is the auth flow?",
- "how does the cascade decide?". Skip the 30-min README crawl.
+ "how does the cascade decide?". <strong>30 / 30 recall</strong>
+ across Django · React · Tokio public benchmarks. Skip the
+ 30-min README crawl.
  </div>
  </div>
  <div class="usecase-card">
@@ -188,12 +194,13 @@
  </div>
  </div>
  <div class="usecase-card">
- <span class="usecase-tag">PERSONAL FILES</span>
- <div class="usecase-title">Search your <code>~/Downloads</code></div>
+ <span class="usecase-tag">DOCS · NOTES · PDFs</span>
+ <div class="usecase-title">Search your knowledge base</div>
  <div class="usecase-body">
- Ask "where is the EB-1B filing?" or "the ICML reviewer comments".
- PDF / docx content extracted inline with <code>--detail full</code>;
- lock files are filtered automatically.
+ Ask "where is the EB-1B filing?", "the ICML reviewer comments",
+ "which design doc covered the rate-limiter rewrite?". PDF / docx
+ content extracted inline; markdown link graph (<code>[](link)</code>,
+ <code>[[wiki]]</code>) used as a retrieval prior in 0.2.0.
  </div>
  </div>
  <div class="usecase-card">
@@ -203,6 +210,144 @@
  Source code, legal documents, medical records: nothing ever leaves
  your machine. No telemetry, no API calls, no cloud. Index and
  queries fully observable in <code>~/.skylakegrep/</code>.
+ </div>
+ </div>
+ </div>
+
+ <!-- Supported content types — explicit catalog of the content-agnostic surface -->
+ <h2 class="overview-h2" id="content-types">What you can index and search</h2>
+ <p>
+ The retrieval substrate is <strong>content-agnostic</strong> by
+ design — the embedder (<code>bge-m3</code>, multilingual
+ XLM-RoBERTa), the cascade, and the reference graph all abstract
+ over "A references B" rather than over any specific
+ programming language or document format. New content types plug
+ in via a one-line <code>register_extractor()</code> call.
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr>
+ <th>Content type</th>
+ <th>How it's parsed</th>
+ <th>Reference graph</th>
+ <th>Since</th>
+ </tr>
+ </thead>
+ <tbody>
+ <tr>
+ <td><strong>Code</strong> — Rust · Python · JS · TS</td>
+ <td>tree-sitter symbol-aware chunking + line-window fallback</td>
+ <td>imports / <code>use</code> / <code>require</code> / dynamic <code>import()</code></td>
+ <td>0.1.0</td>
+ </tr>
+ <tr>
+ <td><strong>Markdown</strong></td>
+ <td>line-window chunks; <code>[](link)</code>, <code>![]()</code>, <code>[[wiki]]</code> link extraction</td>
+ <td>relative-path resolution + Obsidian-style wiki links</td>
+ <td>0.2.0</td>
+ </tr>
+ <tr>
+ <td><strong>PDF</strong></td>
+ <td><code>pypdf</code> text extraction; opt-in OCR for scanned pages</td>
+ <td>—</td>
+ <td>0.1.0</td>
+ </tr>
+ <tr>
+ <td><strong>Word docs (<code>.docx</code>)</strong></td>
+ <td><code>python-docx</code> paragraph extraction</td>
+ <td>—</td>
+ <td>0.1.0</td>
+ </tr>
+ <tr>
+ <td><strong>Plain text · TOML · YAML · CSV · JSON · …</strong></td>
+ <td>line-window chunking via the default text path</td>
+ <td>—</td>
+ <td>0.1.0</td>
+ </tr>
+ <tr>
+ <td><strong>Custom (your content type)</strong></td>
+ <td>register an extractor function returning <code>(source, target)</code> edges</td>
+ <td>your call — file names, IDs, URLs, anything</td>
+ <td>0.2.0</td>
+ </tr>
+ </tbody>
+ </table>
+ </div>
+ <p>
+ Register a new content type in one line:
+ </p>
+<pre><code>from skylakegrep.src.reference_graph import register_extractor
+
+def yaml_anchor_extractor(path):
+    """Return list of (source, target) reference edges."""
+    ...
+
+register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)</code></pre>
+
+ <!-- What's new — explicit feature highlight for the current version -->
+ <h2 class="overview-h2" id="whats-new">What's new in 0.2.x</h2>
+ <div class="usecase-grid">
+ <div class="usecase-card">
+ <span class="usecase-tag">SUBSTRATE</span>
+ <div class="usecase-title"><code>bge-m3</code> default embedder</div>
+ <div class="usecase-body">
+ 1024-d, multilingual (100+ languages), symmetric XLM-RoBERTa.
+ Long context (8 k tokens). Replaces <code>mxbai-embed-large</code>
+ — the substrate change is the single largest accuracy contributor
+ (React bench: 8 / 10 → 10 / 10). <strong>Existing indexes must
+ rebuild</strong> (<code>--reset</code>).
+ </div>
+ </div>
+ <div class="usecase-card">
+ <span class="usecase-tag">REFERENCE GRAPH</span>
+ <div class="usecase-title">Content-agnostic registry</div>
+ <div class="usecase-body">
+ <code>code_graph.py</code> is now a thin facade over
+ <code>reference_graph</code> + <code>extractors/{code,markdown}</code>.
+ Markdown shipped in 0.2.0. New content types via
+ <code>register_extractor()</code> — no retrieval-code changes.
+ </div>
+ </div>
+ <div class="usecase-card">
+ <span class="usecase-tag">CASCADE</span>
+ <div class="usecase-title">σ-adaptive threshold</div>
+ <div class="usecase-body">
+ Cascade early-exit threshold is now
+ <code>max(τ_floor, k·σ_topK)</code> — derived from cosine
+ evidence (MacKay/Williams Bayesian framing), not a magic number.
+ Auto-recalibrates when the embedder swaps. New telemetry
+ field <code>tau_mode</code>.
+ </div>
+ </div>
+ <div class="usecase-card">
+ <span class="usecase-tag">PATH FILTER</span>
+ <div class="usecase-title">Universal aux-path filter</div>
+ <div class="usecase-body">
+ 24 universal conventions (<code>/fixtures/</code>, <code>/vendor/</code>,
+ <code>/dist/</code>, <code>.development.js</code>, <code>.min.js</code>, …)
+ demoted as non-canonical. Not language-specific — applies to any
+ corpus following similar conventions.
+ </div>
+ </div>
+ <div class="usecase-card">
+ <span class="usecase-tag">BENCH</span>
+ <div class="usecase-title">30 / 30 public OSS</div>
+ <div class="usecase-body">
+ 100 % recall on Django + React + Tokio (<strong>was 28 / 30 in
+ 0.1.0</strong>) at 60×–770× less context than <code>rg</code>'s
+ term-OR scan. Reproducible: clone repos, run
+ <code>benchmarks/public_oss_bench.py</code>.
+ </div>
+ </div>
+ <div class="usecase-card">
+ <span class="usecase-tag">LATENCY</span>
+ <div class="usecase-title">−19 % aggregate</div>
+ <div class="usecase-body">
+ Three-repo average per-query latency dropped 17 → 14.6 s/q (cold
+ CLI). σ-adaptive cascade lets high-confidence queries early-exit;
+ Tokio is +57 % from <code>bge-m3</code> inference cost (real
+ trade-off, documented).
  </div>
  </div>
  </div>
