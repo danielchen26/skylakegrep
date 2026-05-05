@@ -88,7 +88,7 @@
  <main class="content">
  <!-- ============== Overview ============== -->
  <section id="overview" class="hero">
- <p class="eyebrow">v0.2.1 · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.2.3 · PolyForm Noncommercial 1.0.0</p>
  <h1>Find what you <span class="hero-accent">mean</span>, not what you typed.</h1>
  <p class="lead">
  <code>skylakegrep</code> is a fully-offline semantic search CLI for
@@ -168,6 +168,16 @@
  <span class="compare-task" role="cell">Drop-in for AI coding agents</span>
  <span class="compare-tool" role="cell">agents stuck with raw <code>rg</code> — vocab-mismatch limit</span>
  <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span><code>skygrep setup</code> registers with 5 major LLM CLIs</span>
+ </div>
+ <div class="compare-row" role="row">
+ <span class="compare-task" role="cell">Embedder upgrade (e.g. swap embedding model)</span>
+ <span class="compare-tool" role="cell">cloud RAG: full re-index, often paid; <code>rg</code>: not applicable</span>
+ <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span>auto-detected; background mtime-DESC re-embed; no <code>--reset</code> needed (0.2.2+)</span>
+ </div>
+ <div class="compare-row" role="row">
+ <span class="compare-task" role="cell">See which retrieval path answered your query</span>
+ <span class="compare-tool" role="cell">cloud RAG: opaque; <code>rg</code>: only one path</span>
+ <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span>per-query telemetry: <code>path=…</code>, σ-evidence reason, <code>quality=BEST/DEGRADED</code> (0.2.2+)</span>
  </div>
  </div>
 
@@ -289,18 +299,49 @@ register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)</code></pre
  <h2 class="overview-h2" id="whats-new">What's new in 0.2.x</h2>
  <div class="usecase-grid">
  <div class="usecase-card">
- <span class="usecase-tag">SUBSTRATE</span>
+ <span class="usecase-tag">SUBSTRATE · 0.2.0</span>
  <div class="usecase-title"><code>bge-m3</code> default embedder</div>
  <div class="usecase-body">
  1024-d, multilingual (100+ languages), symmetric XLM-RoBERTa.
  Long context (8 k tokens). Replaces <code>mxbai-embed-large</code>
  — the substrate change is the single largest accuracy contributor
- (React bench: 8 / 10 → 10 / 10). <strong>Existing indexes must
- rebuild</strong> (<code>--reset</code>).
+ (React bench: 8 / 10 → 10 / 10). <strong>0.2.2+ auto-recovers
+ stale indexes in the background</strong>; no manual <code>--reset</code>
+ needed any more.
  </div>
  </div>
  <div class="usecase-card">
- <span class="usecase-tag">REFERENCE GRAPH</span>
+ <span class="usecase-tag">RECOVERY · 0.2.2</span>
+ <div class="usecase-title">Intelligent background re-embed</div>
+ <div class="usecase-body">
+ Embedder upgrades used to require a 10–30 min blocking
+ <code>skygrep index --reset</code>. Now: every search detects
+ the dim mismatch, spawns a daemon-thread worker that re-embeds
+ stale chunks in <strong>mtime-DESC priority</strong> (recently-modified
+ files first — Pareto-distributed user behaviour means semantic
+ coverage of likely queries reaches near-100 % within seconds).
+ The user is never blocked; the existing <code>_filter_to_matching_dim</code>
+ helper hides stale-dim chunks from the cascade. Crash-safe and
+ resumable.
+ </div>
+ </div>
+ <div class="usecase-card">
+ <span class="usecase-tag">TRANSPARENCY · 0.2.2</span>
+ <div class="usecase-title">Routing path on every query</div>
+ <div class="usecase-body">
+ The CLI's per-query telemetry footer now leads with
+ <code>path=cosine-cheap</code> /
+ <code>cosine-escalated-rerank</code> / <code>rg-only</code>,
+ the σ-evidence reason
+ (<code>σ-gap=0.03 &lt; τ → escalated to rerank</code>),
+ the recovery state if a worker is active
+ (<code>coverage=23% ETA=14m12s</code>), and a
+ <code>quality=BEST</code> / <code>quality=DEGRADED-recovery</code>
+ tag. Users see what the cascade chose and why on every query.
+ </div>
+ </div>
+ <div class="usecase-card">
+ <span class="usecase-tag">REFERENCE GRAPH · 0.2.0</span>
  <div class="usecase-title">Content-agnostic registry</div>
  <div class="usecase-body">
  <code>code_graph.py</code> is now a thin facade over
@@ -310,7 +351,7 @@ register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)</code></pre
  </div>
  </div>
  <div class="usecase-card">
- <span class="usecase-tag">CASCADE</span>
+ <span class="usecase-tag">CASCADE · 0.2.0</span>
  <div class="usecase-title">σ-adaptive threshold</div>
  <div class="usecase-body">
  Cascade early-exit threshold is now
@@ -321,7 +362,7 @@ register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)</code></pre
  </div>
  </div>
  <div class="usecase-card">
- <span class="usecase-tag">PATH FILTER</span>
+ <span class="usecase-tag">PATH FILTER · 0.2.0</span>
  <div class="usecase-title">Universal aux-path filter</div>
  <div class="usecase-body">
  24 universal conventions (<code>/fixtures/</code>, <code>/vendor/</code>,
@@ -331,7 +372,7 @@ register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)</code></pre
  </div>
  </div>
  <div class="usecase-card">
- <span class="usecase-tag">BENCH</span>
+ <span class="usecase-tag">BENCH · 0.2.0</span>
  <div class="usecase-title">30 / 30 public OSS</div>
  <div class="usecase-body">
  100 % recall on Django + React + Tokio (<strong>was 28 / 30 in
@@ -341,7 +382,7 @@ register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)</code></pre
  </div>
  </div>
  <div class="usecase-card">
- <span class="usecase-tag">LATENCY</span>
+ <span class="usecase-tag">LATENCY · 0.2.0</span>
  <div class="usecase-title">−19 % aggregate</div>
  <div class="usecase-body">
  Three-repo average per-query latency dropped 17 → 14.6 s/q (cold
@@ -581,23 +622,97 @@ def search(conn, query_embedding, top_k=10, …):
  <!-- ============== CLI ============== -->
  <section id="cli" class="doc-section">
  <p class="eyebrow">Reference · CLI</p>
- <h2>Four commands.</h2>
-
- <div class="ref-list">
- <article class="ref-item">
- <span class="signature">skygrep index [PATH] [--reset] [--incremental/--full]</span>
+ <h2 id="command-cheatsheet">Command cheatsheet — every command at a glance.</h2>
  <p>
- Build or refresh the local SQLite index. <code>PATH</code> defaults
- to the current directory. <code>--reset</code> deletes the existing
- database file before indexing. <code>--incremental</code> (default)
- processes only new and modified files; <code>--full</code> reindexes
- every discovered file.
+ The <strong>bare form</strong> covers ~ 95 % of real-world use:
+ <code>skygrep "&lt;your question&gt;"</code>. No subcommand, no
+ flags. The system auto-routes (LLM router → <code>find</code> /
+ <code>rg</code> / semantic cascade), auto-indexes on first query,
+ and auto-recovers when the embedder is upgraded (0.2.2+). The
+ subcommand form below is for power use, admin, and CI.
  </p>
- </article>
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr>
+ <th>Command</th>
+ <th>When to use</th>
+ <th>Example</th>
+ </tr>
+ </thead>
+ <tbody>
+ <tr>
+ <td><strong><code>skygrep "&lt;query&gt;"</code></strong> (bare)</td>
+ <td>Default. Just ask a question. Auto-indexes and auto-recovers.</td>
+ <td><code>skygrep "where is the auth refresh logic"</code></td>
+ </tr>
+ <tr>
+ <td><code>skygrep search &lt;query&gt;</code></td>
+ <td>Explicit form when you need flags (<code>--top</code>, <code>--json</code>, <code>--agentic</code>, …).</td>
+ <td><code>skygrep search "session token" --top 20 --json</code></td>
+ </tr>
+ <tr>
+ <td><code>skygrep doctor</code></td>
+ <td>First-time troubleshooting. Probes Ollama, lists models, summarises the project index, checks LLM-CLI integrations.</td>
+ <td><code>skygrep doctor</code></td>
+ </tr>
+ <tr>
+ <td><code>skygrep setup</code></td>
+ <td>Register skygrep with detected LLM CLIs (Claude Code, Codex, OpenCode, Gemini CLI, Cursor) so agents prefer it. Run once.</td>
+ <td><code>skygrep setup</code> · <code>skygrep setup --uninstall</code></td>
+ </tr>
+ <tr>
+ <td><code>skygrep stats</code></td>
+ <td>Print chunk and file counts for the current project's index.</td>
+ <td><code>skygrep stats</code></td>
+ </tr>
+ <tr>
+ <td><code>skygrep index [PATH] [--reset]</code></td>
+ <td><strong>Rarely needed.</strong> The first query auto-indexes; the 0.2.2 recovery worker handles embedder upgrades. Use <code>--reset</code> only when you actively want a clean rebuild from scratch.</td>
+ <td><code>skygrep index .</code> · <code>skygrep index . --reset</code></td>
+ </tr>
+ <tr>
+ <td><code>skygrep watch [PATH] --interval N</code></td>
+ <td>Keep the index live in the background. Polls <code>PATH</code> every <code>N</code> seconds (default 5) and reindexes changed files.</td>
+ <td><code>skygrep watch .</code> · <code>skygrep watch . -i 2</code></td>
+ </tr>
+ <tr>
+ <td><code>skygrep serve [--host H] [--port P]</code></td>
+ <td>Daemon mode. Keeps the cross-encoder reranker and Ollama session warm in memory so warm queries land in 0.5–2 s.</td>
+ <td><code>skygrep serve --port 7878</code></td>
+ </tr>
+ <tr>
+ <td><code>skygrep enrich</code></td>
+ <td>Advanced. Generate doc2query-style natural-language descriptions for each chunk (improves vocab-mismatch retrieval at index-time cost).</td>
+ <td><code>skygrep enrich</code></td>
+ </tr>
+ </tbody>
+ </table>
+ </div>
 
- <article class="ref-item">
- <span class="signature">skygrep search QUERY [OPTIONS]</span>
- <p>Retrieve ranked snippets. Options are summarized below.</p>
+ <h3 id="first-time-workflow">First-time workflow (5 commands, &lt; 2 min)</h3>
+<pre><code># 1. install
+pip install skylakegrep
+
+# 2. pull the embedding model (1024-d, multilingual, ~ 2 GB)
+ollama pull bge-m3
+
+# 3. register skygrep with your LLM CLI(s) — claude code / codex / etc.
+skygrep setup
+
+# 4. cd into any project (no manual index step needed)
+cd ~/your-project
+
+# 5. ask anything
+skygrep "where does the cascade tau threshold get computed"</code></pre>
+ <p>
+ That's it. The first query auto-indexes in the background and
+ falls back to <code>rg</code> for the first ~ 1 s; subsequent
+ warm queries land in 0.5–2 s.
+ </p>
+
+ <h3 id="search-flags">Flags for <code>skygrep search</code> (and the bare form)</h3>
+ <p>The full <code>--help</code> is on every install. Quick reference:</p>
  <div class="table-wrap">
  <table class="flag-table">
  <thead>
@@ -608,31 +723,37 @@ def search(conn, query_embedding, top_k=10, …):
  <tr><td><code>--json</code></td><td>off</td><td>Emit results as a JSON array; suppresses human formatting.</td></tr>
  <tr><td><code>--answer</code></td><td>off</td><td>Synthesize an answer from retrieved snippets via Ollama.</td></tr>
  <tr><td><code>--content / --no-content</code></td><td>on</td><td>Show or hide snippet bodies in human output.</td></tr>
+ <tr><td><code>--detail compact|full</code></td><td>compact</td><td>How much body to show (full extracts content from PDFs / docx).</td></tr>
  <tr><td><code>--language</code></td><td>—</td><td>Restrict to one or more language keys; repeatable.</td></tr>
  <tr><td><code>--include</code></td><td>—</td><td>Glob; only paths matching at least one pattern are kept; repeatable.</td></tr>
  <tr><td><code>--exclude</code></td><td>—</td><td>Glob; paths matching any pattern are dropped; repeatable.</td></tr>
  <tr><td><code>--semantic-only</code></td><td>off</td><td>Skip lexical reranking; rank by cosine similarity alone.</td></tr>
  <tr><td><code>--agentic</code></td><td>off</td><td>Decompose the query into subqueries via Ollama before search.</td></tr>
  <tr><td><code>--max-subqueries</code></td><td>3</td><td>Upper bound on agentic subqueries.</td></tr>
+ <tr><td><code>--hyde</code></td><td>off (cascade handles internally)</td><td>Force HyDE query rewriting (rarely needed; cascade escalation already uses HyDE for low-σ queries).</td></tr>
+ <tr><td><code>--rerank</code></td><td>auto</td><td>Force or skip the cross-encoder rerank step.</td></tr>
+ <tr><td><code>--cascade / --no-cascade</code></td><td>on</td><td>Use the σ-adaptive cascade. <code>--no-cascade</code> drops to chunk-level cosine.</td></tr>
  </tbody>
  </table>
  </div>
- </article>
 
- <article class="ref-item">
- <span class="signature">skygrep stats</span>
- <p>Print total chunk count and total indexed file count.</p>
- </article>
-
- <article class="ref-item">
- <span class="signature">skygrep watch [PATH] --interval N</span>
+ <h3 id="reading-telemetry">Reading the per-query telemetry footer (0.2.2+)</h3>
  <p>
- Poll <code>PATH</code> every <code>N</code> seconds (default 5).
- Newly added files are indexed; modified files are reindexed; files
- missing from disk are removed from the index.
+ Every search prints a one-line telemetry footer so you can see
+ <em>which retrieval path</em> answered your query and <em>why</em>:
  </p>
- </article>
- </div>
+<pre><code>[0.42s · path=cosine-cheap · router=llm · intent=mixed (0.83)
+       · 1 filename + 0 lexical
+       · σ-gap=0.0820 ≥ τ=0.0050 (adaptive) → high-confidence early-exit
+       · index 20s ago · 36 files · L2 symbols on · graph prior on
+       · quality=BEST]</code></pre>
+ <p>Field-by-field:</p>
+ <ul>
+ <li><code>path=</code> — the retrieval strategy this query took. One of: <code>cosine-cheap</code>, <code>cosine-escalated-rerank</code>, <code>rg-only</code>, <code>cascade-skipped</code>. (The symbol-channel path will appear once the 0.3.x auto-router lands.)</li>
+ <li><code>σ-gap=… → reason</code> — Bayesian-evidence proxy that drove the cascade decision. High σ-gap = top-K candidates well-separated → cosine trusted, exit cheap. Low σ-gap = candidates tied → escalate to cross-encoder rerank.</li>
+ <li><code>recovery=in-progress chunks=N/T coverage=N% ETA=Nm</code> — only when the 0.2.2 recovery worker is active. Reads live from the metadata table.</li>
+ <li><code>quality=BEST</code> / <code>quality=DEGRADED-recovery</code> — at-a-glance "is this the full-quality semantic answer or partial during recovery". <code>DEGRADED</code> only means some files are still pending re-embed; your specific query may be unaffected.</li>
+ </ul>
  </section>
 
  <!-- ============== Configuration ============== -->

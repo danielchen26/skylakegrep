@@ -78,14 +78,16 @@ register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)
 | **Path filter** | 24 universal aux-path conventions (`/fixtures/`, `/vendor/`, `/dist/`, `.development.js`, `.min.js`, …) | Structural prior, not language-specific. Applies to any corpus with similar conventions. |
 | **Bench** | 30 / 30 on Django + React + Tokio public OSS bench | Was 28 / 30 in 0.1.0; latency aggregate −19 % (Tokio +57 % is the real trade-off). |
 | **Symbol channel** | `multi_channel_search` with RRF k=60 fusion (internal, opt-in) | Tree-sitter symbol-as-retriever experimental primitive. Not in default CLI yet — auto-router is a 0.3.0 follow-up. |
+| **Intelligent recovery (0.2.2)** | embedder upgrades auto-detected; daemon-thread re-embed in mtime-DESC priority, no `--reset` needed | Manual `skygrep index --reset` is no longer required after upgrading the embedder. Background worker re-embeds chunks in place; the user is never blocked, the existing `_filter_to_matching_dim` helper hides stale-dim chunks during recovery. Crash-safe and resumable. |
+| **Routing transparency (0.2.2)** | per-query telemetry footer leads with `path=…`, σ-evidence reason, recovery state, and `quality=BEST/DEGRADED-recovery` tag | Users see which retrieval path answered every query and why. The σ-evidence line explains the cascade's choice in Bayesian terms; the recovery line shows live coverage % + ETA when a worker is active. |
 
-Full release notes: [`docs/skylakegrep-0.2.0.md`](docs/skylakegrep-0.2.0.md) · [`docs/skylakegrep-0.2.1.md`](docs/skylakegrep-0.2.1.md)
+Full release notes: [`0.2.0`](docs/skylakegrep-0.2.0.md) · [`0.2.1`](docs/skylakegrep-0.2.1.md) · [`0.2.2`](docs/skylakegrep-0.2.2.md) · [`0.2.3`](docs/skylakegrep-0.2.3.md)
 
 ## In 30 seconds
 
 ```console
 $ pip install skylakegrep
-$ ollama pull nomic-embed-text qwen2.5:1.5b qwen2.5:3b   # one-time
+$ ollama pull bge-m3 qwen2.5:1.5b qwen2.5:3b   # one-time
 $ cd ~/your-project
 
 $ skygrep "where is the cascade tau threshold defined?"
@@ -93,7 +95,7 @@ $ skygrep "where is the cascade tau threshold defined?"
 CASCADE_DEFAULT_TAU = 0.015
 
 def cascade_search(...
-[0.51s · cascade=cheap (gap=0.020 τ=0.015) · index 20s ago · 36 files · L2 symbols on · graph prior on]
+[0.42s · path=cosine-cheap · router=llm · intent=mixed (0.83) · 1 filename + 0 lexical · σ-gap=0.0820 ≥ τ=0.0050 (adaptive) → high-confidence early-exit · index 20s ago · 36 files · L2 symbols on · graph prior on · quality=BEST]
 ```
 
 That is the entire happy path. **First query in a fresh project completes
@@ -219,25 +221,64 @@ The full architecture diagram and module-by-module walk-through is at
 [`docs/skylakegrep-0.1.0.md`](docs/skylakegrep-0.1.0.md) and
 [`docs/roadmap.md`](docs/roadmap.md).
 
-## When to use what
+## Command cheatsheet
+
+The **bare form** covers ~95 % of real-world use:
+`skygrep "<your question>"`. No subcommand, no flags. The system
+auto-routes (LLM router → `find` / `rg` / semantic cascade),
+auto-indexes on first query, and auto-recovers when the embedder
+is upgraded (0.2.2+). The subcommand form below is for power use,
+admin, and CI.
+
+| Command | When to use | Example |
+| --- | --- | --- |
+| **`skygrep "<query>"`** *(bare)* | Default. Just ask a question. Auto-indexes, auto-recovers. | `skygrep "where is the auth refresh logic"` |
+| `skygrep search <query>` | Explicit form when you need flags. | `skygrep search "session token" --top 20 --json` |
+| `skygrep doctor` | First-time troubleshooting. Probes Ollama, lists models, summarises the project index, checks LLM-CLI integrations. | `skygrep doctor` |
+| `skygrep setup` | Register skygrep with detected LLM CLIs (Claude Code, Codex, OpenCode, Gemini CLI, Cursor) so agents prefer it. Run once. | `skygrep setup` · `skygrep setup --uninstall` |
+| `skygrep stats` | Print chunk and file counts for the current project's index. | `skygrep stats` |
+| `skygrep index [PATH] [--reset]` | **Rarely needed.** First query auto-indexes; the 0.2.2 recovery worker handles embedder upgrades. Use `--reset` only when you actively want a clean rebuild. | `skygrep index .` · `skygrep index . --reset` |
+| `skygrep watch [PATH] -i N` | Keep the index live in the background. Polls `PATH` every `N` seconds (default 5). | `skygrep watch .` |
+| `skygrep serve --port P` | Daemon mode. Keeps cross-encoder + Ollama warm in memory; warm queries land in 0.5–2 s. | `skygrep serve --port 7878` |
+| `skygrep enrich` | Advanced. Generate doc2query-style descriptions for each chunk (improves vocab-mismatch retrieval at index-time cost). | `skygrep enrich` |
+
+### When to add what flag
 
 | You want | Use |
 | --- | --- |
 | Find code by concept ("how does X work?") | `skygrep "<query>"` |
-| Find code with a known token | `rg <token>` (it's faster, no setup) |
+| Find code with a known literal token | `rg <token>` (faster, no setup) — or just `skygrep "<query>"`, the auto-router will short-circuit to `rg` internally |
 | Synthesize an answer with citations | `skygrep "<query>" --answer` |
 | Decompose a broad question | `skygrep "<query>" --agentic --max-subqueries 3 --answer` |
 | Machine-readable output for an agent | `skygrep "<query>" --json` |
-| Re-rank candidates with a cross-encoder | `skygrep "<query>" --no-cascade --rerank` |
+| Re-rank candidates with a cross-encoder explicitly | `skygrep "<query>" --no-cascade --rerank` |
 | Continuously index a watched dir | `skygrep watch /path` |
-| Keep the cross-encoder warm across queries | `skygrep serve & ; skygrep "<q>" --daemon-url http://127.0.0.1:7878` |
+| Keep the cross-encoder warm across queries | `skygrep serve &; skygrep "<q>" --daemon-url http://127.0.0.1:7878` |
+
+### Reading the per-query telemetry footer (0.2.2+)
+
+Every search prints a one-line footer so you can see *which*
+retrieval path answered your query and *why*:
+
+```
+[0.42s · path=cosine-cheap · router=llm · intent=mixed (0.83)
+       · 1 filename + 0 lexical
+       · σ-gap=0.0820 ≥ τ=0.0050 (adaptive) → high-confidence early-exit
+       · index 20s ago · 36 files · L2 symbols on · graph prior on
+       · quality=BEST]
+```
+
+  - **`path=`** — `cosine-cheap` / `cosine-escalated-rerank` / `rg-only` / `cascade-skipped`. The retrieval strategy this specific query took.
+  - **`σ-gap=… → reason`** — Bayesian-evidence proxy that drove the cascade decision. High σ-gap = top-K candidates well-separated → cosine trusted, exit cheap. Low σ-gap = candidates tied → escalate to rerank.
+  - **`recovery=in-progress chunks=N/T coverage=N% ETA=Nm`** — only when the 0.2.2 recovery worker is active. Reads live from the metadata table.
+  - **`quality=BEST` / `quality=DEGRADED-recovery`** — at-a-glance "is this the full-quality semantic answer". `DEGRADED` only means some files are still pending re-embed; your specific query may be unaffected.
 
 ## Configuration
 
 | Variable | Default | Effect |
 | --- | --- | --- |
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama server URL. |
-| `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Embedding model. Switching requires `skygrep index --reset`. |
+| `OLLAMA_EMBED_MODEL` | `bge-m3` | Embedding model. Switching is **auto-detected and recovered in the background** (0.2.2+) — no manual `--reset` needed any more. |
 | `OLLAMA_LLM_MODEL` | `qwen2.5:3b` | Used for `--answer` and `--agentic`. |
 | `OLLAMA_HYDE_MODEL` | `qwen2.5:3b` | Used for cascade-escalation HyDE. Falls back to `OLLAMA_LLM_MODEL` if not installed. Set to `qwen2.5:1.5b` for ~30 % speedup at the cost of 1 task on 16-task Rust. |
 | `OLLAMA_KEEP_ALIVE` | `-1` | Passed to every Ollama call. `-1` keeps models resident indefinitely (recommended). |
@@ -326,6 +367,10 @@ skygrep enrich   [--max N] [--batch B]      # opt-in doc2query enrichment
 | Universal non-canonical-path filter (24 patterns: fixtures/vendor/dist/.min.js/…) | 0.2.0 |
 | Symbol-as-retriever channel (internal, opt-in) | 0.2.0 |
 | Public-OSS bench: 30 / 30 (Django · React · Tokio) | 0.2.0 |
+| Intelligent background recovery (auto re-embed on embedder upgrade) | 0.2.2 |
+| Routing-transparency telemetry (`path=…`, σ-evidence reason, `quality=BEST/DEGRADED-recovery`) | 0.2.2 |
+| Comprehensive command cheatsheet on README + GitHub Pages | 0.2.3 |
+| Per-release docs sync discipline ([`docs/RELEASING.md`](docs/RELEASING.md)) | 0.2.3 |
 | Tree-sitter chunking + line-window fallback | 0.2.0 |
 | `.gitignore` / `.skygrepignore` hygiene | 0.2.0 |
 | Incremental indexing (mtime-based) | 0.2.0 |
