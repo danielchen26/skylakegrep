@@ -45,10 +45,25 @@ GRAPH_TIEBREAK_WEIGHT = float(
 # scores are 0-1; an absolute subtraction would over-penalise the latter
 # and under-penalise the former).
 _NON_CANONICAL_PATH_PATTERNS = (
+    # Per-language test conventions (universal across PHP, Python, Rust, etc.)
     "_test.rs", "_tests.rs", "_test.py", "_tests.py",
     "/tests/", "/test/", "_test/", "_tests/",
-    "/blocklist/", "/integration_testing/",
     "/__tests__/",
+    "/blocklist/", "/integration_testing/",  # Rust-specific kept for back-compat
+    # Test-fixture / sample-data conventions — universal across ecosystems
+    # (Jest, pytest, Rust integration tests, Ruby, PHP).
+    "/fixtures/", "/__fixtures__/", "/fixture/",
+    # Sample / example / demo code — auxiliary by convention across all
+    # ecosystems (npm, cargo, pip, go all use these).
+    "/examples/", "/example/", "/sample/", "/samples/", "/demos/", "/demo/",
+    # Vendored / third-party / generated build artefacts. Universal.
+    "/vendor/", "/third_party/", "/node_modules/",
+    "/dist/", "/build/", "/target/", "/out/",
+    # Built dev/prod bundles emitted by Webpack / Rollup / esbuild — these
+    # are bundled outputs, not canonical source. Convention is universal
+    # across the JS bundler ecosystem.
+    ".development.js", ".development.ts",
+    ".production.js", ".production.min.js", ".min.js",
 )
 NON_CANONICAL_PATH_FACTOR = 0.5
 
@@ -56,7 +71,13 @@ _dim_warning_emitted = False
 
 
 def _is_non_canonical(path: str) -> bool:
-    lower = path.lower()
+    # Prepend "/" so leading-slash-anchored patterns like ``/tests/`` and
+    # ``/fixtures/`` match relative paths too — chunks store paths relative
+    # to the project root (``fixtures/legacy-jsx-runtimes/...``,
+    # ``tests/integration/...``), but the pattern list is written with the
+    # leading slash to avoid false hits inside identifiers
+    # (``test_helper`` / ``requests/``).
+    lower = "/" + path.lower()
     return any(marker in lower for marker in _NON_CANONICAL_PATH_PATTERNS)
 
 
