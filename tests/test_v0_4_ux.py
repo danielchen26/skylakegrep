@@ -60,11 +60,13 @@ class DoctorTests(unittest.TestCase):
         with patch("skylakegrep.src.bootstrap._probe_ollama", return_value=(True, "")):
             with patch(
                 "skylakegrep.src.bootstrap.list_local_models",
-                return_value=["nomic-embed-text:latest", "qwen2.5:3b"],
+                return_value=["bge-m3:latest", "qwen2.5:3b"],
             ):
                 result = runner.invoke(cli_module.cli, ["doctor"])
         self.assertEqual(result.exit_code, 0, result.output)
-        self.assertIn("nomic-embed-text", result.output)
+        # The current default embed model is bge-m3 (BAAI's content-agnostic
+        # general-purpose embedder); doctor output must reflect it.
+        self.assertIn("bge-m3", result.output)
 
 
 class ProjectRootTests(unittest.TestCase):

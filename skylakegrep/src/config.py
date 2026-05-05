@@ -4,12 +4,26 @@ import subprocess
 from pathlib import Path
 
 DEFAULT_OLLAMA_URL = "http://localhost:11434"
-# nomic-embed-text supersedes mxbai-embed-large as the local default. It is
-# already in the recommended Ollama starter set, supports asymmetric query/
-# document prefixes, and benchmarks slightly higher on code retrieval. Existing
-# indexes built under mxbai-embed-large will trigger a dim-mismatch warning at
+# bge-m3 is BAAI's flagship "multi-functional, multi-lingual,
+# multi-granularity" embedding model — a content-agnostic 1024-d general
+# purpose embedder that handles code, natural-language docs, and config
+# uniformly in the same vector space. It supersedes both nomic-embed-text
+# (which biased toward re-export aggregators on vocabulary-mismatch
+# queries because of its asymmetric search_query/search_document
+# prefixes designed for retrieval over web text) and mxbai-embed-large
+# (which ranked aggregator ``packages/react/index.js`` files above the
+# canonical implementation in ``packages/react/src/jsx/...``). bge-m3
+# is symmetric (no prefix needed), uses the XLM-RoBERTa backbone with
+# code-aware pretraining, and matches or beats both predecessors on
+# vocabulary-mismatch retrieval.
+#
+# Existing indexes built under ``nomic-embed-text`` (768-d) or
+# ``mxbai-embed-large`` (1024-d) will trigger a dim-mismatch warning at
 # search time and require ``skygrep index <repo> --reset``.
-DEFAULT_EMBED_MODEL = "nomic-embed-text"
+#
+# Override via ``OLLAMA_EMBED_MODEL`` to revert to ``nomic-embed-text``,
+# ``mxbai-embed-large`` or any other Ollama-served embedder.
+DEFAULT_EMBED_MODEL = "bge-m3"
 DEFAULT_LLM_MODEL = "qwen2.5:3b"
 # HyDE / cascade-escalation default. We keep the same 3B model used by
 # ``--answer`` because empirical 16-task Rust benchmarking showed that
@@ -102,8 +116,22 @@ DEFAULT_RERANK_POOL = 50
 
 # Asymmetric prefixes per embedding model. Empty string means the model
 # does not document a query/document distinction; we leave the input as-is.
+# bge-m3 is symmetric out of the box (no query/document prefix recommended
+# by BAAI). bge-large-en-v1.5 documents an optional query prefix
+# ("Represent this sentence for searching relevant passages: ") which we
+# carry only if a user explicitly opts into bge-large-en-v1.5 via the
+# OLLAMA_EMBED_MODEL override.
 EMBED_PREFIXES = {
+    "bge-m3": {"query": "", "document": ""},
+    "bge-large-en-v1.5": {
+        "query": "Represent this sentence for searching relevant passages: ",
+        "document": "",
+    },
     "nomic-embed-text": {
+        "query": "search_query: ",
+        "document": "search_document: ",
+    },
+    "nomic-embed-text-v1.5": {
         "query": "search_query: ",
         "document": "search_document: ",
     },
@@ -113,9 +141,16 @@ EMBED_PREFIXES = {
 
 def get_config():
     embed_model = os.environ.get("OLLAMA_EMBED_MODEL", DEFAULT_EMBED_MODEL)
+    # Embedding backend: ``ollama`` (default, requires local Ollama
+    # runtime) or ``sentence-transformers`` (in-process, no Ollama).
+    # The Ollama path is what the rest of the project uses; the ST path
+    # exists so users without Ollama can still run skygrep with
+    # bge-m3 / bge-large-en-v1.5 directly off Hugging Face.
+    embed_backend = os.environ.get("SKYGREP_EMBED_BACKEND", "ollama").lower()
     return {
         "ollama_url": os.environ.get("OLLAMA_URL", DEFAULT_OLLAMA_URL),
         "embed_model": embed_model,
+        "embed_backend": embed_backend,
         "embed_prefixes": EMBED_PREFIXES.get(
             _strip_tag(embed_model), {"query": "", "document": ""}
         ),
