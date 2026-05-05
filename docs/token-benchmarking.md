@@ -124,8 +124,10 @@ The numbers above support narrow claims only.
   repository's structure and naming. Results on a different codebase may
   differ and should be measured on an independent task set.
 - **Embedding model dependency.** The embedding model affects retrieval
-  quality and changes the headline numbers. The published result uses
-  `mxbai-embed-large`.
+  quality and changes the headline numbers. The numbers above were
+  measured with `mxbai-embed-large`. The current default substrate is
+  `bge-m3` (1024-d, multilingual, symmetric); re-running this bench on
+  `bge-m3` is a follow-up.
 - **No cross-encoder rerank.** The lexical reranker uses simple token and
   phrase overlap. A second-stage reranker over a larger candidate pool is
   on the roadmap and would change the trade-off curve.

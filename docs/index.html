@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — semantic code search over a local index" />
- <meta property="og:description" content="Fully-offline semantic code search CLI. 28/30 (93 %) recall on a public OSS benchmark across Django + React + Tokio at 60×–770× less context than ripgrep. PolyForm Noncommercial 1.0.0, powered by Ollama." />
+ <meta property="og:description" content="Fully-offline semantic code search CLI. 30/30 (100 %) recall on a public OSS benchmark across Django + React + Tokio at 60×–770× less context than ripgrep. PolyForm Noncommercial 1.0.0, powered by Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
- <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (28/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
+ <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — semantic code search over a local index" />
- <meta name="twitter:description" content="Fully-offline semantic code search CLI. 28/30 (93 %) recall on Django + React + Tokio with 60×–770× less context than ripgrep." />
+ <meta name="twitter:description" content="Fully-offline semantic code search CLI. 30/30 (100 %) recall on Django + React + Tokio with 60×–770× less context than ripgrep." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -229,9 +229,10 @@ pip install -e .</code></pre>
  <a href="https://ollama.com">ollama.com</a>
  and pull at least one embedding model:
  </p>
-<pre><code>ollama pull mxbai-embed-large # default; 1024-dim
-# or
-ollama pull nomic-embed-text # smaller alternative</code></pre>
+<pre><code>ollama pull bge-m3 # default; 1024-dim, multilingual, symmetric
+# alternatives:
+ollama pull mxbai-embed-large # 1024-dim, English/code only
+ollama pull nomic-embed-text # 768-dim, smaller</code></pre>
  <p>
  Pull a generation model only if <code>--answer</code> or <code>--agentic</code>
  will be used:
@@ -511,7 +512,7 @@ def search(conn, query_embedding, top_k=10, …):
  </tr>
  <tr>
  <td><code>OLLAMA_EMBED_MODEL</code></td>
- <td><code>mxbai-embed-large</code></td>
+ <td><code>bge-m3</code></td>
  <td>Embedding model name. Must be the same at index time and query time.</td>
  </tr>
  <tr>
@@ -674,8 +675,8 @@ def search(conn, query_embedding, top_k=10, …):
  <tbody>
  <tr><td><code>django/django</code></td><td>Python</td><td>524 K</td><td>10</td><td><strong>10 / 10</strong></td><td>10 / 10</td><td><strong>703 ×</strong></td></tr>
  <tr><td><code>tokio-rs/tokio</code></td><td>Rust</td><td>80 K</td><td>10</td><td><strong>10 / 10</strong></td><td>10 / 10</td><td>61 ×</td></tr>
- <tr><td><code>facebook/react</code></td><td>JS+TS</td><td>270 K</td><td>10</td><td><strong>8 / 10</strong></td><td>10 / 10</td><td><strong>773 ×</strong></td></tr>
- <tr><td><strong>Aggregate</strong></td><td>3 langs</td><td><strong>~ 870 K</strong></td><td><strong>30</strong></td><td><strong>28 / 30 (93 %)</strong></td><td>30 / 30</td><td><strong>60×–770×</strong></td></tr>
+ <tr><td><code>facebook/react</code></td><td>JS+TS</td><td>270 K</td><td>10</td><td><strong>10 / 10</strong></td><td>10 / 10</td><td><strong>773 ×</strong></td></tr>
+ <tr><td><strong>Aggregate</strong></td><td>3 langs</td><td><strong>~ 870 K</strong></td><td><strong>30</strong></td><td><strong>30 / 30 (100 %)</strong></td><td>30 / 30</td><td><strong>60×–770×</strong></td></tr>
  </tbody>
  </table>
  </div>
@@ -684,13 +685,14 @@ def search(conn, query_embedding, top_k=10, …):
  baseline — it returns 20 M+ tokens of term-OR scan output per
  query, so the answer is in there but the agent has to read the
  whole haystack. <strong>skygrep returns the right file ranked
- top-10 in 28 / 30 cases while emitting 60×–770× less context.</strong>
- The two React misses are honest weaknesses (test-fixture path
- bias on <code>react-007</code>; devtools-vs-reconciler
- confusion on <code>react-010</code>) — published rather than
- masked. See
+ top-10 in 30 / 30 cases while emitting 60×–770× less context.</strong>
+ React reached 10 / 10 after the Option-C substrate upgrade
+ (<code>bge-m3</code> embedder + content-agnostic
+ non-canonical-path filter); the original failure modes on
+ <code>react-007</code> and <code>react-010</code> and the
+ resolution are documented in
  <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>
- for per-task analysis and reproduction protocol.
+ as the engineering record, not erased.
  </p>
 
  <h3 id="bench-self">4. skylakegrep self-test (regression guard)</h3>
@@ -747,7 +749,7 @@ def search(conn, query_embedding, top_k=10, …):
  </li>
  <li>
  <strong>"skygrep matches rg on hit-rate while emitting 60×–770× less context"</strong> →
- <a href="#bench-multilang">benchmark 2</a>: 28 / 30 (93 %)
+ <a href="#bench-multilang">benchmark 2</a>: 30 / 30 (100 %)
  across Django + React + Tokio public OSS, vs rg's 30 / 30 baseline
  (which dumps 20 M+ tokens per query for the agent to filter).
  </li>

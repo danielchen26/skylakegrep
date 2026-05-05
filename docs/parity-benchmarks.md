@@ -5,10 +5,14 @@ Reproducible head-to-head comparisons of `skygrep` against real
 the repos cloned can rerun in a few minutes and verify every number
 on this page.
 
-> **Headline:** `skygrep` matches `rg` exactly on the two simpler
-> codebases (Django · Tokio: **10 / 10 each**) and lags by two on
-> React (**8 / 10 vs 10 / 10**) — both miss cases documented below
-> as honest weaknesses, not fixture bugs.
+> **Headline:** `skygrep` matches `rg` exactly across all three
+> codebases (**10 / 10 each** on Django · Tokio · React,
+> **30 / 30 aggregate**). React reached 10 / 10 after the
+> Option-C substrate upgrade (`bge-m3` 1024-d symmetric
+> embedder + a content-agnostic non-canonical-path filter); the
+> two original React misses (`react-007`, `react-010`) and how
+> they were resolved are documented below as the engineering
+> record, not erased.
 >
 > `skygrep` returns **60×–770× less context tokens** than `rg`'s
 > term-OR scan, so a downstream agent loop that consumes the
@@ -46,10 +50,10 @@ The runner:
 
 | Repo | LOC ≈ | skygrep recall | rg recall | sky lat | rg lat | sky tokens | rg tokens | token reduction |
 | --- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| **Django** (Python) | 524K | **10 / 10** | 10 / 10 | 11.69 s | 2.97 s | ~29 K | ~20.6 M | **703 ×** |
-| **Tokio** (Rust) | 80K | **10 / 10** | 10 / 10 | 20.00 s | 1.49 s | ~31 K | ~1.9 M | **61 ×** |
-| **React** (JS+TS) | 270K | **8 / 10** | 10 / 10 | 20.11 s | 4.58 s | ~29 K | ~22.8 M | **773 ×** |
-| **Aggregate** | | **28 / 30 (93 %)** | 30 / 30 (100 %) | | | | | **~ 60×–770× less** |
+| **Django** (Python) | 524K | **10 / 10** | 10 / 10 | 10.13 s | 2.97 s | ~29 K | ~20.6 M | **703 ×** |
+| **Tokio** (Rust) | 80K | **10 / 10** | 10 / 10 | 21.91 s | 1.49 s | ~31 K | ~1.9 M | **61 ×** |
+| **React** (JS+TS) | 270K | **10 / 10** | 10 / 10 | 11.71 s | 4.58 s | ~29 K | ~22.8 M | **773 ×** |
+| **Aggregate** | | **30 / 30 (100 %)** | 30 / 30 (100 %) | | | | | **~ 60×–770× less** |
 
 ## How to read these numbers
 
@@ -70,34 +74,47 @@ Django queries** vs. **29 K tokens of `skygrep` output**. So:
     of the 100 file-fragments is the actual answer. That is not a
     realistic real-world workflow — it's a recall ceiling on a
     deliberately permissive ripgrep configuration.
-  - **`skygrep` returns the right file ranked top-10 in 28 of 30
+  - **`skygrep` returns the right file ranked top-10 in 30 of 30
     cases.** That is the user-facing number.
 
-### Why React lags
+### Why React used to lag (and how it was resolved)
 
-Two honest skygrep weaknesses surfaced on the React fixture:
+The React fixture used to surface two honest skygrep weaknesses,
+both fixed by the Option-C substrate upgrade. The original failure
+modes are documented here as the engineering record:
 
   1. **Test-fixture path bias.** `react-007` asks for the
      `React.createElement` implementation. The canonical answer is
      `packages/react/src/jsx/ReactJSXElement.js`. skygrep's top-10
-     is dominated by test fixtures
+     used to be dominated by test fixtures
      `fixtures/legacy-jsx-runtimes/react-{14,15,16,17}/cjs/...` —
      filename-token similarity to "jsx-runtime" pulled the legacy
-     fixture files ahead of the real source. Possible fixes:
-     deprioritise paths that contain `fixtures/` (project-level
-     ignore), or add a path-novelty signal that prefers source
-     directories.
+     fixture files ahead of the real source.
   2. **Devtools vs reconciler conflict.** `react-010` asks for the
-     Profiler component implementation. The canonical answer is
-     `packages/react-reconciler/src/ReactProfilerTimer.js`. skygrep
-     returns several `react-devtools-shared/.../profilingHooks.js`
-     files instead — the devtools profiler has many more "profiler"
-     filename mentions than the reconciler's internal timer. Same
-     class of issue: weighting the path-token-overlap signal higher
-     than is right for "where is the implementation, not the tooling".
+     Profiler component implementation. The canonical answer is in
+     the `react-reconciler/` package. skygrep used to return several
+     `react-devtools-shared/.../profilingHooks.js` files instead —
+     the devtools profiler had many more "profiler" filename
+     mentions than the reconciler's internal timer.
 
-These are real, reproducible misses. We are publishing them rather
-than expanding the fixture's `expected_alternatives` to mask them.
+**Resolution (Option C).** Both classes of failure shared a single
+root cause: the `mxbai-embed-large` substrate ranked re-export /
+fixture aggregators above canonical implementations, and any
+post-hoc graph prior could not recover candidates that were not in
+the rerank pool. Two changes lifted React to **10 / 10**:
+
+  - **`bge-m3` substrate** (1024-d, symmetric, multilingual
+    XLM-RoBERTa). The canonical reconciler / source files now land
+    inside the top-K cosine pool for both queries. A better prior
+    cannot save you when cosine never surfaces the right file —
+    upgrading the embedder is the only fix that worked.
+  - **Content-agnostic non-canonical-path filter** (24 universal
+    aux conventions: `/fixtures/`, `/examples/`, `/vendor/`,
+    `/node_modules/`, `/dist/`, `.development.js`, `.production.min.js`,
+    `.min.js`, …). This is a structural prior, not a language-specific
+    rule, and applies to any corpus that follows similar conventions
+    (markdown notes with `/drafts/`, knowledge graphs with
+    `/archive/`, etc.).
 
 ### Why per-query latency is higher than `rg`'s
 

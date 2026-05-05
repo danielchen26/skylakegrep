@@ -94,21 +94,24 @@ and [`docs/parity-benchmarks.md`](docs/parity-benchmarks.md).
 | --- | --- | :-: | :-: | :-: | :-: | :-: |
 | **Django** | Python | 524 K | 10 | **10 / 10** | 10 / 10 | **703 ×** |
 | **Tokio** | Rust | 80 K | 10 | **10 / 10** | 10 / 10 | 61 × |
-| **React** | JS+TS | 270 K | 10 | **8 / 10** | 10 / 10 | **773 ×** |
-| **Aggregate** | | | **30** | **28 / 30 (93 %)** | 30 / 30 | **60×–770×** |
+| **React** | JS+TS | 270 K | 10 | **10 / 10** | 10 / 10 | **773 ×** |
+| **Aggregate** | | | **30** | **30 / 30 (100 %)** | 30 / 30 | **60×–770×** |
 
 Honest reading:
 
-  - **Hit-rate parity on Django + Tokio** (10/10 vs 10/10).
-    skygrep's 2 React misses are real weaknesses (test-fixture path
-    bias, devtools-vs-reconciler ranking confusion) — documented in
-    [`docs/parity-benchmarks.md`](docs/parity-benchmarks.md), not
-    masked by widening fixture alternatives.
+  - **Hit-rate parity across all three** (10/10 each on Django,
+    Tokio, React). The two React misses that previously surfaced
+    (test-fixture path bias on `react-007`, devtools-vs-reconciler
+    on `react-010`) were resolved by upgrading the embedding
+    substrate to `bge-m3` and extending the non-canonical-path
+    filter — see
+    [`docs/parity-benchmarks.md`](docs/parity-benchmarks.md) for the
+    failure analysis and the resolution.
   - **`rg` "100 %" is a recall-ceiling baseline.** It returns
     20 M+ tokens per task (term-OR scan with 2-line context windows).
     Yes the answer is in the dump; no, the agent has to read the
     20 M tokens to find it.
-  - **skygrep delivers the answer ranked top-10 in 28 / 30 cases**
+  - **skygrep delivers the answer ranked top-10 in 30 / 30 cases**
     while emitting **60×–770× less context** for the agent's LLM
     round-trip downstream. That is the user-facing claim.
 
