@@ -55,6 +55,114 @@ The runner:
 | **React** (JS+TS) | 270K | **10 / 10** | 10 / 10 | 11.71 s | 4.58 s | ~29 K | ~22.8 M | **773 ×** |
 | **Aggregate** | | **30 / 30 (100 %)** | 30 / 30 (100 %) | | | | | **~ 60×–770× less** |
 
+## Worked example — `django-001` (one query, real numbers)
+
+Reproduce locally to verify every number. Cloned at the same commit
+the headline table was measured against, against the actual Django
+repo (524 K LOC). This is one of the 30 tasks aggregated into the
+table above.
+
+> **Query**: "Where does Django turn an incoming URL into the view
+> function that should handle it?"
+> **Expected canonical**: `django/urls/resolvers.py`
+> (`URLResolver.resolve()`)
+> **Vocab mismatch**: query says "URL into view", code identifier is
+> `resolve` — the failure mode that grep-as-search collapses on.
+
+### Side A — `rg` term-OR scan (the rg-agent baseline)
+
+The rg-agent extracts up to 8 terms (TF-IDF-ish stopword filter),
+runs `rg -i -F --max-count=20 -C2` per term, concatenates the
+output. For this query the extractor produced:
+
+```
+['function', 'incoming', 'incom', 'django', 'handle', 'should', 'into', 'that']
+```
+
+The high-signal words `URL`, `view`, `resolve` did not survive the
+extractor — they were either stopword-filtered or pushed past the
+8-term cap. That's the vocab-mismatch failure: the query's actual
+intent is `URLResolver.resolve()`, but `rg` searches for `function`,
+`django`, `that` instead.
+
+Real measured output volumes per `rg` invocation (one per term):
+
+| `rg` term     | Output chars | Tokens (chars / 4) |
+| --- | --: | --: |
+| `function`    |     1,811,753 |       452,938 |
+| `incoming`    |        16,095 |         4,024 |
+| `incom`       |       254,373 |        63,593 |
+| `django`      |     5,752,979 |     1,438,245 |
+| `handle`      |       952,033 |       238,008 |
+| `should`      |     1,694,468 |       423,617 |
+| `into`        |       700,156 |       175,039 |
+| `that`        |     3,364,369 |       841,092 |
+| **Total**     | **14,546,226** | **3,636,556** |
+
+`django` alone is **1.4 million tokens** because the term matches in
+basically every file of the Django source tree. `that` is **840 K
+tokens** for the same reason — high-frequency words that the
+stopword filter let through.
+
+### Side B — `skygrep --top 10 --json`
+
+```bash
+skygrep "Where does Django turn an incoming URL into the view function that should handle it?" \
+  --json --top 10
+```
+
+Real measured output: **10,430 chars ≈ 2,607 tokens**. Top files
+returned include `django/urls/resolvers.py` and related canonical
+implementation files.
+
+### Reduction
+
+| | Tokens | Notes |
+| --- | --: | --- |
+| `rg` term-OR scan | **3,636,556** | dominated by `django` (1.4 M) and `that` (840 K) — stopwords flooded the haystack |
+| `skygrep --top 10` | **2,607** | top-K cosine over `bge-m3` substrate, no token-level matching |
+| **Ratio** | **≈ 1,395 ×** | for this query |
+
+This is **higher** than the 60 × – 770 × headline range because
+vocab-mismatch queries are the worst case for `rg` (stopwords flood
+the output) and the best case for `skygrep` (the embedder bridges
+"URL into view" → `resolve()`).
+
+### Why the headline range is 60 × – 770 ×, not a single number
+
+`rg` output volume scales with **(repo LOC) × (term-frequency of the
+high-signal terms in the query)**. `skygrep` output is
+~constant-per-K (top-10 ≈ 10 KB of JSON):
+
+| Repo | LOC | Per-query rg tokens (avg) | Per-query skygrep tokens | Ratio |
+| --- | --: | --: | --: | --: |
+| **Tokio** (Rust) | 80 K | ~190 K | ~3.1 K | **61 ×** |
+| **Django** (Python) | 524 K | ~2.06 M | ~2.9 K | **703 ×** |
+| **React** (JS+TS) | 270 K | ~2.28 M | ~2.9 K | **773 ×** |
+
+Tokio is the floor (small repo, focused vocabulary). Django and
+React both blow up because `django` / `react` saturate term-OR scans
+across mid-sized monorepos.
+
+### Reproduce yourself (3 commands)
+
+```bash
+# rg side — counts bytes from term-OR scan
+cd /tmp/oss-bench/django
+for term in function incoming incom django handle should into that; do
+  rg -i -F --max-count 20 -C 2 "$term" .
+done | wc -c
+
+# skygrep side — counts bytes from top-10 JSON
+skygrep "Where does Django turn an incoming URL into the view function that should handle it?" \
+  --json --top 10 | wc -c
+
+# divide chars by 4 to approximate tokens
+```
+
+Numbers will land within ± 5 % of the table above (variance from
+your Django clone's commit and rg minor-version output formatting).
+
 ## How to read these numbers
 
 ### "rg recall = 100 %" looks impressive but isn't apples-to-apples
