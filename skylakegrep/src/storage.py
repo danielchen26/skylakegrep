@@ -222,10 +222,22 @@ def populate_symbols(conn, root: Path) -> int:
     inserted = 0
     for file_str in files:
         path = Path(file_str)
+        # ``chunks.file`` may be either an absolute path (from
+        # ``skygrep index``) or a repo-relative path (from the bench
+        # ``build_index`` rewrite). When it is relative, joining with
+        # ``root`` is the only way ``read_text`` inside
+        # ``extract_file_symbols`` resolves; otherwise it silently fails
+        # and zero symbols get inserted.
+        if not path.is_absolute():
+            path = (root / file_str).resolve()
         rows = extract_file_symbols(path, root)
         conn.execute("DELETE FROM symbols WHERE file = ?", (file_str,))
         if not rows:
             continue
+        # Always store the chunk-table form of the path in ``symbols.file``.
+        # ``extract_file_symbols`` writes ``str(file)`` (absolute when we
+        # pre-joined with ``root``), but downstream joins (``symbol_channel``,
+        # ``symbol_match_boost``) match by ``chunks.file`` exactly.
         conn.executemany(
             """
             INSERT INTO symbols (file, name, name_lower, kind, start_line, end_line, file_mtime)
@@ -233,7 +245,7 @@ def populate_symbols(conn, root: Path) -> int:
             """,
             [
                 (
-                    r["file"],
+                    file_str,
                     r["name"],
                     r["name_lower"],
                     r["kind"],
@@ -812,6 +824,13 @@ def _file_level_pairs(
 
 
 CASCADE_DEFAULT_TAU = 0.015
+# Adaptive σ-derived gate floor + scale. The effective τ is
+# ``max(CASCADE_TAU_FLOOR, CASCADE_K_SIGMA * σ_topK)`` so the threshold
+# tracks the noise scale of the score distribution rather than a fixed
+# magic number that breaks when the embedder swaps. ``CASCADE_K_SIGMA=0``
+# disables the adaptive branch and keeps the static τ.
+CASCADE_TAU_FLOOR = float(os.environ.get("SKYGREP_CASCADE_TAU_FLOOR", "0.005"))
+CASCADE_K_SIGMA = float(os.environ.get("SKYGREP_CASCADE_K_SIGMA", "1.0"))
 
 
 def cascade_search(
@@ -847,7 +866,9 @@ def cascade_search(
     Returns ``(results, telemetry)`` where telemetry exposes:
       * ``early_exit``: bool — True iff phase 1 was confident enough.
       * ``gap``: float — top1 - top2 file-mean cosine score.
-      * ``tau``: float — threshold used.
+      * ``tau``: float — effective threshold used (post-adaptive scaling).
+      * ``tau_static``: float — the static caller-supplied τ.
+      * ``tau_mode``: ``"static"`` or ``"adaptive"`` — which branch fired.
     """
 
     qv = np.array(query_embedding, dtype=np.float32)
@@ -866,7 +887,17 @@ def cascade_search(
         candidate_paths=None,
     )
     gap = (pairs[0][1] - pairs[1][1]) if len(pairs) >= 2 else 0.0
-    early_exit = len(pairs) >= 2 and gap >= tau
+    # Adaptive σ-gate (MacKay/Williams Bayesian-evidence flavour): scale the
+    # threshold to the noise of the top-K cosine distribution rather than a
+    # fixed magic number. Falls back to the static ``tau`` when k_sigma==0
+    # or when there are too few samples for σ to be meaningful.
+    tau_mode = "static"
+    tau_eff = tau
+    if CASCADE_K_SIGMA > 0 and len(pairs) >= 3:
+        sigma = float(np.std([s for _, s in pairs[: max(top_k, 10)]]))
+        tau_eff = max(CASCADE_TAU_FLOOR, CASCADE_K_SIGMA * sigma)
+        tau_mode = "adaptive"
+    early_exit = len(pairs) >= 2 and gap >= tau_eff
 
     if early_exit:
         chosen = {p for p, _ in pairs}
@@ -885,7 +916,8 @@ def cascade_search(
             use_symbol_boost=use_symbol_boost,
             use_graph_tiebreak=use_graph_tiebreak,
         )
-        return cheap, {"early_exit": True, "gap": gap, "tau": tau}
+        return cheap, {"early_exit": True, "gap": gap, "tau": tau_eff,
+                       "tau_static": tau, "tau_mode": tau_mode}
 
     # Escalation: Round A (cosine + file-rank) ∪ Round C (HyDE + cosine +
     # file-rank). 0.5.1 fix: the rg prefilter is a hard filter against
@@ -943,7 +975,8 @@ def cascade_search(
         if key not in merged or r.get("score", 0.0) > merged[key].get("score", 0.0):
             merged[key] = r
     out = sorted(merged.values(), key=lambda r: r.get("score", 0.0), reverse=True)[:top_k]
-    return out, {"early_exit": False, "gap": gap, "tau": tau}
+    return out, {"early_exit": False, "gap": gap, "tau": tau_eff,
+                 "tau_static": tau, "tau_mode": tau_mode}
 
 
 def get_indexed_files(conn) -> dict:
