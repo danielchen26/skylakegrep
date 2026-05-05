@@ -88,7 +88,7 @@
  <main class="content">
  <!-- ============== Overview ============== -->
  <section id="overview" class="hero">
- <p class="eyebrow">v0.2.3 · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.2.4 · PolyForm Noncommercial 1.0.0</p>
  <h1>Find what you <span class="hero-accent">mean</span>, not what you typed.</h1>
  <p class="lead">
  <code>skylakegrep</code> is a fully-offline semantic search CLI for
@@ -338,6 +338,25 @@ register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)</code></pre
  (<code>coverage=23% ETA=14m12s</code>), and a
  <code>quality=BEST</code> / <code>quality=DEGRADED-recovery</code>
  tag. Users see what the cascade chose and why on every query.
+ </div>
+ </div>
+ <div class="usecase-card">
+ <span class="usecase-tag">INTELLIGENT CLI · 0.2.4</span>
+ <div class="usecase-title">Proactive help on every query</div>
+ <div class="usecase-body">
+ Four new behaviours. <strong>Out-of-scope query detection</strong>:
+ a query like <em>"我最近工作上的十个文件"</em> gets a
+ <code>git log --name-only</code> suggestion before the (likely-poor)
+ semantic search runs.
+ <strong>Typo correction</strong>: <code>--tup</code> → "Did you
+ mean <code>--top</code>?" via <code>difflib</code>.
+ <strong>Low-confidence hint</strong>: when top-1 score and σ-gap
+ are both below floor, the user gets a recovery menu
+ (<code>--agentic</code>, <code>--top 30</code>, more specific
+ tokens). <strong>First-run nudge</strong>: one-time onboarding
+ greeting in fresh projects so users don't think the tool is
+ broken or slow on cold start. All gated by
+ <code>SKYGREP_NO_HINTS=1</code>.
  </div>
  </div>
  <div class="usecase-card">

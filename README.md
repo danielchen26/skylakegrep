@@ -80,8 +80,9 @@ register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)
 | **Symbol channel** | `multi_channel_search` with RRF k=60 fusion (internal, opt-in) | Tree-sitter symbol-as-retriever experimental primitive. Not in default CLI yet — auto-router is a 0.3.0 follow-up. |
 | **Intelligent recovery (0.2.2)** | embedder upgrades auto-detected; daemon-thread re-embed in mtime-DESC priority, no `--reset` needed | Manual `skygrep index --reset` is no longer required after upgrading the embedder. Background worker re-embeds chunks in place; the user is never blocked, the existing `_filter_to_matching_dim` helper hides stale-dim chunks during recovery. Crash-safe and resumable. |
 | **Routing transparency (0.2.2)** | per-query telemetry footer leads with `path=…`, σ-evidence reason, recovery state, and `quality=BEST/DEGRADED-recovery` tag | Users see which retrieval path answered every query and why. The σ-evidence line explains the cascade's choice in Bayesian terms; the recovery line shows live coverage % + ETA when a worker is active. |
+| **Intelligent CLI assistance (0.2.4)** | out-of-scope query detection, typo correction for unknown flags, low-confidence result hints, first-run nudge — all gated by `SKYGREP_NO_HINTS=1` | The CLI proactively helps instead of silently shrugging. Metadata queries like *"我最近工作上的十个文件"* get a `git log` suggestion before the search runs; typoed flags get a "did you mean `--top`?" line; uncertain results get a recovery menu (`--agentic`, `--top 30`, etc.); fresh-project queries get a one-time three-line onboarding greeting. |
 
-Full release notes: [`0.2.0`](docs/skylakegrep-0.2.0.md) · [`0.2.1`](docs/skylakegrep-0.2.1.md) · [`0.2.2`](docs/skylakegrep-0.2.2.md) · [`0.2.3`](docs/skylakegrep-0.2.3.md)
+Full release notes: [`0.2.0`](docs/skylakegrep-0.2.0.md) · [`0.2.1`](docs/skylakegrep-0.2.1.md) · [`0.2.2`](docs/skylakegrep-0.2.2.md) · [`0.2.3`](docs/skylakegrep-0.2.3.md) · [`0.2.4`](docs/skylakegrep-0.2.4.md)
 
 ## In 30 seconds
 
@@ -371,6 +372,11 @@ skygrep enrich   [--max N] [--batch B]      # opt-in doc2query enrichment
 | Routing-transparency telemetry (`path=…`, σ-evidence reason, `quality=BEST/DEGRADED-recovery`) | 0.2.2 |
 | Comprehensive command cheatsheet on README + GitHub Pages | 0.2.3 |
 | Per-release docs sync discipline ([`docs/RELEASING.md`](docs/RELEASING.md)) | 0.2.3 |
+| Out-of-scope query detection (metadata queries → suggest `git log` / `find`) | 0.2.4 |
+| Typo correction for unknown flags (`--tup` → "Did you mean `--top`?") | 0.2.4 |
+| Low-confidence result hints (top-1 score + σ-gap floor) | 0.2.4 |
+| First-run nudge (one-time onboarding greeting per project) | 0.2.4 |
+| `SKYGREP_NO_HINTS=1` to silence all intelligent-CLI hints | 0.2.4 |
 | Tree-sitter chunking + line-window fallback | 0.2.0 |
 | `.gitignore` / `.skygrepignore` hygiene | 0.2.0 |
 | Incremental indexing (mtime-based) | 0.2.0 |

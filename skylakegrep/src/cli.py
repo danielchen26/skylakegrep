@@ -36,6 +36,16 @@ from .embeddings import get_embedder
 from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
 from .intent import classify_intent, merge_results as merge_tiers
 from .llm_router import RouterDecision, route_query
+from .intelligent_cli import (
+    assess_result_quality,
+    detect_out_of_scope,
+    hints_disabled,
+    mark_first_run_nudge_shown,
+    render_first_run_nudge,
+    render_out_of_scope_hint,
+    should_show_first_run_nudge,
+    suggest_for_unknown_option,
+)
 from .recovery import (
     get_recovery_state,
     maybe_start_recovery,
@@ -273,6 +283,17 @@ def search_cmd(
 ):
     """Run a search. Aliased as the bare form: ``skygrep "<query>"``."""
 
+    # Intelligent CLI hint — out-of-scope query detection (0.2.4+).
+    # Surfaced up front so the user sees the warning before any of the
+    # slow paths (preheat / index init / cascade) start, and before
+    # any results render. The search still runs after the hint so the
+    # user isn't blocked. ``SKYGREP_NO_HINTS=1`` silences this and the
+    # other intelligent-cli hints below.
+    if not hints_disabled():
+        _oos_hint = detect_out_of_scope(query)
+        if _oos_hint is not None:
+            click.echo(render_out_of_scope_hint(_oos_hint, query), err=True)
+
     import os as _os
 
     config = get_config()
@@ -373,6 +394,23 @@ def search_cmd(
 
     # Routing decision: ready → cascade; building or absent → rg fallback.
     conn = init_db(db_path)
+    # Intelligent CLI hint — first-run nudge (0.2.4+). Once-per-project
+    # greeting that explains the auto-index + rg-fallback flow so a
+    # first-time user doesn't think the tool is broken or slow. The
+    # ``mark_first_run_nudge_shown`` call records the metadata flag so
+    # subsequent queries don't repeat the greeting.
+    #
+    # Gated on ``not json_output`` because JSON consumers (test runners,
+    # downstream tooling, agents) don't want a chatty stderr greeting
+    # to leak into their captured output, and CliRunner by default
+    # merges stderr into stdout for ``--json`` calls.
+    if (
+        not hints_disabled()
+        and not json_output
+        and should_show_first_run_nudge(conn)
+    ):
+        click.echo(render_first_run_nudge(), err=True)
+        mark_first_run_nudge_shown(conn)
     ready = ai.is_index_ready(conn)
     if not ready and auto_index:
         # Spawn (or no-op if already running) a detached indexer; do NOT
@@ -701,6 +739,17 @@ def search_cmd(
         parts.append("quality=BEST")
     click.echo("\n[" + " · ".join(parts) + "]")
 
+    # Intelligent CLI hint — low-confidence result quality (0.2.4+).
+    # When top-1 cosine and σ-gap are both below floor, the result is
+    # in the noise band; offer a recovery menu rather than letting the
+    # user quit thinking the tool failed. Hint is silenced when the
+    # query produced no results AND was already routed through rg
+    # fallback (the user will know they need to refine).
+    if not hints_disabled() and not json_output:
+        _quality_hint = assess_result_quality(results, cascade_telemetry)
+        if _quality_hint:
+            click.echo(_quality_hint, err=True)
+
     # First-run nudge: encourage the user to register skylakegrep with any
     # detected LLM CLIs once. Suppressed under --json (machine consumers
     # parsing the output), in non-TTY contexts (agents piping output), and
@@ -1019,8 +1068,66 @@ def setup(list_only: bool, uninstall: bool, skip: bool, yes: bool):
     click.echo("Run `skygrep setup --uninstall` to remove all snippets later.")
 
 
+def _collect_search_flag_names() -> list[str]:
+    """Return the set of long-form flag names registered on the
+    ``search`` subcommand. Used by the typo-correction wrapper in
+    :func:`main` to suggest the closest match when the user types an
+    unknown ``--flag``. Computed lazily on first call so importing
+    this module stays cheap."""
+
+    names: list[str] = []
+    for name, command in cli.commands.items():  # type: ignore[attr-defined]
+        for param in command.params:
+            for opt in getattr(param, "opts", ()):
+                if opt.startswith("--"):
+                    names.append(opt)
+    # Dedupe while preserving order.
+    seen = set()
+    unique = []
+    for n in names:
+        if n not in seen:
+            seen.add(n)
+            unique.append(n)
+    return unique
+
+
 def main():
-    cli()
+    """CLI entry point.
+
+    Wraps the click invocation with a typo-correcting error handler
+    (0.2.4+): when the user types an unknown flag, click's default
+    is "Error: No such option: --tup" with no suggestion. We catch
+    ``NoSuchOption`` and run ``difflib`` against every long-form flag
+    registered on every command to surface a "Did you mean '--top'?"
+    line. Falls back to click's default formatting when the typo is
+    too far from any known flag (cutoff 0.6 in
+    ``intelligent_cli.closest_match``).
+    """
+
+    try:
+        cli(standalone_mode=False)
+    except click.exceptions.NoSuchOption as exc:
+        suggestion = suggest_for_unknown_option(
+            exc.option_name or "", _collect_search_flag_names()
+        )
+        if suggestion and not hints_disabled():
+            click.echo(suggestion, err=True)
+        else:
+            exc.show()
+        sys.exit(2)
+    except click.exceptions.UsageError as exc:
+        # Other usage errors (missing arg, conflicting flags). Click's
+        # default error message is the right thing to render here; we
+        # only intercept NoSuchOption above. Preserve click's exit code
+        # to match standalone-mode behaviour.
+        exc.show()
+        sys.exit(exc.exit_code)
+    except click.exceptions.ClickException as exc:
+        exc.show()
+        sys.exit(exc.exit_code)
+    except click.exceptions.Abort:
+        click.echo("Aborted!", err=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
