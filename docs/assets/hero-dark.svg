@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 600" role="img" aria-labelledby="hero-title hero-desc" font-family="Inter, ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
-  <title id="hero-title">skylakegrep — semantic code search over a local index</title>
+  <title id="hero-title">skylakegrep — fully-offline semantic search over your local files</title>
   <desc id="hero-desc">Brand block with the skylakegrep wordmark and tagline sitting above a frosted-glass mock terminal window that shows the command "skygrep search how does the auth token get refreshed -m 3" followed by three ranked code snippets with file path, line range, language pill, and similarity score.</desc>
 
   <defs>
@@ -73,11 +73,11 @@
   <text x="640" y="120" text-anchor="middle" font-size="48" font-weight="700" fill="url(#brand-grad)" font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" letter-spacing="-0.025em">skylakegrep</text>
 
   <!-- Subtitle — generous gap so descenders never clip subtitle ascenders -->
-  <text x="640" y="160" text-anchor="middle" font-size="16" fill="#cbd5e1" opacity="0.85">Semantic code search over a local index — fully offline.</text>
+  <text x="640" y="160" text-anchor="middle" font-size="16" fill="#cbd5e1" opacity="0.85">Semantic search over your local files — fully offline.</text>
 
   <!-- Pill row — pushed lower for breathing room -->
   <g font-size="11.5" font-family="ui-monospace, Menlo, Consolas, monospace" fill="#71717a" text-anchor="middle">
-    <text x="640" y="190"><tspan fill="#22d3ee">v0.1.0</tspan>  ·  PolyForm-NC-1.0.0  ·  Python 3.9+  ·  powered by Ollama</text>
+    <text x="640" y="190"><tspan fill="#22d3ee">v0.2.13</tspan>  ·  PolyForm-NC-1.0.0  ·  Python 3.9+  ·  powered by Ollama</text>
   </g>
 
   <!-- =================== Frosted-glass terminal card =================== -->

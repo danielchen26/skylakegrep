@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="og-title og-desc" font-family="Inter, ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
-  <title id="og-title">skylakegrep — semantic code search over a local index</title>
+  <title id="og-title">skylakegrep — fully-offline semantic search over your local files</title>
   <desc id="og-desc">Frosted-glass social preview card for skylakegrep showing the wordmark, tagline, three performance highlights (multi-turn tool-call reduction, warm query latency, fully local), and the latest version.</desc>
 
   <defs>
@@ -65,7 +65,7 @@
   <text x="600" y="252" text-anchor="middle" font-size="84" font-weight="700" fill="url(#brand-grad)" font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" letter-spacing="-0.025em">skylakegrep</text>
 
   <!-- Tagline — pushed down for breathing room from wordmark descenders -->
-  <text x="600" y="312" text-anchor="middle" font-size="22" fill="#cbd5e1" opacity="0.85">Semantic code search over a local index — fully offline.</text>
+  <text x="600" y="312" text-anchor="middle" font-size="22" fill="#cbd5e1" opacity="0.85">Semantic search over your local files — fully offline.</text>
 
   <!-- =================== Stat tiles (frosted glass) =================== -->
   <g font-family="Inter, ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
@@ -99,6 +99,6 @@
 
   <!-- =================== Bottom row: install line + version =================== -->
   <g font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" font-size="16" fill="#71717a" text-anchor="middle">
-    <text x="600" y="582"><tspan fill="#67e8f9">pip install skylakegrep</tspan>  ·  <tspan fill="#a5f3fc">v0.1.0</tspan>  ·  Python 3.9+  ·  powered by Ollama</text>
+    <text x="600" y="582"><tspan fill="#67e8f9">pip install skylakegrep</tspan>  ·  <tspan fill="#a5f3fc">v0.2.13</tspan>  ·  Python 3.9+  ·  powered by Ollama</text>
   </g>
 </svg>

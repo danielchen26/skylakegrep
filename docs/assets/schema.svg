@@ -102,7 +102,7 @@
       <text x="20" y="170">Stored via <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#d4d4d8">numpy.ndarray.tobytes()</tspan>;</text>
       <text x="20" y="186">read with <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#d4d4d8">numpy.frombuffer(... , dtype=float32)</tspan>.</text>
       <text x="20" y="204">Vector dimension d is determined by the embedding</text>
-      <text x="20" y="218">model: 1024 for <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">mxbai-embed-large</tspan>.</text>
+      <text x="20" y="218">model: 1024 for <tspan font-family="ui-monospace, Menlo, Consolas, monospace" fill="#67e8f9">bge-m3</tspan>.</text>
     </g>
   </g>
 
