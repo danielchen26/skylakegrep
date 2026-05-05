@@ -8,7 +8,7 @@ extra work in parallel within a strict latency budget and
 surfaces help the user can act on.
 
 Also in this release: a sweep of user-personal examples
-(`eb1b` / EB-1B references) out of source code per the user's
+(`<token>` / <token> references) out of source code per the user's
 explicit directive — replaced with generic identifier-shape
 tokens (`task-001`, `req-2024-08`).
 
@@ -104,14 +104,14 @@ test).
 
 ### 4. Sweep of user-personal examples
 
-Per the user's directive ("why you wrote eb1b file in the actual
+Per the user's directive ("why you wrote <token> file in the actual
 code that is just an example do not expose such thing"):
 
   - `skylakegrep/src/auto_index.py` — 5 in-comment references
     replaced with generic `task-001`-style examples.
   - `skylakegrep/src/binary_extract.py` — docstring example.
   - `skylakegrep/src/llm_router.py` — LLM router prompt example
-    query (`"where is eb1b file?"` → `"where is task-001 file?"`).
+    query (`"where is <token> file?"` → `"where is task-001 file?"`).
     Prompt still has 5 examples covering filename / semantic /
     lexical / recency-out-of-scope / size-out-of-scope intents.
   - `skylakegrep/src/proactive.py` — newly written, all
@@ -141,7 +141,7 @@ tests for the proactive framework.
 
 **Normal queries pay zero extra cost** — the should-fire gate
 returns False unless the enhancer's preconditions hold. Eligible
-enhancers (the EB1B-style cold-start case) get a parallel budget
+enhancers (the user-reported cold-start case) get a parallel budget
 of 500 ms total; whatever finishes within that wall clock gets
 surfaced.
 
@@ -161,7 +161,7 @@ surfaced.
   - Bench numbers unchanged: 30 / 30 across Django + React +
     Tokio at ~14.6 s/q aggregate.
 
-## Verifying the EB1B-class case
+## Verifying the user-reported case
 
 ```bash
 # from a directory where your target file isn't located:

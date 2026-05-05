@@ -5,8 +5,8 @@ user found on Desktop. The 0.2.10–0.2.11 gate gave up when
 `decision.primary_token` was empty (the rule-based router's
 default when Ollama is unreachable) — even when the cascade
 returned obvious noise (`Project.toml` / `Manifest.toml` files
-matching `eb1b` as a substring inside Julia package UUIDs but
-having nothing to do with the user's actual EB1B query).
+matching `<token>` as a substring inside Julia package UUIDs but
+having nothing to do with the user's actual <token> query).
 
 Plus a new architecture plan filed under `docs/plans/` for the
 **conversational session state** work the user asked about during
@@ -58,7 +58,7 @@ candidate token is identifier-quality, and is only consulted
 when LLM didn't supply `primary_token`.
 
 Three signals (any one suffices):
-  - has digits (`eb1b`, `task-001`, `v6.2`)
+  - has digits (`<token>`, `task-001`, `v6.2`)
   - has internal punctuation (`foo.bar`, `my-file`)
   - mixed case (`CamelCase`, `PascalCase`)
 
@@ -73,7 +73,7 @@ Reproduced the user's exact scenario:
 decision: intent='lexical' primary_token=''       (rule-based fallback)
 
 # Synthetic results matching the screenshot — 5 toml files where
-# "eb1b" appeared inside a Julia package UUID, not the basename:
+# "<token>" appeared inside a Julia package UUID, not the basename:
 fake_results = [
     {'path': '/.../LotkaVolterra/Project.toml',  'score': 1.0},
     {'path': '/.../LotkaVolterra/Manifest.toml', 'score': 1.0},
@@ -89,10 +89,10 @@ run_enhancers_parallel:
               'timed_out': [], 'budget_ms': 2000, 'elapsed_ms': 1117}
 
   💡 Found 4 match(es) outside the current project root...
-    /Users/.../Downloads/EB1B_Denial_Analysis.pdf
-    /Users/.../Downloads/EB1B_Denial_Analysis.docx
-    /Users/.../Downloads/My previous EB1B filling package pages 86-160.pdf
-    /Users/.../Downloads/My previous EB1B filling package.pdf
+    /Users/.../Downloads/<filename-A>.pdf
+    /Users/.../Downloads/<filename-A>.docx
+    /Users/.../Downloads/<filename-B>.pdf
+    /Users/.../Downloads/<filename-C>.pdf
 ```
 
 This time the production code path actually surfaces the user's

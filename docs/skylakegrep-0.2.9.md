@@ -2,7 +2,7 @@
 
 `0.2.9` is a follow-up to `0.2.8` that handles the case the user
 hit after the 0.2.8 ship: a Chinese mixed-language query like
-`"我有没有跟\"eb1b\"有关的文件？"` against a cold-start
+`"我有没有跟\"<token>\"有关的文件？"` against a cold-start
 directory still didn't trigger the proactive enhancer, because
 the LLM router's rule-based fallback classified the query as
 `intent=lexical` with `primary_token=""`. The 0.2.8 gate strictly
@@ -54,7 +54,7 @@ else:
 Token-shape check that asks: does this token plausibly name a
 file? Three signals (any one suffices):
 
-  - has digits (`eb1b`, `task-001`, `v6.2`)
+  - has digits (`<token>`, `task-001`, `v6.2`)
   - has internal punctuation (`foo.bar`, `my-file`, `snake_case`)
   - mixed case (`CamelCase`, `PascalCase`)
 
@@ -117,7 +117,7 @@ LLM router prompt uses internally, just lifted into our code.
 
 ```bash
 $ cd ~/Documents
-$ skygrep '我有没有跟"eb1b"有关的文件？'
+$ skygrep 'do I have files related to <token>?'
 [0 main results — cold-start, no semantic index]
 
 💡 Found N match(es) outside the current project root...
@@ -133,7 +133,7 @@ Even when:
   - The LLM router is unreachable (rule-based fallback runs)
   - The classifier returned `intent=lexical, primary_token=""`
 
-the gate's case 3 catches the identifier-shape token (`eb1b` —
+the gate's case 3 catches the identifier-shape token (`<token>` —
 has digits) and fires `filename_extend` against `~/Downloads`,
 `~/Desktop`, `~/Documents`.
 

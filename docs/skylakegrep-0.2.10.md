@@ -12,8 +12,8 @@ gate logic; this one fixes the underlying mechanism.
 
 ## What was wrong (root-cause diagnosis)
 
-The user reported: `skygrep '我有没有跟"eb1b"有关的文件？'` from
-`~/Documents` returned "No matches yet" even though the EB1B files
+The user reported: `skygrep 'do I have files related to <token>?'` from
+`~/Documents` returned "No matches yet" even though the user-reported files
 exist in `~/Downloads`. Across 0.2.7 / 0.2.8 / 0.2.9 the visible
 behaviour didn't change — the gate fired correctly (we proved that
 in unit tests), but the user still got no proactive output.
@@ -63,7 +63,7 @@ was a hair under typical `~/Downloads` speed.
 
 **Fix:** bumped defaults to `DEFAULT_TOTAL_BUDGET_MS = 2000`,
 filename_extend `individual_budget_ms = 1500`. End-to-end measured
-wall clock with 0.2.10 defaults: **1093 ms** to surface 4 EB1B files
+wall clock with 0.2.10 defaults: **1093 ms** to surface 4 user files
 across `~/Downloads / Desktop / Documents`. The user opted into the
 proactive search by issuing a query the cascade couldn't answer; 1
 second of parallel `find` with the right answer is much better than
@@ -151,10 +151,10 @@ telemetry: {'fired': ['filename_extend'], 'completed': ['filename_extend'],
             'timed_out': [], 'budget_ms': 2000, 'elapsed_ms': 1093}
 
 💡 Found 4 match(es) outside the current project root...
-   /Users/.../Downloads/EB1B_Denial_Analysis.pdf
-   /Users/.../Downloads/EB1B_Denial_Analysis.docx
-   /Users/.../Downloads/My previous EB1B filling package pages 86-160.pdf
-   /Users/.../Downloads/My previous EB1B filling package.pdf
+   /Users/.../Downloads/<filename-A>.pdf
+   /Users/.../Downloads/<filename-A>.docx
+   /Users/.../Downloads/<filename-B>.pdf
+   /Users/.../Downloads/<filename-C>.pdf
 ```
 
 This is what the user should see when they run their query against

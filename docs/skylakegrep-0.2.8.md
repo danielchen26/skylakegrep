@@ -8,7 +8,7 @@ the user found in `0.2.7` within hours of shipping:
    proactive enhancer hook, so users with a fresh / un-indexed
    directory got "No matches yet" instead of the parallel
    ``find`` over `~/Downloads` / `~/Desktop` / `~/Documents` that
-   `0.2.7` was supposed to provide. This is the EB1B-class case
+   `0.2.7` was supposed to provide. This is the user-reported case
    exactly — and it didn't work.
 
 2. **`filename_extend_should_fire` enumerated keyword phrases**
@@ -45,7 +45,7 @@ print. Two outcomes:
 
 Previously the cold-start branch had a hard `return` between the
 "no matches yet" print and the proactive hook in the main
-cascade path, so proactive never ran on the EB1B-style case the
+cascade path, so proactive never ran on the user-reported case the
 framework was specifically built for.
 
 ### 2. `filename_extend_should_fire` is Principle-1-compliant
@@ -140,7 +140,7 @@ behaviour in.
   - Test suite: 190 / 190 passing (was 188 in 0.2.7; net +2 for
     the new firing-condition tests).
 
-## Verification (the EB1B-class case in cold-start)
+## Verification (the user-reported case in cold-start)
 
 ```bash
 # In a directory whose index hasn't been built yet:

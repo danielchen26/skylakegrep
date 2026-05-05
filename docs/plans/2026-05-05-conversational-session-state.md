@@ -89,7 +89,7 @@ This is the hard part. Two complementary approaches:
 previous one. The LLM sees the previous query in its prompt:
 
 ```
-Previous query (30s ago): "where is my eb1b file?"
+Previous query (30s ago): "where is my <token> file?"
 Current query:            "give me the answer is wrong"
 ```
 
@@ -97,7 +97,7 @@ The LLM can return:
 
 ```json
 {"intent": "feedback", "follow_up_kind": "negative",
- "reuses_token": "eb1b"}
+ "reuses_token": "<token>"}
 ```
 
 Pros: principled, content-agnostic (the LLM understands what's a
@@ -121,12 +121,12 @@ Once detection works, what does the system actually DO?
 ### P1 — Negative feedback ("answer wrong")
 
 ```
-$ skygrep "where is my eb1b file?"
+$ skygrep "where is my <token> file?"
 [result A]   ← wrong answer
 
 $ skygrep "the answer is wrong"
 ↳ Detected as negative-feedback follow-up to previous query
-  (30s ago: "where is my eb1b file?"). Re-running with previous
+  (30s ago: "where is my <token> file?"). Re-running with previous
   answer ([result A]) on the EXCLUDE list.
 
 [result B, with [result A]'s paths suppressed]
@@ -257,7 +257,7 @@ often does the user ask follow-up-shaped queries within 1 / 5 /
 isn't worth shipping.
 
 The user has already shown us at least one strong example
-(`'我有没有跟"eb1b"有关的文件？'` → `'给我的答案不对'`), so
+(`'do I have files related to <token>?'` → `'给我的答案不对'`), so
 the rate is non-zero. But "non-zero" isn't enough — we need
 "meaningful" before adding session complexity.
 
@@ -270,7 +270,7 @@ schedule** — depends on the measurement run + a user mandate to
 proceed.
 
 Until then, the user can manually express follow-up intent by
-re-typing more context: `skygrep "the eb1b answer was wrong, ignore Project.toml hits"`. Less intelligent, but explicit. The
+re-typing more context: `skygrep "the <token> answer was wrong, ignore Project.toml hits"`. Less intelligent, but explicit. The
 proactive `recovery_progress_hint` from 0.2.11 already covers
 the "wait for index to build" flavour of negative feedback, so
 the most acute bad-UX case is partially mitigated.
