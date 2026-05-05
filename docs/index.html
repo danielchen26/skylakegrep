@@ -88,7 +88,7 @@
  <main class="content">
  <!-- ============== Overview ============== -->
  <section id="overview" class="hero">
- <p class="eyebrow">v0.2.5 · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.2.6 · PolyForm Noncommercial 1.0.0</p>
  <h1>Find what you <span class="hero-accent">mean</span>, not what you typed.</h1>
  <p class="lead">
  <code>skylakegrep</code> is a fully-offline semantic search CLI for
@@ -403,6 +403,25 @@ register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)</code></pre
  will be replaced with a substrate / registry / LLM-driven
  generic path. <code>CLAUDE.md</code> imports it so any AI agent
  in the repo loads the principles automatically.
+ </div>
+ </div>
+ <div class="usecase-card">
+ <span class="usecase-tag">LLM SCOPE · 0.2.6</span>
+ <div class="usecase-title">Out-of-scope detection — LLM, not keyword</div>
+ <div class="usecase-body">
+ 0.2.5's <code>_METADATA_TOKENS</code> keyword list was an
+ explicit stopgap (see Principle 1 in <code>PRINCIPLES.md</code>).
+ 0.2.6 ships the principled fix:
+ <code>RouterDecision.out_of_scope</code> is now set by the same
+ <code>qwen2.5:3b</code> call that already runs on every query
+ for retrieval-intent classification — <strong>zero added
+ latency</strong>. The LLM understands new vocabulary
+ (<em>我前几天写的代码</em>, <em>the last sprint's edits</em>)
+ without us enumerating tokens. The keyword list survives only
+ as the offline safety net for when Ollama is unreachable.
+ Same architectural shape as 0.2.0's <code>bge-m3</code> substrate
+ and <code>reference_graph</code> registry — substrate before
+ scaffolding, understanding over enumeration.
  </div>
  </div>
  <div class="usecase-card">

@@ -102,20 +102,91 @@ _SEMANTIC_INTENT_TOKENS = {
 }
 
 
-def detect_out_of_scope(query: str) -> Optional[dict]:
-    """Decide whether ``query`` looks like a metadata query (mtime /
-    size / listing / counting) that skygrep is the wrong tool for.
+def _hint_for_kind(kind: str, *, reason: str) -> dict:
+    """Map a scope-classification kind (``"recency"`` / ``"size"`` /
+    ``"listing"``) to the concrete shell-command suggestion the user
+    should see. Centralised here so both the LLM-driven path
+    (0.2.6+) and the offline keyword fallback render the same
+    suggestions; the LLM only has to classify the *kind*, not invent
+    the command line."""
+
+    if kind == "recency":
+        return {
+            "reason": reason,
+            "suggested_command": (
+                "git log --name-only --pretty=format: HEAD~30..HEAD | sort -u | head -10"
+            ),
+            "alt_commands": [
+                "find . -type f -mtime -7 -not -path '*/.*'",
+                "git diff --name-only HEAD~10..HEAD",
+            ],
+        }
+    if kind == "size":
+        return {
+            "reason": reason,
+            "suggested_command": "find . -type f -printf '%s %p\\n' | sort -n | tail -10",
+            "alt_commands": [],
+        }
+    if kind == "listing":
+        return {
+            "reason": reason,
+            "suggested_command": "git ls-files | head     # or:  find . -type f | wc -l",
+            "alt_commands": [],
+        }
+    # Unknown kind — return a generic hint pointing at the metadata
+    # tooling so the user at least sees the right family of commands.
+    return {
+        "reason": reason or "looks like a metadata query",
+        "suggested_command": "git log / find — this looks like a metadata query",
+        "alt_commands": [],
+    }
+
+
+def detect_out_of_scope(
+    query: str, decision: Any | None = None,
+) -> Optional[dict]:
+    """Decide whether ``query`` is a metadata query (mtime / size /
+    listing / counting) that skygrep is the wrong tool for.
+
+    Two-layer architecture per ``docs/PRINCIPLES.md`` Principle 1
+    "Understanding > Enumeration":
+
+      1. **Primary (0.2.6+):** if the caller passes a
+         ``RouterDecision`` whose ``out_of_scope`` field has been
+         set by the local LLM router (``llm_router.route_query``),
+         trust that classification — the LLM understands new
+         vocabulary, new languages, and new phrasings without us
+         having to enumerate them.
+      2. **Offline fallback:** when ``decision`` is ``None`` (or its
+         ``out_of_scope`` is ``None`` because the LLM call failed,
+         the model is unreachable, or the rule-based fallback ran),
+         consult the conservative keyword list below. This keeps
+         the hint working without Ollama and gives deterministic
+         behaviour for tests / CI.
 
     Returns ``None`` for content-search queries (the common case).
     Returns a dict with ``reason`` and ``suggested_command`` when
-    the query is flagged so the caller can render a hint.
-
-    Conservative: requires a metadata token AND no semantic-intent
-    token AND a short query (≤ 12 words). This avoids flagging
-    legitimate semantic queries that happen to mention a metadata
-    word in passing.
+    the query is flagged.
     """
 
+    # ---- Primary path: LLM-driven classification (0.2.6+) ----
+    if decision is not None:
+        oos = getattr(decision, "out_of_scope", None)
+        if oos == "none":
+            # LLM explicitly classified as content search — even if
+            # the keyword fallback would match, we trust the LLM's
+            # contextual understanding over the keyword heuristic.
+            return None
+        if oos in {"recency", "size", "listing"}:
+            llm_reason = getattr(decision, "reason", "") or ""
+            return _hint_for_kind(
+                oos,
+                reason=f"LLM-router → out_of_scope={oos}"
+                + (f" ({llm_reason})" if llm_reason else ""),
+            )
+        # oos is None / "" / unknown → fall through to keyword fallback.
+
+    # ---- Offline fallback: conservative keyword list ----
     q = query.strip().lower()
     if not q:
         return None
@@ -136,25 +207,16 @@ def detect_out_of_scope(query: str) -> Optional[dict]:
     if matched is None:
         return None
 
-    # Pick a suggestion based on the kind of metadata token. Cover the
-    # three common families: recency / size / listing-and-counting.
     if matched in {
-        "recent", "latest", "newest", "oldest", "lately",
+        "recent", "latest", "newest", "lately",
         "yesterday", "today", "this morning", "last week", "this week",
-        "最近", "最新", "最旧", "新近", "近期",
+        "最近", "最新", "新近", "近期",
         "昨天", "今天", "前天", "上周", "本周", "刚刚",
         "打开过", "改过", "编辑过", "修改过",
     }:
-        return {
-            "reason": f"contains '{matched}' (recency-by-mtime)",
-            "suggested_command": (
-                "git log --name-only --pretty=format: HEAD~30..HEAD | sort -u | head -10"
-            ),
-            "alt_commands": [
-                "find . -type f -mtime -7 -not -path '*/.*'",
-                "git diff --name-only HEAD~10..HEAD",
-            ],
-        }
+        return _hint_for_kind(
+            "recency", reason=f"contains '{matched}' (recency-by-mtime)"
+        )
     if matched in {"oldest", "最旧"}:
         return {
             "reason": f"contains '{matched}' (oldest-by-mtime)",
@@ -165,25 +227,19 @@ def detect_out_of_scope(query: str) -> Optional[dict]:
         "largest", "biggest", "smallest", "tiniest",
         "最大", "最小", "最长", "最短",
     }:
-        return {
-            "reason": f"contains '{matched}' (size sort)",
-            "suggested_command": "find . -type f -printf '%s %p\\n' | sort -n | tail -10",
-            "alt_commands": [],
-        }
+        return _hint_for_kind(
+            "size", reason=f"contains '{matched}' (size sort)"
+        )
     if matched in {
         "all", "list", "count", "every", "all the", "how many",
         "列出", "列举", "所有", "全部", "几个", "多少", "排序",
     }:
-        return {
-            "reason": f"contains '{matched}' (listing / counting)",
-            "suggested_command": "git ls-files | head     # or:  find . -type f | wc -l",
-            "alt_commands": [],
-        }
-    return {
-        "reason": f"contains '{matched}'",
-        "suggested_command": "git log / find — this looks like a metadata query",
-        "alt_commands": [],
-    }
+        return _hint_for_kind(
+            "listing", reason=f"contains '{matched}' (listing / counting)"
+        )
+    return _hint_for_kind(
+        "unknown", reason=f"contains '{matched}'"
+    )
 
 
 def render_out_of_scope_hint(hint: dict, query: str) -> str:

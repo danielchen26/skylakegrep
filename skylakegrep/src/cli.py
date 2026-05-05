@@ -283,16 +283,17 @@ def search_cmd(
 ):
     """Run a search. Aliased as the bare form: ``skygrep "<query>"``."""
 
-    # Intelligent CLI hint — out-of-scope query detection (0.2.4+).
-    # Surfaced up front so the user sees the warning before any of the
-    # slow paths (preheat / index init / cascade) start, and before
-    # any results render. The search still runs after the hint so the
-    # user isn't blocked. ``SKYGREP_NO_HINTS=1`` silences this and the
-    # other intelligent-cli hints below.
-    if not hints_disabled():
-        _oos_hint = detect_out_of_scope(query)
-        if _oos_hint is not None:
-            click.echo(render_out_of_scope_hint(_oos_hint, query), err=True)
+    # Intelligent CLI hint — out-of-scope query detection.
+    #
+    # 0.2.4 originally fired this *before* the LLM router decision was
+    # available (using a pure keyword list). 0.2.6 moved the primary
+    # detector to the LLM router prompt itself, so we now defer this
+    # render to AFTER ``decision`` is computed and pass it through.
+    # The keyword list survives as the offline fallback inside
+    # ``detect_out_of_scope`` for when the LLM is unreachable.
+    #
+    # Note: still gated by ``hints_disabled()`` and the search still
+    # runs after the hint so the user is never blocked.
 
     import os as _os
 
@@ -377,6 +378,18 @@ def search_cmd(
         except sqlite3.Error:
             pass
     router_elapsed = time.time() - router_start
+
+    # Intelligent CLI hint — out-of-scope query detection (0.2.6+).
+    # Now driven by the LLM router's ``out_of_scope`` field
+    # (``content`` / ``recency`` / ``size`` / ``listing``) rather than
+    # the 0.2.4–0.2.5 keyword list. The keyword list survives only as
+    # an offline fallback inside ``detect_out_of_scope`` when the LLM
+    # is unreachable. See ``docs/PRINCIPLES.md`` Principle 1
+    # ("Understanding > Enumeration") for the rationale.
+    if not hints_disabled():
+        _oos_hint = detect_out_of_scope(query, decision=decision)
+        if _oos_hint is not None:
+            click.echo(render_out_of_scope_hint(_oos_hint, query), err=True)
 
     # v0.14.0 hierarchical merge: collect filename-lookup results
     # without short-circuiting. The merged results from all enabled

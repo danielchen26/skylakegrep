@@ -392,6 +392,9 @@ skygrep enrich   [--max N] [--batch B]      # opt-in doc2query enrichment
 | `SKYGREP_FOOTER_COMPACT=1` to keep the legacy single-line footer | 0.2.5 |
 | Day-relative recency tokens caught (`昨天 / 今天 / 上周 / yesterday / this week`) | 0.2.5 |
 | Project principles document ([`docs/PRINCIPLES.md`](docs/PRINCIPLES.md)) | 0.2.5 |
+| LLM-driven scope classification (`RouterDecision.out_of_scope`) — primary | 0.2.6 |
+| Keyword `_METADATA_TOKENS` demoted to offline-only fallback | 0.2.6 |
+| Router cache forward/backward compat (filter unknown keys on read) | 0.2.6 |
 | Tree-sitter chunking + line-window fallback | 0.2.0 |
 | `.gitignore` / `.skygrepignore` hygiene | 0.2.0 |
 | Incremental indexing (mtime-based) | 0.2.0 |

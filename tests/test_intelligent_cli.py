@@ -126,6 +126,80 @@ class OutOfScopeDetectionTests(unittest.TestCase):
         self.assertIn("最近修改的文件", rendered)
         self.assertIn("SKYGREP_NO_HINTS", rendered)
 
+    # ---- 0.2.6: LLM-driven primary path ----
+
+    def test_llm_decision_recency_takes_precedence(self):
+        """When the LLM router classifies the query as out-of-scope,
+        the result should reflect THAT classification — even on a query
+        that the keyword list wouldn't flag (e.g. a phrasing the user
+        invented that we never enumerated)."""
+
+        from dataclasses import dataclass
+
+        @dataclass
+        class _D:
+            out_of_scope: str = "recency"
+            reason: str = "user wants files from the past sprint"
+
+        # Query that the keyword list does NOT match — proves the
+        # LLM-driven path is actually being used (Principle 1).
+        hint = detect_out_of_scope("the work I did over the past sprint", decision=_D())
+        self.assertIsNotNone(hint)
+        self.assertIn("git log", hint["suggested_command"])
+        self.assertIn("LLM-router", hint["reason"])
+
+    def test_llm_decision_none_overrides_keyword_match(self):
+        """If the LLM explicitly classifies the query as content
+        search, trust that even when the keyword list would have
+        matched. The LLM has full context; the keyword list is
+        purely lexical."""
+
+        from dataclasses import dataclass
+
+        @dataclass
+        class _D:
+            out_of_scope: str = "none"
+            reason: str = "asking about an implementation that exists in recent code"
+
+        # "recent" is in _METADATA_TOKENS, but the LLM said "none" —
+        # the keyword path is suppressed.
+        self.assertIsNone(
+            detect_out_of_scope("where is the recent change to auth", decision=_D())
+        )
+
+    def test_llm_decision_falls_back_to_keyword_when_oos_none_but_query_matches(self):
+        """If the LLM didn't fill in ``out_of_scope`` (older cache,
+        weaker model), we fall through to the keyword detector."""
+
+        from dataclasses import dataclass
+
+        @dataclass
+        class _D:
+            out_of_scope: object = None
+            reason: str = ""
+
+        # Query keyword-flaggable; LLM didn't classify → keyword
+        # fallback should still flag it.
+        hint = detect_out_of_scope("我昨天打开过的文件", decision=_D())
+        self.assertIsNotNone(hint)
+        self.assertIn("git log", hint["suggested_command"])
+
+    def test_llm_decision_size_routes_to_size_helper(self):
+        from dataclasses import dataclass
+
+        @dataclass
+        class _D:
+            out_of_scope: str = "size"
+            reason: str = "user asks for largest files"
+
+        hint = detect_out_of_scope(
+            "biggest python modules in the project", decision=_D()
+        )
+        self.assertIsNotNone(hint)
+        # ``find -size`` family is the right tool for size queries.
+        self.assertIn("find", hint["suggested_command"])
+        self.assertIn("size", hint["reason"].lower())
+
 
 class TypoCorrectionTests(unittest.TestCase):
     """``difflib`` cutoff 0.6 catches one-or-two-character edits

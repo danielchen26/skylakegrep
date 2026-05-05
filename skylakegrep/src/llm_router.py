@@ -84,6 +84,20 @@ class RouterDecision:
     source: str = "fallback-mixed"
     reason: str = ""
     raw: dict[str, Any] = field(default_factory=dict)
+    # 0.2.6+: scope classification on the same LLM call. Replaces the
+    # ``intelligent_cli._METADATA_TOKENS`` keyword list as the PRIMARY
+    # detector for "user is asking for filesystem metadata, not content
+    # search" — see Principle 1 in ``docs/PRINCIPLES.md`` ("Understanding
+    # over Enumeration"). Possible values:
+    #   None / ""    → unclassified (older cache entry, rule-based
+    #                  fallback, or LLM-unavailable)
+    #   "none"       → content / semantic search (the common case)
+    #   "recency"    → user wants files by modification time
+    #   "size"       → user wants files by size
+    #   "listing"    → user wants a flat listing / count of files
+    # The keyword list in ``intelligent_cli`` remains as a deterministic
+    # offline fallback, but is consulted only when this field is None.
+    out_of_scope: str | None = None
 
 
 def _all_runs() -> RouterDecision:
@@ -147,19 +161,34 @@ Given the user's query, decide:
   - confidence: 0.0 - 1.0. Use < 0.7 when uncertain; anything below
     0.7 will force cascade to run regardless of skip_cascade.
   - reason: one short sentence justifying the decision.
+  - out_of_scope: one of "none", "recency", "size", "listing"
+    - "recency"  ⇐ user wants files by modification time
+                  (e.g. "recent files", "我昨天打开过的", "last week's edits")
+    - "size"     ⇐ user wants files by size
+                  (e.g. "largest files", "smallest config")
+    - "listing"  ⇐ user wants a flat list / count of files
+                  (e.g. "list all py files", "how many tests")
+    - "none"     ⇐ semantic / lexical / filename content search
+                  (the common case — default to this when uncertain)
 
 Output ONLY a JSON object with these exact keys, no prose, no markdown.
 
 Examples:
 
 Query: "where is eb1b file?"
-{{"intent": "filename", "primary_token": "eb1b", "skip_cascade": true, "skip_filename": false, "extract_content": true, "confidence": 0.95, "reason": "user asks for a specific file by name"}}
+{{"intent": "filename", "primary_token": "eb1b", "skip_cascade": true, "skip_filename": false, "extract_content": true, "confidence": 0.95, "reason": "user asks for a specific file by name", "out_of_scope": "none"}}
 
 Query: "how does the auth token get refreshed"
-{{"intent": "semantic", "primary_token": "", "skip_cascade": false, "skip_filename": true, "extract_content": false, "confidence": 0.9, "reason": "descriptive question about code behaviour"}}
+{{"intent": "semantic", "primary_token": "", "skip_cascade": false, "skip_filename": true, "extract_content": false, "confidence": 0.9, "reason": "descriptive question about code behaviour", "out_of_scope": "none"}}
 
 Query: "auth login"
-{{"intent": "lexical", "primary_token": "auth", "skip_cascade": false, "skip_filename": false, "extract_content": false, "confidence": 0.7, "reason": "short code-token query, ambiguous"}}
+{{"intent": "lexical", "primary_token": "auth", "skip_cascade": false, "skip_filename": false, "extract_content": false, "confidence": 0.7, "reason": "short code-token query, ambiguous", "out_of_scope": "none"}}
+
+Query: "我昨天打开过的十个文件"
+{{"intent": "mixed", "primary_token": "", "skip_cascade": false, "skip_filename": false, "extract_content": false, "confidence": 0.9, "reason": "user wants files modified yesterday — filesystem mtime query", "out_of_scope": "recency"}}
+
+Query: "list all the largest python files"
+{{"intent": "mixed", "primary_token": "", "skip_cascade": false, "skip_filename": false, "extract_content": false, "confidence": 0.85, "reason": "user wants flat listing of files sorted by size — filesystem query", "out_of_scope": "listing"}}
 
 Now route this query:
 Query: "{query}"
@@ -224,6 +253,17 @@ def _llm_decision(query: str) -> RouterDecision | None:
     if confidence < MIN_CONFIDENCE_TO_SKIP_CASCADE:
         skip_cascade = False
 
+    # Validate the new 0.2.6 out_of_scope field. The model may omit it
+    # (older prompt, weaker model variant, or just hallucinate); we
+    # keep the field optional and only accept the four canonical
+    # values. Missing / invalid values become None so the caller knows
+    # to fall back to the keyword-based detector.
+    oos_raw = str(parsed.get("out_of_scope", "") or "").strip().lower()
+    if oos_raw in {"none", "recency", "size", "listing"}:
+        out_of_scope: str | None = oos_raw
+    else:
+        out_of_scope = None
+
     return RouterDecision(
         intent=intent_val,
         primary_token=str(parsed.get("primary_token", "") or "").strip(),
@@ -235,6 +275,7 @@ def _llm_decision(query: str) -> RouterDecision | None:
         source="llm",
         reason=str(parsed.get("reason", "") or "")[:200],
         raw=parsed,
+        out_of_scope=out_of_scope,
     )
 
 
@@ -258,7 +299,19 @@ def _cache_get(conn: sqlite3.Connection, query: str) -> RouterDecision | None:
         d = json.loads(row[0])
     except json.JSONDecodeError:
         return None
-    return RouterDecision(**d)
+    # Tolerate cached payloads written by older versions that didn't
+    # know about the 0.2.6 ``out_of_scope`` field. ``RouterDecision``
+    # has a default for it, so dropping it from ``d`` lets the dataclass
+    # apply the default. Conversely, future fields would land in ``d``
+    # and ``RouterDecision(**d)`` would raise — so we only pass through
+    # the keys we currently know about.
+    known = {
+        "intent", "primary_token", "skip_cascade", "skip_filename",
+        "skip_lexical", "extract_content", "confidence", "source",
+        "reason", "raw", "out_of_scope",
+    }
+    cleaned = {k: v for k, v in d.items() if k in known}
+    return RouterDecision(**cleaned)
 
 
 def _cache_set(conn: sqlite3.Connection, query: str, decision: RouterDecision) -> None:
@@ -278,6 +331,7 @@ def _cache_set(conn: sqlite3.Connection, query: str, decision: RouterDecision) -
             "source": decision.source,
             "reason": decision.reason,
             "raw": decision.raw,
+            "out_of_scope": decision.out_of_scope,
         })
         conn.execute(
             "INSERT OR REPLACE INTO router_cache (query, decision) "
