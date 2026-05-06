@@ -64,7 +64,7 @@ When a user types `skygrep "<query>"` from any cwd, the system
 cannot know whether:
 
 1. The cwd is the right project (vs the user wandered in by
-   mistake — <repo-A> vs `~/Downloads`).
+   mistake — <repo> vs `~/Downloads`).
 2. The index covers what the user is asking about (cwd may be
    indexed but the answer is a PDF in `~/Downloads`).
 3. The query is a code concept (cascade-friendly) or a file-name
@@ -130,7 +130,7 @@ completed first.
   as "warm-cascade fallback" — only ran when cascade gap was
   small. Both were sequential after cascade.
 - 0.5.5 user test: query `'我有没有跟 "tax-2024" 有关的文件？'` on
-  the indexed `<repo-A>` repo took **12 minutes 50 seconds** wall
+  an indexed code repo took **12 minutes 50 seconds** wall
   clock. Cascade ran 99.7 s (escalated to rerank because zero
   semantic match), cross-folder timed out at 8 s, then proactive
   `filename_extend` finally fired and **found the answer in

@@ -60,3 +60,31 @@ Thumbs.db
 # independent reader can build their own fixtures and reproduce the
 # protocol.
 benchmarks/cross_repo/*.json
+
+# User-private development directives.
+# These files capture how the maintainer prefers to collaborate
+# with AI assistants (Claude Code etc.) on this project — they
+# encode personal methodology, project-specific instructions, and
+# session-shaped preferences that aren't general guidance for
+# external contributors. They're kept locally so the assistant
+# picks them up via @-references but are never tracked in version
+# control.
+CLAUDE.md
+AGENTS.md
+.claude.md
+.claude/
+.agents/
+.codex/
+.omc/
+.superconductor/
+*.local.md
+*.private.md
+
+# Local-only symlinks pointing at other private repos on the
+# maintainer's machine. These were tracked at one point and showed
+# up on the GitHub Pages tree as broken external links — removed
+# from tracking and ignored going forward.
+/<repo-A>
+/<repo-B>
+/<repo-C>
+/<repo-D>

@@ -105,7 +105,7 @@ That document is authoritative for any future routing change.
 
 ## Numbers
 
-Same <repo-A>-query reproducer the user reported in 0.5.5:
+Same <repo>-query reproducer the user reported in 0.5.5:
 
 | Version | Wall clock | First answer at | Notes |
 |---|---|---|---|
