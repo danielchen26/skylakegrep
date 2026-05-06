@@ -1086,9 +1086,14 @@ def _expand_via_reference_graph(
     kept = [(p, s) for p, s in scored if s >= sigma_floor]
     # Lift back to the result dict shape used by ``search()`` so the
     # rerank merge step is uniform.
+    # Result dict shape must match what ``cli.merge_results`` expects:
+    # path / score / start_line / end_line / language / chunk / snippet.
+    # The 0.4.0 release shipped without ``snippet`` — caused KeyError on
+    # every escalated query whose graph_expand contributed candidates.
+    # Hot-fixed in 0.4.2.
     out_results = [
-        {"path": p, "score": s, "start_line": None, "end_line": None,
-         "language": None, "chunk": ""}
+        {"path": p, "score": s, "start_line": 0, "end_line": 0,
+         "language": "", "chunk": "", "snippet": ""}
         for p, s in kept
     ]
     return out_results, {

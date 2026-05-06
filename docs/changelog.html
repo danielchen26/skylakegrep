@@ -66,6 +66,26 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.4.2 · P0 hot-fix · KeyError 'snippet'</div>
+ <h3>Critical crash on every escalated query that graph_expand contributed to</h3>
+ <p>
+ 0.4.0 / 0.4.1 shipped a production crash:
+ <code>KeyError: 'snippet'</code> at <code>cli.py:92 merge_results</code>
+ — fired on every CLI search query that escalated AND
+ graph_expand returned candidates. Hidden by tests that called
+ <code>cascade_search</code> directly, never through the CLI.
+ Hot-fix: emit the missing <code>snippet</code> (and full result-
+ dict shape) from <code>_expand_via_reference_graph()</code>.
+ Verified by real CLI search query on the local index — escalation
+ ran end-to-end (7.3s, no crash). Public OSS bench backfill is
+ deferred to 0.4.3 (the bench wrapper currently stalls on Django,
+ root cause under investigation). New auto-memory rule: every
+ release MUST exercise <code>skygrep search</code> on a real index
+ before tagging.
+ </p>
+ <a class="release-link" href="skylakegrep-0.4.2.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.4.1 · real-corpus bench backfill</div>
  <h3>Honest end-to-end measurement of 0.4.0 graph_expand on real bge-m3</h3>
  <p>

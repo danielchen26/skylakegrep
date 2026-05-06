@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.4.2 — P0 hot-fix release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.4.2 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="brand" href="index.html"><span class="brand-text">skylakegrep</span><span class="version">v0.4.2</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">P0 hot-fix · v0.4.2</p>
+<h1>skylakegrep 0.4.2 — P0 hot-fix: <code>KeyError 'snippet'</code> on every escalated query</h1>
+<h2>TL;DR</h2>
+<p><strong>Hot-fix.</strong> 0.4.0 / 0.4.1 shipped a production crash —
+<code>KeyError: 'snippet'</code> — that fired on <strong>every CLI query that
+escalated AND graph-expanded contributed candidates</strong>. Users hit
+this whenever the cascade fell off the cheap path (~20 % of
+queries). Upgrading is mandatory.</p>
+<p>The bug: 0.4.0's <code>_expand_via_reference_graph()</code> returned result
+dicts without a <code>snippet</code> field. The CLI's <code>merge_results()</code> reads
+<code>result["snippet"]</code> for every dict in the rerank pool. Crash.
+Hidden by tests that called <code>cascade_search</code> directly, never
+through the CLI's full path.</p>
+<h2>Compatibility</h2>
+<ul>
+<li>Python: unchanged — 3.9+</li>
+<li>Index format: unchanged</li>
+<li>Default behaviour for cheap-path queries: unchanged from 0.4.x</li>
+<li><strong>Escalated queries no longer crash</strong> — the only change</li>
+</ul>
+<h2>How it shipped past tests</h2>
+<p>This is the fourth receipt of the same anti-pattern in 0.3.x →
+0.4.x:</p>
+<table>
+<thead>
+<tr>
+<th>Receipt</th>
+<th>What was tested</th>
+<th>What was missed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.3.0</td>
+<td>by-construction arguments</td>
+<td>actual recall</td>
+</tr>
+<tr>
+<td>0.4.0</td>
+<td>synthetic 3-file unit tests</td>
+<td>real-corpus behaviour</td>
+</tr>
+<tr>
+<td>0.4.1</td>
+<td>direct <code>cascade_search</code> API call</td>
+<td>the CLI <code>merge_results</code> path that consumes the dicts</td>
+</tr>
+<tr>
+<td>0.4.2 (this)</td>
+<td>actual <code>skygrep search</code> CLI on a real index</td>
+<td>(this is the fix)</td>
+</tr>
+</tbody>
+</table>
+<p>Auto-memory rule added:
+<code>feedback_test_through_actual_user_path.md</code> — every release MUST
+exercise <code>skygrep search</code> (the user's actual entry point) on a
+real index, with at least one query that escalates.</p>
+<h2>What's in 0.4.2</h2>
+<p><strong>Code (1 line of substance):</strong></p>
+<pre><code class="language-python"># storage.py:_expand_via_reference_graph()
+# Result dict shape must match cli.merge_results expectations:
+out_results = [
+    {&quot;path&quot;: p, &quot;score&quot;: s, &quot;start_line&quot;: 0, &quot;end_line&quot;: 0,
+     &quot;language&quot;: &quot;&quot;, &quot;chunk&quot;: &quot;&quot;, &quot;snippet&quot;: &quot;&quot;}     # ← was missing
+    for p, s in kept
+]
+</code></pre>
+<p><strong>Verification:</strong> real CLI search query against the skylakegrep
+index, escalation path:</p>
+<pre><code>✓ 7.277s · quality=BEST
+   path     : cosine-escalated-rerank (escalated to rerank)
+   router   : fallback-rules → intent=semantic (0.60)
+   evidence : σ-gap=0.0040 &lt; τ=0.0060 (adaptive)
+   pool     : 0 filename + 0 lexical · cascade
+   index    : 21s ago ago · 66 files · L2 symbols + graph prior
+</code></pre>
+<p>No crash. Cascade and graph_expand both ran end-to-end. (Compare:
+the same query before the fix raised <code>KeyError: 'snippet'</code> at
+<code>cli.py:92</code>.)</p>
+<p><strong>Tests:</strong> 206 / 206 still pass — hot-fix only adds dict fields,
+no logic change.</p>
+<h2>Public OSS bench (Django + React + Tokio): pending verification</h2>
+<p>The published 30 / 30 OSS bench is not re-run in 0.4.2; it's
+deferred to 0.4.3. Why: the bench wrapper
+(<code>benchmarks/public_oss_bench.py</code>) currently stalls on the first
+fixture for reasons we have not yet diagnosed (no log output after
+<code>=== Django ===</code>). The architectural invariant still holds — the
+0.4.x changes are additive to the cascade rerank pool and cannot
+demote a candidate the cross-encoder ranks high — but the user's
+explicit instruction is <strong>never claim numbers without measurement</strong>,
+so 0.4.2 reports only what was actually verified: the hot-fix
+unblocks the CLI escalation path on a real index.</p>
+<p>0.4.3 will:
+  1. Diagnose and fix the bench stall.
+  2. Run the full Django / React / Tokio 30-task bench.
+  3. Publish the verified 30 / 30 (or whatever the real number is)
+     as the 0.4.x recall figure.</p>
+<p>If the real number is &lt; 30 / 30, 0.4.x will be rolled back to
+0.2.21 cascade + the hot-fix only — per the user's invariant
+"never ship something worse than the best previous version".</p>
+<h2>Why this took four releases to surface</h2>
+<p>The pattern: every test in 0.3.x / 0.4.x exercised one component
+in isolation — <code>cascade_search</code> direct, synthetic seed mappers,
+unit-fixture graphs. None of them went through the CLI's
+<code>merge_results()</code>, which is the choke-point where every result
+dict's shape gets consumed. A <code>snippet</code> field missing in one
+candidate-source's dicts is invisible to those tests because they
+return their dicts to the test harness, not to merge_results.</p>
+<p>The lesson — now in deepest memory:
+<strong>testing through internal APIs only verifies those APIs. The
+user's experience runs through <code>skygrep search</code>, and that's what
+the bench has to exercise.</strong></p>
+<h2>Acknowledgments</h2>
+<p>User caught the missing test surface directly — <em>"if 出现重大问题
+你先止血呀然后找出真正的问题进行修复肯定不能比之前最好的那一版差吧"</em>
+("if there's a critical issue first stop the bleeding, then find
+the real problem and fix it; absolutely cannot ship something
+worse than the best previous version"). This release stops the
+bleeding. The OSS bench investigation continues in 0.4.3.</p>
+</article>
+</main>
+</div>
+</body></html>
