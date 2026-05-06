@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.2 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.2 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.2</p>
+<h1>skylakegrep 0.5.2 — themed HTML release notes + de-hardcoded proactive dirs</h1>
+<p>A doc-surface + small-config release — the two threads I left
+unfinished after 0.5.0 / 0.5.1 are now closed:</p>
+<h2>1. Themed HTML release-notes pages for 0.5.0 and 0.5.1</h2>
+<p>0.5.0 and 0.5.1 shipped with <code>.md</code> release notes only — anyone
+landing on <code>docs/changelog.html</code> saw "Full notes →" links that
+404'd because the rendered <code>.html</code> pages didn't exist. Closing
+this surface gap was on the eight-surface release checklist
+(<code>docs/RELEASING.md</code>) and was missed twice.</p>
+<p>Now under <code>docs/</code>:</p>
+<ul>
+<li><code>skylakegrep-0.5.0.html</code>  ← rendered from <code>skylakegrep-0.5.0.md</code></li>
+<li><code>skylakegrep-0.5.1.html</code>  ← rendered from <code>skylakegrep-0.5.1.md</code></li>
+<li><code>skylakegrep-0.5.2.html</code>  ← this page</li>
+</ul>
+<p>A reusable renderer (<code>scripts/render_release_notes.py</code>) wraps the
+markdown in the same themed sidebar / topbar layout as 0.4.2.html
+so future releases don't repeat the lapse:</p>
+<pre><code class="language-bash">.venv/bin/python scripts/render_release_notes.py 0.5.X
+</code></pre>
+<p>The script uses <code>markdown</code> (already a dev-time dependency for the
+docs build) and reads from <code>docs/skylakegrep-X.Y.Z.md</code> directly.</p>
+<h2>2. <code>SKYGREP_PROACTIVE_DIRS</code> — replaces the hardcoded user-personal folder list</h2>
+<p>Two functions in 0.5.x had the same anti-pattern: a list of the
+maintainer's personal directories baked into source code.</p>
+<ul>
+<li><code>proactive._default_search_dirs()</code> — used by <code>filename_extend</code>
+  to look beyond the project root for filename queries:
+  hardcoded <code>~/Downloads</code>, <code>~/Desktop</code>, <code>~/Documents</code>.</li>
+<li><code>lazy_indexer.lazy_explore_cross_folder()</code> — used by the API
+  for semantic cross-folder exploration: hardcoded the same
+  three plus <code>~/Pictures</code>, <code>~/Code</code>, <code>~/Projects</code>.</li>
+</ul>
+<p>Neither list is universal. <code>~/Code</code> and <code>~/Projects</code> only exist
+for users who follow that convention (the maintainer happens to);
+many users keep their work under <code>~/repos</code>, <code>~/src</code>, <code>~/work</code>,
+<code>/data/projects</code>, etc. Hardcoding either pattern creates the
+exact wrong default for everyone else.</p>
+<p>0.5.2 makes both honor <code>SKYGREP_PROACTIVE_DIRS</code>, a colon-separated
+list of absolute paths:</p>
+<pre><code class="language-bash"># Override for this shell
+export SKYGREP_PROACTIVE_DIRS=&quot;$HOME/repos:$HOME/work:/data/projects&quot;
+
+# Or per-invocation
+SKYGREP_PROACTIVE_DIRS=&quot;$HOME/src&quot; skygrep &quot;&lt;query&gt;&quot;
+</code></pre>
+<p>Stale or missing dirs are silently filtered out so a partial config
+doesn't waste scheduling budget on <code>find</code> walks against missing
+trees. When the env var is unset, the legacy hardcoded list still
+applies — no behaviour change for users who don't opt in.</p>
+<p>This is a small change in lines but a meaningful one: the codebase
+now contains zero personal-filesystem assumptions.</p>
+<h2>What's still pending (0.6 candidates)</h2>
+<ul>
+<li>A new proactive enhancer <code>cross_folder_semantic</code> that wraps
+  <code>lazy_explore_cross_folder</code> so the warm-cascade path (not just
+  cold-start) can fall back to sibling-folder semantic search when
+  in-project results are weak. The wiring requires careful
+  individual_budget_ms tuning for the embedder call, which is
+  bigger than belongs in a 0.5.x patch — deferred to 0.6.</li>
+<li><code>--lazy/--no-lazy</code> is currently only consulted on the cold-start
+  branch. Wiring it into the warm cascade as an "if cascade is
+  weak, also try lazy in cwd" augmentation is the next step.</li>
+</ul>
+<h2>Verified</h2>
+<ul>
+<li><code>pytest tests/</code> — 201 / 201 pass</li>
+<li><code>_default_search_dirs()</code> smoke test:
+  <code>python
+  os.environ['SKYGREP_PROACTIVE_DIRS'] = '/tmp:/var/tmp:/nonexistent'
+  → ['/tmp', '/var/tmp']     # nonexistent dropped</code></li>
+<li>0.5.0 / 0.5.1 / 0.5.2 themed HTML pages rendered and linked from
+  <code>docs/changelog.html</code>.</li>
+<li>0.5.0 / 0.5.1 PyPI installs verified end-to-end on a fresh
+  Django checkout in 0.5.1 release notes.</li>
+</ul></article>
+</main>
+</div>
+</body></html>

@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.1 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.1 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.1</p>
+<h1>skylakegrep 0.5.1 — auto-trigger lazy on cold-start (no flag needed)</h1>
+<p>0.5.0 shipped a <code>--lazy</code> flag and called the architecture done. Wrong.
+The whole premise of lazy is that <strong>the user does not know whether
+they're in the right folder, or whether their query happens to align
+with the code's vocabulary</strong> — so the user cannot be expected to
+decide whether to add a flag. 0.5.1 flips lazy to auto-trigger.</p>
+<h2>What changed</h2>
+<p><code>skygrep "&lt;query&gt;"</code> (default, no flag) on a never-indexed project now
+auto-decides between three tiers:</p>
+<pre><code>ripgrep cold-start           ←  ~100 ms, always runs
+  ↓ if rg paths cover ≥ 2 distinct query tokens (camel/snake split)
+  →  return rg-only          ←  user gets answer in 100 ms
+  ↓ otherwise (vocabulary mismatch / wrong folder)
+  →  also fire lazy semantic ←  ~5 s wait, LLM-routed entry-points
+                                 + bge-m3 batch embed, σ-validated
+                                 → merge with rg → return both
+</code></pre>
+<p><code>--no-lazy</code> opts out (e.g. for benchmarking pure rg). <code>--lazy</code> is
+now the default (kept for explicit testing).</p>
+<p>The "rg is strong" gate is intentionally strict: it requires ≥ 2
+distinct query tokens (after PascalCase / snake_case splitting) to
+land in result paths. A single common token like <code>schema</code> matching
+five unrelated <code>schema.py</code> files in different backends does <strong>not</strong>
+count as strong — that's the vocabulary-mismatch trap that fooled
+0.5.0's earlier opt-in design.</p>
+<h2>Verified end-to-end on a fresh, never-indexed Django checkout</h2>
+<pre><code>$ skygrep &quot;cache invalidation strategy&quot;
+
+╭─ django/middleware/cache.py                                       0.537
+╭─ django/contrib/sessions/backends/cached_db.py                    0.518
+╭─ django/templatetags/cache.py                                     0.514
+╭─ django/core/cache/backends/redis.py                              0.514
+╭─ django/template/loaders/cached.py                                0.509
+
+[8.144 s · ripgrep cold-start + lazy auto (σ=0.010, conf=medium,
+ 25new/0cached) · intent=lexical · 0 filename + 5 rg + 5 lazy ·
+ index building in background]
+</code></pre>
+<p>Six scenarios from CLI (not python API) on <code>/tmp/oss-bench/django</code>,
+fresh DB each time, no <code>skygrep index .</code> ever ran:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Query</th>
+<th>rg paths align?</th>
+<th>Lazy fires?</th>
+<th>Latency</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td><code>ModelForm</code></td>
+<td>rg returned only <code>docs/*</code></td>
+<td>YES</td>
+<td>6.4 s</td>
+<td>✓ lazy delivered <code>model_forms/*.py</code></td>
+</tr>
+<tr>
+<td>B</td>
+<td><code>schema synchronization across releases</code></td>
+<td>only "schema" matched</td>
+<td>YES</td>
+<td>8.0 s</td>
+<td>✓ semantic answer</td>
+</tr>
+<tr>
+<td>C</td>
+<td>B with <code>--no-lazy</code></td>
+<td>n/a</td>
+<td>NO (opt-out)</td>
+<td>0.2 s</td>
+<td>✓ pure rg respected</td>
+</tr>
+<tr>
+<td>D</td>
+<td><code>auth backends</code></td>
+<td>tokens didn't co-occur in path</td>
+<td>YES</td>
+<td>9.2 s</td>
+<td>✓ semantic answer</td>
+</tr>
+<tr>
+<td>E</td>
+<td><code>cache invalidation strategy</code></td>
+<td>vocabulary mismatch</td>
+<td>YES</td>
+<td>7.3 s</td>
+<td>✓ correct cache modules</td>
+</tr>
+<tr>
+<td>F</td>
+<td><code>how does Django render template inheritance</code></td>
+<td><code>render</code> + <code>template</code> aligned</td>
+<td>NO (rg strong)</td>
+<td>0.3 s</td>
+<td>✓ instant rg keyword</td>
+</tr>
+</tbody>
+</table>
+<p>Pytest 201/201, no regressions.</p>
+<h2>Why this matters</h2>
+<p>Per the user's vision (and corrected this iteration):</p>
+<blockquote>
+<p>"本身 lazy 的模式我们就不知道我们是不是在错误的这个 path 下面,
+ 所以根本就 user 不可能知道要去加显式这种东西。就是在我们没有
+ 搜到或者是没有完全 index 加载的情况下,就是因为我们不知道是不是
+ 在错误的文件下或者 path 下提问,我们才会去 trigger 这个所谓的
+ lazy 的模式的对吧。"</p>
+</blockquote>
+<p>0.5.1 implements that exactly: the user types <code>skygrep "..."</code>. The
+system decides for them. When rg is path-token-strong, user gets
+the instant keyword answer. When rg is weak (the case the user can
+<em>never</em> judge a priori), the system spends 5 s on the lazy semantic
+tier so the user gets a correct answer instead of a wrong-fast one.</p>
+<h2>Compatibility</h2>
+<ul>
+<li><code>--lazy</code> flag still accepted; semantics unchanged from 0.5.0
+  (now equivalent to default behavior). Use for explicit testing.</li>
+<li><code>--no-lazy</code> is the new opt-out; needed for benchmarks that want
+  pure rg cold-start measurement.</li>
+<li>Indexed projects (post <code>skygrep index .</code>) are unaffected — the
+  full σ-adaptive cascade still owns the warm-query path.</li>
+</ul>
+<h2>What's not yet done (carried from 0.5.0)</h2>
+<ul>
+<li>Themed HTML pages for the 0.5.x release notes (only <code>.md</code> exists).</li>
+<li><code>proactive.filename_extend</code> integration of <code>lazy_explore_cross_folder</code>
+  to replace its hardcoded <code>~/Downloads</code>/<code>~/Desktop</code>/<code>~/Documents</code>
+  defaults — module API is exposed, wiring deferred to 0.5.2.</li>
+</ul>
+<h2>Verified</h2>
+<ul>
+<li><code>pytest tests/</code> — 201 / 201 pass</li>
+<li>6 CLI scenarios on fresh Django (table above)</li>
+<li><code>--no-lazy</code> path measured at 0.2 s, footer correctly reads <code>--no-lazy</code></li>
+<li><code>--lazy/--no-lazy</code> flag round-trips through <code>click</code> correctly</li>
+</ul></article>
+</main>
+</div>
+</body></html>

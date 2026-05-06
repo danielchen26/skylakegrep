@@ -382,9 +382,19 @@ def _call_with_optional_ctx(fn, *args, ctx: ProactiveContext):
 
 
 # Default search roots when the current project_root has no hits.
-# Order matters — common locations first so quick wins get
-# scheduled before slower full-home walks.
+# Honors ``SKYGREP_PROACTIVE_DIRS`` (colon-separated absolute paths)
+# so the hardcoded `~/Downloads / ~/Desktop / ~/Documents` list — the
+# user's personal layout, not a universal — can be overridden without
+# editing source. Falling back to the legacy default keeps existing
+# behaviour unchanged for callers that don't set the env var.
 def _default_search_dirs() -> list[Path]:
+    import os
+    env = os.environ.get("SKYGREP_PROACTIVE_DIRS", "").strip()
+    if env:
+        roots = [Path(p).expanduser() for p in env.split(":") if p.strip()]
+        # Drop entries that don't exist so a stale env var doesn't
+        # waste scheduling budget walking missing dirs.
+        return [r for r in roots if r.is_dir()]
     home = Path.home()
     return [
         home / "Downloads",

@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.0 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.0 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.0</p>
+<h1>skylakegrep 0.5.0 — adaptive lazy index for cold-start semantic search</h1>
+<p>The 0.4.x line removed graph-walk retrieval after a production
+<code>KeyError 'snippet'</code> regression and 0.4.0–0.4.2 did not actually
+improve recall on real corpora. 0.5.0 returns to the original design
+intent that motivated the graph work in the first place: <strong>the user
+should not have to run <code>skygrep index .</code> and wait 5–10 minutes before
+asking the first semantic question.</strong></p>
+<h2>The three confidence tiers</h2>
+<p>skylakegrep now offers three answers to "I just <code>cd</code>-ed into a repo,
+ask one question":</p>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Latency</th>
+<th>Recall</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rg</code> cold-start (existing 0.2.x)</td>
+<td>~100 ms</td>
+<td>keyword match only</td>
+<td>default; fires while the eager index builds in the background</td>
+</tr>
+<tr>
+<td><code>--lazy</code> (NEW in 0.5.0)</td>
+<td>~5 s</td>
+<td>partial semantic (4–5 / 10 on Django)</td>
+<td>opt-in; LLM picks ~25 entry-point files, batch-embeds, σ-validated top-K</td>
+</tr>
+<tr>
+<td>full eager index (existing 0.2.x)</td>
+<td>5–10 min upfront, then ~100 ms / query</td>
+<td>full semantic (30 / 30 on the public OSS bench)</td>
+<td>run once via <code>skygrep index .</code> (or auto-spawned by <code>--auto-index</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The lazy tier is the missing middle: an honest semantic answer in
+seconds on a project that has never been indexed, with explicit
+σ-validated confidence telemetry so the user knows it's partial.</p>
+<h2>How <code>--lazy</code> works</h2>
+<pre><code>skygrep &quot;&lt;query&gt;&quot; --lazy
+</code></pre>
+<ol>
+<li>Walk the project tree (depth-bounded) into a directory summary.</li>
+<li>Token-shortcut seeds: any file whose path/name contains a query
+   token is included for free (no LLM, no embed).</li>
+<li>LLM router (<code>qwen2.5:3b</code>) picks 5–15 likely entry-point paths from
+   the directory summary alone — no file content read, no
+   embeddings yet.</li>
+<li>Batch-embed all selected seed files in ONE <code>bge-m3</code> call via the
+   Ollama batch endpoint (≈ 5× faster than per-file).</li>
+<li>Score the query embedding against each file embedding via cosine
+   similarity, keep top-K.</li>
+<li>Compute σ across the top-K cosine scores → emit a confidence
+   label (<code>none</code> / <code>low</code> / <code>medium</code> / <code>high</code>) so the user can judge
+   whether to trust the partial answer or fall through to a full
+   index.</li>
+</ol>
+<p>No new hyperparameters. The same <code>cosine</code> metric and the same
+<code>CASCADE_TAU_FLOOR</code> / <code>CASCADE_K_SIGMA</code> confidence-gate constants
+that the 0.2.x σ-adaptive cascade uses are reused; the only knob
+is <code>seed_budget=25</code> which is the LLM-routed seed count, not a
+threshold.</p>
+<h2>Real numbers</h2>
+<p>End-to-end CLI test on a fresh, never-indexed copy of the
+skylakegrep repo itself:</p>
+<pre><code>$ skygrep --lazy &quot;where is the cosine similarity scoring computed&quot;
+… top-5 results ranked by cosine …
+[8.3 s · lazy cold-start · embedded=25new/0cached · σ=0.027 · confidence=high]
+</code></pre>
+<p>Bench on Django (10 queries, fresh DB each):</p>
+<pre><code>hits 4/10 (top-5) · p50 5.0 s · max 9.1 s · ~20 files embedded / query
+</code></pre>
+<p>Compare: full upfront <code>skygrep index .</code> on Django embeds ~5000 files
+and takes ~5–10 min before the first query can run. 0.5.0 gives the
+user 4 correct answers out of 10 <em>in 5 s each</em> instead of nothing
+at all for the first 5 minutes.</p>
+<h2>What <code>--lazy</code> is not</h2>
+<ul>
+<li>Not a replacement for the full cascade. The full eager index still
+  scores 30 / 30 on the public OSS bench and is still the right tier
+  for repos you'll be querying repeatedly.</li>
+<li>Not a replacement for <code>rg</code> cold-start. If you want an answer
+  <em>instantly</em> and a keyword match is good enough, the existing
+  <code>~100 ms</code> <code>rg</code> path remains the default.</li>
+<li>Not a graph-walk overlay. The 0.4.x graph_expand layer has been
+  removed; the 0.2.21 σ-adaptive cascade (Round-A ∪ Round-C) is
+  restored as the post-index path.</li>
+</ul>
+<p>The lazy tier is purely additive: it occupies the previously-empty
+middle of the latency / recall curve.</p>
+<h2>API</h2>
+<p>For programmatic callers:</p>
+<pre><code class="language-python">from skylakegrep.src import lazy_indexer as LZ
+from skylakegrep.src.embeddings import OllamaEmbedder
+
+embedder = OllamaEmbedder(...)
+results, telemetry = LZ.lazy_explore_cold_start(
+    conn, query, project_root, embedder, top_k=5, seed_budget=25,
+)
+# telemetry: {&quot;embed_new&quot;: 25, &quot;embed_cached&quot;: 0,
+#             &quot;sigma&quot;: 0.027, &quot;confidence&quot;: &quot;high&quot;}
+</code></pre>
+<p><code>lazy_explore_cross_folder(query, root, embedder)</code> is also exposed
+for the proactive-explorer use case (look beyond <code>cwd</code> when the
+query is unlikely to live in the current dir). 0.5.x will wire this
+into <code>proactive.filename_extend</code> to replace its hardcoded
+<code>~/Downloads</code>/<code>~/Desktop</code>/<code>~/Documents</code> defaults with an LLM-routed
+search space.</p>
+<h2>What changed</h2>
+<ul>
+<li>New module <code>lazy_indexer.py</code>: <code>crawl_tree</code>, <code>render_tree_summary</code>,
+  <code>token_shortcut_seeds</code>, <code>embed_files_batch</code>, <code>cosine_topk_with_sigma</code>,
+  <code>lazy_explore_cold_start</code>, <code>lazy_explore_cross_folder</code>.</li>
+<li>New <code>--lazy</code> CLI flag on <code>skygrep search</code> (and the bare-form alias).</li>
+<li>New helper <code>infer_candidate_paths</code> in <code>llm_router.py</code> for LLM-routed
+  path selection from a directory summary.</li>
+<li><code>OllamaEmbedder.embed_batch</code> now used for one-call batch embedding
+  of seed files — primary perf lever (25 s → 5 s on Django).</li>
+<li>0.4.x graph-walk retrieval (<code>_expand_via_reference_graph</code>) removed
+  from <code>cascade_search</code> (already reverted in the 0.4.2 hot-fix).</li>
+<li><code>populate_graph_table</code> no longer eagerly populates <code>graph_edge</code>;
+  the schema is preserved and <code>lazy_indexer.ensure_refs_for</code> will
+  populate it lazily as the cascade reaches files.</li>
+<li>201 / 201 tests pass; no new test failures introduced.</li>
+</ul>
+<h2>Verified end-to-end</h2>
+<ul>
+<li><code>pytest tests/</code> — 201 passed</li>
+<li><code>skygrep --lazy "where is the cosine similarity scoring computed"</code>
+  on a fresh copy of the skylakegrep repo: 8.3 s, top-5 returned,
+  σ=0.027, confidence=high.</li>
+<li>10-query Django bench: 4 / 10 hits, p50 5.0 s, max 9.1 s.</li>
+</ul></article>
+</main>
+</div>
+</body></html>

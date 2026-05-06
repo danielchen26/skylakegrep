@@ -66,6 +66,29 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.2 · themed HTML release notes + de-hardcoded proactive dirs</div>
+ <h3>Closing the doc-surface gap from 0.5.0/0.5.1 + zero personal-filesystem assumptions</h3>
+ <p>
+ 0.5.0 and 0.5.1 shipped with <code>.md</code> release notes only —
+ the changelog "Full notes →" links pointed at <code>.html</code>
+ pages that didn't exist. Closed in 0.5.2: a reusable
+ <code>scripts/render_release_notes.py</code> wraps each
+ <code>.md</code> in the same themed sidebar / topbar layout as
+ 0.4.2.html so future releases don't repeat the lapse. Both
+ <code>skylakegrep-0.5.0.html</code> and
+ <code>skylakegrep-0.5.1.html</code> now exist alongside this page.
+ Second change: <code>SKYGREP_PROACTIVE_DIRS</code> (colon-separated
+ absolute paths) replaces hardcoded
+ <code>~/Downloads / ~/Desktop / ~/Documents</code> in
+ <code>proactive._default_search_dirs</code> AND in
+ <code>lazy_indexer.lazy_explore_cross_folder</code>'s default
+ <code>candidate_roots</code>. Both lists were the maintainer's
+ personal layout; the codebase now contains zero personal-filesystem
+ assumptions. Pytest 201 / 201.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.2.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.1 · auto-trigger lazy on cold-start (no flag needed)</div>
  <h3>The user shouldn't have to know which tier they need</h3>
  <p>

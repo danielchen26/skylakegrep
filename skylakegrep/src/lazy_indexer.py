@@ -375,11 +375,23 @@ def lazy_explore_cross_folder(
     Returns the same shape as `lazy_explore_cold_start`.
     """
     if candidate_roots is None:
-        candidate_roots = [
-            Path.home() / d for d in
-            ("Downloads", "Desktop", "Documents", "Pictures", "Code", "Projects")
-            if (Path.home() / d).exists()
-        ]
+        # 0.5.2: honor SKYGREP_PROACTIVE_DIRS env var (colon-separated
+        # absolute paths) so the cross-folder hunt isn't pinned to
+        # one user's filesystem layout. Same env var as the proactive
+        # `_default_search_dirs` for a single point of configuration.
+        import os as _os
+        env = _os.environ.get("SKYGREP_PROACTIVE_DIRS", "").strip()
+        if env:
+            candidate_roots = [
+                Path(p).expanduser() for p in env.split(":") if p.strip()
+            ]
+            candidate_roots = [r for r in candidate_roots if r.is_dir()]
+        else:
+            candidate_roots = [
+                Path.home() / d for d in
+                ("Downloads", "Desktop", "Documents", "Pictures", "Code", "Projects")
+                if (Path.home() / d).exists()
+            ]
 
     # Aggregate token-shortcut seeds across candidate roots
     all_files: list[str] = []
