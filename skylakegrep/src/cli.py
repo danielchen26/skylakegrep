@@ -249,7 +249,7 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--llm-router/--no-llm-router", default=True, help="LLM-driven query understanding (v0.15.0+). Routes queries via a small local Ollama model (default qwen2.5:3b) for generic intent classification. Falls back to v0.14.0 hand-rolled rules on any failure. Pass --no-llm-router to force the rule-based fallback.")
 @click.option("--detail", default="standard", type=click.Choice(["brief", "standard", "full", "summary"]), help="Output verbosity. `brief` = path + score one-liner. `standard` = +10 lines body (default). `full` = +full extracted PDF/docx content for filename matches. `summary` = +1-line truncated preview (first non-empty line, ≤160 chars; no LLM call).")
 @click.option("--ocr", is_flag=True, help="Run tesseract OCR on scanned PDFs (slow, ~5-30s/page). Opt-in only; requires tesseract + pdftoppm on PATH.")
-@click.option("--lazy", is_flag=True, help="0.5.0+ cold-start lazy index: skip the upfront `skygrep index .` requirement and embed only ~25 LLM-selected entry-point files on demand. Returns a real-semantic answer in ~5 s with partial recall (vs. the 30/30 full-index path which takes 5-10 min upfront). Use for first-touch / unfamiliar repos when you want better-than-rg-keyword answers fast.")
+@click.option("--lazy/--no-lazy", default=True, help="0.5.1+ auto-trigger: on cold-start (no index yet), if ripgrep alone returns a weak result (few hits or no path/token overlap with the query) the cold-start path also fires the lazy LLM-routed semantic tier (~5 s) and merges. When ripgrep already returns a strong keyword answer, lazy is skipped — user gets the instant rg result. Default on so the user never has to know which tier they need; pass --no-lazy to force pure rg cold-start (benchmarking).")
 def search_cmd(
     query: str,
     top: int,
@@ -408,54 +408,12 @@ def search_cmd(
             fn_results = fn_hits
 
     # Routing decision: ready → cascade; building or absent → rg fallback.
+    # 0.5.1: when the cold-start path is taken (no index yet) and rg
+    # alone is weak, that fallback now also fires the lazy LLM-routed
+    # semantic tier and merges the two — wired below in the cold-start
+    # branch. This stays AUTO so the user never has to know which tier
+    # to ask for; the `--lazy / --no-lazy` flag only opts out.
     conn = init_db(db_path)
-
-    # 0.5.0 cold-start lazy short-circuit. When --lazy is set, the user
-    # has opted into a real-semantic answer in ~5 s on a project that
-    # has not been (and may never be) indexed: an LLM router picks a
-    # handful of likely entry-point files from the directory tree alone,
-    # we batch-embed them and σ-validate a top-K cosine result. Partial
-    # recall is the explicit trade — better-than-rg-keyword without the
-    # 5–10 min upfront `skygrep index .`. Bypasses the cascade entirely.
-    if lazy:
-        from . import lazy_indexer as LZ
-        embedder = get_embedder(role="query")
-        start = time.time()
-        lazy_results, lazy_tele = LZ.lazy_explore_cold_start(
-            conn, query, project_root, embedder, top_k=top,
-        )
-        elapsed = time.time() - start
-        if json_output:
-            click.echo(render_json_results(lazy_results))
-            return
-        if not lazy_results:
-            click.echo(
-                f"No matches via lazy index "
-                f"({lazy_tele.get('embed_new', 0)} files embedded, "
-                f"σ={lazy_tele.get('sigma', 0)}, "
-                f"conf={lazy_tele.get('confidence', '?')}). "
-                f"Run `skygrep index .` for full coverage.",
-                err=True,
-            )
-            return
-        for r in lazy_results:
-            click.echo(
-                render_terminal_result(
-                    r,
-                    content=content,
-                    project_root=str(project_root),
-                    detail=detail,
-                    ocr=ocr,
-                )
-            )
-        click.echo(
-            f"\n[{elapsed:.3f}s · lazy cold-start · "
-            f"embedded={lazy_tele.get('embed_new', 0)}new/"
-            f"{lazy_tele.get('embed_cached', 0)}cached · "
-            f"σ={lazy_tele.get('sigma', 0):.3f} · "
-            f"confidence={lazy_tele.get('confidence', '?')}]"
-        )
-        return
 
     # Intelligent CLI hint — first-run nudge (0.2.4+). Once-per-project
     # greeting that explains the auto-index + rg-fallback flow so a
@@ -488,12 +446,76 @@ def search_cmd(
         # also benefits from the v0.14.0 hierarchical-merge model.
         start = time.time()
         rg_cold = ai.rg_fallback_results(query, project_root, top_k=top)
-        elapsed = time.time() - start
+        rg_elapsed = time.time() - start
+
+        # 0.5.1 auto-trigger lazy semantic on a weak rg cold-start.
+        # The user can't be expected to know whether they're in the
+        # right folder or whether their keyword query happens to align
+        # with the code's vocabulary — so we decide for them: if rg
+        # already returns a strong keyword answer (≥ 3 results AND at
+        # least one path contains a query term ≥ 3 chars), the user
+        # gets that instantly and we skip the 5 s lazy embed pass. If
+        # rg is weak (no path-token overlap or < 3 hits), we fire the
+        # LLM-routed lazy semantic tier in the same call and merge.
+        # `--no-lazy` opts out (e.g. for benchmarking pure rg).
+        def _rg_is_strong(results_: list, query_: str) -> bool:
+            if not results_ or len(results_) < 3:
+                return False
+            import re as _re
+            # Tokenize query terms with camelCase / PascalCase splitting
+            # so "ModelForm" → {"modelform", "model", "form"} and matches
+            # both `ModelForm.py` and `model_form.py` paths.
+            raw = [t for t in query_.split() if len(t) >= 3]
+            terms: set[str] = set()
+            for t in raw:
+                terms.add(t.lower())
+                # Pascal/camelCase split: "ModelForm" → ["Model", "Form"]
+                for p in _re.findall(r"[A-Z][a-z]+|[a-z]{3,}|\d+", t):
+                    if len(p) >= 3:
+                        terms.add(p.lower())
+            if not terms:
+                return False
+            matched: set[str] = set()
+            for r in results_:
+                raw_path = str(r.get("path", "")).lower()
+                # Normalize path by stripping separators so
+                # `model_form` and `model-form` reduce to `modelform`.
+                norm_path = raw_path.replace("_", "").replace("-", "")
+                for t in terms:
+                    if t in raw_path or t in norm_path:
+                        matched.add(t)
+            # rg is "strong" only when ≥ 2 distinct query tokens land
+            # in paths. A single common token like `schema` matching
+            # 5 unrelated `schema.py` files in different backends is
+            # NOT strong — that's how vocabulary-mismatch queries
+            # ("schema synchronization across releases") fool a naive
+            # gate. Single-word queries with no camel/snake case split
+            # always fire lazy, by design — the 5 s wait is cheaper
+            # than the wrong answer.
+            return len(matched) >= 2
+
+        lazy_results: list = []
+        lazy_tele: dict = {}
+        lazy_elapsed = 0.0
+        rg_strong = _rg_is_strong(rg_cold, query)
+        if lazy and not rg_strong:
+            try:
+                from . import lazy_indexer as LZ
+                lazy_embedder = get_embedder(role="query")
+                lazy_start = time.time()
+                lazy_results, lazy_tele = LZ.lazy_explore_cold_start(
+                    conn, query, project_root, lazy_embedder, top_k=top,
+                )
+                lazy_elapsed = time.time() - lazy_start
+            except Exception as exc:
+                logger.warning("lazy cold-start fallback failed: %s", exc)
+
+        elapsed = rg_elapsed + lazy_elapsed
         intent = decision.intent
         results = merge_tiers(
             filename=fn_results,
-            lexical=[],
-            semantic=rg_cold,
+            lexical=rg_cold,
+            semantic=lazy_results,
             intent=intent,
             top_k=top,
         )
@@ -551,10 +573,23 @@ def search_cmd(
             f" + {len(cold_proactive_results)} proactive"
             if cold_proactive_results else ""
         )
+        if lazy_results:
+            lazy_tag = (
+                f" + lazy auto (σ={lazy_tele.get('sigma', 0):.3f}, "
+                f"conf={lazy_tele.get('confidence', '?')}, "
+                f"{lazy_tele.get('embed_new', 0)}new/"
+                f"{lazy_tele.get('embed_cached', 0)}cached)"
+            )
+        elif lazy and rg_strong:
+            lazy_tag = " · rg strong → lazy skipped"
+        elif not lazy:
+            lazy_tag = " · --no-lazy"
+        else:
+            lazy_tag = ""
         click.echo(
-            f"\n[{elapsed:.3f}s · ripgrep cold-start{proactive_tag} · "
+            f"\n[{elapsed:.3f}s · ripgrep cold-start{proactive_tag}{lazy_tag} · "
             f"intent={intent} · {len(fn_results)} filename + "
-            f"{len(rg_cold)} content · index {suffix}]"
+            f"{len(rg_cold)} rg + {len(lazy_results)} lazy · index {suffix}]"
         )
         return
 

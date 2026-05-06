@@ -66,6 +66,49 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.1 · auto-trigger lazy on cold-start (no flag needed)</div>
+ <h3>The user shouldn't have to know which tier they need</h3>
+ <p>
+ 0.5.0 shipped <code>--lazy</code> as opt-in. Wrong: the whole
+ premise of lazy is that the user doesn't know whether they're in
+ the right folder or whether their query aligns with the code's
+ vocabulary, so they can't be expected to add the flag. 0.5.1
+ flips it to auto-trigger. <code>skygrep "&lt;query&gt;"</code> on
+ a never-indexed project now: runs <code>rg</code> immediately;
+ if rg paths cover ≥ 2 distinct query tokens (PascalCase /
+ snake_case split), returns the instant keyword answer; otherwise
+ also fires the LLM-routed lazy semantic tier (~5 s) and merges.
+ <code>--no-lazy</code> is the new opt-out for benchmarking.
+ Verified end-to-end on a fresh Django checkout via real CLI (not
+ python API) — 6 scenarios, 5 of which exercise the auto-trigger
+ from both directions; e.g. <code>"cache invalidation strategy"</code>
+ returns <code>django/middleware/cache.py</code>,
+ <code>cached_db.py</code>, etc. in 8 s. Pytest 201 / 201.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.1.html">Full notes →</a>
+ </article>
+ <article class="release-card">
+ <div class="release-tag">0.5.0 · adaptive lazy index for cold-start semantic search</div>
+ <h3>Real-semantic answer in ~5 s on a project that has never been indexed</h3>
+ <p>
+ 0.4.x removed graph-walk after a production crash and didn't
+ actually improve recall. 0.5.0 returns to the original design
+ intent: the user shouldn't have to run
+ <code>skygrep index .</code> and wait 5–10 minutes for the first
+ semantic question. New <code>lazy_indexer</code> module: an LLM
+ router (qwen2.5:3b) picks 5–15 likely entry-point paths from the
+ directory tree alone, the embedder batch-embeds them in one
+ bge-m3 call (~5× speedup over per-file), and a σ-validated cosine
+ top-K is returned with confidence telemetry. Django bench
+ (10 queries, fresh DB): 4 / 10 hits, p50 5.0 s, max 9.1 s.
+ Architecture: lazy is purely additive — fills the previously-empty
+ middle of the latency / recall curve between rg cold-start
+ (~100 ms keyword) and full eager index (5–10 min upfront,
+ 30 / 30 recall). 0.4.x graph_expand stays removed.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.0.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.4.2 · P0 hot-fix · KeyError 'snippet'</div>
  <h3>Critical crash on every escalated query that graph_expand contributed to</h3>
  <p>
