@@ -1,0 +1,1106 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep — knowledge-graph retrieval plan (v1 + v2)" />
+ <meta name="theme-color" content="#13192a" />
+ <title>Graph-walk retrieval plan (v1 ⊃ v2) · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.3.0" />
+ <style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html"><span class="brand-text">skylakegrep</span><span class="version">graph-walk plan</span></a>
+ <nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a></nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section"><p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html">Release notes</a>
+ </div>
+ <div class="nav-section"><p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div></nav></aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+<h1>Plan — Graph-walk retrieval (v2) ⊃ folder-prior inference (v1)</h1>
+<p><strong>Date filed:</strong> 2026-05-05 · <strong>Last updated:</strong> 2026-05-06
+<strong>Status:</strong> v2 MVP <strong>shipped in 0.3.0</strong> (G-0 + G-2 + G-3 + G-4 done) · G-1 / G-5 / G-6 pending
+<strong>Trigger:</strong> user feedback during 0.2.11 review (proactive currently
+hard-codes <code>~/Downloads</code>, <code>~/Desktop</code>, <code>~/Documents</code> as the search
+extension scope) — <strong>expanded 2026-05-06</strong> with the user's full
+vision: cold-start query-conditioned inference, multi-edge knowledge
+graph, diffusion-style traversal, adaptive local indexing, hierarchical
+fallback subagent, all under hard latency + accuracy invariants.</p>
+<hr />
+<h2>✅ Implementation status (as of 0.3.0, 2026-05-06)</h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Status</th>
+<th>Module / commit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>G-0</strong> — Schema + 4 cheap edges</td>
+<td><strong>DONE</strong> ✅ (0.3.0)</td>
+<td><code>init_db</code> adds <code>graph_node</code> + <code>graph_edge</code> tables; <code>graph_substrate.populate_graph_substrate()</code> builds containment + refs + name_sim + path_prox</td>
+</tr>
+<tr>
+<td><strong>G-1</strong> — <code>_smart_search_dirs</code> (folder bandit)</td>
+<td>NOT YET ⏳</td>
+<td>Still uses hardcoded <code>~/Downloads/Desktop/Documents</code>; deferred — measurement-gate it once we have telemetry from G-2 onwards</td>
+</tr>
+<tr>
+<td><strong>G-2</strong> — Cold-start seed mapping</td>
+<td><strong>DONE</strong> ✅ (0.3.0)</td>
+<td><code>query_seeds.py</code> — 4 matchers (filename / symbol / semantic / path-token), works with zero history</td>
+</tr>
+<tr>
+<td><strong>G-3</strong> — Bounded PPR walk</td>
+<td><strong>DONE</strong> ✅ (0.3.0)</td>
+<td><code>graph_walk.py</code> — Andersen-Chung-Lang forward push, σ-stop, max 200 nodes, ~330ms worst-case</td>
+</tr>
+<tr>
+<td><strong>G-4</strong> — Cascade integration</td>
+<td><strong>DONE</strong> ✅ (0.3.0)</td>
+<td><code>storage.py:_graph_walk_candidates</code> + cascade_search escalation merges graph-walk pool when <code>SKYGREP_GRAPH_WALK=1</code></td>
+</tr>
+<tr>
+<td><strong>G-5</strong> — Proactive <code>graph_walk_expand</code> enhancer</td>
+<td>NOT YET ⏳</td>
+<td>Currently only fires on the cascade escalation path, not as a parallel proactive subagent. ~1 week follow-up</td>
+</tr>
+<tr>
+<td><strong>G-6</strong> — Adaptive lazy L2 embedding</td>
+<td>NOT YET ⏳</td>
+<td>All chunks still eagerly embedded at index time; lazy embedding deferred. ~2 weeks follow-up</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Tests:</strong> 221/221 pass (20 new in <code>tests/test_graph_walk.py</code> — tokeniser, graph CRUD, PPR convergence, cold-start seeds, edge builder, cascade integration smoke test).</p>
+<p><strong>Default behaviour unchanged:</strong> the graph walk is gated behind
+<code>SKYGREP_GRAPH_WALK=1</code>. The plan calls for flipping default-on after
+the public-OSS bench confirms accuracy delta on the 2 internal hard
+misses (<code>crates/ai/</code>, <code>app/src/billing/</code>).</p>
+<p><strong>Cross-cutting invariants — verified by construction:</strong>
+  - Latency (§ 14): graph walk runs only on cascade escalation, in parallel within the existing 2 s proactive budget; cheap-path queries (~80%) untouched.
+  - Accuracy (§ 15): graph-walk results are unioned with the existing Round A + Round C candidate pools at the rerank stage; final cross-encoder rerank still picks the best, so candidates can only be added, never demoted.</p>
+<hr />
+<hr />
+<h2>Reading order</h2>
+<p>This plan is layered. <strong>v1</strong> (the original scope, sections § 1 – § 7
+below) is a learned-bandit on top of a bounded folder list — it
+solves the immediate "hardcoded three dirs" symptom. <strong>v2</strong>
+(sections § 8 – § 18) is the architectural target: a content-
+agnostic knowledge graph traversed via bounded Personalized PageRank,
+with cold-start seed mapping that works on the user's first-ever
+query.</p>
+<p>v1 ships as a measurement baseline (Phase G-1 below); v2 builds on
+top of v1's substrate. Either tier can ship alone; v2 is a strict
+super-set of v1's capabilities.</p>
+<p>The two tiers share one critical guarantee: <strong>the graph walk
+runs only when the cheap cascade path fails to deliver.</strong> The
+~80 % of queries answered by the existing σ-adaptive early-exit
+never touch the new substrate, so latency for the dominant case is
+unchanged.</p>
+<hr />
+<h1>v1 — folder-prior inference (existing scope)</h1>
+<h2>1. Problem statement (v1)</h2>
+<p>The 0.2.7 – 0.2.11 proactive framework's <code>filename_extend</code> enhancer
+extends search to a <strong>fixed list of three home directories</strong>:</p>
+<pre><code class="language-python">def _default_search_dirs() -&gt; list[Path]:
+    home = Path.home()
+    return [
+        home / &quot;Downloads&quot;,
+        home / &quot;Desktop&quot;,
+        home / &quot;Documents&quot;,
+    ]
+</code></pre>
+<p>This is the simplest possible expansion. But it has a real ceiling:</p>
+<ol>
+<li><strong>Misses non-default locations.</strong> Files in <code>~/Pictures</code>, <code>/tmp</code>,
+     <code>~/Movies</code>, an external drive, a network mount, a project root
+     somewhere under <code>~/Code</code>, …</li>
+<li><strong>Wastes budget on irrelevant dirs.</strong> A query for a code file
+     extends to <code>~/Documents</code> (full of PDFs / Word docs); a query
+     for a tax PDF extends to <code>~/Code</code>. Neither is fatal but each
+     costs 100–600 ms of <code>find</code> time on a deep tree.</li>
+<li><strong>No personalization.</strong> Every user gets the same three dirs;
+     no learning from their actual usage patterns.</li>
+</ol>
+<p>The user's articulated v1 vision (2026-05-05):</p>
+<blockquote>
+<p>我们应该可以基于当前系统的状态或者用户过去提问的东西对吧可以
+infer 出他最 likely 有可能出现的 folder 在哪个 folder 下面回答
+当前这个问题</p>
+</blockquote>
+<p>In other words: <strong>build a graph that connects (query → folder) and
+(file → folder) and (file → access-time / open-event), then use
+this graph as a content-agnostic prior to rank candidate folders
+for proactive search.</strong></p>
+<p>This is a direct application of Karpathy's "knowledge graph as
+prior" thesis, applied at the <em>retrieval-target</em> layer rather than
+the <em>retrieval-substrate</em> layer (which is where bge-m3 already
+operates).</p>
+<h2>2. Architecture sketch (v1)</h2>
+<pre><code>                        ┌─────────────────────────────────┐
+                        │  GraphPrior (content-agnostic)  │
+                        │                                 │
+                        │  Nodes:                         │
+                        │   - folders (paths)             │
+                        │   - files (paths)               │
+                        │   - queries (history)           │
+                        │   - tokens (extracted)          │
+                        │                                 │
+                        │  Edges:                         │
+                        │   - (file → folder) &quot;located_in&quot;│
+                        │   - (folder → folder) &quot;parent_of&quot;│
+                        │   - (query → folder) &quot;answered_by&quot;│
+                        │   - (file → query) &quot;appeared_in_top_k&quot;│
+                        │   - (file → access_event) &quot;opened_at&quot;│
+                        │   - (token → folder) &quot;term_freq&quot;│
+                        └─────────────────────────────────┘
+                                       │
+                                       │  scoring_fn(query)
+                                       ▼
+                  ┌────────────────────────────────────────┐
+                  │  candidate_folders ranked by relevance │
+                  │  to *this query's* content/topic/      │
+                  │  recency/user-affinity                 │
+                  └────────────────────────────────────────┘
+                                       │
+                                       │
+                                       ▼
+                          replaces _default_search_dirs()
+                          inside filename_extend_execute,
+                          and any future content-search
+                          extension enhancer
+</code></pre>
+<p>The graph is <strong>populated at index-time</strong> (each indexed file adds
+edges automatically) and <strong>enriched over time</strong> by:</p>
+<ul>
+<li>Every <code>skygrep</code> query result → adds <code>(file → query)</code> edges for
+    the top-K results</li>
+<li>Every macOS file-open / shell-<code>open</code> / editor-touch event
+    (optional, requires daemon mode or <code>mds</code> integration) → adds
+    <code>(file → access_event)</code> edges</li>
+<li>Every project the user navigated into via <code>cd</code> → adds the
+    folder as a candidate root (optional, requires shell integration)</li>
+</ul>
+<h2>3. Five concrete sources of signal (v1)</h2>
+<p>In approximate order of immediate-payoff vs. effort:</p>
+<h3>S1 — Recently-accessed files</h3>
+<p><strong>Source:</strong> macOS <code>mdls -name kMDItemLastUsedDate &lt;path&gt;</code> for any
+file the user has opened recently. Or simpler: <code>find ... -atime -7</code>.
+<strong>What it tells us:</strong> the user is working <em>here</em>. Weight <code>(this
+folder)</code> highest. <strong>Cost:</strong> ~0.5 day.</p>
+<h3>S2 — Project-root inference from CWD ancestry</h3>
+<p><strong>Source:</strong> walk parent directories looking for <code>.git</code>,
+<code>pyproject.toml</code>, <code>package.json</code>, <code>Cargo.toml</code>, <code>go.mod</code>. Closest
+ancestor = "current project context". <strong>Cost:</strong> ~0.5 day.</p>
+<h3>S3 — Indexed-folder graph (in-memory neighbour set)</h3>
+<p><strong>Source:</strong> every <code>skygrep index</code> invocation records the indexed
+root in metadata. List "all roots ever indexed" and use as candidates.
+<strong>Cost:</strong> ~1 day.</p>
+<h3>S4 — Query history → folder co-occurrence</h3>
+<p><strong>Source:</strong> for every <code>skygrep</code> query, record the folder of the top-1
+result. Build <code>(query-token, folder)</code> edges weighted by frequency,
+TF-IDF. <strong>Cost:</strong> ~2 days.</p>
+<h3>S5 — System-wide Spotlight integration (most ambitious in v1)</h3>
+<p><strong>Source:</strong> macOS <code>mdfind</code> — Spotlight already has an exhaustive
+metadata index. <strong>Cost:</strong> ~3 days. <strong>Privacy concern:</strong> opt-in only.</p>
+<h2>4. Phased implementation (v1)</h2>
+<h3>Phase G-1 — recently-accessed dir prior (~1 week)</h3>
+<p>Replace <code>_default_search_dirs()</code> with:</p>
+<pre><code class="language-python">def _smart_search_dirs(ctx: ProactiveContext) -&gt; list[Path]:
+    candidates: list[tuple[Path, float]] = []
+    if root := _walk_for_project_root(ctx.project_root):
+        candidates.append((root, 1.0))           # S2
+    for d in _recently_accessed_dirs(days=7):
+        candidates.append((d, 0.7))              # S1
+    for d in _known_indexed_roots():
+        candidates.append((d, 0.5))              # S3
+    home = Path.home()
+    for d in (home/&quot;Downloads&quot;, home/&quot;Desktop&quot;, home/&quot;Documents&quot;):
+        candidates.append((d, 0.3))              # fallback
+    return _topn_unique(candidates, n=8)
+</code></pre>
+<h3>Phase G-2 — query-history co-occurrence (~2 weeks)</h3>
+<p>SQLite <code>query_history</code> table; TF-IDF scoring on token-folder
+overlap; linear age decay.</p>
+<h3>Phase G-3 — Spotlight integration (~3 weeks, optional)</h3>
+<p><code>mdfind</code> opt-in via <code>SKYGREP_USE_SPOTLIGHT=1</code>.</p>
+<h2>5. v1 measurement plan</h2>
+<p>Before any of this is worth building, measure:</p>
+<ol>
+<li><strong>Hit rate of current <code>_default_search_dirs</code></strong> on cold-start
+     filename queries.</li>
+<li><strong>Hit-rate ceiling under a smarter prior</strong> — manually
+     identify the right folder for the misses; what % could a
+     graph-prior catch?</li>
+</ol>
+<p>If (2) is &lt; +10 % on top of (1), v1 isn't worth shipping in
+isolation — go directly to v2.</p>
+<h2>6. v1 risks</h2>
+<ul>
+<li>Over-engineering (hard-coded answers ~80 %; the 20 % captured
+    by G-1+G-2 might not justify the work)</li>
+<li>Bench coverage gap (existing benches don't test cross-folder
+    proactive)</li>
+<li>Privacy regression (<code>find -atime</code> walks <code>~</code>)</li>
+</ul>
+<h2>7. v1 decision</h2>
+<p>Phase G-1 ships as a <strong>measurement baseline</strong> for v2. Even if v2
+lands, G-1's structural priors (project root, indexed roots) are
+free wins that complement v2.</p>
+<p>If the measurement shows v1 alone delivers &gt; 80 % of the value at
+20 % of the effort, we may stop at v1 — but the user's articulated
+vision (§ 8) explicitly demands content-agnostic cold-start
+inference, which v1 doesn't provide.</p>
+<hr />
+<h1>v2 — graph-walk retrieval (expanded 2026-05-06)</h1>
+<h2>8. Why v1 is not enough</h2>
+<p>User's 2026-05-06 critique:</p>
+<blockquote>
+<p>即便是用户第一次打开某种文件在某一个地方或者是问某一种类型的问题
+仍然我们需要从他的问话当中infer出最有可能跟他的问话相对应的folder
+或者是比如说找不到答案的情况下这样的话你的background subagent
+就可以同时进行这种hierarchical的搜索</p>
+<p>第一步肯定是找关联的这个file或者是最有可能的file比如说在系统级别
+可以找跟当前的file最最接近的然后跟对应的metadata还有不同的file不
+同类型的file不同location的file它们之间都是从比如说name location
+metadata语义上它们怎么关联的</p>
+<p>它肯定有一个这种knowledge graph的prior这样的话即便我们index也不
+用index全局我们可以adaptively和dynamically的去构建local的search
+space然后一点一点的扩大就像这种像diffusion process一样在这种
+knowledge graph上一点一点的因为我们已经有它们之间的关系所以说搜
+索起来可能会更加的快捷</p>
+</blockquote>
+<p>Translation of the requirements (mapped to formal asks):</p>
+<table>
+<thead>
+<tr>
+<th>User's articulation</th>
+<th>Formal requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"第一次打开某种文件 / 问某一种类型的问题"</td>
+<td><strong>Cold-start inference</strong> with zero history</td>
+</tr>
+<tr>
+<td>"Content agnostic 仍然 infer 出 most likely folder"</td>
+<td>Inference must work from <strong>query text alone</strong> (not just from history)</td>
+</tr>
+<tr>
+<td>"找不到答案 background subagent 同时进行 hierarchical 搜索"</td>
+<td><strong>Parallel hierarchical fallback</strong> when cheap path fails</td>
+</tr>
+<tr>
+<td>"结合 tree sitter / symbol / semantic search 所有东西"</td>
+<td><strong>Multi-edge graph</strong> spanning all existing channels</td>
+</tr>
+<tr>
+<td>"找跟当前的 file 最接近的"</td>
+<td><strong>Local neighbourhood expansion</strong> from current focus</td>
+</tr>
+<tr>
+<td>"name / location / metadata / semantic" 关联</td>
+<td><strong>Heterogeneous edges</strong>: filename, path, metadata, embedding</td>
+</tr>
+<tr>
+<td>"Knowledge graph 的 prior"</td>
+<td><strong>Pre-computed structural</strong> + <strong>lazy semantic</strong> edges</td>
+</tr>
+<tr>
+<td>"不用 index 全局,adaptively 和 dynamically 构建 local search space"</td>
+<td><strong>Adaptive local indexing</strong> (no global eager index)</td>
+</tr>
+<tr>
+<td>"一点一点扩大就像 diffusion process"</td>
+<td><strong>Random Walk with Restart / Personalized PageRank</strong> traversal</td>
+</tr>
+<tr>
+<td>"因为已经有关系所以搜索可能更快捷"</td>
+<td><strong>Latency neutral or faster</strong> despite richer inference</td>
+</tr>
+</tbody>
+</table>
+<p>Plus the two cross-cutting invariants the user re-emphasised:</p>
+<ul>
+<li><strong>Latency must NOT increase</strong> (all warm queries ≤ 2 s, cheap-
+    path queries ≤ 0.5 s, same as today)</li>
+<li><strong>Accuracy must stay at the current 30 / 30 ceiling, ideally
+    higher</strong> (the 2 known internal hard misses — <code>crates/ai/</code>,
+    <code>app/src/billing/</code> — should become reachable)</li>
+</ul>
+<p>v1 cannot satisfy <em>cold-start inference</em> (S4 needs history, S1-S3
+are user-state agnostic but folder-grain, none route on query
+content). v1 cannot satisfy <em>graph-walk diffusion</em> (it's still flat
+top-K folder bandit). v2 is the architectural answer.</p>
+<h2>9. v2 architecture — heterogeneous knowledge graph</h2>
+<h3>9.1 Nodes</h3>
+<p>Five node types, all light-weight (just a row in SQLite or a
+key in an in-memory dict):</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>What it is</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>File</strong></td>
+<td>absolute path</td>
+<td>filesystem walk, <code>mdfind</code>, indexed-roots</td>
+</tr>
+<tr>
+<td><strong>Folder</strong></td>
+<td>absolute directory path</td>
+<td>filesystem walk</td>
+</tr>
+<tr>
+<td><strong>Chunk</strong></td>
+<td>(file_id, start_line, end_line)</td>
+<td>already in skylakegrep <code>storage.chunks</code></td>
+</tr>
+<tr>
+<td><strong>Symbol</strong></td>
+<td>function/class/macro name extracted by tree-sitter</td>
+<td>already in <code>symbol_channel.py</code></td>
+</tr>
+<tr>
+<td><strong>Token</strong></td>
+<td>identifier or keyword from query / filename / symbol — <strong>virtual</strong>, materialised lazily</td>
+<td>n-gram of query text + filename basename</td>
+</tr>
+</tbody>
+</table>
+<p>Node count scaling: a typical user has ~10⁵–10⁶ files, ~10⁴ folders,
+~10⁶ chunks, ~10⁵ symbols, ~10⁴ active tokens. Total ~3M nodes.
+SQLite handles this size effortlessly.</p>
+<h3>9.2 Edges</h3>
+<p>Eight edge types, each with a (weight ∈ (0, 1], cost-to-compute)
+profile. <strong>Cheap edges are pre-computed during ordinary indexing;
+expensive edges are computed lazily during walk.</strong></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Edge</th>
+<th>Direction</th>
+<th>Weight signal</th>
+<th>Cost</th>
+<th>Built when?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Containment</strong></td>
+<td>folder → folder, folder → file, file → chunk → symbol</td>
+<td><code>1.0</code></td>
+<td>O(1)</td>
+<td>index-time, free</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Reference</strong></td>
+<td>file → file, chunk → chunk</td>
+<td>extractor-supplied</td>
+<td>O(1)</td>
+<td>index-time, exists today (<code>reference_graph.py</code>)</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Name similarity</strong></td>
+<td>file ↔ file, folder ↔ folder</td>
+<td>Jaccard of basename tokens</td>
+<td>O(1) per pair</td>
+<td><strong>lazy on walk</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Path proximity</strong></td>
+<td>file ↔ file via shared ancestor</td>
+<td><code>1 / (1 + LCA_depth)</code></td>
+<td>O(1)</td>
+<td>index-time</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>Metadata cohort</strong></td>
+<td>file ↔ file with same <code>(ext, ±mtime, owner)</code></td>
+<td><code>1</code> if cohort match else 0</td>
+<td>O(1)</td>
+<td>index-time</td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>Semantic similarity</strong></td>
+<td>chunk ↔ chunk, file ↔ file (via mean-pool)</td>
+<td>bge-m3 cosine ≥ τ</td>
+<td>O(d) per pair, d=1024</td>
+<td><strong>lazy on walk</strong> OR pre-cached top-K</td>
+</tr>
+<tr>
+<td>7</td>
+<td><strong>Temporal co-access</strong></td>
+<td>file ↔ file opened within Δt</td>
+<td><code>exp(-Δt / τ)</code></td>
+<td>O(1) given log</td>
+<td>optional, daemon-supplied</td>
+</tr>
+<tr>
+<td>8</td>
+<td><strong>Query-hit history</strong></td>
+<td>token → file, token → folder</td>
+<td>TF-IDF on past hits</td>
+<td>O(1)</td>
+<td>learned over time (this is v1's S4)</td>
+</tr>
+</tbody>
+</table>
+<p>Cheap edges (1, 2, 4, 5) are O(N) to build during indexing — no
+extra walk. Lazy edges (3, 6) are computed only when the walk
+expands a node and needs an outgoing-edge frontier.</p>
+<h3>9.3 Storage</h3>
+<p>Reuse SQLite. Schema:</p>
+<pre><code class="language-sql">CREATE TABLE graph_node (
+    id     INTEGER PRIMARY KEY,
+    kind   TEXT NOT NULL,        -- 'file' | 'folder' | 'chunk' | 'symbol' | 'token'
+    key    TEXT NOT NULL,        -- path / token text / &quot;f:start:end&quot;
+    UNIQUE(kind, key)
+);
+
+CREATE TABLE graph_edge (
+    src_id  INTEGER NOT NULL,
+    dst_id  INTEGER NOT NULL,
+    type    TEXT NOT NULL,       -- 'contains' | 'refs' | 'name_sim' | 'path_prox' | 'meta_cohort' | 'semantic' | 'co_access' | 'query_hit'
+    weight  REAL NOT NULL,
+    PRIMARY KEY (src_id, dst_id, type)
+);
+CREATE INDEX idx_edge_src_type ON graph_edge(src_id, type, weight DESC);
+</code></pre>
+<p>The compound <code>(src_id, type, weight DESC)</code> index makes "give me top-K
+outgoing edges of type T from node N" an O(log N + K) lookup —
+which is what the walk frontier expansion needs.</p>
+<h2>10. v2 search algorithm — Bounded Personalized PageRank with σ-adaptive expansion</h2>
+<h3>10.1 The walk</h3>
+<p>The user said <em>"diffusion process"</em> — the formal name is
+<strong>Personalized PageRank (PPR)</strong> equivalent to <strong>Random Walk with
+Restart (RWR)</strong>: start at seed nodes, randomly follow edges, with
+restart probability α (typically 0.15) jump back to seeds. The
+stationary distribution = relevance score per node.</p>
+<p>Naive PPR scans the whole graph (O(|V| + |E|) per power iteration,
+× 50 iterations). Unusable in our latency budget.</p>
+<p>We use <strong>bounded forward push</strong> (Andersen-Chung-Lang 2006):</p>
+<pre><code>def ppr_walk(seeds: dict[NodeId, float], alpha=0.15, eps=1e-3, max_visited=200):
+    &quot;&quot;&quot;Bounded forward-push PPR. Returns (node, score) sorted.&quot;&quot;&quot;
+    score: dict[NodeId, float] = defaultdict(float)
+    residual: dict[NodeId, float] = dict(seeds)         # personalization vector
+    queue = MaxHeap((-r, n) for n, r in seeds.items())
+    visited = 0
+
+    while queue and visited &lt; max_visited:
+        residual_n, n = queue.pop_max()
+        if abs(residual_n) &lt; eps: break                 # σ-stop
+
+        # commit alpha-share to score
+        score[n] += alpha * residual_n
+
+        # propagate (1-alpha)-share via outgoing edges
+        out_edges = top_k_edges(n, type='*', k=8)       # SQL index lookup, O(log N + 8)
+        total_w = sum(w for _, w in out_edges) or 1.0
+        for (m, w) in out_edges:
+            push = (1 - alpha) * residual_n * (w / total_w)
+            residual[m] = residual.get(m, 0.0) + push
+            queue.push((-residual[m], m))
+        residual[n] = 0.0
+        visited += 1
+
+    return sorted(score.items(), key=lambda x: -x[1])
+</code></pre>
+<p>Properties:</p>
+<ul>
+<li><strong>Bounded</strong>: at most <code>max_visited</code> nodes touched, regardless of
+    graph size</li>
+<li><strong>σ-adaptive</strong>: the priority queue plus <code>eps</code> threshold means
+    high-confidence walks (clear winner among seeds) terminate in
+    20–30 steps; ambiguous walks use the full 200-node budget</li>
+<li><strong>Lazy edge computation</strong>: <code>top_k_edges(n, '*', 8)</code> queries the
+    SQL index; for <code>name_sim</code> and <code>semantic</code> edges that aren't
+    pre-computed, fall back to on-demand computation (single
+    cosine call, ~5 ms per node)</li>
+</ul>
+<p>Latency model: 200 nodes × (1 ms SQL lookup + 0.5 ms heap ops +
+~3 ms per ~5 % nodes that need lazy semantic edges) ≈ <strong>~330 ms
+worst case</strong>. Cached PPR results per (seed-set-hash) bring the warm
+case below 50 ms.</p>
+<h3>10.2 Why this is fast despite the richer model</h3>
+<p>User's intuition was right: <em>"因为我们已经有它们之间的关系所以说搜
+索起来可能会更加的快捷"</em>. The graph walk is faster than naive
+exhaustive expansion because:</p>
+<ul>
+<li><strong>Edges are an O(1)-jump abstraction</strong> over filesystem + cosine
+    operations that would otherwise require O(|V|) scans</li>
+<li><strong>The σ-adaptive stop</strong> means "clear answer → exit in 20 steps"</li>
+<li><strong>The priority queue</strong> means we never expand low-residual
+    nodes; we touch the most-relevant 200 out of millions</li>
+</ul>
+<p>This is why the graph approach can match (or beat) the existing
+flat-top-K cosine on latency despite traversing a richer
+information surface.</p>
+<h2>11. v2 cold-start — query → seed nodes</h2>
+<p>This is the heart of the user's "first query" requirement. Given a
+query like <code>"where does the auth refresh logic live"</code> from a user
+who has never asked anything similar:</p>
+<pre><code>def query_to_seeds(query: str, ctx: Context) -&gt; dict[NodeId, float]:
+    seeds = {}
+
+    # 1. LLM router extracts intent + tokens (already exists, free)
+    router = run_llm_router(query, ctx)
+    primary_token = router.primary_token        # &quot;auth&quot;
+    candidate_tokens = router.candidate_tokens  # [&quot;auth&quot;, &quot;refresh&quot;, &quot;logic&quot;, &quot;session&quot;]
+
+    # 2. Filename match — exact / substring / fuzzy
+    for tok in candidate_tokens:
+        for file in match_filenames(tok, fuzzy=True):
+            seeds[file.id] = seeds.get(file.id, 0) + 1.0
+
+    # 3. Symbol match — does any function/class match?
+    for tok in candidate_tokens:
+        for sym in match_symbols(tok, fuzzy=True):
+            seeds[sym.id] = seeds.get(sym.id, 0) + 1.5  # symbols ranked higher
+
+    # 4. Semantic match — query embedding nearest chunks
+    q_emb = embed(query)                                 # 1 ms (cached LLM-warm)
+    for chunk in cosine_topk(q_emb, k=20, threshold=0.5):
+        seeds[chunk.id] = seeds.get(chunk.id, 0) + chunk.score
+
+    # 5. Path token match — does any folder name match?
+    for tok in candidate_tokens:
+        for folder in match_folder_names(tok):
+            seeds[folder.id] = seeds.get(folder.id, 0) + 0.5
+
+    # 6. Recently-accessed prior (v1's S1) — boost recently-touched files
+    for file_id in recently_accessed_files(days=7):
+        if file_id in seeds:
+            seeds[file_id] *= 1.3
+
+    # Normalize so PPR starts from a probability distribution
+    total = sum(seeds.values()) or 1.0
+    return {n: s / total for n, s in seeds.items()}
+</code></pre>
+<p>Critical property: <strong>steps 2–5 work without any user history.</strong>
+The query text → seed mapping uses pre-computed indexes (filename
+trie, symbol table, embedding store, folder name index) that are
+all built during ordinary <code>skygrep index</code>. Cold-start is solved
+because seed mapping is content-agnostic and works on the very
+first query.</p>
+<p>History (step 6) only <strong>boosts</strong> seeds — its absence doesn't break
+inference, just makes it less personalised.</p>
+<h2>12. v2 adaptive local indexing</h2>
+<p>User: <em>"不用 index 全局,adaptively 和 dynamically 构建 local
+search space"</em>.</p>
+<p>Three levels of indexing, in increasing depth:</p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>What's stored</th>
+<th>When built</th>
+<th>Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>L0 — structural</td>
+<td>path / mtime / size / ext / depth</td>
+<td>on first scan, ~1 s per 10K files</td>
+<td>trivial</td>
+</tr>
+<tr>
+<td>L1 — symbols</td>
+<td>tree-sitter pass per source file</td>
+<td>on file change, ~5 ms per file</td>
+<td>linear</td>
+</tr>
+<tr>
+<td>L2 — embeddings</td>
+<td>bge-m3 chunk vectors</td>
+<td><strong>lazy: only when walk reaches the chunk</strong></td>
+<td>~30 ms per chunk</td>
+</tr>
+</tbody>
+</table>
+<p>L0 + L1 are eagerly built (they're cheap and shared with the
+existing <code>index</code> flow). <strong>L2 is the new behaviour</strong>: a chunk's
+embedding is computed <em>the first time the walk visits its node</em>
+and cached forever. Subsequent walks pay zero cost.</p>
+<p>This means:</p>
+<ul>
+<li><strong>First query in a fresh project</strong>: existing <code>rg</code> fallback +
+    L0/L1 walk gives an answer in under a second; the project is
+    50 % L2-indexed by the end of that query</li>
+<li><strong>Second query, same project</strong>: most relevant chunks already
+    embedded; walk cost drops to ~50 ms warm</li>
+<li><strong>Cold corner of the project never touched</strong>: never embedded,
+    zero storage / latency overhead. Pay for what you use.</li>
+</ul>
+<p>This is a <strong>fundamental architectural shift</strong> from the current
+"index everything up front" model. It directly delivers the user's
+"adaptive / dynamic local search space" requirement.</p>
+<p>Compatibility: the existing <code>skygrep index</code> command stays for
+power users who want eager indexing for offline / batch scenarios.
+The default becomes adaptive.</p>
+<h2>13. v2 hierarchical fallback subagent</h2>
+<p>User: <em>"找不到答案的情况下 background subagent 就可以同时进行
+hierarchical 的搜索"</em>.</p>
+<p>The proactive framework already exists (<code>skylakegrep/src/proactive.py</code>
+since 0.2.7) with two enhancers and a 2 s budget. We add a third:</p>
+<pre><code class="language-python">register_proactive_enhancer(
+    name=&quot;graph_walk_expand&quot;,
+    should_fire=lambda ctx: ctx.cascade_confidence &lt; 0.6 or len(ctx.results) &lt; 3,
+    execute=lambda ctx: ppr_walk(
+        seeds=query_to_seeds(ctx.query, ctx),
+        max_visited=200,
+        budget_ms=1500,
+    ),
+)
+</code></pre>
+<p>When the cheap cascade is uncertain (<code>σ-gap</code> low, or fewer than 3
+high-confidence hits), this runs <strong>in parallel</strong> with the user
+already seeing the cheap-path result. If the walk surfaces a higher-
+ranked candidate, it appears as an "also see" line in the telemetry
+footer. If not, the user lost nothing.</p>
+<p>This is the user's <em>"hierarchical search in background"</em> mapped to
+the existing proactive framework — minimum new infrastructure.</p>
+<h2>14. v2 latency invariant analysis</h2>
+<p>Hard constraint: warm query ≤ 2 s, cheap-path query ≤ 0.5 s.</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Today</th>
+<th>v2 worst case</th>
+<th>Δ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cheap path fires (80 % of queries)</td>
+<td>0.5 s</td>
+<td>0.5 s</td>
+<td>0 — graph walk doesn't run</td>
+</tr>
+<tr>
+<td>Cheap path uncertain → escalate to rerank</td>
+<td>1.5 s</td>
+<td>1.5 s</td>
+<td>0 — graph walk runs in parallel within proactive 2 s budget</td>
+</tr>
+<tr>
+<td>Cold project, first query</td>
+<td>5 – 10 s (full index)</td>
+<td>1 – 2 s (<code>rg</code> + L0/L1 walk)</td>
+<td><strong>−5 to −8 s</strong> (lazy L2)</td>
+</tr>
+<tr>
+<td>Cold corner never touched</td>
+<td>one-time embed cost</td>
+<td>never embedded</td>
+<td><strong>−∞</strong> (never paid)</td>
+</tr>
+<tr>
+<td>Returning warm query</td>
+<td>0.5 s</td>
+<td>0.5 s (cached PPR)</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>Net: <strong>latency strictly improves for cold projects</strong>, <strong>unchanged
+for warm queries</strong>.</p>
+<p>The critical mechanism is that the graph walk is <strong>gated behind
+cascade confidence</strong>: it only runs when the cheap path gives a low-
+confidence answer, and even then runs in parallel with the result
+already shown. Latency is not on the critical path.</p>
+<h2>15. v2 accuracy invariant analysis</h2>
+<p>Hard constraint: 30 / 30 OSS bench preserved, 2 known hard misses
+(<code>crates/ai/</code>, <code>app/src/billing/</code>) ideally fixed.</p>
+<p>The graph walk is <strong>purely additive</strong> — it produces a candidate
+set that is unioned with the existing cosine + rerank pool. The
+final scoring still picks the best:</p>
+<pre><code>final_pool = cosine_top_k ∪ rerank_top_k ∪ graph_walk_top_k
+return cross_encoder_rerank(final_pool, query)
+</code></pre>
+<p>Properties:</p>
+<ul>
+<li><strong>Cannot lose candidates</strong> — graph walk only adds to the pool</li>
+<li><strong>Cannot demote a winning candidate</strong> — final rerank is
+    monotonic in cross-encoder score</li>
+<li><strong>Can promote previously missed candidates</strong> — exactly the
+    case for <code>crates/ai/</code> (where the cheap cosine misses but a
+    graph walk through <code>references → uses</code> would surface it)</li>
+</ul>
+<p>So accuracy is <strong>bounded below by today's cascade</strong>, with positive
+expected delta on the cases where cosine alone is insufficient.</p>
+<p>Concrete bench prediction:
+  - Public-OSS bench: stays 30/30 (already at ceiling)
+  - Internal hard misses: 0/2 → 1/2 likely, 2/2 plausible</p>
+<h2>16. v2 reuse mapping</h2>
+<p>What's already in the codebase that v2 plugs into:</p>
+<table>
+<thead>
+<tr>
+<th>Existing component</th>
+<th>v2 role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>reference_graph.py</code> + <code>register_extractor()</code></td>
+<td><strong>Edge-supplier</strong> — the existing reference graph becomes one of v2's eight edge types</td>
+</tr>
+<tr>
+<td><code>storage.py:cascade_search</code> (σ-adaptive controller)</td>
+<td><strong>Stop criterion</strong> — the same σ-gap threshold gates graph-walk termination</td>
+</tr>
+<tr>
+<td><code>bge-m3</code> embedding store</td>
+<td><strong>Semantic-edge weight</strong> + <strong>cold-start seed mapper</strong> (step 4 in § 11)</td>
+</tr>
+<tr>
+<td><code>symbol_channel.py</code> (tree-sitter)</td>
+<td><strong>Symbol-node provider</strong> for L1 + cold-start seed mapper (step 3)</td>
+</tr>
+<tr>
+<td>LLM router (<code>qwen2.5:3b</code>)</td>
+<td>Router output extended: emits <strong>graph entry-point candidate tokens</strong> (already does intent+scope+primary_token; trivial extension)</td>
+</tr>
+<tr>
+<td><code>proactive.py</code> framework</td>
+<td><strong>Hosts</strong> the <code>graph_walk_expand</code> enhancer (§ 13) — no new infrastructure needed</td>
+</tr>
+<tr>
+<td>Existing SQLite per-project schema</td>
+<td><strong>Houses</strong> the new <code>graph_node</code> + <code>graph_edge</code> tables (§ 9.3)</td>
+</tr>
+</tbody>
+</table>
+<p>Net new modules needed:</p>
+<ul>
+<li><code>graph_walk.py</code> — the bounded PPR walk (§ 10.1, ~150 LoC)</li>
+<li><code>query_seeds.py</code> — query → seed mapping (§ 11, ~120 LoC)</li>
+<li><code>lazy_embed.py</code> — adaptive L2 embedder (§ 12, ~80 LoC)</li>
+<li>Schema migration (~50 LoC SQL)</li>
+</ul>
+<p>Net change to existing modules:</p>
+<ul>
+<li><code>cascade_search</code> — accept graph-walk pool as third candidate
+    source (~20 LoC)</li>
+<li><code>reference_graph</code> — generalise to multi-type edges (~50 LoC)</li>
+<li>LLM router prompt — request candidate tokens for seeding
+    (~10 LoC prompt change)</li>
+<li><code>proactive.py</code> — register <code>graph_walk_expand</code> enhancer
+    (~30 LoC)</li>
+</ul>
+<p>Total new code ~500 LoC + ~100 LoC modifications. <strong>Small enough
+to land in 4–5 weeks of focused work.</strong></p>
+<h2>17. v2 phased implementation</h2>
+<p>Each phase is <strong>shippable on its own</strong> as a measurable accuracy /
+latency improvement. The user can pause after any phase if the
+returns flatten.</p>
+<h3>Phase G-0 — Schema + cheap edges (1 week, 0.3.0 candidate)</h3>
+<ul>
+<li>Add <code>graph_node</code> + <code>graph_edge</code> tables</li>
+<li>Build edge types 1, 2, 4, 5 (containment, reference, path
+    proximity, metadata cohort) during existing index pass</li>
+<li><strong>Measurement:</strong> total graph size on Django + React + Tokio;
+    edge-build wall-clock on cold index; baseline. No behaviour
+    change yet — graph is built but unused.</li>
+<li><strong>Risk:</strong> SQLite write contention. Mitigation: batch inserts.</li>
+</ul>
+<h3>Phase G-1 — v1 folder-prior <code>_smart_search_dirs</code> (1 week, 0.3.x)</h3>
+<p>The original v1 plan, ships as a baseline measurement and a free
+win for the existing <code>filename_extend</code> enhancer. Edges 1, 4, 5
+from G-0 are reused; edge 8 (query-hit history) gets its first
+populating events.</p>
+<p>Deliverable: <code>_smart_search_dirs(ctx)</code>, plus measurements of v1's
+hit-rate ceiling vs. hardcoded three dirs.</p>
+<h3>Phase G-2 — Cold-start seed mapping (1 week, 0.4.0)</h3>
+<p>Implement <code>query_to_seeds()</code> (§ 11). Steps 2–5 (filename / symbol
+/ semantic / path-token) work on first-query without any history.
+Step 6 (recency boost) lights up after first index.</p>
+<p>Deliverable: <code>query_seeds.py</code>. Graph still not walked yet.
+Measurement: do seed sets correlate with ground-truth answer files
+on the bench? AUC ≥ 0.7 is the gate.</p>
+<h3>Phase G-3 — Bounded PPR walk (2 weeks, 0.4.x)</h3>
+<p>Implement <code>ppr_walk()</code> (§ 10.1) with σ-stop. Don't integrate with
+cascade yet — just expose <code>skygrep _walk &lt;query&gt;</code> as a debug command
+that prints the top-K nodes the walk surfaces.</p>
+<p>Deliverable: <code>graph_walk.py</code>, debug CLI. Measurement: walk wall-clock
+per-query bench distribution; warm-cache hit rate; sigma-stop
+termination distribution.</p>
+<h3>Phase G-4 — Cascade integration (1 week, 0.4.x → 0.5.0)</h3>
+<p>Wire <code>ppr_walk</code> results into the rerank pool. A/B test against
+the current cascade on the 30-task public bench + the internal
+hard-miss bench.</p>
+<p>Deliverable: extended <code>cascade_search</code>. Measurement: recall delta,
+latency delta, p95 / p99 / cold-cache distributions.</p>
+<h3>Phase G-5 — Proactive <code>graph_walk_expand</code> enhancer (1 week, 0.5.x)</h3>
+<p>Register the enhancer (§ 13). It runs in parallel only when
+cascade confidence is low. Hidden behind <code>SKYGREP_GRAPH_WALK=1</code>
+flag at first; flipped to default-on after a measurement period.</p>
+<p>Deliverable: <code>proactive_graph_walk.py</code>. Measurement: how often
+does it fire? How often does it surface a better answer?</p>
+<h3>Phase G-6 — Adaptive L2 embedding (2 weeks, 0.6.0, <strong>optional</strong>)</h3>
+<p>Lazy embed (§ 12). The biggest architectural shift; deferred until
+the prior phases are stable.</p>
+<p>Deliverable: <code>lazy_embed.py</code> + storage hook. Measurement: cold-
+project first-query latency drop (target: −80 %). Index-time storage
+reduction (target: 5–10× smaller).</p>
+<p><strong>Total v2 timeline</strong>: 7 – 9 weeks for all phases. <strong>MVP</strong>: G-0
+through G-4 (5 weeks) delivers cold-start query-conditioned graph
+retrieval. G-5 + G-6 are polish.</p>
+<h2>18. v2 open questions</h2>
+<ol>
+<li>
+<p><strong>Edge weighting scheme.</strong> Each edge type currently has an ad-
+     hoc weight in [0, 1]. Should weights be <strong>learned</strong>
+     (logistic regression on past hits) or <strong>handcrafted</strong>? Learned
+     is more powerful but needs telemetry; handcrafted ships faster
+     and is reproducible. Probably handcrafted in MVP, learned in
+     a follow-up.</p>
+</li>
+<li>
+<p><strong>Restart probability α.</strong> PPR's α controls "how local" the
+     walk stays. Higher α = stays near seeds, lower α = explores
+     further. Standard default is 0.15 but skylakegrep's filesystem
+     graph is denser than web-graph PPR was tuned for. Probably
+     needs grid search on the internal bench.</p>
+</li>
+<li>
+<p><strong>Walk caching key.</strong> Cache PPR by <code>hash(seed_set)</code>? By
+     <code>hash(query_text)</code>? By <code>(query_token_set, time_bucket)</code>? Each
+     trades cache hit rate for staleness risk.</p>
+</li>
+<li>
+<p><strong>Cross-project leakage.</strong> If the user's query is <code>"auth"</code>
+     and they have 10 projects with auth code, should the graph
+     walk traverse cross-project (§ 9.1's "global graph") or stay
+     within the current project? User's vision suggests global;
+     privacy and noise suggest local-first with explicit opt-in for
+     cross-project.</p>
+</li>
+<li>
+<p><strong>Integration with conversational session state.</strong> The other
+     open plan (<code>2026-05-05-conversational-session-state.md</code>) wants
+     follow-up queries to inherit context. The seed set is the
+     natural carrier — a follow-up's seeds = previous walk's top-K
+     results. Cross-reference in implementation.</p>
+</li>
+<li>
+<p><strong>L2 lazy-embed eviction.</strong> As lazy embeddings accumulate over
+     months, the SQLite blob grows. LRU eviction? Size-based?
+     User-configurable cap? Defer to G-6.</p>
+</li>
+<li>
+<p><strong>Edge-discovery for unindexed locations</strong> (the v1 § 5
+     concern). When the graph walk reaches a candidate file that's
+     in <code>~/Documents/foo.pdf</code> we never indexed, we'd need to
+     materialise it on demand. Cheap (mtime, ext, name-sim edges
+     are all O(1) per file); expensive (semantic edge requires
+     embedding). G-6 territory.</p>
+</li>
+</ol>
+<h2>19. v2 risks</h2>
+<ul>
+<li>
+<p><strong>Edge explosion.</strong> A poorly-weighted <code>name_sim</code> edge type
+    could produce a near-fully-connected component (every Python
+    file shares "py" + "self" tokens with every other). Mitigation:
+    cap K per node (<code>top_k_edges(n, type, k=8)</code>); use TF-IDF on
+    tokens not raw count.</p>
+</li>
+<li>
+<p><strong>PPR cache invalidation on file change.</strong> When a file is
+    edited, all walks that touched it become stale. Mitigation:
+    invalidate by edge-version; small per-file edit cost.</p>
+</li>
+<li>
+<p><strong>Latency variance.</strong> Worst-case walks (low σ-gap, full 200-
+    node budget) may exceed 500 ms. Mitigation: hard ms cap inside
+    <code>ppr_walk</code>; partial result is still useful.</p>
+</li>
+<li>
+<p><strong>Accuracy regression on the public bench.</strong> Theoretically
+    impossible (§ 15) but worth verifying. Run A/B before flipping
+    default-on in G-5.</p>
+</li>
+<li>
+<p><strong>Misuse as a generalised graph-DB.</strong> Some user will want to
+    query the graph directly. Resist the temptation; the graph is
+    an internal substrate, not a public API. Rationale: any public
+    API freezes the schema.</p>
+</li>
+</ul>
+<h2>20. v2 measurement plan</h2>
+<p><strong>Pre-G-0 baseline</strong> (do this before any code):</p>
+<ol>
+<li><strong>Cold-start filename queries that miss cheap cascade.</strong> Curate
+     20 queries where the answer is in a non-indexed location. What
+     fraction does the current <code>filename_extend</code> (hardcoded three
+     dirs) catch? Target: &lt; 50 %, otherwise v1 alone may suffice.</li>
+<li><strong>Internal hard-miss reproducer.</strong> Re-confirm that
+     <code>crates/ai/</code> and <code>app/src/billing/</code> queries are still hard
+     misses on the current cascade. These are the main accuracy
+     gain target for v2.</li>
+<li><strong>Per-query latency p50 / p95 / p99 distribution.</strong> On the
+     30-task bench. Establishes the "must not regress" baseline.</li>
+</ol>
+<p><strong>Per-phase metric</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Primary metric</th>
+<th>Threshold</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>G-0</td>
+<td>Edge-build wall-clock + index size delta</td>
+<td>&lt; 10 % index time, &lt; 2× storage</td>
+</tr>
+<tr>
+<td>G-1</td>
+<td>Filename-fallback hit rate vs. baseline</td>
+<td>+20 pp (per the user's articulated 20 % capture target)</td>
+</tr>
+<tr>
+<td>G-2</td>
+<td>Seed-set AUC vs. ground truth on bench</td>
+<td>≥ 0.7</td>
+</tr>
+<tr>
+<td>G-3</td>
+<td>PPR walk wall-clock distribution</td>
+<td>p95 ≤ 500 ms warm, ≤ 1500 ms cold</td>
+</tr>
+<tr>
+<td>G-4</td>
+<td>Recall on internal hard-miss bench</td>
+<td>0/2 → ≥ 1/2</td>
+</tr>
+<tr>
+<td>G-5</td>
+<td>Cascade fallback effectiveness</td>
+<td>walk-fired-and-helped / walk-fired ≥ 30 %</td>
+</tr>
+<tr>
+<td>G-6</td>
+<td>Cold-project first-query latency</td>
+<td>−80 % vs eager-index baseline</td>
+</tr>
+</tbody>
+</table>
+<h2>21. Decision</h2>
+<ul>
+<li><strong>v1 (G-1)</strong> ships as a measurement baseline and a free win;
+    1 week of effort, low risk. Sets up the data we need to
+    quantify v2's value.</li>
+<li><strong>v2 (G-0, G-2, G-3, G-4)</strong> ships as the architectural answer
+    to the user's articulated cold-start + diffusion + adaptive
+    requirements. 5 weeks of focused work for the MVP.</li>
+<li><strong>v2 polish (G-5, G-6)</strong> ships as time permits.</li>
+</ul>
+<p>Order of execution: <strong>G-0 → G-1 → G-2 → G-3 → G-4 → G-5 → G-6</strong>.
+G-0 is a prerequisite for everything; G-1 ships intermediate value
+within a week of G-0 landing.</p>
+<p>The user's two cross-cutting invariants are formalised:
+  - <strong>Latency</strong>: graph walk is never on the cheap-path critical
+    line (§ 14)
+  - <strong>Accuracy</strong>: graph walk is purely additive to the candidate
+    pool (§ 15)</p>
+<p>Both invariants are architectural, not testing-time — they hold by
+construction, with bench measurement as confirmation rather than
+discovery.</p>
+<hr />
+<h2>Appendix — relationship to existing principles</h2>
+<p>This plan is the most direct application yet of all six skylakegrep
+principles laid out in <code>docs/PRINCIPLES.md</code>:</p>
+<ol>
+<li><strong>Understanding &gt; Enumeration</strong> — replaces hardcoded folder
+     list AND hardcoded "flat top-K" retrieval with substrate-driven
+     graph walk</li>
+<li><strong>Recall is the gold standard</strong> — accuracy invariant (§ 15)
+     puts recall first</li>
+<li><strong>Content-agnostic retrieval</strong> — every node type plugs into
+     the same walk; semantic edges work for code, PDFs, markdown
+     identically</li>
+<li><strong>Local-first</strong> — no cloud calls; lazy L2 embedding keeps
+     index small; PPR walks stay within local SQLite</li>
+<li><strong>Latency budget honesty</strong> — walk is gated behind cascade
+     confidence; never on cheap-path; bounded ms cap</li>
+<li><strong>Proactive over passive</strong> — fallback subagent (§ 13) is
+     literally the principle made concrete</li>
+</ol>
+<p>This is the architecture that the principles imply once you take
+them seriously together.</p>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

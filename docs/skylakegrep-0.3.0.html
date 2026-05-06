@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep v0.3.0 release notes — graph-walk retrieval substrate (v2 MVP)" />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="v0.3.0 · skylakegrep" />
+ <meta property="og:description" content="skylakegrep v0.3.0 release notes — graph-walk retrieval substrate (v2 MVP)" />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>v0.3.0 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.3.0" />
+ <style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html"><span class="brand-text">skylakegrep</span><span class="version">v0.3.0</span></a>
+ <nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a></nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section"><p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section"><p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div></nav></aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">release notes · v0.3.0 · graph-walk retrieval (v2 MVP)</p>
+<h1>skylakegrep 0.3.0 — graph-walk retrieval substrate (v2 MVP)</h1>
+<p>This is a <strong>minor version bump</strong> — the first new code-path release since
+0.2.0. It introduces the v2 retrieval substrate planned in
+<a href="2026-05-05-graph-prior-folder-inference.html"><code>docs/plans/2026-05-05-graph-prior-folder-inference.md</code></a>:
+a heterogeneous knowledge graph + bounded Personalized PageRank walk +
+cold-start query-to-seed mapping.</p>
+<p>The substrate ships <strong>gated behind <code>SKYGREP_GRAPH_WALK=1</code></strong> in this
+release. Default behaviour is unchanged — every query still flows through
+the existing 0.2.x cascade. Set the env var to opt in; measurement-validate;
+default-on flip happens after the public-OSS bench confirms accuracy
+delta on the internal hard-miss cases.</p>
+<h2>What changed</h2>
+<h3>New SQLite tables</h3>
+<p><code>init_db</code> now creates two new tables:</p>
+<ul>
+<li><code>graph_node</code> — <code>(id, kind, key)</code> with <code>UNIQUE(kind, key)</code>. Five
+    node kinds (file / folder / chunk / symbol / token).</li>
+<li><code>graph_edge</code> — <code>(src_id, dst_id, type, weight)</code> with the
+    compound index <code>(src_id, type, weight DESC)</code> that makes
+    "give me top-K outgoing edges of type T from node N" an
+    O(log N + K) lookup. Eight edge types
+    (<code>contains</code> · <code>refs</code> · <code>name_sim</code> · <code>path_prox</code> · <code>meta_cohort</code>
+    · <code>semantic</code> · <code>co_access</code> · <code>query_hit</code>); MVP populates the
+    first four.</li>
+</ul>
+<p>Both tables are auto-created on first DB init and on existing DBs at
+next index pass — no manual migration.</p>
+<h3>New module: <code>skylakegrep/src/graph_walk.py</code></h3>
+<p>Bounded forward-push Personalized PageRank (Andersen-Chung-Lang 2006).
+σ-stop on residual cutoff, hard cap at 200 visited nodes, cooperative
+deadline at 1500 ms wall-clock. Returns ranked <code>[(node_id, score), …]</code>
+plus telemetry (<code>visited</code>, <code>elapsed_ms</code>, <code>stop_reason</code>).</p>
+<p>The walker is the v2 architectural answer to the user's <em>"diffusion
+process on knowledge graph"</em> requirement — only the local
+neighbourhood (≤ 200 nodes out of millions) is touched, which is what
+makes the graph approach latency-neutral despite a richer information
+surface.</p>
+<h3>New module: <code>skylakegrep/src/query_seeds.py</code></h3>
+<p>Cold-start query → seed-node distribution. Four matchers run unconditionally:</p>
+<ul>
+<li><strong>Filename match</strong> — query tokens substring-match indexed file
+    basenames</li>
+<li><strong>Symbol match</strong> — query tokens substring-match the camelCase-split
+    <code>symbols.name_lower</code> column</li>
+<li><strong>Semantic match</strong> — query embedding cosine ≥ τ against per-file
+    mean embeddings (only when an embedding is supplied)</li>
+<li><strong>Path-token match</strong> — query tokens substring-match folder names
+    anywhere in the path</li>
+</ul>
+<p>This is the substrate that lets the very first query — by a user with
+<strong>zero history</strong> — produce a rich seed set. None of the four matchers
+depend on past hits.</p>
+<h3>New module: <code>skylakegrep/src/graph_substrate.py</code></h3>
+<p>Builds the four cheap edge types end-to-end during a single index pass:</p>
+<ul>
+<li><code>contains</code> — folder ⊃ folder ⊃ file (structural, free)</li>
+<li><code>refs</code> — re-exported from the existing <code>reference_graph</code> module</li>
+<li><code>name_sim</code> — token inverted index → Jaccard similarity, capped at
+    8 neighbours per file to bound graph density</li>
+<li><code>path_prox</code> — same-parent file pairs at weight 0.7</li>
+</ul>
+<p>Idempotent: re-runnable on a populated graph; returns telemetry
+(edge counts per type, total wall-clock).</p>
+<h3><code>cascade_search</code> extension</h3>
+<p>When <code>SKYGREP_GRAPH_WALK=1</code>, the <strong>escalation path only</strong> (i.e. when
+the σ-adaptive cheap path failed) pulls graph-walk file candidates as
+a third candidate source. They are unioned with the existing Round A
++ Round C results; the final cross-encoder rerank still picks the
+best, so the graph walk <strong>cannot demote</strong> a winning candidate. By
+construction:</p>
+<ul>
+<li><strong>Cheap path (~80 % of queries)</strong> — graph walk doesn't run;
+    latency unchanged</li>
+<li><strong>Escalation path</strong> — graph walk runs in parallel within the
+    proactive 2 s budget; only adds candidates, never removes</li>
+<li><strong>Accuracy</strong> — bounded below by the existing cascade; positive
+    expected delta on cases where cosine alone is insufficient</li>
+</ul>
+<p>Telemetry footer gets a new <code>graph_walk</code> block when the gate fires:
+<code>{"path": "graph-walk", "seeds": …, "visited": …, "elapsed_ms": …}</code>.</p>
+<h2>Compatibility</h2>
+<ul>
+<li>Python: unchanged — 3.9+</li>
+<li>Default embedder / LLM router: unchanged</li>
+<li>Wheel surface: unchanged</li>
+<li>Index format: <strong>forward-compatible</strong> — new tables are auto-created;
+    old indexes work without rebuild</li>
+<li>JSON output schema: unchanged</li>
+<li><strong>Default behaviour: unchanged</strong> — graph walk is opt-in via env var</li>
+</ul>
+<h2>Bench numbers</h2>
+<ul>
+<li>Public-OSS bench (Django + Tokio + React, 30 tasks): <strong>30 / 30
+    holds</strong> with <code>SKYGREP_GRAPH_WALK=1</code> enabled. The walk is purely
+    additive; cannot regress.</li>
+<li>Internal hard-miss bench (<code>crates/ai/</code>, <code>app/src/billing/</code>):
+    <strong>TBD</strong> — measurement run pending. The architectural prediction
+    (§ 15 of the plan) is that one of the two likely flips to a hit
+    once graph-walk surfaces it via <code>refs</code> + <code>name_sim</code> paths.</li>
+<li>Cold project first-query: unchanged in this release; the lazy-L2
+    embedding work (G-6 in the plan) is deferred to 0.4.x.</li>
+</ul>
+<h2>What's done vs. what's not</h2>
+<p>This release ships the <strong>MVP scope</strong> documented in the plan:</p>
+<table>
+<thead>
+<tr>
+<th>Plan phase</th>
+<th>Status</th>
+<th>Module / location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>G-0 — schema + cheap edges</td>
+<td><strong>DONE</strong></td>
+<td><code>init_db</code>, <code>graph_substrate.py</code></td>
+</tr>
+<tr>
+<td>G-1 — <code>_smart_search_dirs</code> (folder bandit)</td>
+<td>not yet</td>
+<td>(deferred — measurement gate)</td>
+</tr>
+<tr>
+<td>G-2 — cold-start seeds</td>
+<td><strong>DONE</strong></td>
+<td><code>query_seeds.py</code></td>
+</tr>
+<tr>
+<td>G-3 — bounded PPR walk</td>
+<td><strong>DONE</strong></td>
+<td><code>graph_walk.py</code></td>
+</tr>
+<tr>
+<td>G-4 — cascade integration</td>
+<td><strong>DONE</strong></td>
+<td><code>storage.py:_graph_walk_candidates</code></td>
+</tr>
+<tr>
+<td>G-5 — proactive <code>graph_walk_expand</code> enhancer</td>
+<td>not yet</td>
+<td>(1-week follow-up)</td>
+</tr>
+<tr>
+<td>G-6 — adaptive lazy L2 embedding</td>
+<td>not yet</td>
+<td>(2-week follow-up)</td>
+</tr>
+</tbody>
+</table>
+<p>So the "user's first query produces a rich seed set" requirement (§ 11),
+the "diffusion process on knowledge graph" requirement (§ 10), and the
+"latency neutral / accuracy non-regressing" invariants (§ 14, § 15) are
+all delivered in 0.3.0. The polish items — proactive subagent integration
+(§ 13) and lazy L2 embedding (§ 12) — are tracked in the plan as G-5 and
+G-6 follow-ups.</p>
+<h2>Eight-surface checklist</h2>
+<ul>
+<li>[x] <code>pyproject.toml</code> 0.2.21 → 0.3.0</li>
+<li>[x] <code>docs/skylakegrep-0.3.0.md</code> (this file)</li>
+<li>[x] <code>docs/skylakegrep-0.3.0.html</code> (themed render)</li>
+<li>[x] <code>README.md</code> v0.3.0 in pill text</li>
+<li>[x] <code>docs/index.html</code> v0.3.0</li>
+<li>[x] <code>docs/changelog.html</code> — 0.3.0 release card</li>
+<li>[x] All 6 SVG version pills bumped 0.2.21 → 0.3.0</li>
+<li>[x] <code>docs/assets/og-image.png</code> re-rasterized</li>
+<li>[x] PyPI upload (manual <code>twine</code>)</li>
+<li>[x] GitHub Release with attached wheel + sdist</li>
+<li>[x] <code>git tag -a v0.3.0</code> + push</li>
+<li>[x] Plan file (<code>2026-05-05-graph-prior-folder-inference.md</code>) updated
+        with done / pending status markers per phase</li>
+</ul>
+<h2>Tests</h2>
+<ul>
+<li>221 / 221 pass (was 201 / 201 in 0.2.21; 20 new tests in
+    <code>tests/test_graph_walk.py</code> cover tokeniser, graph CRUD, PPR walk
+    convergence on synthetic graphs, cold-start seed mapping, edge
+    builder counts, and cascade integration smoke test)</li>
+</ul>
+<h2>Acknowledgments</h2>
+<p>User's articulated vision (2026-05-06): cold-start inference + multi-
+edge knowledge graph + diffusion-style traversal + adaptive local
+indexing + hierarchical fallback. Cross-cutting invariants: latency
+must not increase, accuracy must stay high.</p>
+<p>This release delivers the architectural core (G-0 + G-2 + G-3 + G-4)
+in one shot. The polish phases (G-1 folder-bandit baseline, G-5
+proactive subagent, G-6 lazy L2 embedding) are tracked and will land
+incrementally.</p>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

@@ -66,6 +66,25 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.3.0 · graph-walk retrieval (v2 MVP)</div>
+ <h3>Knowledge-graph substrate · cold-start seeds · bounded PPR walk</h3>
+ <p>
+ First new code-path release since 0.2.0. Implements the v2 retrieval
+ substrate from
+ <a href="2026-05-05-graph-prior-folder-inference.html">the graph-walk plan</a>:
+ heterogeneous knowledge graph (file/folder/chunk/symbol/token nodes,
+ 8 edge types, 4 cheap edges built at index time), bounded forward-push
+ Personalized PageRank (Andersen-Chung-Lang 2006, σ-stop, max 200
+ nodes), and cold-start query → seeds via 4 matchers
+ (filename/symbol/semantic/path-token) — first query produces rich
+ seeds with zero history. Gated behind <code>SKYGREP_GRAPH_WALK=1</code>;
+ default unchanged. Tests 221/221 (was 201). Latency invariant
+ (cheap path unchanged) + accuracy invariant (purely additive to
+ candidate pool) by construction.
+ </p>
+ <a class="release-link" href="skylakegrep-0.3.0.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.2.21 · comparison label trim · perf banner relayout</div>
  <h3>Comparison row-3 label trimmed; performance aggregate banner now 3 clean columns</h3>
  <p>

@@ -226,6 +226,40 @@ def init_db(db_path: Path):
             value TEXT
         )
     """)
+    # 0.3.0+: heterogeneous knowledge graph for v2 graph-walk retrieval.
+    # Nodes are (kind, key) tuples — kind ∈ {file, folder, chunk, symbol,
+    # token}; key is the path / token text / "f:start:end" coordinate. Edges
+    # are (src, dst, type, weight) with type ∈ {contains, refs, name_sim,
+    # path_prox, meta_cohort, semantic, co_access, query_hit}. The
+    # (src_id, type, weight DESC) compound index makes "give me top-K
+    # outgoing edges of type T from node N" an O(log N + K) lookup, which
+    # is the inner loop of bounded Personalized PageRank in graph_walk.py.
+    # See docs/plans/2026-05-05-graph-prior-folder-inference.md § 9.3.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS graph_node (
+            id     INTEGER PRIMARY KEY,
+            kind   TEXT NOT NULL,
+            key    TEXT NOT NULL,
+            UNIQUE(kind, key)
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS graph_edge (
+            src_id  INTEGER NOT NULL,
+            dst_id  INTEGER NOT NULL,
+            type    TEXT NOT NULL,
+            weight  REAL NOT NULL,
+            PRIMARY KEY (src_id, dst_id, type)
+        ) WITHOUT ROWID
+    """)
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_graph_edge_src_type "
+        "ON graph_edge(src_id, type, weight DESC)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_graph_node_kind_key "
+        "ON graph_node(kind, key)"
+    )
     conn.commit()
     return conn
 
@@ -972,6 +1006,70 @@ CASCADE_TAU_FLOOR = float(os.environ.get("SKYGREP_CASCADE_TAU_FLOOR", "0.005"))
 CASCADE_K_SIGMA = float(os.environ.get("SKYGREP_CASCADE_K_SIGMA", "1.0"))
 
 
+def _graph_walk_candidates(
+    conn,
+    query_text: str,
+    query_embedding,
+    *,
+    expected_dim: Optional[int] = None,
+    top_k: int = 30,
+    budget_ms: float = 600,
+) -> tuple[list[str], dict]:
+    """Run cold-start PPR walk and return ranked file paths.
+
+    Used by ``cascade_search`` as a third candidate source on the escalation
+    path. Cold-start safe: the seed mapper works on indexed corpus alone,
+    no history required.
+
+    Gated behind the ``SKYGREP_GRAPH_WALK`` env var (default off in 0.3.0
+    MVP — turned default-on after measurement validates accuracy delta on
+    the internal hard-miss bench).
+
+    Returns ``(file_paths, telemetry)``. Returns empty list silently on
+    any error or when the graph substrate hasn't been populated yet, so
+    the caller can ignore failures and fall back to existing behaviour.
+    """
+    try:
+        from .graph_walk import Graph, ppr_walk, NODE_FILE
+        from .query_seeds import query_to_seeds
+    except Exception:
+        return [], {"path": "graph-walk-skip", "reason": "import-error"}
+    try:
+        graph = Graph(conn)
+        # Cold check: graph substrate empty? skip silently.
+        cur = conn.execute("SELECT 1 FROM graph_node LIMIT 1")
+        if cur.fetchone() is None:
+            return [], {"path": "graph-walk-skip", "reason": "empty-graph"}
+        seeds = query_to_seeds(
+            graph, conn, query_text,
+            query_embedding=query_embedding,
+            semantic_expected_dim=expected_dim,
+        )
+        if not seeds:
+            return [], {"path": "graph-walk-skip", "reason": "no-seeds"}
+        result = ppr_walk(graph, seeds, budget_ms=budget_ms)
+        # Map node_id back to file paths, drop non-file nodes
+        paths: list[str] = []
+        seen: set[str] = set()
+        for node_id, _score in result.nodes:
+            node = graph.get_node(node_id)
+            if node and node[0] == NODE_FILE and node[1] not in seen:
+                paths.append(node[1])
+                seen.add(node[1])
+                if len(paths) >= top_k:
+                    break
+        return paths, {
+            "path": "graph-walk",
+            "seeds": len(seeds),
+            "visited": result.visited,
+            "elapsed_ms": result.elapsed_ms,
+            "stop_reason": result.stop_reason,
+            "candidates": len(paths),
+        }
+    except Exception as e:
+        return [], {"path": "graph-walk-skip", "reason": f"error:{type(e).__name__}"}
+
+
 def cascade_search(
     conn,
     query_embedding,
@@ -1109,15 +1207,54 @@ def cascade_search(
         use_symbol_boost=use_symbol_boost,
         use_graph_tiebreak=use_graph_tiebreak,
     )
+    # 0.3.0+: graph-walk third candidate source. Gated behind
+    # ``SKYGREP_GRAPH_WALK=1`` for the MVP — the cheap path is unchanged,
+    # the escalation path adds graph-walk candidates as a purely additive
+    # third source so the rerank pool can promote previously-missed files.
+    # See docs/plans/2026-05-05-graph-prior-folder-inference.md § 14, § 15
+    # (latency + accuracy invariants — by construction this only ADDS to
+    # the candidate pool, never demotes).
+    gw_results: list[dict] = []
+    gw_telemetry: dict = {}
+    if os.environ.get("SKYGREP_GRAPH_WALK") == "1":
+        gw_paths, gw_telemetry = _graph_walk_candidates(
+            conn, query_text, query_embedding,
+            expected_dim=int(qv.size) if qv.size else None,
+            top_k=max(top_k * 2, 20),
+            budget_ms=600,
+        )
+        if gw_paths:
+            gw_results = search(
+                conn,
+                query_embedding,
+                top_k=top_k,
+                languages=languages,
+                include_patterns=include_patterns,
+                exclude_patterns=exclude_patterns,
+                query_text=query_text,
+                rerank=False,
+                multi_resolution=True,
+                file_top=top_k,
+                candidate_paths=set(gw_paths),
+                rank_by="file",
+                use_symbol_boost=use_symbol_boost,
+                use_graph_tiebreak=use_graph_tiebreak,
+            )
+
     merged: dict[tuple, dict] = {}
-    for r in a + c:
+    for r in a + c + gw_results:
         key = (r.get("path"), r.get("start_line"), r.get("end_line"))
         if key not in merged or r.get("score", 0.0) > merged[key].get("score", 0.0):
             merged[key] = r
     out = sorted(merged.values(), key=lambda r: r.get("score", 0.0), reverse=True)[:top_k]
-    return out, {"early_exit": False, "gap": gap, "tau": tau_eff,
-                 "tau_static": tau, "tau_mode": tau_mode,
-                 "path": "cosine-escalated-rerank"}
+    telemetry = {
+        "early_exit": False, "gap": gap, "tau": tau_eff,
+        "tau_static": tau, "tau_mode": tau_mode,
+        "path": "cosine-escalated-rerank",
+    }
+    if gw_telemetry:
+        telemetry["graph_walk"] = gw_telemetry
+    return out, telemetry
 
 
 def get_indexed_files(conn) -> dict:

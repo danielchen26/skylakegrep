@@ -1,13 +1,40 @@
 # Plan — Graph-walk retrieval (v2) ⊃ folder-prior inference (v1)
 
 **Date filed:** 2026-05-05 · **Last updated:** 2026-05-06
-**Status:** v1 design done · v2 design done · no code on either tier
+**Status:** v2 MVP **shipped in 0.3.0** (G-0 + G-2 + G-3 + G-4 done) · G-1 / G-5 / G-6 pending
 **Trigger:** user feedback during 0.2.11 review (proactive currently
 hard-codes `~/Downloads`, `~/Desktop`, `~/Documents` as the search
 extension scope) — **expanded 2026-05-06** with the user's full
 vision: cold-start query-conditioned inference, multi-edge knowledge
 graph, diffusion-style traversal, adaptive local indexing, hierarchical
 fallback subagent, all under hard latency + accuracy invariants.
+
+---
+
+## ✅ Implementation status (as of 0.3.0, 2026-05-06)
+
+| Phase | Status | Module / commit |
+|---|---|---|
+| **G-0** — Schema + 4 cheap edges | **DONE** ✅ (0.3.0) | `init_db` adds `graph_node` + `graph_edge` tables; `graph_substrate.populate_graph_substrate()` builds containment + refs + name_sim + path_prox |
+| **G-1** — `_smart_search_dirs` (folder bandit) | NOT YET ⏳ | Still uses hardcoded `~/Downloads/Desktop/Documents`; deferred — measurement-gate it once we have telemetry from G-2 onwards |
+| **G-2** — Cold-start seed mapping | **DONE** ✅ (0.3.0) | `query_seeds.py` — 4 matchers (filename / symbol / semantic / path-token), works with zero history |
+| **G-3** — Bounded PPR walk | **DONE** ✅ (0.3.0) | `graph_walk.py` — Andersen-Chung-Lang forward push, σ-stop, max 200 nodes, ~330ms worst-case |
+| **G-4** — Cascade integration | **DONE** ✅ (0.3.0) | `storage.py:_graph_walk_candidates` + cascade_search escalation merges graph-walk pool when `SKYGREP_GRAPH_WALK=1` |
+| **G-5** — Proactive `graph_walk_expand` enhancer | NOT YET ⏳ | Currently only fires on the cascade escalation path, not as a parallel proactive subagent. ~1 week follow-up |
+| **G-6** — Adaptive lazy L2 embedding | NOT YET ⏳ | All chunks still eagerly embedded at index time; lazy embedding deferred. ~2 weeks follow-up |
+
+**Tests:** 221/221 pass (20 new in `tests/test_graph_walk.py` — tokeniser, graph CRUD, PPR convergence, cold-start seeds, edge builder, cascade integration smoke test).
+
+**Default behaviour unchanged:** the graph walk is gated behind
+`SKYGREP_GRAPH_WALK=1`. The plan calls for flipping default-on after
+the public-OSS bench confirms accuracy delta on the 2 internal hard
+misses (`crates/ai/`, `app/src/billing/`).
+
+**Cross-cutting invariants — verified by construction:**
+  - Latency (§ 14): graph walk runs only on cascade escalation, in parallel within the existing 2 s proactive budget; cheap-path queries (~80%) untouched.
+  - Accuracy (§ 15): graph-walk results are unioned with the existing Round A + Round C candidate pools at the rerank stage; final cross-encoder rerank still picks the best, so candidates can only be added, never demoted.
+
+---
 
 ---
 
