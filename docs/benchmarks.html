@@ -58,7 +58,7 @@
  <p class="eyebrow">Evaluation · benchmarks</p>
  <h2>Empirical results across four benchmark dimensions.</h2>
  <p>
- skylakegrep ships <strong>five</strong> reproducible benchmarks. Each measures a
+ skylakegrep ships <strong>six</strong> reproducible benchmarks. Each measures a
  different question; quoting the right number for the right claim
  matters. The repository's
  <a href="parity-benchmarks.html"><code>parity-benchmarks.html</code></a>
@@ -66,7 +66,41 @@
  page is the curated summary.
  </p>
 
- <h3 id="bench-cold-lazy">0. Cold-start lazy auto-trigger (NEW in 0.5.3)</h3>
+ <h3 id="bench-wrong-path">0a. Wrong-path quick-answer (NEW in 0.5.7)</h3>
+ <p>
+ The newest UX gate. Measures how fast the parallel proactive
+ umbrella streams a first answer when the user is in an
+ unrelated cwd and the answer lives in a sibling folder.
+ Setup: <code>cd</code> into an empty directory,
+ <code>SKYGREP_PROACTIVE_DIRS=/tmp/oss-bench</code>, query
+ <em>"do I have any package configuration files"</em>. The
+ user runs the real <code>skygrep</code> CLI; we measure
+ wall clock to first stream block AND wall clock to script
+ exit.
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead><tr><th>Surface</th><th>Wall clock</th><th>Result</th></tr></thead>
+ <tbody>
+ <tr><td>First stream block (proactive umbrella / cross-folder)</td><td><strong>~1.1 s</strong></td><td>5 cosine-ranked <code>package.json</code> / <code>jest.config.js</code> hits from React + Django repos in <code>SKYGREP_PROACTIVE_DIRS</code></td></tr>
+ <tr><td>Script exit (full pipeline)</td><td>1.091 s</td><td>cascade has nothing to do (cwd empty); umbrella subprocesses delivered directly</td></tr>
+ <tr><td>Same query in 0.5.4 (sequential pre-refactor)</td><td>~12 m 50 s on a code-repo cwd that wasn't the right project</td><td>cascade rerank ran 99.7 s on σ-zero query before the proactive answer surfaced</td></tr>
+ </tbody>
+ </table>
+ </div>
+ <p>
+ Concrete output captured in the v0.5.7 release notes
+ (<a href="skylakegrep-0.5.7.html">full notes →</a>): the
+ streaming markers <code>🔍 / ▾ / 🌐 / 🌊 / ⚡</code> arrive
+ with route + quality labels (<code>filename_extend, ~100 ms-1 s;
+ pure filename glob, no semantic understanding</code> /
+ <code>cross-folder lazy, embed budget 5 seeds, σ-validated
+ cosine</code>) so the user can judge the answer's quality
+ against the route that produced it. Cascade has a 30 s hard
+ timeout; cross-folder lazy has an 8 s hard timeout.
+ </p>
+
+ <h3 id="bench-cold-lazy">0b. Cold-start lazy auto-trigger (NEW in 0.5.3)</h3>
  <p>
  The newest tier — measures whether the
  <code>--lazy</code> auto-trigger that fires on a never-indexed

@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta property="og:description" content="Fully-offline semantic search over your local files — code, markdown, PDFs, Word docs, plain text. 30/30 (100 %) recall fully-indexed on Django + React + Tokio at 60×–770× less context than ripgrep, plus 0.5.3 cold-start lazy auto-trigger that lifts vocabulary-mismatch hit-rate 0/10 → 4/10 with no upfront `skygrep index .` required. Content-agnostic retrieval, PolyForm Noncommercial 1.0.0, powered by Ollama." />
+ <meta property="og:description" content="Fully-offline semantic search over your local files — code, markdown, PDFs, Word docs, plain text. 30/30 (100%) recall fully-indexed on Django + React + Tokio at 60×–770× less context than ripgrep. 0.5.6+ adds parallel proactive umbrella (cascade ‖ filename_extend ‖ cross-folder lazy ‖ lazy_cwd) so wrong-path queries get a first answer in ~1–2 s with streaming refinement; 0.5.3 lazy auto-trigger lifts vocabulary-mismatch hit-rate 0/10 → 4/10 with no upfront `skygrep index .` required. Content-agnostic retrieval, PolyForm Noncommercial 1.0.0, powered by Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta name="twitter:description" content="Fully-offline semantic search over your local files — code, markdown, PDFs, docs. 30/30 fully-indexed + 0.5.3 cold-start lazy (4/10 vs 0/10 over rg) on Django + React + Tokio with 60×–770× less context than ripgrep." />
+ <meta name="twitter:description" content="Fully-offline semantic search over your local files. 30/30 fully-indexed on Django+React+Tokio with 60×–770× less context vs ripgrep. 0.5.7 parallel proactive umbrella streams a first answer in ~1–2 s on wrong-path queries; 0.5.3 lazy auto-trigger lifts vocab-mismatch hit-rate 0/10→4/10 cold-start." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -921,9 +921,9 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
  <div class="bench-stat-sub">vs. 28 / 30 in 0.1.0; bge-m3 substrate broke the ceiling.</div>
  </div>
  <div class="bench-stat">
- <div class="bench-stat-num">+4 / 10</div>
- <div class="bench-stat-label">lazy auto-trigger over rg cold-start (0.5.3)</div>
- <div class="bench-stat-sub">Django vocab-mismatch oracle, fresh DB per query, no upfront index.</div>
+ <div class="bench-stat-num">~1 s</div>
+ <div class="bench-stat-label">first answer on wrong-path query (0.5.7 parallel proactive umbrella)</div>
+ <div class="bench-stat-sub">cd into an empty dir, query &mdash; cross-folder + filename_extend stream a labelled answer at ≈1.1 s; cascade times out at 30 s if needed.</div>
  </div>
  <div class="bench-stat">
  <div class="bench-stat-num">60 × – 770 ×</div>
