@@ -365,7 +365,14 @@ def rg_fallback_results(
     for term in terms:
         try:
             r = subprocess.run(
-                [rg, "-il", "-F", term, str(root)],
+                # ``--sort path`` forces rg to emit hits in deterministic
+                # alphabetical order so the dict-insertion order below
+                # — and therefore the gate decision in cli.py — is
+                # stable across runs. Without this, multi-threaded scan
+                # made rg's stdout order non-deterministic, which in
+                # turn made the cold-start "rg is strong → skip lazy"
+                # gate flip across runs of the same query.
+                [rg, "-il", "-F", "--sort", "path", term, str(root)],
                 capture_output=True,
                 text=True,
                 timeout=8,
@@ -379,7 +386,9 @@ def rg_fallback_results(
             file_hits.setdefault(line, set()).add(term)
     if not file_hits:
         return []
-    ranked = sorted(file_hits.items(), key=lambda kv: -len(kv[1]))[: top_k * 2]
+    # Tie-break by path so two files with the same hit count produce a
+    # deterministic ordering — belt-and-suspenders alongside ``--sort path``.
+    ranked = sorted(file_hits.items(), key=lambda kv: (-len(kv[1]), kv[0]))[: top_k * 2]
 
     results: list[dict] = []
     term_pat = re.compile(

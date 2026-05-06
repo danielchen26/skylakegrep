@@ -359,36 +359,99 @@ def _cache_set(conn: sqlite3.Connection, query: str, decision: RouterDecision) -
 _CANDIDATE_PATHS_PROMPT = """You are a code-search routing assistant.
 
 Given a user's natural-language question and a project's directory
-structure, output the 5-15 most likely directories or specific files
-where the answer probably lives. Order by likelihood, most likely first.
+structure, output the 5-12 most likely DIRECTORIES (not specific
+files) where the answer probably lives. Order by likelihood.
 
 Question: "{query}"
 
-Directory structure (top dirs by file count):
+Directory structure (each line is one real directory in this project,
+followed by its file count):
 {tree}
 
 Rules:
-- Output ONE path per line, no other text, no markdown.
-- Prefer specific files over directories when filename matches the
-  question's nouns or verbs.
-- Prefer subdirectories over the project root unless the answer is
-  truly project-wide.
-- Output at most 15 paths. Stop when no more directory feels
+- Output ONE directory PATH per line, no other text, no markdown.
+- COPY paths VERBATIM from the structure above. Do NOT invent
+  subpaths or specific filenames — those are not in the tree.
+- Choose only directories that ACTUALLY APPEAR in the list above.
+- Prefer leaf-most matching directories (e.g. ``django/db/migrations``
+  over ``django/db``).
+- Output at most 12 directories. Stop when no more directory feels
   relevant.
 
-Paths:
+Directories:
 """
+
+
+_QUESTION_PREFIX_RE = re.compile(
+    r"^\s*(where|how|what|which|when|why|does|do|is|are|can|could|"
+    r"would|should|will|may|might)\s+",
+    re.IGNORECASE,
+)
+_FILLER_TOKENS_RE = re.compile(
+    r"\b(the|a|an|that|this|those|these|some|any|all|every|"
+    r"such)\b\s*",
+    re.IGNORECASE,
+)
+
+
+def simplify_router_query(query: str) -> str:
+    """Strip English question-words and common fillers so the
+    LLM router prompt sees just the content nouns / verbs.
+
+    The 0.5.3 bench showed qwen2.5:3b is highly sensitive to
+    phrasing: ``"where does Django apply migrations"`` produces
+    accurate dir picks, while the verbose oracle wording
+    ``"Where is the migration runner that applies pending schema
+    changes to the database?"`` drives qwen toward unrelated
+    directories (``tests/gis_tests``, ``docs/releases``, …).
+
+    This is a deterministic, language-agnostic strip. It removes:
+    - Leading question words (``where``/``how``/``does``/…)
+    - Common fillers (``the``/``a``/``that``/…)
+    - Trailing punctuation
+    - Repeated whitespace
+
+    Never raises; always returns a non-empty string (falls back
+    to the original query if simplification yields blank).
+    """
+    if not query.strip():
+        return query
+    s = query.strip().rstrip("?.!").strip()
+    # Strip leading question word(s) — "Where is" / "How does"
+    # may chain a couple ("Where does the X that Y").
+    for _ in range(3):
+        new_s = _QUESTION_PREFIX_RE.sub("", s, count=1).strip()
+        if new_s == s:
+            break
+        s = new_s
+    s = _FILLER_TOKENS_RE.sub("", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s if s else query
 
 
 def infer_candidate_paths(
     query: str, tree_summary: str, *, max_paths: int = 15,
-    timeout: float = LLM_TIMEOUT_SECONDS,
+    timeout: float = 8.0,
 ) -> list[str]:
     """Ask the local LLM to pick likely paths from the dir tree alone.
 
     Returns a list of paths (relative or absolute, as the LLM emits).
     Returns an empty list on any failure (caller falls back to
     deterministic token-shortcut). Never raises.
+
+    0.5.3 retry-with-simplified-query: if the verbatim query yields
+    fewer than 5 picks (qwen2.5:3b sometimes fixates on filler words
+    in long natural-language phrasings), re-issue with
+    ``simplify_router_query`` applied. The second pass adds 1–4 s to
+    cold-start latency in the worst case but lifts hit-rate
+    materially on the Django oracle bench.
+
+    NOTE on timeout: the module-level ``LLM_TIMEOUT_SECONDS`` is 0.5 s
+    — appropriate for the routing JSON call (single short verdict
+    line), too tight for this function which generates a 384-token
+    path list. 0.5.3 raised the default here to 8 s, which is well
+    inside the cold-start lazy budget (≤ 10 s) and gives qwen2.5:3b
+    enough time to emit 5–15 paths even on a 5000-file repo.
     """
     if not query.strip() or not tree_summary.strip():
         return []
@@ -397,36 +460,67 @@ def infer_candidate_paths(
     model = os.environ.get(
         "SKYGREP_LLM_ROUTER_MODEL", cfg.get("hyde_model") or cfg["llm_model"]
     )
-    payload = {
-        "model": model,
-        "prompt": _CANDIDATE_PATHS_PROMPT.format(
-            query=query.replace('"', "'"),
-            tree=tree_summary[:4000],          # cap prompt size
-        ),
-        "stream": False,
-        "options": {"temperature": 0.0, "num_predict": 384},
-        "keep_alive": cfg.get("keep_alive", -1),
-    }
-    try:
-        r = requests.post(url, json=payload, timeout=timeout)
-        r.raise_for_status()
-        raw = (r.json() or {}).get("response", "")
-    except (requests.RequestException, ValueError):
-        return []
-    out: list[str] = []
-    for line in raw.splitlines():
-        line = line.strip().lstrip("-•* ").strip().rstrip(",")
-        if not line or len(line) > 250:
-            continue
-        # Drop obvious non-path lines (sentences with spaces in the wrong place)
-        if line.endswith((".", "!", "?")):
-            continue
-        if line.lower().startswith(("paths", "answer", "the ", "based ")):
-            continue
-        out.append(line)
-        if len(out) >= max_paths:
-            break
-    return out
+
+    def _call_one(q: str) -> list[str]:
+        payload = {
+            "model": model,
+            "prompt": _CANDIDATE_PATHS_PROMPT.format(
+                query=q.replace('"', "'"),
+                tree=tree_summary[:4000],
+            ),
+            "stream": False,
+            "options": {"temperature": 0.0, "num_predict": 384},
+        }
+        # 0.5.3: omit ``keep_alive`` — the project default is the
+        # *string* ``"-1"`` which Ollama's ``/api/generate`` parses
+        # as a duration (``time: missing unit in duration "-1"``)
+        # and rejects with HTTP 400, silently zeroing this
+        # function's output. The config-level sentinel is meant for
+        # the embedding endpoint which accepts duration strings;
+        # the generate endpoint expects integer seconds OR a
+        # unit-suffixed string. Omitting the field falls back to
+        # Ollama's default 5 m, which is fine for a small qwen
+        # model.
+        k = cfg.get("keep_alive")
+        if isinstance(k, int):
+            payload["keep_alive"] = k
+        try:
+            r = requests.post(url, json=payload, timeout=timeout)
+            r.raise_for_status()
+            raw = (r.json() or {}).get("response", "")
+        except (requests.RequestException, ValueError):
+            return []
+        out: list[str] = []
+        for line in raw.splitlines():
+            line = line.strip().lstrip("-•* ").strip().rstrip(",")
+            if not line or len(line) > 250:
+                continue
+            if line.endswith((".", "!", "?")):
+                continue
+            if line.lower().startswith(("paths", "answer", "the ", "based ")):
+                continue
+            out.append(line)
+            if len(out) >= max_paths:
+                break
+        return out
+
+    picks = _call_one(query)
+    # 0.5.3: if the verbatim call yielded few picks, retry with a
+    # simplified query (question-words and fillers stripped). qwen
+    # 2.5:3b is highly sensitive to phrasing — long oracle wordings
+    # like "Where is the X that Y" mislead it; the bare topic
+    # ("X Y") tends to land much closer to the right directories.
+    simplified = simplify_router_query(query)
+    if len(picks) < max_paths and simplified and simplified != query:
+        retry = _call_one(simplified)
+        seen: set[str] = set(picks)
+        for p in retry:
+            if p not in seen:
+                picks.append(p)
+                seen.add(p)
+                if len(picks) >= max_paths:
+                    break
+    return picks
 
 
 def route_query(

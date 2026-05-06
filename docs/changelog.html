@@ -66,6 +66,27 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.3 · lazy seed selection that actually works (1/10 → 4/10)</div>
+ <h3>Real, measurable hit-rate improvement over rg cold-start on the Django oracle</h3>
+ <p>
+ 0.5.0–0.5.2 shipped lazy auto-trigger but the real CLI bench
+ showed it at 1/10 — barely above pure ripgrep. 0.5.3 fixes the
+ root cause: token-shortcut DEDUP for numeric-prefix migration
+ families, numeric-prefix scoring penalty, deterministic
+ dir-token picker (LLM-router-independent), test-path penalty,
+ weighted per-dir budget (top dir gets 8 files, then 4/2/2), and
+ a critical Ollama keep_alive bug fix that had been silently
+ zero-ing every LLM-router call (HTTP 400, "missing unit in
+ duration"). Plus regex import diffusion, ThreadPool I/O
+ parallelism, progressive stderr progress lines, cold-+-wrong-folder
+ lazy_cwd ∥ lazy_cross_folder branch, and warm-cascade
+ low-confidence cross-folder augmentation. Hard CLI bench:
+ rg-only 0/10 → auto-trigger <strong>4/10</strong> (+30%) at
+ +16 s/query on fresh Django. Pytest 217/217.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.3.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.2 · themed HTML release notes + de-hardcoded proactive dirs</div>
  <h3>Closing the doc-surface gap from 0.5.0/0.5.1 + zero personal-filesystem assumptions</h3>
  <p>

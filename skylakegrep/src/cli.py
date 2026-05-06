@@ -496,29 +496,105 @@ def search_cmd(
 
         lazy_results: list = []
         lazy_tele: dict = {}
+        cross_results: list = []
+        cross_tele: dict = {}
         lazy_elapsed = 0.0
         rg_strong = _rg_is_strong(rg_cold, query)
+        # 0.5.3 cold-start lazy + cross-folder dispatch.
+        #
+        #   rg has hits, paths overlap query tokens   → rg-only, skip lazy
+        #   rg has hits, paths weak (vocab-mismatch)  → lazy_cwd
+        #   rg has zero hits (probably wrong folder)  → lazy_cwd ∥ lazy_cross_folder
+        #
+        # The third case is the user's "我们在错的 path 下面" scenario:
+        # rg returned nothing in cwd, so the answer is most likely in
+        # a sibling folder. Both lazy paths run in parallel — Ollama
+        # serialises embed requests at the model layer, so wall time
+        # is dominated by whichever batch is bigger, not their sum.
+        cold_wrong_folder = (lazy and len(rg_cold) == 0)
         if lazy and not rg_strong:
-            try:
-                from . import lazy_indexer as LZ
-                lazy_embedder = get_embedder(role="query")
-                lazy_start = time.time()
-                lazy_results, lazy_tele = LZ.lazy_explore_cold_start(
-                    conn, query, project_root, lazy_embedder, top_k=top,
-                )
-                lazy_elapsed = time.time() - lazy_start
-            except Exception as exc:
-                logger.warning("lazy cold-start fallback failed: %s", exc)
+            from concurrent.futures import ThreadPoolExecutor as _TPE
+            from . import lazy_indexer as LZ
+
+            # Wire a stderr progress sink unless --json is requested.
+            _progress = None if json_output else LZ._stderr_progress
+
+            def _run_cwd():
+                try:
+                    embedder_cwd = get_embedder(role="query")
+                    return LZ.lazy_explore_cold_start(
+                        conn, query, project_root, embedder_cwd,
+                        top_k=top, progress=_progress,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("lazy cold-start cwd failed: %s", exc)
+                    return [], {}
+
+            def _run_cross():
+                try:
+                    embedder_cross = get_embedder(role="query")
+                    return LZ.lazy_explore_cross_folder(
+                        conn, query, embedder=embedder_cross,
+                        top_k=top, progress=_progress,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("lazy cross-folder failed: %s", exc)
+                    return [], {}
+
+            lazy_start = time.time()
+            if cold_wrong_folder:
+                with _TPE(max_workers=2) as _pool:
+                    f_cwd = _pool.submit(_run_cwd)
+                    f_cross = _pool.submit(_run_cross)
+                    lazy_results, lazy_tele = f_cwd.result()
+                    cross_results, cross_tele = f_cross.result()
+            else:
+                lazy_results, lazy_tele = _run_cwd()
+            lazy_elapsed = time.time() - lazy_start
 
         elapsed = rg_elapsed + lazy_elapsed
         intent = decision.intent
-        results = merge_tiers(
-            filename=fn_results,
-            lexical=rg_cold,
-            semantic=lazy_results,
-            intent=intent,
-            top_k=top,
-        )
+        # 0.5.3 cold-start merge: when lazy fired (only happens when
+        # the rg-quality gate already classified rg as weak), trust
+        # lazy's σ-validated cosine ranking for the primary top-K
+        # slots and only use rg for de-duplicated backfill. Without
+        # this the prior `merge_tiers(lexical=rg, semantic=lazy)`
+        # call applied intent-aware ranking that reliably buried the
+        # lazy answer beneath rg's score-1.0 hits — visible as 1/10
+        # auto-trigger hit rate on the Django oracle bench. With
+        # lazy-priority, the lazy module's top-K reaches the user
+        # whenever it fired. Filename hits remain prepended (0.13
+        # behaviour) — the bench shows filename can still drown
+        # everything for filename-shaped queries; that's tracked as
+        # a 0.6 issue, not in scope for this patch.
+        if lazy_results or cross_results:
+            seen: set[str] = set()
+            ordered: list = []
+            # filename → cwd-lazy → cross-folder → rg backfill,
+            # deduped by path. Cross-folder is appended AFTER cwd-lazy
+            # because when cwd genuinely contains the answer (rg
+            # returned 0 because of vocabulary mismatch, but the file
+            # IS local), we want the cwd hit to win.
+            for source in (fn_results, lazy_results, cross_results, rg_cold):
+                for r in source:
+                    p = r.get("path", "")
+                    if not p or p in seen:
+                        continue
+                    seen.add(p)
+                    ordered.append(r)
+                    if len(ordered) >= top:
+                        break
+                if len(ordered) >= top:
+                    break
+            results = ordered[:top]
+        else:
+            results = merge_tiers(
+                filename=fn_results,
+                lexical=rg_cold,
+                semantic=[],
+                intent=intent,
+                top_k=top,
+            )
         if json_output:
             click.echo(render_json_results(results))
             return
@@ -573,13 +649,18 @@ def search_cmd(
             f" + {len(cold_proactive_results)} proactive"
             if cold_proactive_results else ""
         )
-        if lazy_results:
+        if lazy_results or cross_results:
             lazy_tag = (
                 f" + lazy auto (σ={lazy_tele.get('sigma', 0):.3f}, "
                 f"conf={lazy_tele.get('confidence', '?')}, "
                 f"{lazy_tele.get('embed_new', 0)}new/"
                 f"{lazy_tele.get('embed_cached', 0)}cached)"
             )
+            if cross_results:
+                lazy_tag += (
+                    f" + cross-folder ({cross_tele.get('candidate_roots', 0)} "
+                    f"roots · {cross_tele.get('files_seen', 0)} files seen)"
+                )
         elif lazy and rg_strong:
             lazy_tag = " · rg strong → lazy skipped"
         elif not lazy:
@@ -589,7 +670,8 @@ def search_cmd(
         click.echo(
             f"\n[{elapsed:.3f}s · ripgrep cold-start{proactive_tag}{lazy_tag} · "
             f"intent={intent} · {len(fn_results)} filename + "
-            f"{len(rg_cold)} rg + {len(lazy_results)} lazy · index {suffix}]"
+            f"{len(rg_cold)} rg + {len(lazy_results)} lazy + "
+            f"{len(cross_results)} cross-folder · index {suffix}]"
         )
         return
 
@@ -779,6 +861,39 @@ def search_cmd(
         results = merge_results(result_groups, top)
         elapsed = time.time() - start
 
+    # 0.5.3 warm-path low-confidence augmentation: when the cascade
+    # ran and reports a small ``top1 - top2`` gap (its own σ-adaptive
+    # confidence signal), the answer may not live in cwd. Fire
+    # ``lazy_explore_cross_folder`` against the SKYGREP_PROACTIVE_DIRS
+    # roots and include those hits as augmentation. Cascade remains
+    # primary; cross-folder is appended after merge_tiers below.
+    # Skipped when --no-lazy, agentic mode, JSON output, or no
+    # cascade telemetry available.
+    warm_cross_results: list = []
+    warm_cross_tele: dict = {}
+    warm_cross_elapsed = 0.0
+    if (lazy and cascade and len(queries) == 1
+            and 'cascade_telemetry' in dir() and cascade_telemetry is not None
+            and not agentic):
+        _gap = cascade_telemetry.get("gap")
+        _tau = cascade_telemetry.get("tau")
+        if (_gap is not None and _tau is not None and _gap < _tau):
+            try:
+                from . import lazy_indexer as _LZ
+                _cross_embedder = get_embedder(role="query")
+                _t_cross = time.time()
+                warm_cross_results, warm_cross_tele = (
+                    _LZ.lazy_explore_cross_folder(
+                        conn, query, embedder=_cross_embedder,
+                        top_k=top,
+                        progress=None if json_output else _LZ._stderr_progress,
+                    )
+                )
+                warm_cross_elapsed = time.time() - _t_cross
+                elapsed += warm_cross_elapsed
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("warm cross-folder lazy failed: %s", exc)
+
     # v0.14.0 hierarchical merge across tiers: cascade (semantic) +
     # lexical-shortcut hits + filename-lookup hits, deduplicated by
     # path, ranked by the v0.15.0 router-supplied intent so the right
@@ -791,6 +906,21 @@ def search_cmd(
         intent=intent,
         top_k=top,
     )
+    # 0.5.3: append warm-path cross-folder augmentation if cascade was
+    # uncertain. Cross-folder is appended after merge_tiers (cascade
+    # primary; sibling-folder hits added as long as room remains in
+    # top-K), deduped by path so a result already returned by cascade
+    # isn't double-printed.
+    if warm_cross_results:
+        _seen_paths = {r.get("path", "") for r in results}
+        for r in warm_cross_results:
+            if len(results) >= top:
+                break
+            p = r.get("path", "")
+            if not p or p in _seen_paths:
+                continue
+            results.append(r)
+            _seen_paths.add(p)
     if json_output:
         click.echo(render_json_results(results))
         return
