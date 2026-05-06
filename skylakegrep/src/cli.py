@@ -580,24 +580,48 @@ def search_cmd(
             # Wire a stderr progress sink unless --json is requested.
             _progress = None if json_output else LZ._stderr_progress
 
+            # 0.5.7: each parallel worker opens its OWN SQLite
+            # connection — sqlite3 forbids cross-thread reuse of a
+            # connection. Without this, the cold+wrong-folder
+            # branch printed "lazy cross-folder failed: SQLite
+            # objects created in a thread can only be used in that
+            # same thread" and silently returned empty results.
+            # The proactive umbrella's filename_extend tier still
+            # delivered an answer in 1 s, but the lazy semantic
+            # tier was a dead path. Same fix pattern as the
+            # cascade worker thread in 0.5.6.
             def _run_cwd():
                 try:
+                    _wconn = init_db(db_path)
                     embedder_cwd = get_embedder(role="query")
-                    return LZ.lazy_explore_cold_start(
-                        conn, query, project_root, embedder_cwd,
-                        top_k=top, progress=_progress,
-                    )
+                    try:
+                        return LZ.lazy_explore_cold_start(
+                            _wconn, query, project_root, embedder_cwd,
+                            top_k=top, progress=_progress,
+                        )
+                    finally:
+                        try:
+                            _wconn.close()
+                        except Exception:
+                            pass
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("lazy cold-start cwd failed: %s", exc)
                     return [], {}
 
             def _run_cross():
                 try:
+                    _wconn = init_db(db_path)
                     embedder_cross = get_embedder(role="query")
-                    return LZ.lazy_explore_cross_folder(
-                        conn, query, embedder=embedder_cross,
-                        top_k=top, progress=_progress,
-                    )
+                    try:
+                        return LZ.lazy_explore_cross_folder(
+                            _wconn, query, embedder=embedder_cross,
+                            top_k=top, progress=_progress,
+                        )
+                    finally:
+                        try:
+                            _wconn.close()
+                        except Exception:
+                            pass
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("lazy cross-folder failed: %s", exc)
                     return [], {}
@@ -1212,15 +1236,30 @@ def search_cmd(
         from . import lazy_indexer as _LZ
         _cross_embedder = get_embedder(role="query")
         _t_cross = time.time()
-        try:
-            with _TPE(max_workers=1) as _xpool:
-                _fut = _xpool.submit(
-                    _LZ.lazy_explore_cross_folder,
-                    conn, query,
+        # 0.5.7: open a SQLite connection INSIDE the worker thread.
+        # Same fix as 0.5.6 cascade-in-worker-thread and the
+        # cold+wrong-folder branch above. Passing the main-thread
+        # ``conn`` into the worker triggered "SQLite objects
+        # created in a thread can only be used in that same thread"
+        # and silently zero-ed every warm cross-folder call.
+        def _warm_cross_in_worker(_db_path=db_path):
+            _wconn = init_db(_db_path)
+            try:
+                return _LZ.lazy_explore_cross_folder(
+                    _wconn, query,
                     embedder=_cross_embedder,
                     top_k=top,
                     progress=None if json_output else _LZ._stderr_progress,
                 )
+            finally:
+                try:
+                    _wconn.close()
+                except Exception:
+                    pass
+
+        try:
+            with _TPE(max_workers=1) as _xpool:
+                _fut = _xpool.submit(_warm_cross_in_worker)
                 try:
                     warm_cross_results, warm_cross_tele = _fut.result(
                         timeout=8.0

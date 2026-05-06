@@ -66,6 +66,31 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.7 · hot-fix · cross-folder lazy SQLite cross-thread error</div>
+ <h3>Re-applies the 0.5.6 worker-thread SQLite-conn pattern to all three lazy worker call sites</h3>
+ <p>
+ 0.5.6 introduced parallel proactive umbrella + cascade-in-worker-
+ thread + dedicated SQLite connection inside cascade's worker.
+ Same fix was MISSED for the two cross-folder lazy paths (cold +
+ wrong-folder branch's <code>_run_cross</code> and warm +
+ low-confidence cross-folder) plus the cold-start
+ <code>_run_cwd</code> branch — all three passed the main-thread
+ <code>conn</code> into a <code>ThreadPoolExecutor</code> worker,
+ triggering "SQLite objects created in a thread can only be
+ used in that same thread" silently caught and turned into "0
+ results". The proactive umbrella's <code>filename_extend</code>
+ tier still answered in 1 s on the wrong-path scenario, so the
+ user-visible regression was small — but the lazy semantic tier
+ was a dead path. 0.5.7 replicates the 0.5.6 cascade pattern
+ across all three sites: each worker opens
+ <code>init_db(db_path)</code>, uses that conn for the call, and
+ closes in <code>finally</code>. Verified: wrong-path wall 1 s
+ with cross-folder returning 5 cosine-ranked Django files (no
+ SQLite stderr). Hard bench 4/10 preserved. Pytest 217/217.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.7.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.6 · proactive umbrella runs in parallel with cascade (12:50 → 26 s)</div>
  <h3>Cascade and proactive umbrella subprocesses fire at t = 0; whoever has an answer streams first</h3>
  <p>

@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.7 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.7 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.7</p>
+<h1>skylakegrep 0.5.7 — hot-fix: cross-folder lazy was silently failing in worker thread</h1>
+<p>0.5.6 introduced the parallel proactive umbrella architecture and
+fixed cascade's "SQLite objects can only be used in their creating
+thread" error by opening a dedicated SQLite connection inside the
+cascade worker thread. <strong>The same fix was missed for the two
+cross-folder lazy paths</strong>: cold + wrong-folder branch
+(<code>_run_cross</code> in <code>cli.py</code>) and warm + low-confidence branch (the
+post-cascade <code>_LZ.lazy_explore_cross_folder</code> invocation).</p>
+<p>Both passed the main-thread <code>conn</code> into a <code>ThreadPoolExecutor</code>
+worker. SQLite raised<br />
+<code>SQLite objects created in a thread can only be used in that
+same thread. The object was created in thread id A and this
+is thread id B</code><br />
+inside <code>lazy_explore_cross_folder</code>'s embedding-cache lookup. The
+exception was caught by the surrounding <code>try / except</code> and
+silently turned into "0 results" — the user saw cross-folder
+return empty even when the answer existed in a sibling repo.</p>
+<h2>Why it didn't show up in 0.5.6 bench</h2>
+<p>The proactive umbrella's parallel-tier architecture saved us. The
+0.5.6 bench (10 Django oracle queries) preserves 4/10 hit-rate
+because:</p>
+<ul>
+<li>The hits come from cascade running inside the cwd-indexed
+  Django repo (cascade tier).</li>
+<li><code>filename_extend</code> (proactive) handles file-name queries.</li>
+<li>Cross-folder lazy was <em>additional</em>, not load-bearing for the
+  bench.</li>
+</ul>
+<p>The user-reported symptom was visible only on the wrong-path
+demo:<br />
+<code>cd /tmp/skg-empty-cwd &amp;&amp; SKYGREP_PROACTIVE_DIRS=/tmp/oss-bench
+ skygrep "django ORM query builder"</code><br />
+which printed <code>lazy cross-folder failed: SQLite objects created
+in a thread can only be used...</code> to stderr alongside an answer
+from <code>filename_extend</code>. The umbrella pattern delivered an answer
+in 1 s anyway (proactive tier), but the lazy semantic tier was
+a dead path.</p>
+<h2>What changed in 0.5.7</h2>
+<p><code>cli.py</code>:</p>
+<ol>
+<li><strong><code>_run_cwd</code> worker</strong> (cold-start branch): now opens
+   <code>init_db(db_path)</code> inside the worker, passes that conn to
+   <code>lazy_explore_cold_start</code>, closes in <code>finally</code>.</li>
+<li><strong><code>_run_cross</code> worker</strong> (cold + wrong-folder branch): same
+   pattern — own <code>init_db(db_path)</code>, own close.</li>
+<li><strong><code>_warm_cross_in_worker</code></strong> (warm + low-confidence cross-
+   folder): same pattern. Defined as a closure that opens its
+   own conn, runs <code>lazy_explore_cross_folder</code>, closes; the
+   outer <code>ThreadPoolExecutor</code> submits the closure rather than
+   the bare <code>lazy_explore_cross_folder</code> with main-thread conn.</li>
+</ol>
+<p>Identical pattern to the 0.5.6 cascade-in-worker fix; this
+release just applies it consistently across all three
+ThreadPool worker call sites.</p>
+<h2>Verified</h2>
+<ul>
+<li>Wrong-path demo: <code>cd</code> into empty dir,
+  <code>SKYGREP_PROACTIVE_DIRS=/tmp/oss-bench</code>, query
+  "django ORM query builder" → <strong>wall 1 s</strong>, cross-folder lazy
+  returns 5 cosine-ranked Django files (no SQLite error in
+  stderr).</li>
+<li>Hard bench (10 Django oracle queries, real CLI, fresh DB):
+  rg-only <strong>0/10</strong> → auto-trigger <strong>4/10</strong> (preserved from
+  0.5.3 / 0.5.6).</li>
+<li>Pytest 217 / 217.</li>
+</ul>
+<h2>Compatibility</h2>
+<ul>
+<li>Public API unchanged. <code>cli.py</code> internal closures only.</li>
+<li>Thread-local SQLite connections are ephemeral; no schema
+  changes, no index format change, no behavioural change for
+  callers who don't go through cross-folder.</li>
+<li>0.5.6-built indexes work without re-indexing.</li>
+</ul>
+<h2>RED LINE checklist</h2>
+<p>Per <code>docs/EXISTING-INTELLIGENCE-LAYERS.md</code>:</p>
+<ol>
+<li><strong>Layer</strong>: Tier 3 proactive umbrella subprocesses
+   (<code>lazy_explore_cwd</code>, <code>lazy_explore_cross_folder</code> worker
+   wrappers).</li>
+<li><strong>Interactions</strong>: SQLite via <code>init_db(db_path)</code>; same
+   <code>embedder</code> instance inside each worker; ThreadPoolExecutor.</li>
+<li><strong>Action</strong>: PRESERVE — 0.5.7 makes the worker pattern match
+   what 0.5.6 already did for cascade. Behaviour returns to
+   what was intended in 0.5.6.</li>
+<li><strong>Promote/demote history</strong>: N/A — this is a defect fix.</li>
+<li><strong>New hyperparameters</strong>: 0.</li>
+<li><strong>Bench through real CLI</strong>: ✓ (10 Django oracle, real CLI).</li>
+<li><strong>Telemetry footer</strong>: unchanged.</li>
+<li><strong>Hard timeout</strong>: cross-folder 8 s, cascade 30 s — both
+   preserved.</li>
+<li><strong>Personal-data risk</strong>: none — generic placeholder query in
+   demo.</li>
+<li><strong>Bench receipts</strong>: 4/10 preserved; wrong-path wall 1 s.</li>
+</ol>
+<h2>Pending for 0.6</h2>
+<p>Unchanged from 0.5.6:</p>
+<ul>
+<li>σ-noise-band → structural-fallback chain (symbol_channel +
+  filename_shortcut + lexical_shortcut RRF instead of cross-
+  encoder rerank when σ-gap is in the noise band).</li>
+<li>True streaming inside Ollama batch embed (split 25 → 5 + 20).</li>
+<li>Structured per-tier observability for ralph / autopilot.</li>
+</ul></article>
+</main>
+</div>
+</body></html>
