@@ -32,29 +32,50 @@
 .why-section .overview-h2 { font-size: clamp(28px, 3.5vw, 40px); letter-spacing: -0.015em; font-weight: 700; }
 .why-section .lead { margin-top: 8px; font-size: 17px; color: var(--muted); margin-bottom: 32px; }
 
-/* Reusable themed card chrome — same aesthetic as the hero .term-demo */
+/* Reusable themed card chrome — softer frosted-glass, multi-stop border like hero */
 .themed-card {
   position: relative;
-  background: linear-gradient(180deg, #07090d 0%, #0a0d12 100%);
-  border-radius: 14px;
-  border: 1px solid rgba(103, 232, 249, 0.18);
+  background: linear-gradient(180deg, rgba(12, 16, 24, 0.82) 0%, rgba(14, 19, 32, 0.82) 100%);
+  backdrop-filter: blur(24px) saturate(1.1);
+  -webkit-backdrop-filter: blur(24px) saturate(1.1);
+  border-radius: 16px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
   box-shadow:
-    0 30px 60px -22px rgba(0,0,0,0.55),
-    0 0 0 1px rgba(255,255,255,0.02) inset,
-    0 1px 0 rgba(255,255,255,0.06) inset;
+    0 30px 60px -22px rgba(0,0,0,0.45),
+    0 0 0 1px rgba(255,255,255,0.025) inset,
+    0 1px 0 rgba(255,255,255,0.05) inset;
   overflow: hidden;
+}
+/* Multi-stop translucent border (cyan → violet → mint) — matches hero glass-stroke */
+.themed-card::before {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: 16px;
+  padding: 1px;
+  background: linear-gradient(135deg,
+    rgba(125, 211, 252, 0.32) 0%,
+    rgba(167, 139, 250, 0.22) 55%,
+    rgba(94, 234, 212, 0.22) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
 }
 .themed-card-chrome {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 12px 18px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 100%);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0) 100%);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  position: relative;
+  z-index: 1;
 }
 .themed-card-chrome .tl {
-  width: 12px; height: 12px; border-radius: 50%;
-  background: #ff5f57; display: inline-block;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: #ff5f57; display: inline-block; opacity: 0.85;
 }
 .themed-card-chrome .tl-y { background: #ffbd2e; }
 .themed-card-chrome .tl-g { background: #28ca42; }
@@ -65,7 +86,7 @@
   color: var(--soft);
   letter-spacing: 0.01em;
 }
-.themed-card-body { padding: 28px 26px 24px; }
+.themed-card-body { padding: 28px 26px 24px; position: relative; z-index: 1; }
 
 /* Comparison grid — 5 columns of tools + 1 capability column */
 .why-grid-5 {
@@ -109,17 +130,19 @@
   color: var(--text);
   border-bottom: 1px solid rgba(103, 232, 249, 0.18);
 }
-.why-row-head > .why-cell strong { color: var(--accent-bright); font-weight: 700; font-size: 14px; }
+.why-row-head > .why-cell strong { color: #a5f3fc; font-weight: 700; font-size: 14px; }
+.why-row-head > .why-cell a { color: var(--text); text-decoration: none; border-bottom: 1px dashed rgba(165, 243, 252, 0.22); }
+.why-row-head > .why-cell a:hover { border-bottom-color: rgba(165, 243, 252, 0.6); }
 .why-row-head .why-sub { color: var(--soft); font-size: 10px; font-weight: 400; opacity: 0.85; }
 .why-row-last > .why-cell { border-bottom: none; }
 
-.why-cell.why-self { background: linear-gradient(180deg, rgba(34,211,238,0.10) 0%, rgba(34,211,238,0.02) 100%); }
-.why-row-head .why-cell.why-self { border-bottom-color: rgba(103, 232, 249, 0.42); }
+.why-cell.why-self { background: linear-gradient(180deg, rgba(125, 211, 252, 0.07) 0%, rgba(125, 211, 252, 0.018) 100%); }
+.why-row-head .why-cell.why-self { border-bottom-color: rgba(125, 211, 252, 0.36); }
 
-.why-yes { color: #34d399 !important; font-weight: 700; font-size: 18px; }
-.why-yes-text { color: #34d399 !important; font-weight: 600; font-size: 13px; }
-.why-no  { color: #f87171 !important; font-weight: 700; font-size: 18px; opacity: 0.75; }
-.why-mid { color: var(--warn) !important; font-style: italic; font-size: 12.5px; }
+.why-yes { color: #5eead4 !important; font-weight: 700; font-size: 18px; }
+.why-yes-text { color: #5eead4 !important; font-weight: 600; font-size: 13px; }
+.why-no  { color: #fda4af !important; font-weight: 700; font-size: 18px; opacity: 0.85; }
+.why-mid { color: #fde68a !important; font-style: italic; font-size: 12.5px; opacity: 0.85; }
 .why-soft { color: var(--soft) !important; font-size: 12.5px; }
 .why-tinyhint { color: var(--soft); font-size: 9.5px; font-weight: 400; }
 .why-cell code { font-size: 12px; background: rgba(255,255,255,0.04); padding: 2px 6px; border-radius: 4px; }
@@ -346,7 +369,7 @@
   margin-bottom: 18px;
 }
 .hero-redesigned h1 .hero-accent {
-  background: linear-gradient(135deg, #67e8f9 0%, #22d3ee 50%, #06b6d4 100%);
+  background: linear-gradient(135deg, #a5f3fc 0%, #7dd3fc 45%, #c4b5fd 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -433,7 +456,7 @@
   white-space: pre;
 }
 .term-result-code .tk-kw { color: #c084fc; }
-.term-result-code .tk-fn { color: #67e8f9; }
+.term-result-code .tk-fn { color: #a5f3fc; }
 .term-result-code .tk-str { color: #86efac; }
 .term-result-code .tk-cmt { color: var(--soft); font-style: italic; }
 .term-footer {
@@ -694,18 +717,18 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap"></div>
      <div class="why-cell why-self">
        <strong>skylakegrep</strong>
-       <span class="why-sub">v0.2.15</span>
+       <span class="why-sub">v0.2.16</span>
      </div>
-     <div class="why-cell"><code>ripgrep</code><span class="why-sub">lexical</span></div>
-     <div class="why-cell">mgrep<span class="why-sub">predecessor</span></div>
-     <div class="why-cell">autodev-codebase<span class="why-sub">Ollama · CLI</span></div>
+     <div class="why-cell"><code>ripgrep</code><span class="why-sub">lexical baseline</span></div>
+     <div class="why-cell"><a href="https://www.mgrep.dev/" target="_blank" rel="noopener">mgrep</a><span class="why-sub">Mixedbread · paid</span></div>
+     <div class="why-cell"><a href="https://github.com/anrgct/autodev-codebase" target="_blank" rel="noopener">autodev-codebase</a><span class="why-sub">Ollama · OSS</span></div>
      <div class="why-cell">Sourcegraph Cody<span class="why-sub">cloud commercial</span></div>
    </div>
    <div class="why-row">
      <div class="why-cell why-cap">Find by <em>concept</em>, not just token</div>
      <div class="why-cell why-self why-yes">✓</div>
      <div class="why-cell why-no">✗</div>
-     <div class="why-cell why-mid">legacy substrate</div>
+     <div class="why-cell why-yes">✓</div>
      <div class="why-cell why-yes">✓</div>
      <div class="why-cell why-yes">✓</div>
    </div>
@@ -713,15 +736,15 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap">Privacy — no data egress</div>
      <div class="why-cell why-self why-yes">✓</div>
      <div class="why-cell why-yes">✓</div>
+     <div class="why-cell why-no">✗ <span class="why-tinyhint">cloud-backed</span></div>
      <div class="why-cell why-yes">✓</div>
-     <div class="why-cell why-yes">✓</div>
-     <div class="why-cell why-no">✗ <span class="why-tinyhint">cloud-side index</span></div>
+     <div class="why-cell why-no">✗ <span class="why-tinyhint">cloud index</span></div>
    </div>
    <div class="why-row">
-     <div class="why-cell why-cap">Content — code · md · PDF · docx</div>
-     <div class="why-cell why-self why-yes-text">all four</div>
+     <div class="why-cell why-cap">Content — multimodal</div>
+     <div class="why-cell why-self why-yes-text">code · md · PDF · docx</div>
      <div class="why-cell why-mid">text only</div>
-     <div class="why-cell why-mid">code-first</div>
+     <div class="why-cell why-yes-text">code · text · PDF · img</div>
      <div class="why-cell why-mid">code-first</div>
      <div class="why-cell why-mid">code-first</div>
    </div>
@@ -729,7 +752,7 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap">Setup</div>
      <div class="why-cell why-self"><code>pip install</code></div>
      <div class="why-cell"><code>brew install</code></div>
-     <div class="why-cell"><code>pip install</code></div>
+     <div class="why-cell why-mid">npm + Mixedbread acct</div>
      <div class="why-cell">npm + Ollama</div>
      <div class="why-cell why-mid">account + sub</div>
    </div>
@@ -737,7 +760,7 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap">Cost</div>
      <div class="why-cell why-self why-yes">$ 0 / mo</div>
      <div class="why-cell why-yes">$ 0 / mo</div>
-     <div class="why-cell why-yes">$ 0 / mo</div>
+     <div class="why-cell why-no">sub + usage-based</div>
      <div class="why-cell why-yes">$ 0 / mo</div>
      <div class="why-cell why-no">$ 20 – 100+ / mo</div>
    </div>
@@ -745,13 +768,13 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap">Multilingual queries (NL → code id)</div>
      <div class="why-cell why-self why-yes-text">bge-m3 native</div>
      <div class="why-cell why-soft">n/a</div>
-     <div class="why-cell why-mid">English-leaning</div>
+     <div class="why-cell why-yes-text">cloud embedder</div>
      <div class="why-cell why-mid">embedder-dep.</div>
      <div class="why-cell why-yes">supported</div>
    </div>
  </div>
  <p class="why-foot">
-   data: each project's public README · 2026-05 · positions are descriptive, not endorsements
+   data: each project's public site / README · 2026-05 · positions are descriptive, not endorsements
  </p>
  </div>
  </div>

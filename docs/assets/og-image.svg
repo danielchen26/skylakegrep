@@ -54,8 +54,8 @@
   <!-- =================== Brand block =================== -->
   <!-- Search-glass mark, slightly lifted -->
   <g transform="translate(560 70)">
-    <rect width="80" height="80" rx="22" fill="rgba(34,211,238,0.14)" stroke="rgba(34,211,238,0.45)" stroke-width="1.5"/>
-    <g fill="none" stroke="#67e8f9" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" transform="translate(8 8)">
+    <rect width="80" height="80" rx="22" fill="rgba(125,211,252,0.12)" stroke="rgba(125,211,252,0.36)" stroke-width="1.5"/>
+    <g fill="none" stroke="#a5f3fc" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" transform="translate(8 8)">
       <circle cx="28" cy="28" r="14"/>
       <line x1="38" y1="38" x2="56" y2="56"/>
     </g>
@@ -99,6 +99,6 @@
 
   <!-- =================== Bottom row: install line + version =================== -->
   <g font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" font-size="16" fill="#71717a" text-anchor="middle">
-    <text x="600" y="582"><tspan fill="#67e8f9">pip install skylakegrep</tspan>  ·  <tspan fill="#a5f3fc">v0.2.15</tspan>  ·  Python 3.9+  ·  powered by Ollama</text>
+    <text x="600" y="582"><tspan fill="#a5f3fc">pip install skylakegrep</tspan>  ·  <tspan fill="#a5f3fc">v0.2.16</tspan>  ·  Python 3.9+  ·  powered by Ollama</text>
   </g>
 </svg>

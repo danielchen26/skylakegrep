@@ -26,12 +26,12 @@
   --faint:          #52525b;
 
   /* Accent */
-  --accent:         #22d3ee;
-  --accent-bright:  #67e8f9;
+  --accent:         #38bdf8;
+  --accent-bright:  #a5f3fc;
   --accent-deep:    #0891b2;
-  --accent-soft:    rgba(34, 211, 238, 0.10);
-  --accent-faint:   rgba(34, 211, 238, 0.04);
-  --link:           #67e8f9;
+  --accent-soft:    rgba(125, 211, 252, 0.088);
+  --accent-faint:   rgba(125, 211, 252, 0.035);
+  --link:           #a5f3fc;
 
   /* Code */
   --code-bg:        rgba(255, 255, 255, 0.035);
@@ -82,9 +82,9 @@ body {
   line-height: 1.65;
   color: var(--text);
   background:
-    radial-gradient(1100px 600px at 12% -10%, rgba(34, 211, 238, 0.10), transparent 60%),
+    radial-gradient(1100px 600px at 12% -10%, rgba(125, 211, 252, 0.088), transparent 60%),
     radial-gradient(900px  500px at 88%  0%, rgba(167, 139, 250, 0.07), transparent 65%),
-    radial-gradient(700px  500px at 50% 110%, rgba(34, 211, 238, 0.05), transparent 70%),
+    radial-gradient(700px  500px at 50% 110%, rgba(125, 211, 252, 0.044), transparent 70%),
     var(--bg);
   background-attachment: fixed;
   min-height: 100vh;
@@ -103,7 +103,7 @@ strong { font-weight: 600; color: var(--ink); }
 em { font-style: normal; color: var(--muted); }
 hr { border: 0; border-top: 1px solid var(--rule); margin: 28px 0; }
 
-::selection { background: rgba(34, 211, 238, 0.30); color: var(--ink); }
+::selection { background: rgba(125, 211, 252, 0.264); color: var(--ink); }
 
 /* =================================================================
    Code
@@ -168,9 +168,9 @@ pre code { color: inherit; background: none; border: 0; padding: 0; white-space:
   place-items: center;
   border-radius: 8px;
   color: var(--accent-bright);
-  background: rgba(34, 211, 238, 0.10);
-  border: 1px solid rgba(34, 211, 238, 0.22);
-  box-shadow: 0 0 18px rgba(34, 211, 238, 0.18);
+  background: rgba(125, 211, 252, 0.088);
+  border: 1px solid rgba(125, 211, 252, 0.194);
+  box-shadow: 0 0 18px rgba(125, 211, 252, 0.158);
 }
 .brand-mark svg { width: 16px; height: 16px; display: block; }
 .brand-text { font-family: var(--mono); font-size: 14.5px; }
@@ -193,14 +193,14 @@ pre code { color: inherit; background: none; border: 0; padding: 0; white-space:
   padding: 7px 14px;
   border-radius: 6px;
   font-weight: 600;
-  box-shadow: 0 0 24px rgba(34, 211, 238, 0.30);
+  box-shadow: 0 0 24px rgba(125, 211, 252, 0.264);
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 .topnav-cta:hover {
   background: #a5f3fc;
   text-decoration: none !important;
   transform: translateY(-1px);
-  box-shadow: 0 0 30px rgba(34, 211, 238, 0.45);
+  box-shadow: 0 0 30px rgba(125, 211, 252, 0.396);
 }
 
 /* =================================================================
@@ -573,8 +573,8 @@ figcaption {
   line-height: 1.55;
 }
 .kpi-row code {
-  background: rgba(34, 211, 238, 0.08);
-  border-color: rgba(34, 211, 238, 0.18);
+  background: rgba(125, 211, 252, 0.07);
+  border-color: rgba(125, 211, 252, 0.158);
 }
 
 .button-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; }
@@ -591,12 +591,12 @@ figcaption {
 .button.primary {
   color: var(--bg);
   background: var(--accent-bright);
-  box-shadow: 0 0 28px rgba(34, 211, 238, 0.28);
+  box-shadow: 0 0 28px rgba(125, 211, 252, 0.246);
 }
 .button.primary:hover {
   background: #a5f3fc;
   transform: translateY(-1px);
-  box-shadow: 0 0 36px rgba(34, 211, 238, 0.42);
+  box-shadow: 0 0 36px rgba(125, 211, 252, 0.37);
   text-decoration: none;
 }
 .button.secondary {
@@ -655,7 +655,7 @@ h2, h3 { scroll-margin-top: calc(var(--topbar-h) + 16px); }
 /* ============== v0.1.0 overview punch — stats + comparison + use cases ============== */
 
 .hero-accent {
-  background: linear-gradient(180deg, #67e8f9 0%, #a78bfa 100%);
+  background: linear-gradient(180deg, #a5f3fc 0%, #a78bfa 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -696,7 +696,7 @@ h2, h3 { scroll-margin-top: calc(var(--topbar-h) + 16px); }
   word-break: break-word;
   hyphens: auto;
 }
-.stat-num.accent { color: #67e8f9; }
+.stat-num.accent { color: #a5f3fc; }
 .stat-num.green { color: #34d399; }
 .stat-label {
   margin-top: 8px;
@@ -760,7 +760,7 @@ h2, h3 { scroll-margin-top: calc(var(--topbar-h) + 16px); }
 .compare-skygrep {
   color: var(--text);
   border-left: 1px solid var(--rule-faint);
-  background: linear-gradient(90deg, rgba(34,211,238,0.04), transparent 60%);
+  background: linear-gradient(90deg, rgba(125, 211, 252, 0.035), transparent 60%);
 }
 .compare-check { color: #34d399; font-weight: 700; margin-right: 4px; }
 
@@ -789,9 +789,9 @@ h2, h3 { scroll-margin-top: calc(var(--topbar-h) + 16px); }
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #67e8f9;
-  background: rgba(34,211,238,0.10);
-  border: 1px solid rgba(34,211,238,0.30);
+  color: #a5f3fc;
+  background: rgba(125, 211, 252, 0.088);
+  border: 1px solid rgba(125, 211, 252, 0.264);
   margin-bottom: 10px;
 }
 .usecase-title {

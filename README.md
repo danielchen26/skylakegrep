@@ -118,19 +118,23 @@ Sized against **four named alternatives**, not generic categories.
 <details>
 <summary>Same data as a plain markdown table</summary>
 
-|                                              | **skylakegrep** v0.2.15 | `ripgrep` (lexical) | mgrep (predecessor) | autodev-codebase | Sourcegraph Cody (cloud) |
+|                                              | **skylakegrep** v0.2.16 | `ripgrep` (lexical) | mgrep (Mixedbread · paid) | autodev-codebase | Sourcegraph Cody (cloud) |
 |----------------------------------------------|:-----------------------:|:-------------------:|:-------------------:|:----------------:|:------------------------:|
-| Find by **concept**, not just token          |           ✓             |          ✗          | legacy substrate    |        ✓         |             ✓            |
-| **Privacy** — no data egress                  |           ✓             |          ✓          |          ✓          |        ✓         |   ✗ (cloud-side index)   |
-| **Content** — code · md · PDF · docx          |        all four         |       text only     |     code-first      |   code-first     |        code-first        |
-| **Setup**                                    |     `pip install`       |    `brew install`   |    `pip install`    |  npm + Ollama    |       account + sub      |
-| **Cost**                                     |       $ 0 / mo          |       $ 0 / mo      |       $ 0 / mo      |     $ 0 / mo     |    $ 20 – 100+ / mo      |
-| **Multilingual** queries (NL → code id)       |    bge-m3 native        |         n/a         |   English-leaning   |  embedder-dep.   |         supported        |
+| Find by **concept**, not just token          |           ✓             |          ✗          |          ✓          |        ✓         |             ✓            |
+| **Privacy** — no data egress                  |           ✓             |          ✓          | ✗ (cloud-backed)    |        ✓         |   ✗ (cloud-side index)   |
+| **Content** — multimodal                      |  code · md · PDF · docx |       text only     | code · text · PDF · img | code-first  |        code-first        |
+| **Setup**                                    |     `pip install`       |    `brew install`   | npm + Mixedbread acct |  npm + Ollama  |       account + sub      |
+| **Cost**                                     |       $ 0 / mo          |       $ 0 / mo      |  sub + usage-based  |     $ 0 / mo     |    $ 20 – 100+ / mo      |
+| **Multilingual** queries (NL → code id)       |    bge-m3 native        |         n/a         |    cloud embedder   |  embedder-dep.   |         supported        |
 
-`mgrep` is the predecessor; skylakegrep is the next-generation evolution
-with bge-m3 substrate + content-agnostic graph + σ-adaptive cascade.
+[`mgrep`](https://www.mgrep.dev/) (by [Mixedbread AI](https://www.mixedbread.com/) —
+the team behind `mxbai-embed-large`) is the closest commercial competitor:
+TypeScript / npm CLI with a **cloud-backed** Mixedbread store, browser
+auth, and a paid subscription tier (free-tier ingest is capped at 2,000
+tokens). Same query surface, opposite trade-offs:
+**skylakegrep is fully local; mgrep is hybrid local/cloud.**
 [`autodev-codebase`](https://github.com/anrgct/autodev-codebase) is the
-closest direct competitor in the offline-Ollama-CLI lane.
+direct OSS competitor in the offline-Ollama-CLI lane.
 
 </details>
 
@@ -138,15 +142,9 @@ closest direct competitor in the offline-Ollama-CLI lane.
 
 ## How it works
 
-```
-┌─────────┐      ┌──────────────────┐      ┌──────────────────┐      ┌─────────┐
-│  query  │ ──▶  │   LLM router     │ ──▶  │ Cosine cascade   │ ──▶  │ results │
-│  text   │      │  (qwen2.5:3b)    │      │   (bge-m3 +      │      │         │
-│         │      │  intent + scope  │      │    rerank)       │      │         │
-└─────────┘      └──────────────────┘      └──────────────────┘      └─────────┘
-                       ~50 ms                    0.5 – 2 s
-                       (local)                    (local)
-```
+<p align="center">
+  <img alt="skylakegrep — three-stage local pipeline: LLM router → cosine cascade → proactive layer" src="docs/assets/workflow-diagram.svg" width="100%">
+</p>
 
 **Local Ollama + SQLite. Zero network calls. Zero subscription.**
 The same architecture handles every content type — code · PDFs ·
@@ -232,6 +230,13 @@ embedder, the cascade, and the reference graph all abstract over
 file format. New content types plug in via a one-line
 `register_extractor()` call.
 
+<p align="center">
+  <img alt="skylakegrep — six content types: code, markdown, PDF, Word docs, plain text family, and your custom type via register_extractor" src="docs/assets/content-types.svg" width="100%">
+</p>
+
+<details>
+<summary>Same data as a plain markdown table</summary>
+
 | Content type                                      | How it's parsed                                                     | Reference graph                                              | Since |
 |---------------------------------------------------|---------------------------------------------------------------------|--------------------------------------------------------------|:-----:|
 | **Code** — Rust · Python · JS · TS                 | tree-sitter symbol-aware chunking + line-window fallback            | imports / `use` / `require` / dynamic `import()`             | 0.1.0 |
@@ -240,6 +245,8 @@ file format. New content types plug in via a one-line
 | **Word docs (`.docx`)**                           | `python-docx` paragraph extraction                                  | —                                                            | 0.1.0 |
 | **Plain text · TOML · YAML · CSV · JSON · …**     | line-window chunking via the default text path                      | —                                                            | 0.1.0 |
 | **Custom (your content type)**                    | register an extractor returning `(source, target)` edges            | your call                                                    | 0.2.0 |
+
+</details>
 
 ```python
 from skylakegrep.src.reference_graph import register_extractor
