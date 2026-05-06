@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep v0.2.21 release notes" />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="v0.2.21 · skylakegrep" />
+ <meta property="og:description" content="skylakegrep v0.2.21 release notes" />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>v0.2.21 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.1" />
+ <style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html"><span class="brand-text">skylakegrep</span><span class="version">v0.2.21</span></a>
+ <nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a></nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section"><p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section"><p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div></nav></aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">release notes · v0.2.21</p>
+<h1>skylakegrep 0.2.21 — comparison row label trim · perf banner relayout</h1>
+<p>This is a <strong>documentation-surface release</strong>, not a code-path release.
+Zero behaviour change, byte-compatible 0.2.20 indexes, same wheel
+surface, same CLI, same JSON contract.</p>
+<h2>What changed</h2>
+<p>Two more overlap defects caught on the live site:</p>
+<h3>1. Comparison-matrix row 3 — capability label ran into the data column</h3>
+<p>The row-3 capability label was <code>Content — code · md · PDF · docx ·
+images</code> (~42 monospace chars). At font-size 13, that occupies
+roughly 330 px from <code>x=20</code>, ending at <code>x ≈ 350</code>. The first data
+column is centered at <code>x=376</code>, but its 22-character payload
+<code>code · md · PDF · docx</code> (centered) starts at ~<code>x=276</code> — so the
+label and the data text overlapped from <code>x=276</code> to <code>x=350</code>.</p>
+<p>Fixed: capability label trimmed from
+<code>Content — code · md · PDF · docx · images</code> →
+<strong><code>Content — multimodal</code></strong>. The data cells already enumerate the
+formats per tool, so the header doesn't need to repeat them. The
+new header occupies ~150 px, leaving ~125 px of clean gap before
+the first data column.</p>
+<h3>2. Performance-matrix aggregate banner — three big numbers + labels overflowed the card</h3>
+<p>The banner was a single inline row mixing 32 px green/cyan numbers
+and 20 px gray labels: <code>30 / 30  recall · 60 × – 770 ×  less
+context vs rg · −82 %  tool calls (best multi-turn)</code>. Total content
+width ~1163 px, banner only 1032 px wide — <code>−82 %</code> collided with
+the next label, and the trailing parenthetical bled past the right
+edge.</p>
+<p>Rebuilt as a <strong>three-column layout</strong> with the headline number on
+top and the descriptor below, each column centered:</p>
+<pre><code>   30 / 30           60 × – 770 ×              −82 %
+    recall         less context vs rg     tool calls (best multi-turn)
+</code></pre>
+<p>Banner height 100 → 120 px to host the new two-row content cleanly.
+The eye now compares the three headline numbers in parallel — the
+old jammed-line layout buried the comparison.</p>
+<h2>Compatibility</h2>
+<ul>
+<li>Python: unchanged — 3.9+</li>
+<li>Default embedder / LLM router: unchanged</li>
+<li>Wheel surface: unchanged</li>
+<li>Index format: byte-compatible with 0.2.20</li>
+<li>JSON output schema: unchanged</li>
+</ul>
+<h2>Bench numbers</h2>
+<p>Unchanged. 30 / 30 public-OSS recall holds.</p>
+<h2>Eight-surface checklist</h2>
+<ul>
+<li>[x] <code>pyproject.toml</code> 0.2.20 → 0.2.21</li>
+<li>[x] <code>docs/skylakegrep-0.2.21.md</code> (this file) + rendered
+        <code>skylakegrep-0.2.21.html</code></li>
+<li>[x] <code>README.md</code> v0.2.21</li>
+<li>[x] <code>docs/index.html</code> v0.2.21</li>
+<li>[x] <code>docs/changelog.html</code> — 0.2.21 release card</li>
+<li>[x] <code>docs/assets/comparison-matrix.svg</code> — row-3 label trimmed,
+        v0.2.21</li>
+<li>[x] <code>docs/assets/performance-matrix.svg</code> — aggregate banner
+        relayout (3 columns), banner height 100 → 120 px, v0.2.21</li>
+<li>[x] All 6 SVG version pills bumped 0.2.20 → 0.2.21</li>
+<li>[x] <code>docs/assets/og-image.png</code> re-rasterized</li>
+<li>[x] PyPI upload (manual <code>twine</code>)</li>
+<li>[x] GitHub Release with attached wheel + sdist</li>
+<li>[x] <code>git tag -a v0.2.21</code> + push</li>
+</ul>
+<h2>Acknowledgments</h2>
+<p>Reviewer caught both overlaps in two side-by-side screenshots —
+<em>"this still has overlap, please fix"</em> — fair point; both fixed in
+the same release.</p>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

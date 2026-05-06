@@ -115,28 +115,6 @@ Sized against **four named alternatives**, not generic categories.
   <img alt="skylakegrep — comparison matrix vs ripgrep, mgrep (predecessor), autodev-codebase, Sourcegraph Cody" src="docs/assets/comparison-matrix.svg" width="100%">
 </p>
 
-<details>
-<summary>Same data as a plain markdown table</summary>
-
-|                                              | **skylakegrep** v0.2.20 | `ripgrep` (lexical) | mgrep (Mixedbread · paid) | autodev-codebase | Sourcegraph Cody (cloud) |
-|----------------------------------------------|:-----------------------:|:-------------------:|:-------------------:|:----------------:|:------------------------:|
-| Find by **concept**, not just token          |           ✓             |          ✗          |          ✓          |        ✓         |             ✓            |
-| **Privacy** — no data egress                  |           ✓             |          ✓          | ✗ (cloud-backed)    |        ✓         |   ✗ (cloud-side index)   |
-| **Content** — multimodal                      |  code · md · PDF · docx |       text only     | code · text · PDF · img | code-first  |        code-first        |
-| **Setup**                                    |     `pip install`       |    `brew install`   | npm + Mixedbread acct |  npm + Ollama  |       account + sub      |
-| **Cost**                                     |       $ 0 / mo          |       $ 0 / mo      |  sub + usage-based  |     $ 0 / mo     |    $ 20 – 100+ / mo      |
-| **Multilingual** queries (NL → code id)       |    bge-m3 native        |         n/a         |    cloud embedder   |  embedder-dep.   |         supported        |
-
-[`mgrep`](https://www.mgrep.dev/) (by [Mixedbread AI](https://www.mixedbread.com/) —
-the team behind `mxbai-embed-large`) is the closest commercial competitor:
-TypeScript / npm CLI with a **cloud-backed** Mixedbread store, browser
-auth, and a paid subscription tier (free-tier ingest is capped at 2,000
-tokens). Same query surface, opposite trade-offs:
-**skylakegrep is fully local; mgrep is hybrid local/cloud.**
-[`autodev-codebase`](https://github.com/anrgct/autodev-codebase) is the
-direct OSS competitor in the offline-Ollama-CLI lane.
-
-</details>
 
 ---
 
@@ -192,17 +170,6 @@ Public-OSS reproducible benchmark across three popular codebases
   <img alt="skylakegrep — public-OSS benchmark performance (30/30 recall on Django + Tokio + React)" src="docs/assets/performance-matrix.svg" width="100%">
 </p>
 
-<details>
-<summary>Same data as a plain markdown table</summary>
-
-| Repo            | Lang     | LOC ≈ | skygrep recall | rg recall | Token reduction vs `rg` |
-|-----------------|----------|------:|:--------------:|:---------:|:-----------------------:|
-| **Django**      | Python   | 524 K |   **10 / 10**  |  10 / 10  |      **703 ×**          |
-| **Tokio**       | Rust     |  80 K |   **10 / 10**  |  10 / 10  |      **61 ×**           |
-| **React**       | JS · TS  | 270 K |   **10 / 10**  |  10 / 10  |      **773 ×**          |
-| **Aggregate**   |          |       | **30 / 30** (100 %) | 30 / 30 |   **60 × – 770 ×**      |
-
-</details>
 
 Honest reading:
 
@@ -234,19 +201,6 @@ file format. New content types plug in via a one-line
   <img alt="skylakegrep — six content types: code, markdown, PDF, Word docs, plain text family, and your custom type via register_extractor" src="docs/assets/content-types.svg" width="100%">
 </p>
 
-<details>
-<summary>Same data as a plain markdown table</summary>
-
-| Content type                                      | How it's parsed                                                     | Reference graph                                              | Since |
-|---------------------------------------------------|---------------------------------------------------------------------|--------------------------------------------------------------|:-----:|
-| **Code** — Rust · Python · JS · TS                 | tree-sitter symbol-aware chunking + line-window fallback            | imports / `use` / `require` / dynamic `import()`             | 0.1.0 |
-| **Markdown**                                      | line-window chunks; `[](link)`, `![]()`, `[[wiki]]` link extraction | relative-path resolution + Obsidian wiki links               | 0.2.0 |
-| **PDF**                                           | `pypdf` text extraction; opt-in OCR for scanned pages               | —                                                            | 0.1.0 |
-| **Word docs (`.docx`)**                           | `python-docx` paragraph extraction                                  | —                                                            | 0.1.0 |
-| **Plain text · TOML · YAML · CSV · JSON · …**     | line-window chunking via the default text path                      | —                                                            | 0.1.0 |
-| **Custom (your content type)**                    | register an extractor returning `(source, target)` edges            | your call                                                    | 0.2.0 |
-
-</details>
 
 ```python
 from skylakegrep.src.reference_graph import register_extractor
@@ -271,22 +225,6 @@ first query, and auto-recovers when the embedder is upgraded.
   <img alt="skylakegrep — CLI cheatsheet (bare form featured, 8 secondary commands as tiles)" src="docs/assets/cli-cheatsheet.svg" width="100%">
 </p>
 
-<details>
-<summary>Same data as a plain markdown table</summary>
-
-| Command                                  | When to use                                                                                                  | Example                                                       |
-|------------------------------------------|--------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------|
-| **`skygrep "<query>"`** *(bare)*         | Default. Just ask a question. Auto-indexes, auto-recovers.                                                   | `skygrep "where is the auth refresh logic"`                   |
-| `skygrep search <query>`                 | Explicit form when you need flags.                                                                           | `skygrep search "session token" --top 20 --json`              |
-| `skygrep doctor`                         | First-time troubleshooting. Probes Ollama, lists models, summarises the project index, checks integrations. | `skygrep doctor`                                              |
-| `skygrep setup`                          | Register skygrep with detected LLM CLIs. Run once.                                                           | `skygrep setup` &nbsp;·&nbsp; `skygrep setup --uninstall`     |
-| `skygrep stats`                          | Print chunk and file counts.                                                                                 | `skygrep stats`                                               |
-| `skygrep index [PATH] [--reset]`         | Rarely needed. Auto-recovery (0.2.2+) handles embedder upgrades.                                             | `skygrep index . --reset`                                     |
-| `skygrep watch [PATH] -i N`              | Keep index live in the background. Polls every `N` seconds.                                                  | `skygrep watch .`                                             |
-| `skygrep serve --port P`                 | Daemon mode. Keeps cross-encoder + Ollama warm for 0.5 – 2 s warm queries.                                   | `skygrep serve --port 7878`                                   |
-| `skygrep enrich`                         | Advanced. Generate doc2query-style descriptions for vocab-mismatch queries.                                  | `skygrep enrich`                                              |
-
-</details>
 
 ### Reading the per-query telemetry footer (0.2.2+)
 
@@ -328,27 +266,6 @@ Behavior toggles.
   <img alt="skylakegrep — environment variable configuration grouped into Ollama setup, Indexing &amp; rerank, and Behavior toggles" src="docs/assets/configuration.svg" width="100%">
 </p>
 
-<details>
-<summary>Same data as a plain markdown table</summary>
-
-| Variable                              | Default                          | Effect                                                                                |
-|---------------------------------------|----------------------------------|---------------------------------------------------------------------------------------|
-| `OLLAMA_URL`                          | `http://localhost:11434`         | Ollama server URL.                                                                    |
-| `OLLAMA_EMBED_MODEL`                  | `bge-m3`                         | Embedding model. Switching is **auto-detected** (0.2.2+) — no manual `--reset` needed.|
-| `OLLAMA_LLM_MODEL`                    | `qwen2.5:3b`                     | Used for `--answer`, `--agentic`, the LLM router, and recovery telemetry.            |
-| `OLLAMA_HYDE_MODEL`                   | `qwen2.5:3b`                     | Used for cascade-escalation HyDE rewrite. Falls back to `OLLAMA_LLM_MODEL`.            |
-| `OLLAMA_KEEP_ALIVE`                   | `-1`                             | Passed to every Ollama call. `-1` keeps models resident indefinitely (recommended).  |
-| `SKYGREP_DB_PATH`                     | per-project                      | When set, treats the index as curated and disables auto-mutation.                    |
-| `SKYGREP_AUTO_PULL`                   | unset                            | Set `yes` to auto-`ollama pull` missing models without prompting.                    |
-| `SKYGREP_AUTO_REFRESH_THROTTLE_SECONDS`| `30`                            | Skip the mtime scan if the previous refresh ran more recently.                       |
-| `SKYGREP_RERANK_MODEL`                | `mixedbread-ai/mxbai-rerank-large-v2` | Cross-encoder for `--rerank`.                                                  |
-| `SKYGREP_RERANK_POOL`                 | `50`                             | Candidate pool before reranking.                                                     |
-| `SKYGREP_NO_HINTS`                    | unset                            | Set `1` to silence all intelligent-CLI hints (out-of-scope, typo, low-conf, first-run).|
-| `SKYGREP_NO_PROACTIVE`                | unset                            | Set `1` to disable the proactive enhancement framework.                              |
-| `SKYGREP_PROACTIVE_BUDGET_MS`         | `2000`                           | Total wall-clock cap on proactive enhancers per query.                               |
-| `SKYGREP_FOOTER_COMPACT`              | unset                            | Set `1` for the legacy single-line telemetry footer.                                 |
-
-</details>
 
 ---
 

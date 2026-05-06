@@ -66,6 +66,24 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.2.21 · comparison label trim · perf banner relayout</div>
+ <h3>Comparison row-3 label trimmed; performance aggregate banner now 3 clean columns</h3>
+ <p>
+ Reviewer caught two more overlaps. (1) The row-3 capability
+ label <code>Content — code · md · PDF · docx · images</code>
+ (~330 px) ran into the first data column's
+ <code>code · md · PDF · docx</code> payload — trimmed to
+ <code>Content — multimodal</code> (the cells already enumerate
+ per tool). (2) The aggregate banner had three big numbers +
+ three small labels jammed onto a single line that overflowed
+ the 1032 px banner width — rebuilt as a 3-column "headline
+ above caption" layout (banner 100 → 120 px tall) so the eye
+ compares <code>30/30</code> · <code>60×–770×</code> ·
+ <code>−82%</code> in parallel.
+ </p>
+ <a class="release-link" href="skylakegrep-0.2.21.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.2.20 · hero geometry · raster stability</div>
  <h3>Third result row no longer collides with terminal frame; pill row stable in raster too</h3>
  <p>
