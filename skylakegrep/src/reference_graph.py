@@ -209,34 +209,89 @@ def build_export_graph(root: Path) -> dict[str, dict[str, float]]:
 
 
 def populate_graph_table(conn, root: Path) -> int:
-    """Build the export graph for ``root`` and write to ``file_graph``.
+    """Build the export graph for ``root`` and write to ``file_graph``
+    (per-file PageRank stats) plus ``graph_edge`` (the actual reference
+    edges, used by 0.4.0+ holistic cascade neighbour expansion).
 
-    Returns the number of rows inserted. Idempotent — clears the table
-    before re-inserting so re-running on a moved repo is safe.
+    Edge weight = PageRank of the destination node — data-derived, no
+    preset. Cascade scoring uses cosine; PageRank only orders the SQL
+    fetch when we ask for top-K neighbours.
+
+    Returns the number of nodes processed. Idempotent.
     """
 
-    root = Path(root)
-    graph = build_export_graph(root)
+    root = Path(root).resolve()
+    # We need both the aggregated stats (for file_graph) and the raw
+    # edge list (for graph_edge). Recompute the inputs once and produce
+    # both — cheaper than calling build_export_graph and a separate
+    # edge collector.
+    buckets = _collect_files(root)
+    edges_raw: list[tuple[str, str]] = []
+    all_files: list[Path] = []
+    for content_type, files in buckets.items():
+        if not files:
+            continue
+        all_files.extend(files)
+        extractor = REFERENCE_EXTRACTORS.get(content_type)
+        if extractor is None:
+            continue
+        edges_raw.extend(extractor(files, root))
+
+    nodes = sorted({str(f) for f in all_files})
+    in_degree: dict[str, int] = defaultdict(int)
+    out_degree: dict[str, int] = defaultdict(int)
+    inbound: dict[str, list[str]] = defaultdict(list)
+    for src, dst in edges_raw:
+        in_degree[dst] += 1
+        out_degree[src] += 1
+        inbound[dst].append(src)
+    pr = _pagerank(nodes, inbound, out_degree)
+
+    # ── file_graph (per-file aggregate) ─────────────────────────────
     conn.execute("DELETE FROM file_graph")
     rows = []
-    for file_path, stats in graph.items():
+    for v in nodes:
         try:
-            mtime = Path(file_path).stat().st_mtime
+            mtime = Path(v).stat().st_mtime
         except OSError:
             mtime = 0.0
-        rows.append(
-            (
-                file_path,
-                stats["in_degree"],
-                stats["out_degree"],
-                stats["pagerank"],
-                mtime,
-            )
-        )
+        rows.append((v, int(in_degree.get(v, 0)), int(out_degree.get(v, 0)),
+                     float(pr.get(v, 0.0)), mtime))
     conn.executemany(
         "INSERT INTO file_graph (file, in_degree, out_degree, pagerank, file_mtime) "
         "VALUES (?, ?, ?, ?, ?)",
         rows,
     )
+
+    # ── graph_edge (reference edges) ────────────────────────────────
+    # Drop only the 'refs' edge type to stay idempotent; other edge
+    # types (none in 0.4.0, but reserved schema-wise) are preserved.
+    conn.execute("DELETE FROM graph_edge WHERE type = 'refs'")
+    # Pre-resolve node IDs in one pass
+    node_ids: dict[str, int] = {}
+    for v in nodes:
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO graph_node(kind, key) VALUES('file', ?)", (v,))
+        cur = conn.execute(
+            "SELECT id FROM graph_node WHERE kind='file' AND key=?", (v,))
+        row = cur.fetchone()
+        if row:
+            node_ids[v] = int(row[0])
+    edge_rows = []
+    for src, dst in edges_raw:
+        if src in node_ids and dst in node_ids:
+            # Edge weight = destination's PageRank. Pure data-derived —
+            # high-PageRank targets are visited first when SQL orders by
+            # weight DESC. Cosine score against the query is what
+            # actually decides ranking; this is just neighbour priority.
+            weight = float(pr.get(dst, 0.0))
+            edge_rows.append((node_ids[src], node_ids[dst], "refs", weight))
+    if edge_rows:
+        conn.executemany(
+            "INSERT OR REPLACE INTO graph_edge(src_id, dst_id, type, weight) "
+            "VALUES (?, ?, ?, ?)",
+            edge_rows,
+        )
     conn.commit()
+    return len(nodes)
     return len(rows)

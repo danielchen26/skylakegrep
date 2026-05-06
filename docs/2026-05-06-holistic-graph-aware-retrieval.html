@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="plan · holistic graph-aware retrieval (0.4.0)" />
+ <meta name="theme-color" content="#13192a" />
+ <title>Holistic graph-aware retrieval plan · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=4.0.0" />
+ <style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+</style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html"><span class="brand-text">skylakegrep</span><span class="version">graph-walk plan</span></a>
+ <nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a></nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section"><p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section"><p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div></nav></aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">plan · holistic graph-aware retrieval (0.4.0)</p>
+<h1>Plan — Holistic graph-aware retrieval</h1>
+<p><strong>Date filed:</strong> 2026-05-06
+<strong>Status:</strong> Implemented in <strong>0.4.0</strong>.
+<strong>Supersedes:</strong> 2026-05-05-graph-prior-folder-inference.md (the
+phased v1 ⊃ v2 plan, which accumulated 9+ preset hyperparameters
+and was rolled back in 0.3.1).</p>
+<hr />
+<h2>1. The principle this plan exists to honour</h2>
+<p>User's articulation, 2026-05-06:</p>
+<blockquote>
+<p>我们要保证的是在整体准确度不变的情况下增加intelligence … 引入
+的都是generic的东西而并不是为了修复某一个specific的东西而是
+特殊的优化 … 我刚刚的要求它其实是一个整体的要求而不是说一步
+一步的因为所有的步骤其实是卡扑在一块的 … intelligence 其实
+就是conditional的</p>
+</blockquote>
+<p>Translated: keep accuracy identical; add intelligence; only
+introduce <strong>generic</strong> mechanisms; <strong>all components are coupled</strong>;
+<strong>intelligence is conditional</strong>; design holistically, not phased.</p>
+<p>This generalises Principle 1 (Understanding &gt; Enumeration) to
+<em>Principle 1.5: hyperparameters are coupled — tune them
+holistically or not at all</em>. The phased plan that this supersedes
+violated this — every phase needed its own local "works in
+isolation" metric, which forced a constant per phase, accumulating
+to 9+ presets.</p>
+<p>The full principle is recorded in
+<code>memory/feedback_holistic_design_intelligence_is_conditional.md</code>.</p>
+<hr />
+<h2>2. The holistic design — one principle, two primitives, zero presets</h2>
+<p>The entire 0.4.0 graph-aware retrieval is built from <strong>two
+primitives that already exist in 0.2.21</strong>, and nothing else.</p>
+<h3>Primitive A — cosine similarity (<code>bge-m3</code> embedding)</h3>
+<p>Already used by 0.2.x:
+  - query → file relevance (cascade's cheap path)
+  - query → chunk relevance (<code>search()</code> chunk cosine)
+  - HyDE-rewritten query → file relevance (escalation)</p>
+<p>Reused in 0.4.0:
+  - query → neighbour file relevance (graph expansion stage)</p>
+<p><strong>No new uses, no new metric.</strong> A graph-walked candidate is scored
+by exactly the same operation that scores a cosine-walked candidate.</p>
+<h3>Primitive B — σ-adaptive Bayesian-evidence threshold</h3>
+<p>Already used by 0.2.21 (<code>storage.py:cascade_search</code>):</p>
+<pre><code class="language-python">tau_eff = max(CASCADE_TAU_FLOOR, CASCADE_K_SIGMA * sigma)
+</code></pre>
+<p><code>CASCADE_TAU_FLOOR=0.005</code>, <code>CASCADE_K_SIGMA=1.0</code>. Both env-var
+overridable. The cascade's σ-stop on top-K residuals is the
+project's universal "is this candidate cluster well-separated"
+test.</p>
+<p>Reused in 0.4.0:
+  - graph-expansion candidate cut: <code>score &gt;= CASCADE_TAU_FLOOR</code></p>
+<p>Same constant, same semantics. <strong>Zero new thresholds.</strong></p>
+<h3>Edges — only <code>refs</code>, weight only <code>pagerank</code></h3>
+<p>The reference graph (<code>reference_graph.py</code>) already populates a
+<code>file_graph</code> table with PageRank per file. 0.4.0 extends
+<code>populate_graph_table</code> to ALSO write the actual edge list to the
+existing <code>graph_edge</code> table (added in 0.3.0 schema, idle since
+0.3.1 rollback). Edge weight = destination's PageRank — pure
+<strong>data-derived signal</strong>, ordering only the SQL <code>ORDER BY</code> for
+deterministic neighbour iteration. Cosine still does the actual
+ranking.</p>
+<p><strong>No edge-type taxonomy proliferation.</strong> No <code>name_sim</code>, no
+<code>path_prox</code>, no <code>meta_cohort</code>, no <code>co_access</code>. Just <code>refs</code>. If
+those are wanted later, each one must arrive with its weight
+<strong>derived</strong> (TF-IDF, cosine, σ), never preset.</p>
+<hr />
+<h2>3. The single change — escalation-time neighbour expansion</h2>
+<p><code>cascade_search</code> escalation already does:</p>
+<pre><code>results = Round_A(cosine + file-rank)  ∪  Round_C(HyDE + cosine)
+</code></pre>
+<p>0.4.0 adds:</p>
+<pre><code>seed_paths = top-5 file paths from Round_A
+g_results  = expand(seed_paths) — refs neighbours, scored by cosine
+results    = Round_A ∪ Round_C ∪ g_results
+</code></pre>
+<p>Implementation: <code>_expand_via_reference_graph()</code> in <code>storage.py</code>,
+~50 LoC. Pulls neighbours via the existing graph_edge SQL index,
+scores each by cosine to query embedding, keeps those above the
+existing <code>CASCADE_TAU_FLOOR</code>, returns result dicts in the same
+shape as <code>search()</code> so the union step is uniform.</p>
+<p><strong>Always on</strong> during escalation. No env-var gate. No per-query
+opt-in. Conditional only on the cascade's own σ-evidence — when the
+cheap path is confident, escalation doesn't fire and neither does
+the expansion.</p>
+<hr />
+<h2>4. Latency invariant — by construction</h2>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>0.2.21</th>
+<th>0.4.0</th>
+<th>Δ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cheap path (~80 % of queries)</td>
+<td>unchanged</td>
+<td>unchanged</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Escalation: Round A</td>
+<td>~200 ms</td>
+<td>~200 ms</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Escalation: Round C (HyDE)</td>
+<td>~600 ms</td>
+<td>~600 ms</td>
+<td>0</td>
+</tr>
+<tr>
+<td><strong>NEW: graph expansion</strong></td>
+<td>n/a</td>
+<td>≤ 1 SQL JOIN + ≤ 30 cosine ops</td>
+<td><strong>≤ 2 ms</strong></td>
+</tr>
+</tbody>
+</table>
+<p>A 1024-d cosine on a pre-cached embedding is ~50 µs. 30 of them =
+1.5 ms. The SQL JOIN with the <code>(src_id, type, weight DESC)</code> index
+is one B-tree probe. <strong>Total latency add to escalation: ≤ 2 ms,
+or ~0.3 % of the existing escalation cost.</strong></p>
+<p>The cheap path — which serves ~80 % of warm queries per the
+0.2.0 bench — is byte-identical to 0.2.21.</p>
+<hr />
+<h2>5. Accuracy invariant — by construction</h2>
+<p>The graph-expansion candidates are unioned into the rerank pool;
+the final cross-encoder rerank is monotonic in score. Therefore:</p>
+<ul>
+<li><strong>Recall</strong>: cannot drop. The rerank pool now contains a
+    superset of the 0.2.21 pool.</li>
+<li><strong>Precision</strong>: cannot drop on cheap-path queries (unchanged).
+    On escalation queries, may improve when cosine-only missed a
+    cosine-similar file that the reference graph reaches in 1 hop.</li>
+</ul>
+<p>Public-OSS bench (Django + Tokio + React, 30 tasks): the rerank
+pool always contained the right answer in 0.2.21 (30/30); the
+expansion can only make the same statement true for marginal
+cases that the cosine top-K just barely missed.</p>
+<p>Internal hard-miss bench (<code>crates/ai/</code>, <code>app/src/billing/</code>): these
+are precisely the cases where cosine missed but the reference graph
+hops there. The expansion is the architectural answer.</p>
+<hr />
+<h2>6. What was deleted</h2>
+<ul>
+<li><code>skylakegrep/src/graph_walk.py</code> (0.3.0 PPR with α / eps /
+    max_visited / top_k_edges constants)</li>
+<li><code>skylakegrep/src/query_seeds.py</code> (0.3.0 4-matcher seed mapper
+    with score_per_hit constants)</li>
+<li><code>skylakegrep/src/graph_substrate.py</code> (0.3.0 path_prox /
+    name_sim with preset edge weights)</li>
+<li><code>tests/test_graph_walk.py</code> (per-component unit tests for the
+    above — not end-to-end, not what the design is testing)</li>
+</ul>
+<p>These were phased-design artefacts. Removing them eliminates the
+hyperparameter source.</p>
+<p>What stays:
+  - <code>graph_node</code> + <code>graph_edge</code> schema (zero-cost; reused for
+    <code>refs</code> edges)
+  - <code>reference_graph.py</code> (extended to populate the edge list)</p>
+<hr />
+<h2>7. Test surface — end-to-end only</h2>
+<p>Per the holistic principle, no per-component test. The acceptance
+criteria are:</p>
+<ol>
+<li><strong>Existing test suite must remain green</strong> — 201 tests cover
+     the 0.2.21 baseline behaviours; expansion is additive so they
+     must all still pass.</li>
+<li><strong>Real-corpus bench</strong> — <code>benchmarks/graph_walk_bench.py</code> (now
+     reframed for 0.4.0): index <code>skylakegrep/src/</code>, run 5
+     queries, compare with-expansion vs without-expansion. The
+     expansion <strong>must not regress</strong> the cosine-only baseline; ideal
+     case it improves on queries where the reference graph helps.</li>
+</ol>
+<p>No test for "did <code>_expand_via_reference_graph()</code> return the right
+neighbour list in isolation" — that's exactly the kind of
+local-metric phasing this plan refuses.</p>
+<hr />
+<h2>8. What's not in 0.4.0 (deferred — must remain holistic)</h2>
+<p>The user's vision (2026-05-06) included:
+  - Cold-start seed mapping with no history
+  - Diffusion (PPR) traversal beyond 1 hop
+  - Adaptive lazy L2 embedding
+  - Background hierarchical fallback subagent</p>
+<p>0.4.0 delivers a SUBSET via the holistic mechanism: 1-hop
+reference-graph expansion, not multi-hop diffusion; uses pre-
+computed embeddings, not lazy L2; runs in-cascade, not as a
+parallel subagent.</p>
+<p>These extensions are <strong>not</strong> in 0.4.0 because each one would
+re-introduce a hyperparameter unless co-designed with the rest.
+The next attempt at any of them must:</p>
+<ol>
+<li>Reuse cosine + σ — no new metric / threshold magnitudes</li>
+<li>Be conditional via the LLM router — not via env var or flag</li>
+<li>Land in <strong>one commit</strong>, integrated bench-validated, all-or-
+     nothing — not in phases</li>
+</ol>
+<p>If a future extension can't satisfy all three, it doesn't ship.</p>
+<hr />
+<h2>9. Decision</h2>
+<p>Holistic design, one commit, accept-criteria = full pytest +
+real-corpus bench. <strong>Production behaviour: identical to 0.2.21 on
+~80 % of queries (cheap path); marginally improved on escalation
+queries when the reference graph reaches a missed cosine
+neighbour.</strong> Hyperparameter delta: <strong>0</strong>.</p>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

@@ -66,6 +66,28 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.4.0 · holistic graph-aware retrieval (zero new hyperparameters)</div>
+ <h3>1-hop reference-graph expansion in cascade escalation — by-construction additive, by-construction latency-neutral</h3>
+ <p>
+ Closes the v2 design that 0.3.0 attempted with 9+ preset
+ hyperparameters (rolled back in 0.3.1). 0.4.0 redoes it
+ holistically per the
+ <a href="2026-05-06-holistic-graph-aware-retrieval.html">holistic
+ graph-aware retrieval plan</a> and the
+ "intelligence-is-conditional" principle just locked into
+ auto-memory. <strong>Zero new hyperparameters</strong>: every
+ weight is cosine, every threshold is the existing
+ <code>CASCADE_TAU_FLOOR</code>, every edge is a reference-graph
+ ref. ~50 LoC added; ~800 LoC of phased-design scaffolding deleted
+ (<code>graph_walk.py</code> · <code>query_seeds.py</code> ·
+ <code>graph_substrate.py</code> · per-component tests). End-to-end
+ integration test covers the whole; no isolated-component tests.
+ Cheap path identical to 0.2.21; escalation adds ≤ 2 ms latency
+ to union 1-hop neighbours into the rerank pool.
+ </p>
+ <a class="release-link" href="skylakegrep-0.4.0.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.3.1 · principled rollback</div>
  <h3>Graph-walk integration rolled back; preset hyperparameters stripped</h3>
  <p>
