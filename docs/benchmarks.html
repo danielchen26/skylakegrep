@@ -58,7 +58,7 @@
  <p class="eyebrow">Evaluation · benchmarks</p>
  <h2>Empirical results across four benchmark dimensions.</h2>
  <p>
- skylakegrep ships four reproducible benchmarks. Each measures a
+ skylakegrep ships <strong>five</strong> reproducible benchmarks. Each measures a
  different question; quoting the right number for the right claim
  matters. The repository's
  <a href="parity-benchmarks.html"><code>parity-benchmarks.html</code></a>
@@ -66,7 +66,43 @@
  page is the curated summary.
  </p>
 
- <h3 id="bench-e2e">1. End-to-end Claude Code agent (this)</h3>
+ <h3 id="bench-cold-lazy">0. Cold-start lazy auto-trigger (NEW in 0.5.3)</h3>
+ <p>
+ The newest tier — measures whether the
+ <code>--lazy</code> auto-trigger that fires on a never-indexed
+ project actually beats plain ripgrep cold-start on
+ vocabulary-mismatch queries. Run via
+ <a href="https://github.com/danielchen26/skylakegrep/blob/master/benchmarks/release-0.5.3-rg-vs-lazy.py"><code>benchmarks/release-0.5.3-rg-vs-lazy.py</code></a>
+ — 10 hand-labelled Django queries phrased as natural language
+ ("where is the migration runner that applies pending schema
+ changes to the database"), every query starts from a freshly
+ cleaned SQLite DB, and the script invokes the real
+ <code>skygrep search</code> CLI (not the python API) so the
+ measured numbers are exactly what a user would see. Compares
+ <code>--no-lazy</code> (pure rg cold-start) vs default
+ (auto-trigger).
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead><tr><th>Config</th><th>hit @ 5</th><th>avg latency</th><th>note</th></tr></thead>
+ <tbody>
+ <tr><td><code>--no-lazy</code></td><td><strong>0 / 10</strong></td><td>4.85 s</td><td>pure ripgrep cold-start; vocabulary mismatch finds nothing</td></tr>
+ <tr><td>default (auto-trigger)</td><td><strong>4 / 10</strong></td><td>20.76 s</td><td>LLM-routed dir picker + token-shortcut + import-diffusion</td></tr>
+ <tr><td>delta</td><td><strong>+4 / 10</strong></td><td>+15.9 s / query</td><td>real, measurable +30 % hit-rate over rg cold-start</td></tr>
+ </tbody>
+ </table>
+ </div>
+ <p>
+ Specific hits: Q1 → <code>django/urls/resolvers.py</code>;
+ Q3 → <code>migration.py</code> + <code>executor.py</code>;
+ Q4 → <code>backends.py</code>; Q7 → <code>base.py</code>.
+ 0.5.3 release notes call out the misses (Q2, Q5, Q6, Q8, Q9, Q10
+ still don't hit because qwen 2.5:3b can't reliably pick the right
+ dir for some oracle phrasings — tracked as a 0.6 candidate for a
+ larger router model).
+ </p>
+
+ <h3 id="bench-e2e">1. End-to-end Claude Code agent</h3>
  <p>
  Real Claude Code sub-agents answering hand-labelled code-search
  questions in two prompted conditions —

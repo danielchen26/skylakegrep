@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta property="og:description" content="Fully-offline semantic search over your local files — code, markdown, PDFs, Word docs, plain text. 30/30 (100 %) recall on a public OSS benchmark across Django + React + Tokio at 60×–770× less context than ripgrep. Content-agnostic retrieval, PolyForm Noncommercial 1.0.0, powered by Ollama." />
+ <meta property="og:description" content="Fully-offline semantic search over your local files — code, markdown, PDFs, Word docs, plain text. 30/30 (100 %) recall fully-indexed on Django + React + Tokio at 60×–770× less context than ripgrep, plus 0.5.3 cold-start lazy auto-trigger that lifts vocabulary-mismatch hit-rate 0/10 → 4/10 with no upfront `skygrep index .` required. Content-agnostic retrieval, PolyForm Noncommercial 1.0.0, powered by Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta name="twitter:description" content="Fully-offline semantic search over your local files — code, markdown, PDFs, docs. 30/30 (100 %) recall on Django + React + Tokio with 60×–770× less context than ripgrep." />
+ <meta name="twitter:description" content="Fully-offline semantic search over your local files — code, markdown, PDFs, docs. 30/30 fully-indexed + 0.5.3 cold-start lazy (4/10 vs 0/10 over rg) on Django + React + Tokio with 60×–770× less context than ripgrep." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -583,7 +583,7 @@
 }
 </style>
 <section id="overview" class="hero hero-redesigned">
- <p class="eyebrow">v0.2.13 · 100% local · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.5.4 · 100% local · PolyForm Noncommercial 1.0.0</p>
  <h1>Find <span class="hero-accent">anything</span> on your machine.</h1>
  <p class="lead">
  Semantic search for code, PDFs, notes, and docs.
@@ -728,7 +728,7 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap"></div>
      <div class="why-cell why-self">
        <strong>skylakegrep</strong>
-       <span class="why-sub">v0.5.3</span>
+       <span class="why-sub">v0.5.4</span>
      </div>
      <div class="why-cell"><code>ripgrep</code><span class="why-sub">lexical baseline</span></div>
      <div class="why-cell"><a href="https://www.mgrep.dev/" target="_blank" rel="noopener">mgrep</a><span class="why-sub">Mixedbread · paid</span></div>
@@ -903,28 +903,32 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
 <!-- ============== Benchmarks summary ============== -->
 <section id="bench" class="doc-section bench-section">
  <p class="eyebrow">Performance</p>
- <h2 class="overview-h2">30 / 30 on a public-OSS bench.</h2>
+ <h2 class="overview-h2">30 / 30 fully-indexed · 4 / 10 cold-start lazy.</h2>
  <p class="lead">
  Reproducible against three popular codebases —
  <strong>Django</strong>, <strong>React</strong>, <strong>Tokio</strong>.
- 30 hand-labelled questions, 10 per repo. Every number on this
- page is reproducible by anyone with the repos cloned.
+ 30 hand-labelled questions, 10 per repo for the fully-indexed cascade.
+ 0.5.3 adds a third tier: <strong>cold-start lazy semantic</strong> —
+ a real-CLI bench on the Django oracle shows <strong>0 / 10 → 4 / 10</strong>
+ hit-rate over plain <code>rg</code> cold-start on vocabulary-mismatch
+ queries with no upfront <code>skygrep index .</code> ever run. Every
+ number on this page is reproducible by anyone with the repos cloned.
  </p>
  <div class="bench-stats">
  <div class="bench-stat">
  <div class="bench-stat-num">30 / 30</div>
- <div class="bench-stat-label">recall on public-OSS bench</div>
+ <div class="bench-stat-label">recall on public-OSS bench (fully-indexed cascade)</div>
  <div class="bench-stat-sub">vs. 28 / 30 in 0.1.0; bge-m3 substrate broke the ceiling.</div>
+ </div>
+ <div class="bench-stat">
+ <div class="bench-stat-num">+4 / 10</div>
+ <div class="bench-stat-label">lazy auto-trigger over rg cold-start (0.5.3)</div>
+ <div class="bench-stat-sub">Django vocab-mismatch oracle, fresh DB per query, no upfront index.</div>
  </div>
  <div class="bench-stat">
  <div class="bench-stat-num">60 × – 770 ×</div>
  <div class="bench-stat-label">less context vs. <code>rg</code> term-OR scan</div>
  <div class="bench-stat-sub">~10 KB JSON vs. 20 M+ tokens of haystack.</div>
- </div>
- <div class="bench-stat">
- <div class="bench-stat-num">−82 %</div>
- <div class="bench-stat-label">tool calls in agent loops (best-case multi-turn)</div>
- <div class="bench-stat-sub">−37.6 % aggregate single-turn vs. <code>rg</code>-only.</div>
  </div>
  </div>
  <div class="button-row">

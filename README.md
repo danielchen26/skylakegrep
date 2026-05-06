@@ -49,10 +49,11 @@ async def renew_session(req: Request):
 [How it works →](#how-it-works) &nbsp;·&nbsp;
 [Benchmarks →](#performance)
 
-> **30 / 30** public-OSS recall &nbsp;·&nbsp;
+> **30 / 30** public-OSS recall (fully-indexed) &nbsp;·&nbsp;
+> **+30 %** lazy auto-trigger over `rg` cold-start (0.5.3) &nbsp;·&nbsp;
 > **~1 s** warm queries &nbsp;·&nbsp;
 > **100 %** local &nbsp;·&nbsp;
-> **14** releases shipped
+> **18** releases shipped
 
 ---
 

@@ -167,9 +167,24 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  <tr><td><code>--hyde</code></td><td>off (cascade handles internally)</td><td>Force HyDE query rewriting (rarely needed; cascade escalation already uses HyDE for low-σ queries).</td></tr>
  <tr><td><code>--rerank</code></td><td>auto</td><td>Force or skip the cross-encoder rerank step.</td></tr>
  <tr><td><code>--cascade / --no-cascade</code></td><td>on</td><td>Use the σ-adaptive cascade. <code>--no-cascade</code> drops to chunk-level cosine.</td></tr>
+ <tr><td><code>--lazy / --no-lazy</code></td><td>on (0.5.1+)</td><td>Cold-start auto-trigger: when the index is not yet built and ripgrep alone returns a path-token-weak result, an LLM-routed lazy semantic tier (~5–30 s, 25 seed files batch-embedded with bge-m3) fires and merges. Completely off when ripgrep is strong; user never has to know which tier they need. <code>--no-lazy</code> opts out for benchmarking pure rg cold-start. See the 0.5.3 release notes for the deterministic dir-token picker, numeric-prefix penalty, and import-diffusion that lifted Django-oracle hit-rate to <strong>4 / 10</strong> over rg-only's 0 / 10 on vocabulary-mismatch queries.</td></tr>
+ <tr><td><code>--rg-shortcut / --no-rg-shortcut</code></td><td>on</td><td>Lexical pre-gate: small clustered rg result with path/token overlap returns directly, skipping the semantic cascade. Pass <code>--no-rg-shortcut</code> to force pure cascade for benchmarking.</td></tr>
+ <tr><td><code>--filename-shortcut / --no-filename-shortcut</code></td><td>on (0.13+)</td><td>Filename-lookup pre-gate: queries that look like "where is foo file" / "find package.json" route to <code>find -iname '*token*'</code> and skip both content shortcuts.</td></tr>
  </tbody>
  </table>
  </div>
+
+ <h3 id="env-vars">Environment variables (0.5.x)</h3>
+ <table class="cli-table">
+ <thead><tr><th>Variable</th><th>Default</th><th>Effect</th></tr></thead>
+ <tbody>
+ <tr><td><code>SKYGREP_DB_PATH</code></td><td>—</td><td>Override the project-scoped SQLite path. When set, <code>--auto-index</code> defaults to off so curated indexes aren't auto-mutated; pass <code>--auto-index</code> explicitly to opt in.</td></tr>
+ <tr><td><code>SKYGREP_PROACTIVE_DIRS</code></td><td>—</td><td>Colon-separated absolute paths the proactive enhancers and <code>lazy_explore_cross_folder</code> walk when the in-cwd answer is weak. Replaces 0.5.2's hardcoded <code>~/Downloads:~/Desktop:~/Documents</code>. Stale or missing dirs are silently dropped. Example: <code>SKYGREP_PROACTIVE_DIRS="$HOME/repos:$HOME/work:/data/projects"</code>.</td></tr>
+ <tr><td><code>SKYGREP_LLM_ROUTER_MODEL</code></td><td><code>$OLLAMA_HYDE_MODEL</code> or <code>qwen2.5:3b</code></td><td>Override which Ollama model the lazy cold-start dir-router uses. Larger models (e.g. <code>qwen2.5:7b</code>) typically improve hit-rate on long natural-language queries at higher latency.</td></tr>
+ <tr><td><code>OLLAMA_URL</code></td><td><code>http://localhost:11434</code></td><td>Where to reach the local Ollama daemon.</td></tr>
+ <tr><td><code>OLLAMA_EMBED_MODEL</code></td><td><code>bge-m3</code></td><td>Embedder for both warm cascade and 0.5.x lazy batch-embed.</td></tr>
+ </tbody>
+ </table>
 
  <h3 id="reading-telemetry">Reading the per-query telemetry footer (0.2.2+)</h3>
  <p>

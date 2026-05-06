@@ -66,6 +66,31 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.4 · doc-surface completion + streaming cold-start UX</div>
+ <h3>No more silent 30-second prompt — preliminary results stream as soon as rg returns</h3>
+ <p>
+ Two threads. (1) Doc surfaces: hero eyebrow on the GitHub Pages
+ homepage bumped from a stale <code>v0.2.13</code> to
+ <code>v0.5.4</code>, bench-stats summary now carries a
+ <strong>+4 / 10 lazy auto-trigger over rg cold-start</strong> tile
+ alongside the 30 / 30 fully-indexed peak, <code>og:description</code>
+ + <code>twitter:description</code> updated for accurate social
+ cards, <code>cli.html</code> documents <code>--lazy / --no-lazy</code>
+ + <code>SKYGREP_PROACTIVE_DIRS</code> + the env-var table,
+ <code>benchmarks.html</code> grew a <em>Cold-start lazy
+ auto-trigger</em> section with the real-CLI table, README headline
+ tagline carries the <strong>+30 % lazy</strong> line. (2)
+ Streaming cold-start UX: <code>skygrep "&lt;query&gt;"</code> on a
+ never-indexed dir no longer sits silent for 5–30 s. It prints an
+ immediate <code>🔍 scanning…</code> line, the preliminary rg /
+ filename hits as soon as <code>rg</code> returns (≤ 1 s), the
+ <code>🌊 / 💧 / ⚡</code> lazy progress to stderr, and the
+ lazy-refined matches under a <code>▾ refined matches…</code>
+ header — already-printed paths are de-duplicated. Pytest 217/217.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.4.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.3 · lazy seed selection that actually works (1/10 → 4/10)</div>
  <h3>Real, measurable hit-rate improvement over rg cold-start on the Django oracle</h3>
  <p>

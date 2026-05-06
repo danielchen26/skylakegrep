@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.4 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.4 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.4</p>
+<h1>skylakegrep 0.5.4 — full doc-surface completion + streaming cold-start UX</h1>
+<p>Two threads in one ship:</p>
+<ol>
+<li>
+<p><strong>Doc-surface completion for 0.5.3.</strong> 0.5.3 shipped working code
+   with the doc surfaces only partially swept; this release brings
+   every surface in <code>docs/RELEASING.md</code> into sync.</p>
+</li>
+<li>
+<p><strong>Streaming cold-start UX (small code change).</strong> Reported by the
+   user mid-bench: <code>skygrep '我有没有跟"eb1b"有关的文件？'</code>
+   sat silent for ≥ 30 s on a never-indexed dir before any output
+   appeared. The fix is described in detail below — the cold-start
+   path now prints (a) an immediate <code>🔍 scanning…</code> line, (b) the
+   preliminary <code>rg</code> + filename matches as soon as <code>rg</code> returns
+   (typically &lt; 1 s), (c) the <code>🌊 / 💧 / ⚡</code> lazy progress lines
+   already added in 0.5.3, and (d) the lazy-refined matches as soon
+   as the embed pass finishes — instead of waiting for the whole
+   pipeline to complete and dumping everything at once.</p>
+</li>
+</ol>
+<h2>What changed (eight surfaces audit)</h2>
+<p>The 0.5.3 ship updated:
+- <code>pyproject.toml</code> (version bump)
+- <code>docs/skylakegrep-0.5.3.md</code> + <code>.html</code> (release notes)
+- <code>docs/changelog.html</code> (release card)
+- <code>docs/index.html</code> line 731 (one of the <code>Why skylakegrep?</code> table cells)</p>
+<p>The 0.5.3 ship MISSED — fixed in 0.5.4:</p>
+<ol>
+<li>
+<p><strong><code>docs/index.html</code> hero eyebrow</strong> (was <code>v0.2.13</code>). Anyone landing
+   on the GitHub Pages homepage saw a 0.2-era eyebrow over a
+   project that's now at 0.5.x. Now reads <code>v0.5.4 · 100% local · …</code>.</p>
+</li>
+<li>
+<p><strong><code>docs/index.html</code> "Benchmarks summary" big numbers</strong>. The
+   30 / 30 fully-indexed peak was the only headline number. Added a
+   second bench-stat for the new 0.5.3 cold-start lazy tier:
+   <strong><code>+4 / 10 lazy auto-trigger over rg cold-start (0.5.3)</code></strong> with
+   the Django vocab-mismatch oracle attribution. Also extended the
+   section's lead paragraph to mention the three-tier model
+   (rg cold ~100 ms / lazy cold ~5–30 s / fully-indexed cascade
+   ~100 ms).</p>
+</li>
+<li>
+<p><strong><code>og:description</code> + <code>twitter:description</code> meta tags</strong>. Both
+   previously claimed only the <code>30/30 (100%) recall</code> headline; both
+   now also call out the cold-start lazy tier so social-card previews
+   reflect what 0.5.x actually shipped.</p>
+</li>
+<li>
+<p><strong><code>docs/cli.html</code> cheatsheet</strong>. Added rows for
+   <code>--lazy / --no-lazy</code>, <code>--rg-shortcut / --no-rg-shortcut</code>,
+   <code>--filename-shortcut / --no-filename-shortcut</code>. Added a new
+   <code>Environment variables (0.5.x)</code> table covering
+   <code>SKYGREP_DB_PATH</code>, <code>SKYGREP_PROACTIVE_DIRS</code>,
+   <code>SKYGREP_LLM_ROUTER_MODEL</code>, <code>OLLAMA_URL</code>, <code>OLLAMA_EMBED_MODEL</code>.</p>
+</li>
+<li>
+<p><strong><code>docs/benchmarks.html</code></strong>. New <code>&lt;h3&gt;</code> section
+   <code>0. Cold-start lazy auto-trigger (NEW in 0.5.3)</code> with the
+   apples-to-apples real-CLI table:
+   - <code>--no-lazy</code> (rg-only): 0 / 10, 4.85 s avg
+   - default (auto-trigger): 4 / 10, 20.76 s avg
+   - delta: +4 / 10, +15.9 s / query
+   Also bumped the page intro from <code>four reproducible benchmarks</code>
+   to <code>five</code> and lists the specific hits (Q1 resolvers.py, Q3
+   migration.py + executor.py, Q4 backends.py, Q7 base.py) plus an
+   honest "still misses" list.</p>
+</li>
+<li>
+<p><strong><code>README.md</code> headline tagline</strong>. Was
+   <code>30 / 30 public-OSS recall · ~1 s warm · 100 % local · 14 releases</code>.
+   Now reads <code>30 / 30 fully-indexed · +30 % lazy over rg cold-start
+   (0.5.3) · ~1 s warm · 100 % local · 18 releases shipped</code>. The
+   added line surfaces the 0.5.3 measured improvement at the very
+   top of the README so anyone scrolling past sees the new tier.</p>
+</li>
+<li>
+<p><strong><code>docs/index.html</code> <code>Why skylakegrep?</code> table version pill</strong>:
+   bumped <code>v0.5.3</code> → <code>v0.5.4</code>. (The 0.5.3 release got this from
+   0.5.2; 0.5.4 keeps it current.)</p>
+</li>
+<li>
+<p><strong><code>docs/changelog.html</code> release card</strong> (this card you're
+   reading the link from).</p>
+</li>
+</ol>
+<h2>Streaming cold-start output (the second thread)</h2>
+<p>Before 0.5.4 (what the user saw):</p>
+<pre><code>$ skygrep '我有没有跟&quot;eb1b&quot;有关的文件？'
+                                              ← silent for 5–30 s
+                                              ← prompt looks frozen
+... (eventually all output appears at once) ...
+</code></pre>
+<p>After 0.5.4:</p>
+<pre><code>$ skygrep '我有没有跟&quot;eb1b&quot;有关的文件？'
+🔍 ripgrep cold-start · scanning project keywords…       ← t = 0
+▾ preliminary keyword matches (lazy semantic refinement starting…):
+╭─ &lt;path&gt;:&lt;lines&gt; ────────────  1.000                     ← t ≈ 1 s
+╭─ &lt;path&gt;:&lt;lines&gt; ────────────  1.000
+🔍 lazy auto-trigger · scanning project structure…
+🌊 4 subprocesses · N LLM-routed · M token-shortcut · K seeds total
+💧 diffused +N import neighbours
+⚡ embedding K files (1 Ollama call)…
+▾ refined matches from lazy semantic search:
+╭─ &lt;path&gt; ────────────────────  0.682                     ← t ≈ 30 s
+╭─ &lt;path&gt; ────────────────────  0.667
+[37.1 s · ripgrep cold-start + lazy auto (σ=0.014, conf=medium, …)]
+</code></pre>
+<p>User-visible improvements:
+- <strong>t = 0</strong>: explicit "scanning…" message — no more silent prompt.
+- <strong>t ≈ 1 s</strong>: preliminary <code>rg</code> + filename hits show immediately
+  whenever lazy is going to fire. User has <em>something</em> to read.
+- <strong>t ≈ 1 s</strong>: explicit "lazy semantic refinement starting…" header
+  so the user knows there's a 5–30 s wait coming and doesn't kill
+  the process thinking it hung.
+- <strong>t ≈ 5–30 s</strong>: the <code>🌊 / 💧 / ⚡</code> progress lines from 0.5.3 stream
+  to stderr while embed runs.
+- <strong>t ≈ 30 s</strong>: lazy-refined matches print under a "▾ refined
+  matches…" header. Already-printed paths from the preliminary
+  block are de-duplicated so the same file never appears twice.</p>
+<p>When <code>rg</code> is strong (no lazy fires) the streaming layer is bypassed
+and output prints in one block as before — zero latency cost on the
+fast path. The same is true for <code>--json</code> (one-shot, no streaming
+markers).</p>
+<h2>Why this is a separate ship</h2>
+<p>Per the project's release protocol (<code>docs/RELEASING.md</code>): every
+version must do commit + tag + push + PyPI upload + GitHub Release
+with attached artifacts + a rendered themed HTML release-notes
+page + sweep all eight surfaces. 0.5.3 missed surfaces 1, 2, 3, 4,
+5, 6 above. Rather than amend a published tag (which PyPI doesn't
+permit and which leaves the GitHub release page stale), 0.5.4 is a
+clean docs-only patch shipping the missing surfaces.</p>
+<h2>Numbers</h2>
+<p>Same as 0.5.3 — no code changes, no bench changes:</p>
+<ul>
+<li><code>pytest tests/</code> — <strong>217 / 217 pass</strong></li>
+<li>Django oracle bench (real CLI, fresh DB per query):
+  rg-only <strong>0 / 10</strong> → auto-trigger <strong>4 / 10</strong> at +15.9 s / query</li>
+</ul>
+<h2>Compatibility</h2>
+<ul>
+<li>All public APIs unchanged from 0.5.3.</li>
+<li>Same wheel + sdist file layout.</li>
+<li>Index format unchanged.</li>
+<li>0.5.3-built indexes work without re-indexing.</li>
+</ul>
+<h2>Verified</h2>
+<ul>
+<li>Every surface listed above visually inspected on the rendered
+  GitHub Pages site after push.</li>
+<li><code>pytest tests/</code> — 217 / 217 (no code changes, baseline preserved).</li>
+<li>PyPI install of 0.5.4 in fresh venv reports correct version.</li>
+</ul>
+<h2>Pending for 0.6</h2>
+<p>Unchanged from 0.5.3:</p>
+<ul>
+<li>Q2 / Q5 / Q6 / Q8 / Q9 / Q10 still don't hit on the Django bench
+  — qwen 2.5:3b can't reliably pick the right dir for those
+  specific oracle phrasings even after deterministic dir-token
+  routing + simplification. Larger router model (qwen 7B+) or
+  chain-of-thought prompt would likely lift these.</li>
+<li>Embedding chunk strategy is whole-file-truncate-2400; a
+  structural-extraction (docstring + function signatures only)
+  would likely lift cosine ranking among in-pool seeds.</li>
+<li>New proactive enhancer <code>cross_folder_semantic</code> that wraps
+  <code>lazy_explore_cross_folder</code> for the warm-cascade path (currently
+  only fires post-cascade if cascade gap &lt; tau).</li>
+</ul></article>
+</main>
+</div>
+</body></html>

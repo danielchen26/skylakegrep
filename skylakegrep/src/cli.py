@@ -441,6 +441,19 @@ def search_cmd(
             ai.spawn_background_index(project_root, db_path)
         except Exception as exc:
             logger.warning("background index spawn failed: %s", exc)
+
+        # 0.5.4 streaming UX: tell the user immediately that something
+        # is happening. Otherwise the cold-start path stays silent for
+        # the duration of the rg call (typically 100 ms but seconds on
+        # a large home dir or with cold disk cache), then silent again
+        # for the 5–30 s lazy embed pass — the user sees a frozen
+        # prompt with no signal that the system is working.
+        if not json_output:
+            click.echo(
+                "🔍 ripgrep cold-start · scanning project keywords…",
+                err=True,
+            )
+
         # Fall back to a pure-rg result for this query, merged with any
         # filename-lookup hits collected above so the cold-start path
         # also benefits from the v0.14.0 hierarchical-merge model.
@@ -500,6 +513,54 @@ def search_cmd(
         cross_tele: dict = {}
         lazy_elapsed = 0.0
         rg_strong = _rg_is_strong(rg_cold, query)
+
+        # 0.5.4 streaming UX — STAGE 1: when lazy is about to fire (rg
+        # is weak), print the rg + filename preliminary hits *first*
+        # so the user has something to look at while we spend 5–30 s
+        # on the embed pass. The lazy-augmentation results are then
+        # printed after the lazy call returns. Tracked in
+        # ``early_printed_paths`` so STAGE 2 only echoes the newly-
+        # found-by-lazy results.
+        early_printed_paths: set = set()
+        will_fire_lazy = lazy and not rg_strong
+        if will_fire_lazy and not json_output:
+            preliminary: list = []
+            seen_p: set = set()
+            for source in (fn_results, rg_cold):
+                for r in source:
+                    p = r.get("path", "")
+                    if not p or p in seen_p:
+                        continue
+                    seen_p.add(p)
+                    preliminary.append(r)
+                    if len(preliminary) >= top:
+                        break
+                if len(preliminary) >= top:
+                    break
+            if preliminary:
+                click.echo(
+                    "▾ preliminary keyword matches "
+                    "(lazy semantic refinement starting…):",
+                    err=True,
+                )
+                for r in preliminary:
+                    click.echo(
+                        render_terminal_result(
+                            r,
+                            content=content,
+                            project_root=str(project_root),
+                            detail=detail,
+                            ocr=ocr,
+                        )
+                    )
+                    early_printed_paths.add(r.get("path", ""))
+                click.echo("", err=True)
+            else:
+                click.echo(
+                    "▾ no keyword matches yet — lazy semantic search "
+                    "exploring (5–30 s)…",
+                    err=True,
+                )
         # 0.5.3 cold-start lazy + cross-folder dispatch.
         #
         #   rg has hits, paths overlap query tokens   → rg-only, skip lazy
@@ -629,16 +690,51 @@ def search_cmd(
                 err=True,
             )
             return
-        for r in results:
-            click.echo(
-                render_terminal_result(
-                    r,
-                    content=content,
-                    project_root=str(project_root),
-                    detail=detail,
-                    ocr=ocr,
+        # 0.5.4 streaming UX — STAGE 2: if STAGE 1 already printed
+        # preliminary keyword hits, only echo NEW results found by the
+        # lazy semantic pass (deduped against the early printed set).
+        # Otherwise (rg-strong fast path or json mode), print the full
+        # ranked top-K as before.
+        if early_printed_paths:
+            new_results = [
+                r for r in results
+                if r.get("path", "") and r.get("path", "") not in early_printed_paths
+            ]
+            if new_results:
+                click.echo(
+                    "▾ refined matches from lazy semantic search:",
+                    err=True,
                 )
-            )
+                for r in new_results:
+                    click.echo(
+                        render_terminal_result(
+                            r,
+                            content=content,
+                            project_root=str(project_root),
+                            detail=detail,
+                            ocr=ocr,
+                        )
+                    )
+            else:
+                # Lazy didn't find anything beyond what rg already
+                # surfaced. Tell the user explicitly so they don't
+                # think the system hung.
+                click.echo(
+                    "▾ lazy semantic search added no new matches "
+                    "(top-K above is the final answer).",
+                    err=True,
+                )
+        else:
+            for r in results:
+                click.echo(
+                    render_terminal_result(
+                        r,
+                        content=content,
+                        project_root=str(project_root),
+                        detail=detail,
+                        ocr=ocr,
+                    )
+                )
         if cold_proactive_results:
             rendered = _proactive.render_proactive_output(cold_proactive_results)
             if rendered:
