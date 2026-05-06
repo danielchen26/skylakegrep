@@ -249,6 +249,7 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--llm-router/--no-llm-router", default=True, help="LLM-driven query understanding (v0.15.0+). Routes queries via a small local Ollama model (default qwen2.5:3b) for generic intent classification. Falls back to v0.14.0 hand-rolled rules on any failure. Pass --no-llm-router to force the rule-based fallback.")
 @click.option("--detail", default="standard", type=click.Choice(["brief", "standard", "full", "summary"]), help="Output verbosity. `brief` = path + score one-liner. `standard` = +10 lines body (default). `full` = +full extracted PDF/docx content for filename matches. `summary` = +1-line truncated preview (first non-empty line, ≤160 chars; no LLM call).")
 @click.option("--ocr", is_flag=True, help="Run tesseract OCR on scanned PDFs (slow, ~5-30s/page). Opt-in only; requires tesseract + pdftoppm on PATH.")
+@click.option("--lazy", is_flag=True, help="0.5.0+ cold-start lazy index: skip the upfront `skygrep index .` requirement and embed only ~25 LLM-selected entry-point files on demand. Returns a real-semantic answer in ~5 s with partial recall (vs. the 30/30 full-index path which takes 5-10 min upfront). Use for first-touch / unfamiliar repos when you want better-than-rg-keyword answers fast.")
 def search_cmd(
     query: str,
     top: int,
@@ -280,6 +281,7 @@ def search_cmd(
     llm_router: bool,
     detail: str,
     ocr: bool,
+    lazy: bool,
 ):
     """Run a search. Aliased as the bare form: ``skygrep "<query>"``."""
 
@@ -407,6 +409,54 @@ def search_cmd(
 
     # Routing decision: ready → cascade; building or absent → rg fallback.
     conn = init_db(db_path)
+
+    # 0.5.0 cold-start lazy short-circuit. When --lazy is set, the user
+    # has opted into a real-semantic answer in ~5 s on a project that
+    # has not been (and may never be) indexed: an LLM router picks a
+    # handful of likely entry-point files from the directory tree alone,
+    # we batch-embed them and σ-validate a top-K cosine result. Partial
+    # recall is the explicit trade — better-than-rg-keyword without the
+    # 5–10 min upfront `skygrep index .`. Bypasses the cascade entirely.
+    if lazy:
+        from . import lazy_indexer as LZ
+        embedder = get_embedder(role="query")
+        start = time.time()
+        lazy_results, lazy_tele = LZ.lazy_explore_cold_start(
+            conn, query, project_root, embedder, top_k=top,
+        )
+        elapsed = time.time() - start
+        if json_output:
+            click.echo(render_json_results(lazy_results))
+            return
+        if not lazy_results:
+            click.echo(
+                f"No matches via lazy index "
+                f"({lazy_tele.get('embed_new', 0)} files embedded, "
+                f"σ={lazy_tele.get('sigma', 0)}, "
+                f"conf={lazy_tele.get('confidence', '?')}). "
+                f"Run `skygrep index .` for full coverage.",
+                err=True,
+            )
+            return
+        for r in lazy_results:
+            click.echo(
+                render_terminal_result(
+                    r,
+                    content=content,
+                    project_root=str(project_root),
+                    detail=detail,
+                    ocr=ocr,
+                )
+            )
+        click.echo(
+            f"\n[{elapsed:.3f}s · lazy cold-start · "
+            f"embedded={lazy_tele.get('embed_new', 0)}new/"
+            f"{lazy_tele.get('embed_cached', 0)}cached · "
+            f"σ={lazy_tele.get('sigma', 0):.3f} · "
+            f"confidence={lazy_tele.get('confidence', '?')}]"
+        )
+        return
+
     # Intelligent CLI hint — first-run nudge (0.2.4+). Once-per-project
     # greeting that explains the auto-index + rg-fallback flow so a
     # first-time user doesn't think the tool is broken or slow. The

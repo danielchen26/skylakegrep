@@ -346,6 +346,89 @@ def _cache_set(conn: sqlite3.Connection, query: str, decision: RouterDecision) -
 # ---- Public API ----------------------------------------------------
 
 
+# ---- 0.5.0 lazy-index entry-point inference -----------------------
+# `infer_candidate_paths()` asks the same local LLM (qwen2.5:3b) to pick
+# 5-15 most-likely-relevant paths for the query, given JUST the directory
+# tree summary (no embedding, no upfront index). This is what powers the
+# user's "find the most likely node from the query alone" vision —
+# replacing upfront global indexing with per-query LLM judgement.
+#
+# The method is content-agnostic — it works on file paths and dir
+# structure alone, no language- or framework-specific heuristics.
+
+_CANDIDATE_PATHS_PROMPT = """You are a code-search routing assistant.
+
+Given a user's natural-language question and a project's directory
+structure, output the 5-15 most likely directories or specific files
+where the answer probably lives. Order by likelihood, most likely first.
+
+Question: "{query}"
+
+Directory structure (top dirs by file count):
+{tree}
+
+Rules:
+- Output ONE path per line, no other text, no markdown.
+- Prefer specific files over directories when filename matches the
+  question's nouns or verbs.
+- Prefer subdirectories over the project root unless the answer is
+  truly project-wide.
+- Output at most 15 paths. Stop when no more directory feels
+  relevant.
+
+Paths:
+"""
+
+
+def infer_candidate_paths(
+    query: str, tree_summary: str, *, max_paths: int = 15,
+    timeout: float = LLM_TIMEOUT_SECONDS,
+) -> list[str]:
+    """Ask the local LLM to pick likely paths from the dir tree alone.
+
+    Returns a list of paths (relative or absolute, as the LLM emits).
+    Returns an empty list on any failure (caller falls back to
+    deterministic token-shortcut). Never raises.
+    """
+    if not query.strip() or not tree_summary.strip():
+        return []
+    cfg = get_config()
+    url = f"{cfg['ollama_url']}/api/generate"
+    model = os.environ.get(
+        "SKYGREP_LLM_ROUTER_MODEL", cfg.get("hyde_model") or cfg["llm_model"]
+    )
+    payload = {
+        "model": model,
+        "prompt": _CANDIDATE_PATHS_PROMPT.format(
+            query=query.replace('"', "'"),
+            tree=tree_summary[:4000],          # cap prompt size
+        ),
+        "stream": False,
+        "options": {"temperature": 0.0, "num_predict": 384},
+        "keep_alive": cfg.get("keep_alive", -1),
+    }
+    try:
+        r = requests.post(url, json=payload, timeout=timeout)
+        r.raise_for_status()
+        raw = (r.json() or {}).get("response", "")
+    except (requests.RequestException, ValueError):
+        return []
+    out: list[str] = []
+    for line in raw.splitlines():
+        line = line.strip().lstrip("-•* ").strip().rstrip(",")
+        if not line or len(line) > 250:
+            continue
+        # Drop obvious non-path lines (sentences with spaces in the wrong place)
+        if line.endswith((".", "!", "?")):
+            continue
+        if line.lower().startswith(("paths", "answer", "the ", "based ")):
+            continue
+        out.append(line)
+        if len(out) >= max_paths:
+            break
+    return out
+
+
 def route_query(
     query: str,
     *,

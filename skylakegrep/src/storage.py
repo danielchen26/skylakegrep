@@ -1006,103 +1006,11 @@ CASCADE_TAU_FLOOR = float(os.environ.get("SKYGREP_CASCADE_TAU_FLOOR", "0.005"))
 CASCADE_K_SIGMA = float(os.environ.get("SKYGREP_CASCADE_K_SIGMA", "1.0"))
 
 
-def _expand_via_reference_graph(
-    conn,
-    seed_paths: list[str],
-    query_embedding: np.ndarray,
-    *,
-    sigma_floor: float = CASCADE_TAU_FLOOR,
-) -> tuple[list[dict], dict]:
-    """0.4.0 holistic graph-aware retrieval — 1-hop neighbour expansion.
-
-    Pulls reference-graph neighbours of the cosine top files and scores
-    each one by cosine to the query. **Hyperparameter surface = 0:**
-    every weight is either reused from 0.2.21 (`CASCADE_TAU_FLOOR` for
-    the σ-adaptive cut) or computed directly from data (cosine score
-    of query × file embedding; PageRank of the destination ordering
-    the SQL fetch).
-
-    See ``docs/plans/2026-05-05-graph-prior-folder-inference.md`` § 22
-    (the holistic redesign). Replaces the 0.3.0 phased scaffolding
-    (`_graph_walk_candidates` + PPR walk + seed mapper + 9 preset
-    weights) which was rolled back in 0.3.1.
-
-    Properties (by construction):
-      * **Latency**: only adds a SQL JOIN + ≤ 30 cosine ops (1024-d)
-        on the escalation path; cheap-path queries are untouched.
-      * **Accuracy**: candidates are unioned into the rerank pool, so
-        cross-encoder reranking still picks the best; can only add to
-        the candidate pool, never demote.
-      * **Cold-start**: works on the very first query — seed paths
-        come from the existing cosine top-K, no history needed.
-    """
-    if not seed_paths:
-        return [], {"path": "no-seeds"}
-    # Pull neighbours via the existing graph_edge table, ordered by
-    # PageRank (data-derived weight, populated by reference_graph at
-    # index time). Reuses the (src_id, type, weight DESC) compound
-    # index for O(log N + K) lookup.
-    try:
-        placeholders = ",".join("?" * len(seed_paths))
-        cur = conn.execute(
-            f"SELECT DISTINCT n.key FROM graph_edge e "
-            f"JOIN graph_node s ON s.id = e.src_id "
-            f"JOIN graph_node n ON n.id = e.dst_id "
-            f"WHERE e.type = 'refs' AND s.key IN ({placeholders}) "
-            f"AND n.kind = 'file' AND n.key NOT IN ({placeholders}) "
-            f"ORDER BY e.weight DESC LIMIT 30",
-            (*seed_paths, *seed_paths),
-        )
-        neighbours = [row[0] for row in cur.fetchall()]
-    except sqlite3.OperationalError:
-        # Tables not present (pre-0.3.0 DB) — silent no-op
-        return [], {"path": "no-graph-tables"}
-    if not neighbours:
-        return [], {"path": "no-neighbours"}
-    # Score each neighbour by cosine to query — the only weight in
-    # the universe. Uses pre-computed file mean embeddings.
-    qv = np.asarray(query_embedding, dtype=np.float32)
-    qn = float(np.linalg.norm(qv)) or 1.0
-    scored: list[tuple[str, float]] = []
-    for path in neighbours:
-        cur = conn.execute("SELECT embedding FROM files WHERE file = ?", (path,))
-        row = cur.fetchone()
-        if not row or row[0] is None:
-            continue
-        try:
-            v = np.frombuffer(row[0], dtype=np.float32)
-        except Exception:
-            continue
-        if v.size != qv.size:
-            continue
-        vn = float(np.linalg.norm(v)) or 1.0
-        score = float(np.dot(qv, v) / (qn * vn))
-        scored.append((path, score))
-    if not scored:
-        return [], {"path": "no-embeddings"}
-    # σ-adaptive cut: keep only neighbours that clear the same floor
-    # the cheap path uses. No new threshold.
-    scored.sort(key=lambda x: -x[1])
-    kept = [(p, s) for p, s in scored if s >= sigma_floor]
-    # Lift back to the result dict shape used by ``search()`` so the
-    # rerank merge step is uniform.
-    # Result dict shape must match what ``cli.merge_results`` expects:
-    # path / score / start_line / end_line / language / chunk / snippet.
-    # The 0.4.0 release shipped without ``snippet`` — caused KeyError on
-    # every escalated query whose graph_expand contributed candidates.
-    # Hot-fixed in 0.4.2.
-    out_results = [
-        {"path": p, "score": s, "start_line": 0, "end_line": 0,
-         "language": "", "chunk": "", "snippet": ""}
-        for p, s in kept
-    ]
-    return out_results, {
-        "path": "graph-expand",
-        "seeds": len(seed_paths),
-        "neighbours_pulled": len(neighbours),
-        "scored": len(scored),
-        "kept": len(kept),
-    }
+# 0.5.0: deleted ``_expand_via_reference_graph`` (the 0.4.x post-index
+# 1-hop overlay). The user's actual vision is adaptive lazy indexing —
+# embed only what graph traversal reaches FROM the query, not overlay
+# graph after a full upfront index. See
+# ``docs/plans/2026-05-06-lazy-index-by-intelligent-entrypoint.md``.
 
 
 def cascade_search(
@@ -1242,40 +1150,19 @@ def cascade_search(
         use_symbol_boost=use_symbol_boost,
         use_graph_tiebreak=use_graph_tiebreak,
     )
-    # 0.4.0 holistic graph-aware retrieval. ALWAYS ON during escalation
-    # — no env-var gate, no per-component hyperparameter (the only
-    # threshold reused is ``CASCADE_TAU_FLOOR`` which already exists in
-    # 0.2.x). Pulls 1-hop reference-graph neighbours of the cosine
-    # top-K and scores them by cosine to the query embedding; merges
-    # into the rerank pool so the cross-encoder still picks the winner.
-    # See docs/plans/2026-05-05-graph-prior-folder-inference.md § 22.
-    seed_paths = []
-    seen_paths: set[str] = set()
-    for r in a:
-        p = r.get("path")
-        if p and p not in seen_paths:
-            seed_paths.append(p)
-            seen_paths.add(p)
-            if len(seed_paths) >= 5:
-                break
-    g_results, g_telemetry = _expand_via_reference_graph(
-        conn, seed_paths, qv, sigma_floor=CASCADE_TAU_FLOOR
-    )
-
+    # 0.5.0: cascade escalation reverted to 0.2.21's pure Round-A ∪
+    # Round-C. The 0.4.x graph_expand overlay was deleted as dead code
+    # — graph-aware retrieval moved to query-time lazy indexing
+    # (`lazy_indexer.py`) per the user's original vision.
     merged: dict[tuple, dict] = {}
-    for r in a + c + g_results:
+    for r in a + c:
         key = (r.get("path"), r.get("start_line"), r.get("end_line"))
         if key not in merged or r.get("score", 0.0) > merged[key].get("score", 0.0):
             merged[key] = r
     out = sorted(merged.values(), key=lambda r: r.get("score", 0.0), reverse=True)[:top_k]
-    telemetry = {
-        "early_exit": False, "gap": gap, "tau": tau_eff,
-        "tau_static": tau, "tau_mode": tau_mode,
-        "path": "cosine-escalated-rerank",
-    }
-    if g_telemetry:
-        telemetry["graph_expand"] = g_telemetry
-    return out, telemetry
+    return out, {"early_exit": False, "gap": gap, "tau": tau_eff,
+                 "tau_static": tau, "tau_mode": tau_mode,
+                 "path": "cosine-escalated-rerank"}
 
 
 def get_indexed_files(conn) -> dict:

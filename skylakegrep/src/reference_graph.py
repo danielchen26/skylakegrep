@@ -263,35 +263,11 @@ def populate_graph_table(conn, root: Path) -> int:
         rows,
     )
 
-    # ── graph_edge (reference edges) ────────────────────────────────
-    # Drop only the 'refs' edge type to stay idempotent; other edge
-    # types (none in 0.4.0, but reserved schema-wise) are preserved.
-    conn.execute("DELETE FROM graph_edge WHERE type = 'refs'")
-    # Pre-resolve node IDs in one pass
-    node_ids: dict[str, int] = {}
-    for v in nodes:
-        cur = conn.execute(
-            "INSERT OR IGNORE INTO graph_node(kind, key) VALUES('file', ?)", (v,))
-        cur = conn.execute(
-            "SELECT id FROM graph_node WHERE kind='file' AND key=?", (v,))
-        row = cur.fetchone()
-        if row:
-            node_ids[v] = int(row[0])
-    edge_rows = []
-    for src, dst in edges_raw:
-        if src in node_ids and dst in node_ids:
-            # Edge weight = destination's PageRank. Pure data-derived —
-            # high-PageRank targets are visited first when SQL orders by
-            # weight DESC. Cosine score against the query is what
-            # actually decides ranking; this is just neighbour priority.
-            weight = float(pr.get(dst, 0.0))
-            edge_rows.append((node_ids[src], node_ids[dst], "refs", weight))
-    if edge_rows:
-        conn.executemany(
-            "INSERT OR REPLACE INTO graph_edge(src_id, dst_id, type, weight) "
-            "VALUES (?, ?, ?, ?)",
-            edge_rows,
-        )
+    # 0.5.0: graph_edge[refs] is now populated LAZILY by
+    # ``lazy_indexer.ensure_refs_for(files)`` only on files the cascade
+    # actually reaches — never as an upfront global pass. The 0.4.x
+    # eager population was removed as dead code. The schema (graph_node
+    # / graph_edge tables) is preserved and used by the lazy populator.
     conn.commit()
     return len(nodes)
     return len(rows)
