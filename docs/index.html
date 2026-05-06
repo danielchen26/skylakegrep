@@ -25,6 +25,186 @@
  <link rel="preconnect" href="https://rsms.me/" />
  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
  <link rel="stylesheet" href="styles.css?v=3.1.3" />
+ 
+<style>
+/* === Why-skylakegrep table === */
+.why-section { padding-top: 56px; padding-bottom: 56px; border-top: 1px solid var(--rule-faint); }
+.why-section .overview-h2 { font-size: clamp(28px, 3.5vw, 40px); letter-spacing: -0.015em; font-weight: 700; }
+.why-section .lead { margin-top: 8px; font-size: 17px; color: var(--muted); margin-bottom: 32px; }
+.why-table table { width: 100%; border-collapse: collapse; }
+.why-table thead th {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--rule);
+  letter-spacing: 0.01em;
+}
+.why-table thead th:first-child { text-align: left; }
+.why-table thead .why-col-self {
+  color: var(--accent-bright);
+  font-size: 14px;
+  letter-spacing: 0.005em;
+}
+.why-table thead .why-col-sub { color: var(--soft); font-weight: 400; font-size: 11px; display: block; }
+.why-table tbody th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text);
+  padding: 16px 12px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 14px;
+}
+.why-table tbody td {
+  text-align: center;
+  padding: 16px 12px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 14px;
+  color: var(--muted);
+}
+.why-table .why-yes { color: #34d399; font-weight: 600; font-size: 17px; }
+.why-table .why-no  { color: #f87171; font-weight: 600; font-size: 17px; opacity: 0.7; }
+.why-table .why-mid { color: var(--warn); font-style: italic; font-size: 13px; }
+.why-table tbody tr:last-child th, .why-table tbody tr:last-child td { border-bottom: none; }
+
+/* === How-it-works flow === */
+.how-section { padding-top: 56px; padding-bottom: 56px; border-top: 1px solid var(--rule-faint); }
+.how-section .overview-h2 { font-size: clamp(28px, 3.5vw, 40px); letter-spacing: -0.015em; font-weight: 700; }
+.how-section .lead { margin-top: 8px; font-size: 17px; color: var(--muted); margin-bottom: 36px; }
+.how-flow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+.how-step {
+  background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 22px 20px;
+  position: relative;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.how-step:hover { border-color: rgba(103, 232, 249, 0.25); transform: translateY(-2px); }
+.how-step-num {
+  position: absolute;
+  top: 18px; right: 20px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--soft);
+  font-weight: 600;
+}
+.how-step-title { font-size: 18px; font-weight: 600; color: var(--ink); margin-bottom: 6px; letter-spacing: -0.005em; }
+.how-step-tech {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent-bright);
+  margin-bottom: 12px;
+  letter-spacing: 0.02em;
+}
+.how-step-body { font-size: 14px; color: var(--muted); line-height: 1.55; }
+.how-step-body code { font-size: 12px; }
+.how-arrow {
+  align-self: center;
+  color: var(--accent);
+  font-size: 22px;
+  font-family: var(--mono);
+  opacity: 0.6;
+}
+.how-footer {
+  margin-top: 28px;
+  padding: 18px 22px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(34, 211, 238, 0.18);
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--text);
+}
+.how-footer strong { color: var(--ink); }
+@media (max-width: 900px) {
+  .how-flow { grid-template-columns: 1fr; }
+  .how-arrow { transform: rotate(90deg); margin: 4px 0; }
+}
+
+/* === Bench summary === */
+.bench-section { padding-top: 56px; padding-bottom: 56px; border-top: 1px solid var(--rule-faint); }
+.bench-section .overview-h2 { font-size: clamp(28px, 3.5vw, 40px); letter-spacing: -0.015em; font-weight: 700; }
+.bench-section .lead { margin-top: 8px; font-size: 17px; color: var(--muted); margin-bottom: 32px; }
+.bench-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.bench-stat {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  padding: 24px 22px;
+  text-align: left;
+}
+.bench-stat-num {
+  font-size: clamp(32px, 4.5vw, 44px);
+  font-weight: 700;
+  color: var(--accent-bright);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.bench-stat-label {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+}
+.bench-stat-sub {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* === Limitations === */
+.limitations-section { padding-top: 56px; padding-bottom: 56px; border-top: 1px solid var(--rule-faint); }
+.limitations-section .overview-h2 { font-size: clamp(28px, 3.5vw, 40px); letter-spacing: -0.015em; font-weight: 700; }
+.limits-list {
+  margin-top: 24px;
+  padding-left: 0;
+  list-style: none;
+}
+.limits-list li {
+  position: relative;
+  padding: 18px 22px 18px 56px;
+  margin-bottom: 12px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.limits-list li::before {
+  content: "!";
+  position: absolute;
+  left: 22px; top: 18px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-family: var(--mono);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+.limits-list strong { color: var(--ink); font-weight: 600; }
+.limits-footer { margin-top: 20px; color: var(--muted); font-size: 14px; }
+
+/* === Compact install + quickstart === */
+#install h3, #quickstart h3 { font-size: 14px; color: var(--muted); margin-top: 20px; }
+</style>
+
  </head>
  <body>
  <header class="topbar">
@@ -46,38 +226,33 @@
  <!-- =============================================================
  Sidebar navigation
  ============================================================= -->
- <aside class="sidebar" aria-label="Documentation navigation">
+<aside class="sidebar" aria-label="Documentation navigation">
  <div class="sidebar-title">Documentation</div>
  <nav>
  <div class="nav-section">
  <p>Get started</p>
- <a href="#overview">Overview</a>
- <a href="#install">Installation</a>
+ <a href="#overview" class="active">Overview</a>
+ <a href="#scenarios">Scenarios</a>
+ <a href="#why-skylakegrep">Why skylakegrep?</a>
+ <a href="#how-it-works">How it works</a>
+ <a href="#install">Install</a>
  <a href="#quickstart">Quickstart</a>
+ <a href="#bench">Benchmarks</a>
  </div>
  <div class="nav-section">
- <p>Concepts</p>
- <a href="#indexing">Indexing model</a>
- <a href="#ranking">Ranking</a>
- <a href="#output">Output formats</a>
+ <p>Deep dive</p>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Full benchmarks</a>
+ <a href="changelog.html">Release notes</a>
  </div>
  <div class="nav-section">
- <p>System</p>
- <a href="#architecture">Architecture</a>
- <a href="#schema">Storage schema</a>
- <a href="#ranking-pipeline">Ranking pipeline</a>
- </div>
- <div class="nav-section">
- <p>Reference</p>
- <a href="#cli">CLI</a>
- <a href="#configuration">Configuration</a>
- <a href="#json-schema">JSON output schema</a>
- </div>
- <div class="nav-section">
- <p>Evaluation</p>
- <a href="#benchmarks">Benchmark</a>
- <a href="#limitations">Limitations</a>
- <a href="#roadmap">Roadmap</a>
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep/blob/master/docs/PRINCIPLES.md">Principles</a>
  </div>
  </nav>
  </aside>
@@ -86,413 +261,449 @@
  Main content
  ============================================================= -->
  <main class="content">
- <!-- ============== Overview ============== -->
- <section id="overview" class="hero">
- <p class="eyebrow">v0.2.12 · PolyForm Noncommercial 1.0.0</p>
- <h1>Find what you <span class="hero-accent">mean</span>, not what you typed.</h1>
+<!-- ============== Hero overview (animated terminal demo) ============== -->
+<style>
+/* === Hero redesign (0.2.14) — animated terminal + premium type === */
+.hero-redesigned { padding-bottom: 56px; }
+.hero-redesigned h1 {
+  font-size: clamp(44px, 6.5vw, 76px);
+  line-height: 1.04;
+  letter-spacing: -0.025em;
+  margin-bottom: 18px;
+}
+.hero-redesigned h1 .hero-accent {
+  background: linear-gradient(135deg, #67e8f9 0%, #22d3ee 50%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.hero-redesigned .lead {
+  font-size: 19px;
+  line-height: 1.5;
+  max-width: 56ch;
+}
+.hero-redesigned .lead strong { color: var(--ink); font-weight: 600; }
+
+/* === Animated terminal demo === */
+.term-demo {
+  margin-top: 44px;
+  background: linear-gradient(180deg, #07090d 0%, #0a0d12 100%);
+  border: 1px solid var(--rule-strong);
+  border-radius: 14px;
+  padding: 50px 26px 26px;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.65;
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 30px 60px -22px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(34, 211, 238, 0.05),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+}
+/* macOS traffic-light dots */
+.term-demo::before {
+  content: "";
+  position: absolute;
+  top: 18px; left: 22px;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #ff5f57;
+  box-shadow: 20px 0 0 #ffbd2e, 40px 0 0 #28ca42;
+}
+/* Subtle accent line at top */
+.term-demo::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 10%; right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(103,232,249,0.5) 50%, transparent 100%);
+}
+.term-demo-body {
+  position: relative;
+  min-height: 230px;
+}
+.term-frame {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  animation: term-cycle 18s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+.term-frame-1 { animation-delay: 0s; }
+.term-frame-2 { animation-delay: 6s; }
+.term-frame-3 { animation-delay: 12s; }
+@keyframes term-cycle {
+  0%   { opacity: 0; transform: translateY(10px); }
+  3%   { opacity: 1; transform: translateY(0); }
+  31%  { opacity: 1; transform: translateY(0); }
+  34%  { opacity: 0; transform: translateY(-10px); }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+.term-prompt { color: var(--accent-bright); font-weight: 600; margin-right: 8px; }
+.term-query  { color: var(--ink); }
+.term-result-head {
+  color: var(--accent-bright);
+  margin-top: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.term-result-head .term-score { color: var(--soft); font-weight: 400; margin-left: 6px; }
+.term-result-code {
+  color: var(--code-text);
+  margin: 6px 0 0;
+  padding: 0;
+  background: transparent;
+  font-size: inherit;
+  line-height: 1.6;
+  white-space: pre;
+}
+.term-result-code .tk-kw { color: #c084fc; }
+.term-result-code .tk-fn { color: #67e8f9; }
+.term-result-code .tk-str { color: #86efac; }
+.term-result-code .tk-cmt { color: var(--soft); font-style: italic; }
+.term-footer {
+  color: var(--soft);
+  margin-top: 14px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+.term-footer .term-glyph { color: var(--accent-bright); }
+
+/* Reduced-motion fallback: show only first frame, statically */
+@media (prefers-reduced-motion: reduce) {
+  .term-frame { animation: none; opacity: 1; position: relative; }
+  .term-frame-2, .term-frame-3 { display: none; }
+}
+
+.hero-cta-row { margin-top: 36px; gap: 12px; }
+.hero-cta-row .button { padding: 12px 22px; font-size: 14px; font-weight: 600; }
+.hero-cta-row .button.primary {
+  box-shadow: 0 10px 30px -10px rgba(34, 211, 238, 0.4);
+}
+.trust-strip {
+  margin-top: 32px;
+  color: var(--muted);
+  font-size: 13.5px;
+  letter-spacing: 0.01em;
+}
+.trust-strip strong { color: var(--accent-bright); font-weight: 600; }
+.trust-strip .dot { color: var(--faint); margin: 0 10px; }
+
+/* === Scenarios block === */
+.scenarios-section { padding-top: 24px; padding-bottom: 56px; }
+.scenarios-section .eyebrow { letter-spacing: 0.16em; }
+.scenarios-section h2.overview-h2 {
+  font-size: clamp(28px, 3.5vw, 40px);
+  margin-bottom: 8px;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  font-weight: 700;
+}
+.scenarios-section .lead {
+  margin-top: 8px;
+  margin-bottom: 32px;
+  font-size: 17px;
+  color: var(--muted);
+}
+.scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 18px;
+}
+.scenario-card {
+  background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 24px 22px 22px;
+  position: relative;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.scenario-card:hover {
+  border-color: rgba(103, 232, 249, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px -20px rgba(0,0,0,0.4), 0 0 0 1px rgba(34, 211, 238, 0.06);
+}
+.scenario-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--accent-bright);
+  margin-bottom: 14px;
+  font-weight: 600;
+}
+.scenario-card h3 {
+  font-size: 18px;
+  margin: 0 0 10px;
+  line-height: 1.35;
+  color: var(--ink);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.scenario-card > p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0 0 16px;
+}
+.scenario-demo {
+  background: var(--panel-deep);
+  border: 1px solid var(--rule);
+  border-radius: 9px;
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.sd-prompt { color: var(--ink); }
+.sd-prompt .term-prompt { font-size: 12px; margin-right: 6px; }
+.sd-result { color: var(--accent-bright); margin-top: 8px; word-break: break-word; }
+.sd-result code {
+  background: transparent;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+  font-family: inherit;
+}
+.sd-takeaway {
+  color: var(--soft);
+  margin-top: 10px;
+  padding-top: 8px;
+  font-size: 11px;
+  border-top: 1px dashed var(--rule);
+  line-height: 1.55;
+}
+</style>
+<section id="overview" class="hero hero-redesigned">
+ <p class="eyebrow">v0.2.13 · 100% local · PolyForm Noncommercial 1.0.0</p>
+ <h1>Find <span class="hero-accent">anything</span> on your machine.</h1>
  <p class="lead">
- <code>skylakegrep</code> is a fully-offline semantic search CLI for
- your local files — <strong>code, markdown, PDFs, Word docs, plain
- text, anything you index</strong>. Local Ollama + SQLite, no cloud,
- no telemetry. A small local model decides per query whether to route
- to <code>find</code>, <code>rg</code>, or the semantic cascade — so
- you stop choosing flags and start getting answers. The
- content-agnostic retrieval substrate (`bge-m3` multilingual
- embedder + a pluggable extractor registry) makes this work across
- content types, not just code.
+ Semantic search for code, PDFs, notes, and docs.
+ <strong>Fully offline.</strong> No cloud. No telemetry. No subscription.
+ Ask in plain English — or any of 100+ languages — get back the
+ right file and line range in under a second.
  </p>
- <div class="button-row">
- <a class="button primary" href="#install">Install in 30 s</a>
- <a class="button secondary" href="#quickstart">See it run</a>
- <a class="button secondary" href="https://github.com/danielchen26/skylakegrep">Source on GitHub</a>
- </div>
 
- <!-- Big stat tiles — pitched on the 4 things actually unique to this CLI -->
- <div class="stat-grid" aria-label="What this CLI does that grep / rg / cloud RAG cannot">
- <div class="stat-tile">
- <div class="stat-num accent">Auto-routed</div>
- <div class="stat-label">Local-LLM intent router</div>
- <div class="stat-sub"><code>qwen2.5:3b</code> picks <code>find</code> / <code>rg</code> / semantic per query — no flags</div>
+ <!-- Animated terminal demo: 3 query frames cycling on an 18s loop -->
+ <div class="term-demo" role="img" aria-label="Animated demonstration of skygrep searching code, documents, and multilingual queries">
+ <div class="term-demo-body">
+ <!-- Frame 1: Code by concept (vocab-mismatch) -->
+ <div class="term-frame term-frame-1">
+ <span class="term-prompt">$</span><span class="term-query">skygrep "where does the auth token get refreshed?"</span>
+ <div class="term-result-head">═══ auth/middleware.py:78-94<span class="term-score">score 0.91 · python</span></div>
+<pre class="term-result-code"><span class="tk-kw">async def</span> <span class="tk-fn">renew_session</span>(req: Request):
+    <span class="tk-cmt"># swap the access cookie when the refresh JWT is still valid</span>
+    <span class="tk-kw">if</span> req.cookies.get(<span class="tk-str">"rt"</span>) <span class="tk-kw">and</span> access_expired(req):
+        <span class="tk-kw">return await</span> refresh_token(claims, key)</pre>
+ <div class="term-footer">[0.5s · path=cosine-cheap · σ-gap=0.082 ≥ τ=0.005 (adaptive) → high-confidence early-exit · <span class="term-glyph">✓</span> quality=BEST]</div>
  </div>
- <div class="stat-tile">
- <div class="stat-num">0 cloud</div>
- <div class="stat-label">Fully on-device</div>
- <div class="stat-sub">embeddings, router, reranker, optional synthesis — all via local Ollama</div>
+ <!-- Frame 2: Cross-content (markdown + PDF) -->
+ <div class="term-frame term-frame-2">
+ <span class="term-prompt">$</span><span class="term-query">skygrep "the design doc on rate limiter rewrite"</span>
+ <div class="term-result-head">═══ docs/rate-limiter-redesign.md:1-12<span class="term-score">score 0.87 · markdown</span></div>
+<pre class="term-result-code"><span class="tk-kw"># Rate limiter redesign — Q3</span>
+We replace the leaky-bucket implementation with a sliding-window
+log-based approach. <span class="tk-cmt">[[wiki-link to design-2024-Q3]]</span>
+═══ designs/rate-limiter-2024Q3.pdf:p4<span class="term-score">  score 0.83 · pdf</span>
+Throughput projections under sustained 5k QPS load...</pre>
+ <div class="term-footer">[0.7s · markdown link graph · pdf text-layer extracted · 0 cloud calls · <span class="term-glyph">✓</span> 2 files matched]</div>
  </div>
- <div class="stat-tile">
- <div class="stat-num">Any file</div>
- <div class="stat-label">Code · markdown · PDFs · docx · text</div>
- <div class="stat-sub">pluggable <code>register_extractor()</code> registry — register your own content type in one line</div>
- </div>
- <div class="stat-tile">
- <div class="stat-num green">−82 %</div>
- <div class="stat-label">Agent tool calls · <em>best case</em></div>
- <div class="stat-sub">3-turn multi-turn session vs <code>rg</code>-only · typical 30–50 % less</div>
- </div>
- </div>
-
- <!-- Why skylakegrep — direct comparison panel -->
- <h2 class="overview-h2">Where it pulls ahead of <code>rg</code>, cloud RAG, or grep</h2>
- <div class="compare-grid" role="table">
- <div class="compare-head" role="row">
- <span role="columnheader">Task</span>
- <span role="columnheader">Traditional approach</span>
- <span role="columnheader">skylakegrep</span>
- </div>
- <div class="compare-row" role="row">
- <span class="compare-task" role="cell">Find code by literal token</span>
- <span class="compare-tool" role="cell"><code>rg</code> wins (raw speed)</span>
- <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span>auto-routes to <code>rg</code> internally — no overhead</span>
- </div>
- <div class="compare-row" role="row">
- <span class="compare-task" role="cell">Find code by <em>concept</em></span>
- <span class="compare-tool" role="cell">grep / IDE search miss completely</span>
- <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span>cascade matches "auth refresh" → <code>renew_session</code></span>
- </div>
- <div class="compare-row" role="row">
- <span class="compare-task" role="cell">Search PDF / docx content</span>
- <span class="compare-tool" role="cell">requires cloud SaaS or manual conversion</span>
- <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span><code>pdftotext</code> + <code>python-docx</code> + opt-in OCR</span>
- </div>
- <div class="compare-row" role="row">
- <span class="compare-task" role="cell">Source code stays on laptop</span>
- <span class="compare-tool" role="cell">cloud RAG / Cursor / Sourcegraph defeat this</span>
- <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span>Ollama + SQLite, fully local pipeline</span>
- </div>
- <div class="compare-row" role="row">
- <span class="compare-task" role="cell">LLM picks the right retrieval tier</span>
- <span class="compare-tool" role="cell">user manually flags <code>rg</code> vs semantic vs both</span>
- <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span>local <code>qwen2.5:3b</code> routes per query (~50 ms)</span>
- </div>
- <div class="compare-row" role="row">
- <span class="compare-task" role="cell">Drop-in for AI coding agents</span>
- <span class="compare-tool" role="cell">agents stuck with raw <code>rg</code> — vocab-mismatch limit</span>
- <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span><code>skygrep setup</code> registers with 5 major LLM CLIs</span>
- </div>
- <div class="compare-row" role="row">
- <span class="compare-task" role="cell">Embedder upgrade (e.g. swap embedding model)</span>
- <span class="compare-tool" role="cell">cloud RAG: full re-index, often paid; <code>rg</code>: not applicable</span>
- <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span>auto-detected; background mtime-DESC re-embed; no <code>--reset</code> needed (0.2.2+)</span>
- </div>
- <div class="compare-row" role="row">
- <span class="compare-task" role="cell">See which retrieval path answered your query</span>
- <span class="compare-tool" role="cell">cloud RAG: opaque; <code>rg</code>: only one path</span>
- <span class="compare-skygrep" role="cell"><span class="compare-check">✓</span>per-query telemetry: <code>path=…</code>, σ-evidence reason, <code>quality=BEST/DEGRADED</code> (0.2.2+)</span>
- </div>
- </div>
-
- <!-- Use case cards — concrete scenarios -->
- <h2 class="overview-h2">Where it gives you the biggest lift</h2>
- <div class="usecase-grid">
- <div class="usecase-card">
- <span class="usecase-tag">CODEBASE</span>
- <div class="usecase-title">New repo walkthrough</div>
- <div class="usecase-body">
- Drop into an unfamiliar repo. Ask "where is the auth flow?",
- "how does the cascade decide?". <strong>30 / 30 recall</strong>
- across Django · React · Tokio public benchmarks. Skip the
- 30-min README crawl.
- </div>
- </div>
- <div class="usecase-card">
- <span class="usecase-tag">AI AGENTS</span>
- <div class="usecase-title">Faster Claude Code / Codex</div>
- <div class="usecase-body">
- <code>skygrep setup</code> registers with Claude Code, Codex,
- OpenCode, Gemini CLI, Cursor. Agents save up to <strong>82&nbsp;%
- tool calls</strong> on multi-turn sessions.
- </div>
- </div>
- <div class="usecase-card">
- <span class="usecase-tag">DOCS · NOTES · PDFs</span>
- <div class="usecase-title">Search your knowledge base</div>
- <div class="usecase-body">
- Ask "where is the <token> filing?", "the ICML reviewer comments",
- "which design doc covered the rate-limiter rewrite?". PDF / docx
- content extracted inline; markdown link graph (<code>[](link)</code>,
- <code>[[wiki]]</code>) used as a retrieval prior in 0.2.0.
- </div>
- </div>
- <div class="usecase-card">
- <span class="usecase-tag">PRIVACY</span>
- <div class="usecase-title">Audit-friendly search</div>
- <div class="usecase-body">
- Source code, legal documents, medical records: nothing ever leaves
- your machine. No telemetry, no API calls, no cloud. Index and
- queries fully observable in <code>~/.skylakegrep/</code>.
+ <!-- Frame 3: Multilingual + private -->
+ <div class="term-frame term-frame-3">
+ <span class="term-prompt">$</span><span class="term-query">skygrep "我昨天写的 cascade 调度代码"</span>
+ <div class="term-result-head">═══ src/storage.py:847-892<span class="term-score">score 0.89 · python</span></div>
+<pre class="term-result-code"><span class="tk-kw">def</span> <span class="tk-fn">cascade_search</span>(conn, query_embedding, *, ...):
+    <span class="tk-cmt"># σ-adaptive early-exit threshold (MacKay/Williams)</span>
+    tau_eff = max(CASCADE_TAU_FLOOR,
+                  CASCADE_K_SIGMA * sigma_topK)</pre>
+ <div class="term-footer">[0.6s · multilingual via bge-m3 · zero network · <span class="term-glyph">✓</span> never left your laptop]</div>
  </div>
  </div>
  </div>
 
- <!-- Supported content types — explicit catalog of the content-agnostic surface -->
- <h2 class="overview-h2" id="content-types">What you can index and search</h2>
+ <div class="button-row hero-cta-row">
+ <a class="button primary" href="#install">Install in 30 seconds →</a>
+ <a class="button secondary" href="#how-it-works">How it works</a>
+ <a class="button secondary" href="#bench">See benchmarks</a>
+ </div>
+
+ <p class="trust-strip">
+ <strong>30 / 30</strong> public-OSS recall
+ <span class="dot">·</span>
+ <strong>~1 s</strong> warm queries
+ <span class="dot">·</span>
+ <strong>100 %</strong> local
+ <span class="dot">·</span>
+ <strong>14</strong> releases shipped
+ </p>
+</section>
+
+
+<!-- ============== Scenarios — show, don't tell ============== -->
+<section id="scenarios" class="doc-section scenarios-section">
+ <p class="eyebrow">Three ways people use it</p>
+ <h2 class="overview-h2">Show, don't tell.</h2>
+ <p class="lead">
+ Three real-shaped queries that demonstrate the value across
+ content types — code, docs, multilingual.
+ </p>
+
+ <div class="scenario-grid">
+ <!-- Scenario 1: Code by concept (vocab-mismatch) -->
+ <article class="scenario-card">
+ <div class="scenario-tag">CODE BY CONCEPT</div>
+ <h3>Find code by what it does, not what it's called.</h3>
  <p>
- The retrieval substrate is <strong>content-agnostic</strong> by
- design — the embedder (<code>bge-m3</code>, multilingual
- XLM-RoBERTa), the cascade, and the reference graph all abstract
- over "A references B" rather than over any specific
- programming language or document format. New content types plug
- in via a one-line <code>register_extractor()</code> call.
+ You ask in plain English. The semantic substrate
+ (<code>bge-m3</code>) bridges your phrasing to the actual
+ identifier — even when the function name uses different
+ words from the query.
  </p>
- <div class="table-wrap">
+ <div class="scenario-demo">
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "where does session refresh logic live?"</div>
+ <div class="sd-result">→ <code>auth/middleware.py:78</code> · <code>renew_session()</code></div>
+ <div class="sd-takeaway">No <code>rg</code> hit for "session refresh"; cosine bridges to <code>renew_session</code> in 0.5 s.</div>
+ </div>
+ </article>
+
+ <!-- Scenario 2: Cross-content (multi-format) -->
+ <article class="scenario-card">
+ <div class="scenario-tag">CROSS-CONTENT</div>
+ <h3>One query across code, PDFs, notes, and docs.</h3>
+ <p>
+ Markdown, PDF, Word, plain text — all indexed via the same
+ content-agnostic substrate. Your query searches all of
+ them at once, ranked by semantic relevance.
+ </p>
+ <div class="scenario-demo">
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "the design doc on rate limiter rewrite"</div>
+ <div class="sd-result">→ <code>docs/rate-limiter.md</code> · <code>designs/q3-rewrite.pdf</code></div>
+ <div class="sd-takeaway">Markdown link graph + PDF text-layer extraction in one cascade.</div>
+ </div>
+ </article>
+
+ <!-- Scenario 3: Multilingual + private -->
+ <article class="scenario-card">
+ <div class="scenario-tag">MULTILINGUAL · PRIVATE</div>
+ <h3>Any language. Files never leave your laptop.</h3>
+ <p>
+ <code>bge-m3</code> understands 100+ languages out of the
+ box. Index, retrieval, ranking, optional answer synthesis —
+ all run locally via Ollama. Zero network calls.
+ </p>
+ <div class="scenario-demo">
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "我昨天写的 cascade 调度代码"</div>
+ <div class="sd-result">→ <code>src/storage.py:847</code> · <code>cascade_search()</code></div>
+ <div class="sd-takeaway">Mixed Chinese / English query. Zero network. Audit-friendly.</div>
+ </div>
+ </article>
+ </div>
+</section>
+
+
+<!-- ============== Why skylakegrep ============== -->
+<section id="why-skylakegrep" class="doc-section why-section">
+ <p class="eyebrow">Why skylakegrep</p>
+ <h2 class="overview-h2">vs. ripgrep · vs. cloud RAG.</h2>
+ <p class="lead">
+ What makes skylakegrep distinct in the local-search landscape.
+ </p>
+ <div class="table-wrap why-table">
  <table>
  <thead>
  <tr>
- <th>Content type</th>
- <th>How it's parsed</th>
- <th>Reference graph</th>
- <th>Since</th>
+ <th></th>
+ <th class="why-col-self"><strong>skylakegrep</strong></th>
+ <th><code>ripgrep</code></th>
+ <th>Cloud RAG <span class="why-col-sub">(Cursor, Sourcegraph, …)</span></th>
  </tr>
  </thead>
  <tbody>
  <tr>
- <td><strong>Code</strong> — Rust · Python · JS · TS</td>
- <td>tree-sitter symbol-aware chunking + line-window fallback</td>
- <td>imports / <code>use</code> / <code>require</code> / dynamic <code>import()</code></td>
- <td>0.1.0</td>
+ <th>Find code by <em>concept</em>, not just token</th>
+ <td class="why-yes">✓</td><td class="why-no">✗</td><td class="why-yes">✓</td>
  </tr>
  <tr>
- <td><strong>Markdown</strong></td>
- <td>line-window chunks; <code>[](link)</code>, <code>![]()</code>, <code>[[wiki]]</code> link extraction</td>
- <td>relative-path resolution + Obsidian-style wiki links</td>
- <td>0.2.0</td>
+ <th>Privacy — no data egress</th>
+ <td class="why-yes">✓</td><td class="why-yes">✓</td><td class="why-no">✗</td>
  </tr>
  <tr>
- <td><strong>PDF</strong></td>
- <td><code>pypdf</code> text extraction; opt-in OCR for scanned pages</td>
- <td>—</td>
- <td>0.1.0</td>
+ <th>Multi-content (code · md · PDF · docx)</th>
+ <td class="why-yes">✓</td><td class="why-mid">text only</td><td class="why-yes">✓</td>
  </tr>
  <tr>
- <td><strong>Word docs (<code>.docx</code>)</strong></td>
- <td><code>python-docx</code> paragraph extraction</td>
- <td>—</td>
- <td>0.1.0</td>
+ <th>Setup friction</th>
+ <td><code>pip install</code></td><td><code>brew install</code></td><td>account + sub</td>
  </tr>
  <tr>
- <td><strong>Plain text · TOML · YAML · CSV · JSON · …</strong></td>
- <td>line-window chunking via the default text path</td>
- <td>—</td>
- <td>0.1.0</td>
+ <th>Cost</th>
+ <td class="why-yes">$ 0 / mo</td><td class="why-yes">$ 0 / mo</td><td class="why-no">$ 20 – 100 / mo</td>
  </tr>
  <tr>
- <td><strong>Custom (your content type)</strong></td>
- <td>register an extractor function returning <code>(source, target)</code> edges</td>
- <td>your call — file names, IDs, URLs, anything</td>
- <td>0.2.0</td>
+ <th>Vocab mismatch (NL → code identifier)</th>
+ <td class="why-yes">✓</td><td class="why-no">✗</td><td class="why-yes">✓</td>
  </tr>
  </tbody>
  </table>
  </div>
- <p>
- Register a new content type in one line:
+</section>
+
+
+<!-- ============== How it works ============== -->
+<section id="how-it-works" class="doc-section how-section">
+ <p class="eyebrow">How it works</p>
+ <h2 class="overview-h2">Three local stages. Zero network.</h2>
+ <p class="lead">
+ Every query takes the same path: classify, retrieve, rank.
+ All against your local Ollama + SQLite.
  </p>
-<pre><code>from skylakegrep.src.reference_graph import register_extractor
-
-def yaml_anchor_extractor(path):
-    """Return list of (source, target) reference edges."""
-    ...
-
-register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)</code></pre>
-
- <!-- What's new — explicit feature highlight for the current version -->
- <h2 class="overview-h2" id="whats-new">What's new in 0.2.x</h2>
- <div class="usecase-grid">
- <div class="usecase-card">
- <span class="usecase-tag">SUBSTRATE · 0.2.0</span>
- <div class="usecase-title"><code>bge-m3</code> default embedder</div>
- <div class="usecase-body">
- 1024-d, multilingual (100+ languages), symmetric XLM-RoBERTa.
- Long context (8 k tokens). Replaces <code>mxbai-embed-large</code>
- — the substrate change is the single largest accuracy contributor
- (React bench: 8 / 10 → 10 / 10). <strong>0.2.2+ auto-recovers
- stale indexes in the background</strong>; no manual <code>--reset</code>
- needed any more.
+ <div class="how-flow">
+ <div class="how-step">
+ <div class="how-step-num">1</div>
+ <div class="how-step-title">LLM router</div>
+ <div class="how-step-tech"><code>qwen2.5:3b</code> · ~50 ms</div>
+ <div class="how-step-body">
+ Classifies <strong>intent</strong> (filename / lexical /
+ semantic / mixed), <strong>scope</strong> (content / recency /
+ size), and <strong>primary token</strong>. Persistent SQLite
+ cache; same query never pays the LLM cost twice.
  </div>
  </div>
- <div class="usecase-card">
- <span class="usecase-tag">RECOVERY · 0.2.2</span>
- <div class="usecase-title">Intelligent background re-embed</div>
- <div class="usecase-body">
- Embedder upgrades used to require a 10–30 min blocking
- <code>skygrep index --reset</code>. Now: every search detects
- the dim mismatch, spawns a daemon-thread worker that re-embeds
- stale chunks in <strong>mtime-DESC priority</strong> (recently-modified
- files first — Pareto-distributed user behaviour means semantic
- coverage of likely queries reaches near-100 % within seconds).
- The user is never blocked; the existing <code>_filter_to_matching_dim</code>
- helper hides stale-dim chunks from the cascade. Crash-safe and
- resumable.
+ <div class="how-arrow">→</div>
+ <div class="how-step">
+ <div class="how-step-num">2</div>
+ <div class="how-step-title">Cosine cascade</div>
+ <div class="how-step-tech"><code>bge-m3</code> · 0.5 – 2 s</div>
+ <div class="how-step-body">
+ σ-adaptive cascade: high-confidence queries early-exit on
+ cheap file-mean cosine; uncertain ones escalate to HyDE +
+ cross-encoder rerank. Bayesian-evidence framing
+ (<code>τ_eff = max(τ_floor, k · σ_topK)</code>).
  </div>
  </div>
- <div class="usecase-card">
- <span class="usecase-tag">TRANSPARENCY · 0.2.2</span>
- <div class="usecase-title">Routing path on every query</div>
- <div class="usecase-body">
- The CLI's per-query telemetry footer now leads with
- <code>path=cosine-cheap</code> /
- <code>cosine-escalated-rerank</code> / <code>rg-only</code>,
- the σ-evidence reason
- (<code>σ-gap=0.03 &lt; τ → escalated to rerank</code>),
- the recovery state if a worker is active
- (<code>coverage=23% ETA=14m12s</code>), and a
- <code>quality=BEST</code> / <code>quality=DEGRADED-recovery</code>
- tag. Users see what the cascade chose and why on every query.
- </div>
- </div>
- <div class="usecase-card">
- <span class="usecase-tag">INTELLIGENT CLI · 0.2.4</span>
- <div class="usecase-title">Proactive help on every query</div>
- <div class="usecase-body">
- Four new behaviours. <strong>Out-of-scope query detection</strong>:
- a query like <em>"我最近工作上的十个文件"</em> gets a
- <code>git log --name-only</code> suggestion before the (likely-poor)
- semantic search runs.
- <strong>Typo correction</strong>: <code>--tup</code> → "Did you
- mean <code>--top</code>?" via <code>difflib</code>.
- <strong>Low-confidence hint</strong>: when top-1 score and σ-gap
- are both below floor, the user gets a recovery menu
- (<code>--agentic</code>, <code>--top 30</code>, more specific
- tokens). <strong>First-run nudge</strong>: one-time onboarding
- greeting in fresh projects so users don't think the tool is
- broken or slow on cold start. All gated by
- <code>SKYGREP_NO_HINTS=1</code>.
- </div>
- </div>
- <div class="usecase-card">
- <span class="usecase-tag">CRITICAL FIX · 0.2.5</span>
- <div class="usecase-title">Recovery now triggers on pre-0.2.2 indexes</div>
- <div class="usecase-body">
- 0.2.2's recovery worker had a logic bug:
- <code>detect_mismatch</code> short-circuited when the metadata
- fingerprint was unset, even if the chunks table held stale-dim
- vectors. Pre-0.2.2 users were silently filtered down to nothing
- — PDFs / older chunks invisible to the bge-m3 cosine query.
- <strong>0.2.5 fixes this</strong>: <code>detect_mismatch</code>
- now distinguishes truly-fresh indexes (no fingerprint, no chunks)
- from pre-0.2.2 indexes (no fingerprint, stale chunks &gt; 0) and
- triggers recovery for the latter. Lock-in regression tests in
- <code>tests/test_recovery.py</code>.
- </div>
- </div>
- <div class="usecase-card">
- <span class="usecase-tag">FOOTER · 0.2.5</span>
- <div class="usecase-title">Hierarchical telemetry footer</div>
- <div class="usecase-body">
- The single-line <code>·</code>-separated footer in 0.2.2–0.2.4
- was a wall of text. Now multi-line with category rows
- (<code>path</code>, <code>router</code>, <code>evidence</code>,
- <code>pool</code>, <code>index</code>, <code>recovery</code>)
- and a ✓/⚠ glyph for at-a-glance quality status.
- <code>SKYGREP_FOOTER_COMPACT=1</code> opts back into the
- single-line format.
- </div>
- </div>
- <div class="usecase-card">
- <span class="usecase-tag">PRINCIPLES · 0.2.5</span>
- <div class="usecase-title">Architecture principles document</div>
- <div class="usecase-body">
- New <a href="https://github.com/danielchen26/skylakegrep/blob/master/docs/PRINCIPLES.md"><code>docs/PRINCIPLES.md</code></a>
- records the architecture rules every contributor (human or
- agent) should follow — substrate over enumeration, latency
- ordering, release discipline. The receipts table documents
- four past lapses (<code>code_graph.py</code> regex /
- <code>mxbai-embed-large</code> substrate /
- <code>symbol_channel.py</code> tree-sitter /
- <code>_METADATA_TOKENS</code> keyword) and how each was or
- will be replaced with a substrate / registry / LLM-driven
- generic path. <code>CLAUDE.md</code> imports it so any AI agent
- in the repo loads the principles automatically.
- </div>
- </div>
- <div class="usecase-card">
- <span class="usecase-tag">PROACTIVE · 0.2.7</span>
- <div class="usecase-title">Proactive enhancement framework</div>
- <div class="usecase-body">
- <strong>Principle 6 in <a href="https://github.com/danielchen26/skylakegrep/blob/master/docs/PRINCIPLES.md"><code>docs/PRINCIPLES.md</code></a></strong>
- — when the system can't answer under bounded scope, it tries
- extra work in parallel within a 500 ms budget rather than
- shrug. Built-in <code>filename_extend</code> enhancer searches
- <code>~/Downloads</code> / <code>~/Desktop</code> /
- <code>~/Documents</code> when the in-project filename lookup
- returned 0 hits. Failure-isolated, content-agnostic by registry,
- killable via <code>SKYGREP_NO_PROACTIVE=1</code>. Normal queries
- pay zero extra cost (should-fire gate). Future enhancers plug
- in via <code>register_enhancer()</code>.
- </div>
- </div>
- <div class="usecase-card">
- <span class="usecase-tag">LLM SCOPE · 0.2.6</span>
- <div class="usecase-title">Out-of-scope detection — LLM, not keyword</div>
- <div class="usecase-body">
- 0.2.5's <code>_METADATA_TOKENS</code> keyword list was an
- explicit stopgap (see Principle 1 in <code>PRINCIPLES.md</code>).
- 0.2.6 ships the principled fix:
- <code>RouterDecision.out_of_scope</code> is now set by the same
- <code>qwen2.5:3b</code> call that already runs on every query
- for retrieval-intent classification — <strong>zero added
- latency</strong>. The LLM understands new vocabulary
- (<em>我前几天写的代码</em>, <em>the last sprint's edits</em>)
- without us enumerating tokens. The keyword list survives only
- as the offline safety net for when Ollama is unreachable.
- Same architectural shape as 0.2.0's <code>bge-m3</code> substrate
- and <code>reference_graph</code> registry — substrate before
- scaffolding, understanding over enumeration.
- </div>
- </div>
- <div class="usecase-card">
- <span class="usecase-tag">REFERENCE GRAPH · 0.2.0</span>
- <div class="usecase-title">Content-agnostic registry</div>
- <div class="usecase-body">
- <code>code_graph.py</code> is now a thin facade over
- <code>reference_graph</code> + <code>extractors/{code,markdown}</code>.
- Markdown shipped in 0.2.0. New content types via
- <code>register_extractor()</code> — no retrieval-code changes.
- </div>
- </div>
- <div class="usecase-card">
- <span class="usecase-tag">CASCADE · 0.2.0</span>
- <div class="usecase-title">σ-adaptive threshold</div>
- <div class="usecase-body">
- Cascade early-exit threshold is now
- <code>max(τ_floor, k·σ_topK)</code> — derived from cosine
- evidence (MacKay/Williams Bayesian framing), not a magic number.
- Auto-recalibrates when the embedder swaps. New telemetry
- field <code>tau_mode</code>.
- </div>
- </div>
- <div class="usecase-card">
- <span class="usecase-tag">PATH FILTER · 0.2.0</span>
- <div class="usecase-title">Universal aux-path filter</div>
- <div class="usecase-body">
- 24 universal conventions (<code>/fixtures/</code>, <code>/vendor/</code>,
- <code>/dist/</code>, <code>.development.js</code>, <code>.min.js</code>, …)
- demoted as non-canonical. Not language-specific — applies to any
- corpus following similar conventions.
- </div>
- </div>
- <div class="usecase-card">
- <span class="usecase-tag">BENCH · 0.2.0</span>
- <div class="usecase-title">30 / 30 public OSS</div>
- <div class="usecase-body">
- 100 % recall on Django + React + Tokio (<strong>was 28 / 30 in
- 0.1.0</strong>) at 60×–770× less context than <code>rg</code>'s
- term-OR scan. Reproducible: clone repos, run
- <code>benchmarks/public_oss_bench.py</code>.
- </div>
- </div>
- <div class="usecase-card">
- <span class="usecase-tag">LATENCY · 0.2.0</span>
- <div class="usecase-title">−19 % aggregate</div>
- <div class="usecase-body">
- Three-repo average per-query latency dropped 17 → 14.6 s/q (cold
- CLI). σ-adaptive cascade lets high-confidence queries early-exit;
- Tokio is +57 % from <code>bge-m3</code> inference cost (real
- trade-off, documented).
+ <div class="how-arrow">→</div>
+ <div class="how-step">
+ <div class="how-step-num">3</div>
+ <div class="how-step-title">Proactive layer</div>
+ <div class="how-step-tech">filename_extend · recovery_progress_hint</div>
+ <div class="how-step-body">
+ When the cascade can't answer, runs bounded extra work in
+ parallel. Searches sibling home dirs for filename queries;
+ surfaces live re-embed progress on content queries during
+ partial index. Hard 2 s budget cap.
  </div>
  </div>
  </div>
- </section>
+ <p class="how-footer">
+ <strong>Local Ollama + SQLite. Zero network. Zero subscription.</strong>
+ The same pipeline handles every content type — code · PDFs ·
+ notes · markdown · any file you register an extractor for.
+ </p>
+ <div class="button-row">
+ <a class="button secondary" href="architecture.html">Architecture deep-dive →</a>
+ <a class="button secondary" href="concepts.html">Concepts: indexing · ranking · output →</a>
+ </div>
+</section>
 
  <!-- ============== Installation ============== -->
  <section id="install" class="doc-section">
@@ -545,928 +756,92 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
 <pre><code>skygrep search "where is token refresh implemented?" -m 10 --json</code></pre>
  </section>
 
- <!-- ============== Concepts: Indexing ============== -->
- <section id="indexing" class="doc-section">
- <p class="eyebrow">Concept · indexing model</p>
- <h2>Source files become line-attributed chunks with dense vectors.</h2>
- <p>
- Indexing is divided into five stages, all of which run in process and
- commit to a single SQLite file:
+
+<!-- ============== Benchmarks summary ============== -->
+<section id="bench" class="doc-section bench-section">
+ <p class="eyebrow">Performance</p>
+ <h2 class="overview-h2">30 / 30 on a public-OSS bench.</h2>
+ <p class="lead">
+ Reproducible against three popular codebases —
+ <strong>Django</strong>, <strong>React</strong>, <strong>Tokio</strong>.
+ 30 hand-labelled questions, 10 per repo. Every number on this
+ page is reproducible by anyone with the repos cloned.
  </p>
- <ol>
- <li>
- <strong>Discover.</strong> Recursively walk the repository, restricted
- to a fixed set of supported source extensions. Apply the union of
- <code>.gitignore</code>, <code>.skygrepignore</code>, and a built-in
- skip-list of build/cache/vendor directories.
- </li>
- <li>
- <strong>Chunk.</strong> When a tree-sitter grammar is available for
- the language, walk the AST and emit nodes whose span is within
- configured size limits (≤ 50 lines and ≤ 1000 chars by default,
- with a minimum of 3 lines). Otherwise fall back to a deterministic
- line-window splitter.
- </li>
- <li>
- <strong>Embed.</strong> Send chunks in batches to the Ollama
- <code>/api/embed</code> endpoint; fall back to single-text
- <code>/api/embeddings</code> requests if the batch endpoint is
- unavailable on the running model.
- </li>
- <li>
- <strong>Persist.</strong> Insert one row into <code>chunks</code>
- and one parallel row into <code>vectors</code>, keyed by the same
- integer id. Embeddings are stored as raw float32 BLOBs.
- </li>
- <li>
- <strong>Reconcile.</strong> On incremental runs, compare disk
- <code>mtime</code> against <code>file_mtime</code> in the index.
- Reindex changed files; delete rows for files no longer present
- under the indexed root.
- </li>
- </ol>
-
- <h3>Supported languages</h3>
- <p>
- The extension-to-parser map lives in
- <code>skylakegrep/src/indexer.py</code>:
- <code>.py</code>, <code>.js</code>, <code>.ts</code>,
- <code>.tsx</code>, <code>.jsx</code>, <code>.go</code>,
- <code>.rs</code>, <code>.java</code>, <code>.c</code>,
- <code>.cpp</code>, <code>.h</code>, <code>.cs</code>,
- <code>.rb</code>, <code>.php</code>, <code>.swift</code>,
- <code>.kt</code>, <code>.scala</code>, <code>.vue</code>,
- <code>.svelte</code>. When a tree-sitter grammar package is missing
- for a supported extension, the file still indexes via the line-window
- fallback.
- </p>
- </section>
-
- <!-- ============== Concepts: Ranking ============== -->
- <section id="ranking" class="doc-section">
- <p class="eyebrow">Concept · ranking</p>
- <h2>Hybrid scoring with capped per-file diversification.</h2>
- <p>
- A query produces a single ranked list. Scoring proceeds in four steps:
- </p>
- <ol>
- <li>
- <strong>Cosine.</strong> Embed the query with the same model used at
- index time and compute cosine similarity against the candidate
- embedding matrix in a single NumPy pass.
- </li>
- <li>
- <strong>Lexical adjustment.</strong> When the raw query text is
- available and <code>--semantic-only</code> is not set, compute a
- token-and-phrase overlap score against the chunk and its file path,
- then take a weighted sum: <code>0.8 · cosine + 0.2 · lexical</code>.
- </li>
- <li>
- <strong>Span deduplication.</strong> Drop later candidates whose
- <code>(file, start_line, end_line, text)</code> tuple has already
- been observed.
- </li>
- <li>
- <strong>Diversification.</strong> Cap the number of accepted
- candidates per file at 2 before filling the remaining top-k slots
- from the overflow.
- </li>
- </ol>
- <p>
- The numerical defaults (<code>LEXICAL_WEIGHT = 0.2</code>,
- <code>MAX_RESULTS_PER_FILE = 2</code>, term/phrase weights
- 0.75/0.25) are module-level constants in
- <code>skylakegrep/src/storage.py</code>. They are not exposed
- through CLI flags in this release.
- </p>
- </section>
-
- <!-- ============== Concepts: Output ============== -->
- <section id="output" class="doc-section">
- <p class="eyebrow">Concept · output</p>
- <h2>Three rendering modes.</h2>
- <h3>Human-readable (default)</h3>
- <p>Plain text records, one per result, ordered by descending score:</p>
-<pre><code>=== skylakegrep/src/storage.py:197-271 (score: 0.824) ===
-def search(conn, query_embedding, top_k=10, …):
- query_vec = np.array(query_embedding, dtype=np.float32)
- …</code></pre>
-
- <h3>JSON (<code>--json</code>)</h3>
- <p>Stable output for scripts and coding agents. See <a href="#json-schema">JSON schema</a>.</p>
-
- <h3>Synthesized answer (<code>--answer</code>)</h3>
- <p>
- The retrieved snippets are passed as context to a local Ollama
- generation model along with a fixed system prompt. The model is
- instructed to cite file paths and line ranges and to refrain from
- asking follow-up questions. The original ranked sources are still
- printed below the synthesized answer.
- </p>
- <p>
- <code>--agentic</code> precedes the search with an LLM step that
- decomposes the question into up to <code>--max-subqueries</code>
- related queries; each is searched independently and the results are
- merged by score.
- </p>
- </section>
-
- <!-- ============== Architecture ============== -->
- <section id="architecture" class="doc-section">
- <p class="eyebrow">System · architecture</p>
- <h2>Three lanes: index time, storage, query time.</h2>
- <figure>
- <img src="assets/architecture.svg" alt="Three-lane schematic showing the indexing pipeline writing into a SQLite store, and the query pipeline reading from the same store." />
- <figcaption>
- Index time runs offline via <code>skygrep index</code> or
- <code>skygrep watch</code>. Storage is the only shared state between the two
- lanes. Query time runs per call to <code>skygrep search</code>.
- </figcaption>
- </figure>
- </section>
-
- <!-- ============== Schema ============== -->
- <section id="schema" class="doc-section">
- <p class="eyebrow">System · storage</p>
- <h2>Two SQLite tables joined 1-to-1.</h2>
- <figure>
- <img src="assets/schema.svg" alt="SQLite schema with chunks and vectors tables, joined on id." />
- <figcaption>
- Schema as initialized by <code>storage.init_db</code>. The
- <code>chunks</code> table holds source location and verbatim text;
- <code>vectors</code> holds the embedding as a binary float32 buffer.
- </figcaption>
- </figure>
- <p>
- The two tables are kept in lockstep at write time
- (<code>store_chunks_batch</code> inserts both rows in the same
- transaction) and joined on <code>id</code> at read time. There is no
- declared foreign key constraint; the join is enforced by application
- code.
- </p>
- </section>
-
- <!-- ============== Ranking pipeline figure ============== -->
- <section id="ranking-pipeline" class="doc-section">
- <p class="eyebrow">System · ranking</p>
- <h2>Cosine, lexical adjustment, dedup, diversify.</h2>
- <figure>
- <img src="assets/ranking.svg" alt="Ranking pipeline showing semantic and lexical scores combined and then post-processed with sort, dedup, and diversification." />
- <figcaption>
- The combined score weight (λ = 0.2) and the per-file cap
- (MAX_RESULTS_PER_FILE = 2) are module-level constants.
- </figcaption>
- </figure>
- </section>
-
- <!-- ============== CLI ============== -->
- <section id="cli" class="doc-section">
- <p class="eyebrow">Reference · CLI</p>
- <h2 id="command-cheatsheet">Command cheatsheet — every command at a glance.</h2>
- <p>
- The <strong>bare form</strong> covers ~ 95 % of real-world use:
- <code>skygrep "&lt;your question&gt;"</code>. No subcommand, no
- flags. The system auto-routes (LLM router → <code>find</code> /
- <code>rg</code> / semantic cascade), auto-indexes on first query,
- and auto-recovers when the embedder is upgraded (0.2.2+). The
- subcommand form below is for power use, admin, and CI.
- </p>
- <div class="table-wrap">
- <table>
- <thead>
- <tr>
- <th>Command</th>
- <th>When to use</th>
- <th>Example</th>
- </tr>
- </thead>
- <tbody>
- <tr>
- <td><strong><code>skygrep "&lt;query&gt;"</code></strong> (bare)</td>
- <td>Default. Just ask a question. Auto-indexes and auto-recovers.</td>
- <td><code>skygrep "where is the auth refresh logic"</code></td>
- </tr>
- <tr>
- <td><code>skygrep search &lt;query&gt;</code></td>
- <td>Explicit form when you need flags (<code>--top</code>, <code>--json</code>, <code>--agentic</code>, …).</td>
- <td><code>skygrep search "session token" --top 20 --json</code></td>
- </tr>
- <tr>
- <td><code>skygrep doctor</code></td>
- <td>First-time troubleshooting. Probes Ollama, lists models, summarises the project index, checks LLM-CLI integrations.</td>
- <td><code>skygrep doctor</code></td>
- </tr>
- <tr>
- <td><code>skygrep setup</code></td>
- <td>Register skygrep with detected LLM CLIs (Claude Code, Codex, OpenCode, Gemini CLI, Cursor) so agents prefer it. Run once.</td>
- <td><code>skygrep setup</code> · <code>skygrep setup --uninstall</code></td>
- </tr>
- <tr>
- <td><code>skygrep stats</code></td>
- <td>Print chunk and file counts for the current project's index.</td>
- <td><code>skygrep stats</code></td>
- </tr>
- <tr>
- <td><code>skygrep index [PATH] [--reset]</code></td>
- <td><strong>Rarely needed.</strong> The first query auto-indexes; the 0.2.2 recovery worker handles embedder upgrades. Use <code>--reset</code> only when you actively want a clean rebuild from scratch.</td>
- <td><code>skygrep index .</code> · <code>skygrep index . --reset</code></td>
- </tr>
- <tr>
- <td><code>skygrep watch [PATH] --interval N</code></td>
- <td>Keep the index live in the background. Polls <code>PATH</code> every <code>N</code> seconds (default 5) and reindexes changed files.</td>
- <td><code>skygrep watch .</code> · <code>skygrep watch . -i 2</code></td>
- </tr>
- <tr>
- <td><code>skygrep serve [--host H] [--port P]</code></td>
- <td>Daemon mode. Keeps the cross-encoder reranker and Ollama session warm in memory so warm queries land in 0.5–2 s.</td>
- <td><code>skygrep serve --port 7878</code></td>
- </tr>
- <tr>
- <td><code>skygrep enrich</code></td>
- <td>Advanced. Generate doc2query-style natural-language descriptions for each chunk (improves vocab-mismatch retrieval at index-time cost).</td>
- <td><code>skygrep enrich</code></td>
- </tr>
- </tbody>
- </table>
+ <div class="bench-stats">
+ <div class="bench-stat">
+ <div class="bench-stat-num">30 / 30</div>
+ <div class="bench-stat-label">recall on public-OSS bench</div>
+ <div class="bench-stat-sub">vs. 28 / 30 in 0.1.0; bge-m3 substrate broke the ceiling.</div>
  </div>
-
- <h3 id="first-time-workflow">First-time workflow (5 commands, &lt; 2 min)</h3>
-<pre><code># 1. install
-pip install skylakegrep
-
-# 2. pull the embedding model (1024-d, multilingual, ~ 2 GB)
-ollama pull bge-m3
-
-# 3. register skygrep with your LLM CLI(s) — claude code / codex / etc.
-skygrep setup
-
-# 4. cd into any project (no manual index step needed)
-cd ~/your-project
-
-# 5. ask anything
-skygrep "where does the cascade tau threshold get computed"</code></pre>
- <p>
- That's it. The first query auto-indexes in the background and
- falls back to <code>rg</code> for the first ~ 1 s; subsequent
- warm queries land in 0.5–2 s.
- </p>
-
- <h3 id="search-flags">Flags for <code>skygrep search</code> (and the bare form)</h3>
- <p>The full <code>--help</code> is on every install. Quick reference:</p>
- <div class="table-wrap">
- <table class="flag-table">
- <thead>
- <tr><th>Flag</th><th>Default</th><th>Effect</th></tr>
- </thead>
- <tbody>
- <tr><td><code>-m</code>, <code>-n</code>, <code>--top</code></td><td>5</td><td>Number of final results.</td></tr>
- <tr><td><code>--json</code></td><td>off</td><td>Emit results as a JSON array; suppresses human formatting.</td></tr>
- <tr><td><code>--answer</code></td><td>off</td><td>Synthesize an answer from retrieved snippets via Ollama.</td></tr>
- <tr><td><code>--content / --no-content</code></td><td>on</td><td>Show or hide snippet bodies in human output.</td></tr>
- <tr><td><code>--detail compact|full</code></td><td>compact</td><td>How much body to show (full extracts content from PDFs / docx).</td></tr>
- <tr><td><code>--language</code></td><td>—</td><td>Restrict to one or more language keys; repeatable.</td></tr>
- <tr><td><code>--include</code></td><td>—</td><td>Glob; only paths matching at least one pattern are kept; repeatable.</td></tr>
- <tr><td><code>--exclude</code></td><td>—</td><td>Glob; paths matching any pattern are dropped; repeatable.</td></tr>
- <tr><td><code>--semantic-only</code></td><td>off</td><td>Skip lexical reranking; rank by cosine similarity alone.</td></tr>
- <tr><td><code>--agentic</code></td><td>off</td><td>Decompose the query into subqueries via Ollama before search.</td></tr>
- <tr><td><code>--max-subqueries</code></td><td>3</td><td>Upper bound on agentic subqueries.</td></tr>
- <tr><td><code>--hyde</code></td><td>off (cascade handles internally)</td><td>Force HyDE query rewriting (rarely needed; cascade escalation already uses HyDE for low-σ queries).</td></tr>
- <tr><td><code>--rerank</code></td><td>auto</td><td>Force or skip the cross-encoder rerank step.</td></tr>
- <tr><td><code>--cascade / --no-cascade</code></td><td>on</td><td>Use the σ-adaptive cascade. <code>--no-cascade</code> drops to chunk-level cosine.</td></tr>
- </tbody>
- </table>
+ <div class="bench-stat">
+ <div class="bench-stat-num">60 × – 770 ×</div>
+ <div class="bench-stat-label">less context vs. <code>rg</code> term-OR scan</div>
+ <div class="bench-stat-sub">~10 KB JSON vs. 20 M+ tokens of haystack.</div>
  </div>
-
- <h3 id="reading-telemetry">Reading the per-query telemetry footer (0.2.2+)</h3>
- <p>
- Every search prints a one-line telemetry footer so you can see
- <em>which retrieval path</em> answered your query and <em>why</em>:
- </p>
-<pre><code>[0.42s · path=cosine-cheap · router=llm · intent=mixed (0.83)
-       · 1 filename + 0 lexical
-       · σ-gap=0.0820 ≥ τ=0.0050 (adaptive) → high-confidence early-exit
-       · index 20s ago · 36 files · L2 symbols on · graph prior on
-       · quality=BEST]</code></pre>
- <p>Field-by-field:</p>
- <ul>
- <li><code>path=</code> — the retrieval strategy this query took. One of: <code>cosine-cheap</code>, <code>cosine-escalated-rerank</code>, <code>rg-only</code>, <code>cascade-skipped</code>. (The symbol-channel path will appear once the 0.3.x auto-router lands.)</li>
- <li><code>σ-gap=… → reason</code> — Bayesian-evidence proxy that drove the cascade decision. High σ-gap = top-K candidates well-separated → cosine trusted, exit cheap. Low σ-gap = candidates tied → escalate to cross-encoder rerank.</li>
- <li><code>recovery=in-progress chunks=N/T coverage=N% ETA=Nm</code> — only when the 0.2.2 recovery worker is active. Reads live from the metadata table.</li>
- <li><code>quality=BEST</code> / <code>quality=DEGRADED-recovery</code> — at-a-glance "is this the full-quality semantic answer or partial during recovery". <code>DEGRADED</code> only means some files are still pending re-embed; your specific query may be unaffected.</li>
- </ul>
- </section>
-
- <!-- ============== Configuration ============== -->
- <section id="configuration" class="doc-section">
- <p class="eyebrow">Reference · configuration</p>
- <h2>Environment variables.</h2>
- <p>
- Configuration is read from environment variables on every invocation;
- there is no config file. Defaults assume a local Ollama server on the
- default port.
- </p>
- <div class="table-wrap">
- <table>
- <thead>
- <tr><th>Variable</th><th>Default</th><th>Effect</th></tr>
- </thead>
- <tbody>
- <tr>
- <td><code>OLLAMA_URL</code></td>
- <td><code>http://localhost:11434</code></td>
- <td>Base URL of the Ollama server used for embeddings and (optional) generation.</td>
- </tr>
- <tr>
- <td><code>OLLAMA_EMBED_MODEL</code></td>
- <td><code>bge-m3</code></td>
- <td>Embedding model name. Must be the same at index time and query time.</td>
- </tr>
- <tr>
- <td><code>OLLAMA_LLM_MODEL</code></td>
- <td><code>qwen2.5:3b</code></td>
- <td>Generation model used by <code>--answer</code> and <code>--agentic</code>.</td>
- </tr>
- <tr>
- <td><code>SKYGREP_DB_PATH</code></td>
- <td><code>~/.skylakegrep/index.db</code></td>
- <td>SQLite index location. Use distinct paths to keep per-project indexes.</td>
- </tr>
- </tbody>
- </table>
- </div>
- <div class="note warn">
- <span class="label">Note</span>
- <p>
- Switching <code>OLLAMA_EMBED_MODEL</code> after indexing produces a
- dimension or semantic mismatch and will not return useful results.
- Reindex with <code>--reset</code> when the embedding model changes.
- </p>
- </div>
- </section>
-
- <!-- ============== JSON schema ============== -->
- <section id="json-schema" class="doc-section">
- <p class="eyebrow">Reference · output schema</p>
- <h2>JSON shape.</h2>
- <p>
- <code>--json</code> writes a JSON array to stdout. Each element has
- the following fields:
- </p>
-<pre><code>[
- {
- "path": "skylakegrep/src/storage.py",
- "start_line": 197,
- "end_line": 271,
- "language": "python",
- "score": 0.824,
- "snippet": "def search(conn, query_embedding, top_k=10, …): …"
- }
-]</code></pre>
- <dl class="def-list">
- <dt>path</dt>
- <dd>Absolute file path on the indexing host.</dd>
- <dt>start_line, end_line</dt>
- <dd>Inclusive 1-based line range of the chunk within <code>path</code>.</dd>
- <dt>language</dt>
- <dd>Tree-sitter language key, or the extension-derived key if the file used the fallback splitter.</dd>
- <dt>score</dt>
- <dd>Combined score (cosine plus lexical adjustment unless <code>--semantic-only</code>).</dd>
- <dt>snippet</dt>
- <dd>Verbatim source text of the chunk.</dd>
- </dl>
- </section>
-
- <!-- ============== Benchmarks ============== -->
- <section id="benchmarks" class="doc-section">
- <p class="eyebrow">Evaluation · benchmarks</p>
- <h2>Empirical results across four benchmark dimensions.</h2>
- <p>
- skylakegrep ships four reproducible benchmarks. Each measures a
- different question; quoting the right number for the right claim
- matters. The repository's
- <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>
- holds the full raw tables, methodology, and per-task data; this
- page is the curated summary.
- </p>
-
- <h3 id="bench-e2e">1. End-to-end Claude Code agent (this)</h3>
- <p>
- Real Claude Code sub-agents answering hand-labelled code-search
- questions in two prompted conditions —
- <strong>rg-only</strong> (skygrep forbidden) vs
- <strong>skygrep-on</strong> (rg/grep/find forbidden) — across
- 21 questions and 1 multi-turn session in three repos.
- </p>
- <div class="table-wrap">
- <table>
- <thead>
- <tr>
- <th>Bench</th>
- <th>Tasks</th>
- <th>rg-only tools</th>
- <th>skygrep tools</th>
- <th>Δ tools</th>
- <th>Δ tokens</th>
- </tr>
- </thead>
- <tbody>
- <tr>
- <td><strong>Multi-turn (3-turn Rust workspace session)</strong></td>
- <td>1 × 3</td><td>38</td><td>7</td><td><strong>−82 %</strong></td><td>−5 %</td>
- </tr>
- <tr>
- <td>6 medium tasks</td>
- <td>6</td><td>25</td><td>6</td><td>−76 %</td><td>−8 %</td>
- </tr>
- <tr>
- <td>14 single-turn ( + )</td>
- <td>14</td><td>124</td><td>87</td><td>−30 %</td><td>+12 %</td>
- </tr>
- <tr>
- <td><strong>20-task single-turn aggregate</strong></td>
- <td>20</td><td><strong>149</strong></td><td><strong>93</strong></td><td><strong>−37.6 %</strong></td><td>+6.5 %</td>
- </tr>
- <tr>
- <td><strong>Strict-label correctness (20 tasks)</strong></td>
- <td>—</td><td>12 / 20</td><td><strong>14 / 20</strong></td><td><strong>+2 tasks</strong></td><td>—</td>
- </tr>
- </tbody>
- </table>
- </div>
-
- <!-- Tool-call comparison chart — visual of -37.6% / -82% -->
- <div style="background: #0a0d12; border: 1px solid #1f2937; border-radius: 8px; padding: 16px; margin: 16px 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px;">
- <div style="color: #94a3b8; margin-bottom: 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;">agent tool calls — rg-only vs skygrep-on</div>
-
- <div style="color: #cbd5e1; margin-bottom: 6px; font-size: 12px;">Multi-turn (3-turn Rust workspace session, 1 task)</div>
- <div style="display: grid; grid-template-columns: 110px 1fr 80px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;">rg-only</span><div style="background: #ef4444; height: 18px; width: 100%; border-radius: 2px;"></div><span style="color: #f87171; text-align: right;">38</span></div>
- <div style="display: grid; grid-template-columns: 110px 1fr 80px; gap: 8px; align-items: center; margin-bottom: 8px;"><span style="color: #cbd5e1;">skygrep</span><div style="background: #34d399; height: 18px; width: 18.4%; border-radius: 2px;"></div><span style="color: #6ee7b7; text-align: right;">7 <span style="color: #67e8f9;">(−82 %)</span></span></div>
-
- <div style="color: #cbd5e1; margin: 12px 0 6px; font-size: 12px;">6 medium tasks</div>
- <div style="display: grid; grid-template-columns: 110px 1fr 80px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;">rg-only</span><div style="background: #ef4444; height: 18px; width: 65.8%; border-radius: 2px;"></div><span style="color: #f87171; text-align: right;">25</span></div>
- <div style="display: grid; grid-template-columns: 110px 1fr 80px; gap: 8px; align-items: center; margin-bottom: 8px;"><span style="color: #cbd5e1;">skygrep</span><div style="background: #34d399; height: 18px; width: 15.8%; border-radius: 2px;"></div><span style="color: #6ee7b7; text-align: right;">6 <span style="color: #67e8f9;">(−76 %)</span></span></div>
-
- <div style="color: #cbd5e1; margin: 12px 0 6px; font-size: 12px;">14 single-turn (vocab-balanced mix)</div>
- <div style="display: grid; grid-template-columns: 110px 1fr 80px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;">rg-only</span><div style="background: #ef4444; height: 18px; width: 100%; border-radius: 2px;"></div><span style="color: #f87171; text-align: right;">124</span></div>
- <div style="display: grid; grid-template-columns: 110px 1fr 80px; gap: 8px; align-items: center; margin-bottom: 12px;"><span style="color: #cbd5e1;">skygrep</span><div style="background: #34d399; height: 18px; width: 70.2%; border-radius: 2px;"></div><span style="color: #6ee7b7; text-align: right;">87 <span style="color: #67e8f9;">(−30 %)</span></span></div>
-
- <div style="border-top: 1px solid #1f2937; padding-top: 10px; color: #cbd5e1; text-align: center;">
- <strong>20-task single-turn aggregate:</strong>
- <span style="color: #f87171;">149</span> →
- <span style="color: #6ee7b7;">93</span> tool calls ·
- <strong style="color: #67e8f9; font-size: 16px;">−37.6 %</strong>
+ <div class="bench-stat">
+ <div class="bench-stat-num">−82 %</div>
+ <div class="bench-stat-label">tool calls in agent loops (best-case multi-turn)</div>
+ <div class="bench-stat-sub">−37.6 % aggregate single-turn vs. <code>rg</code>-only.</div>
  </div>
  </div>
-
- <p>
- The cleanest, most consistent signal is
- <strong>tool-call reduction</strong>: −37.6 % single-turn, −82 %
- multi-turn. Each agent tool call costs an LLM round-trip + network
- RTT + serialization + context-window growth, so reducing them
- shortens the agent loop even when total tokens are equal. Token
- cost across the 20-task aggregate is roughly flat (+6.5 %); we
- do not claim skygrep saves the LLM bill.
- </p>
- <p>
- Best-case task in the original aggregate: a vocabulary-mismatch
- question (NL phrasing didn't match any code identifier) — skygrep
- finished in 1 tool call vs rg-only's 25 (25× fewer), at one
- eighth the wall time. Worst-case: a token-friendly question whose
- vocabulary (auth / session / token) overlapped directly with
- code-path tokens, so rg's straightforward scan was already
- efficient — skygrep was 40 % more tool calls.
- <strong>The lexical pre-gate addresses this</strong> via a
- conservative four-condition gate that detects exactly these
- queries and short-circuits to <code>rg</code> internally in
- ~50 ms. Methodology and aggregate published in
- <a href="skylakegrep-0.1.0.md">the release notes</a>;
- see <a href="skylakegrep-0.1.0.md">the release notes</a> for the routing fix.
- </p>
-
- <h3 id="bench-multilang">2. Public OSS recall (Django · React · Tokio)</h3>
- <p>
- 30 hand-labelled questions across three popular open-source
- codebases. Anyone can clone the repos and rerun
- <a href="https://github.com/danielchen26/skylakegrep/blob/master/benchmarks/public_oss_bench.py"><code>benchmarks/public_oss_bench.py</code></a>
- to reproduce every number below.
- </p>
- <div class="table-wrap">
- <table>
- <thead>
- <tr>
- <th>Repo</th>
- <th>Language</th>
- <th>LOC ≈</th>
- <th>Tasks</th>
- <th>skygrep recall</th>
- <th>rg recall</th>
- <th>Token reduction</th>
- </tr>
- </thead>
- <tbody>
- <tr><td><code>django/django</code></td><td>Python</td><td>524 K</td><td>10</td><td><strong>10 / 10</strong></td><td>10 / 10</td><td><strong>703 ×</strong></td></tr>
- <tr><td><code>tokio-rs/tokio</code></td><td>Rust</td><td>80 K</td><td>10</td><td><strong>10 / 10</strong></td><td>10 / 10</td><td>61 ×</td></tr>
- <tr><td><code>facebook/react</code></td><td>JS+TS</td><td>270 K</td><td>10</td><td><strong>10 / 10</strong></td><td>10 / 10</td><td><strong>773 ×</strong></td></tr>
- <tr><td><strong>Aggregate</strong></td><td>3 langs</td><td><strong>~ 870 K</strong></td><td><strong>30</strong></td><td><strong>30 / 30 (100 %)</strong></td><td>30 / 30</td><td><strong>60×–770×</strong></td></tr>
- </tbody>
- </table>
+ <div class="button-row">
+ <a class="button primary" href="benchmarks.html">Read all 4 benchmarks →</a>
+ <a class="button secondary" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/parity-benchmarks.md">Reproduce in 3 commands</a>
  </div>
- <p>
- Honest framing: <code>rg</code>'s 100 % is a recall-ceiling
- baseline — it returns 20 M+ tokens of term-OR scan output per
- query, so the answer is in there but the agent has to read the
- whole haystack. <strong>skygrep returns the right file ranked
- top-10 in 30 / 30 cases while emitting 60×–770× less context.</strong>
- React reached 10 / 10 after the Option-C substrate upgrade
- (<code>bge-m3</code> embedder + content-agnostic
- non-canonical-path filter); the original failure modes on
- <code>react-007</code> and <code>react-010</code> and the
- resolution are documented in
- <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>
- as the engineering record, not erased.
- </p>
+</section>
 
- <h3 id="bench-worked-example">3. Worked example — <code>django-001</code> (one query, real numbers)</h3>
- <p>
- Reproduce locally to verify every number. One of the 30 tasks
- aggregated into the public-OSS recall table above, run against
- the actual Django source tree (524 K LOC).
- </p>
- <blockquote style="border-left: 3px solid #67e8f9; padding-left: 12px; margin: 16px 0; color: #cbd5e1;">
- <strong>Query:</strong> "Where does Django turn an incoming URL
- into the view function that should handle it?"<br>
- <strong>Expected canonical:</strong>
- <code>django/urls/resolvers.py</code> (<code>URLResolver.resolve()</code>)<br>
- <strong>Vocab mismatch:</strong> query says "URL into view", code
- identifier is <code>resolve</code> — the failure mode that
- grep-as-search collapses on.
- </blockquote>
 
- <h4>Side A — <code>rg</code> term-OR scan</h4>
- <p>
- The rg-agent extracts up to 8 terms (TF-IDF-ish stopword filter),
- runs <code>rg -i -F --max-count=20 -C2</code> per term,
- concatenates output. For this query the extractor produced:
- </p>
-<pre><code>['function', 'incoming', 'incom', 'django', 'handle', 'should', 'into', 'that']</code></pre>
- <p>
- The high-signal words <code>URL</code>, <code>view</code>,
- <code>resolve</code> did not survive the extractor — they were
- either stopword-filtered or pushed past the 8-term cap. That is
- the vocab-mismatch failure: the query's actual intent is
- <code>URLResolver.resolve()</code>, but <code>rg</code> searches
- for <code>function</code>, <code>django</code>, <code>that</code>
- instead.
- </p>
- <p>Real measured output volumes per <code>rg</code> invocation:</p>
-
- <!-- Inline horizontal bar chart — token volume per term -->
- <div style="background: #0a0d12; border: 1px solid #1f2937; border-radius: 8px; padding: 16px; margin: 16px 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px;">
- <div style="color: #94a3b8; margin-bottom: 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;">rg output volume per term · django-001</div>
- <div style="display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;"><code>django</code></span><div style="background: #ef4444; height: 18px; width: 100%; border-radius: 2px;"></div><span style="color: #f87171; text-align: right;">1,438,245</span></div>
- <div style="display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;"><code>that</code></span><div style="background: #f87171; height: 18px; width: 58.5%; border-radius: 2px;"></div><span style="color: #fca5a5; text-align: right;">841,092</span></div>
- <div style="display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;"><code>function</code></span><div style="background: #fb923c; height: 18px; width: 31.5%; border-radius: 2px;"></div><span style="color: #fdba74; text-align: right;">452,938</span></div>
- <div style="display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;"><code>should</code></span><div style="background: #fb923c; height: 18px; width: 29.5%; border-radius: 2px;"></div><span style="color: #fdba74; text-align: right;">423,617</span></div>
- <div style="display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;"><code>handle</code></span><div style="background: #fbbf24; height: 18px; width: 16.5%; border-radius: 2px;"></div><span style="color: #fcd34d; text-align: right;">238,008</span></div>
- <div style="display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;"><code>into</code></span><div style="background: #fbbf24; height: 18px; width: 12.2%; border-radius: 2px;"></div><span style="color: #fcd34d; text-align: right;">175,039</span></div>
- <div style="display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;"><code>incom</code></span><div style="background: #facc15; height: 18px; width: 4.4%; border-radius: 2px;"></div><span style="color: #fde68a; text-align: right;">63,593</span></div>
- <div style="display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; margin-bottom: 12px;"><span style="color: #cbd5e1;"><code>incoming</code></span><div style="background: #facc15; height: 18px; width: 0.3%; border-radius: 2px;"></div><span style="color: #fde68a; text-align: right;">4,024</span></div>
- <div style="border-top: 1px solid #1f2937; padding-top: 10px; display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center;"><span style="color: #f5f5f5; font-weight: 600;">TOTAL</span><div></div><span style="color: #f87171; text-align: right; font-weight: 600;">3,636,556</span></div>
- </div>
-
- <p>
- <code>django</code> alone is <strong>1.4 million tokens</strong>
- because the term matches in basically every file of the Django
- source tree. <code>that</code> is <strong>840 K tokens</strong>
- for the same reason — high-frequency words that the stopword
- filter let through.
- </p>
-
- <h4>Side B — <code>skygrep --top 10 --json</code></h4>
-<pre><code>$ skygrep "Where does Django turn an incoming URL into the view function that should handle it?" \
-    --json --top 10
-$ wc -c   # 10,430 chars ≈ 2,607 tokens</code></pre>
- <p>
- Top files returned include <code>django/urls/resolvers.py</code>
- and related canonical implementation files.
- </p>
-
- <h4>Reduction — visual comparison</h4>
-
- <!-- Big visual: rg full-width bar vs skygrep nearly-invisible bar -->
- <div style="background: #0a0d12; border: 1px solid #1f2937; border-radius: 8px; padding: 16px; margin: 16px 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px;">
- <div style="color: #94a3b8; margin-bottom: 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;">tokens emitted · one query · log scale</div>
- <div style="display: grid; grid-template-columns: 130px 1fr 130px; gap: 8px; align-items: center; margin-bottom: 8px;"><span style="color: #cbd5e1;"><code>rg</code> term-OR</span><div style="background: #ef4444; height: 22px; width: 100%; border-radius: 2px;"></div><span style="color: #f87171; text-align: right; font-weight: 600;">3,636,556</span></div>
- <div style="display: grid; grid-template-columns: 130px 1fr 130px; gap: 8px; align-items: center;"><span style="color: #cbd5e1;"><code>skygrep --top 10</code></span><div style="background: #34d399; height: 22px; width: 0.072%; min-width: 2px; border-radius: 2px;"></div><span style="color: #6ee7b7; text-align: right; font-weight: 600;">2,607</span></div>
- <div style="border-top: 1px solid #1f2937; padding-top: 10px; margin-top: 10px; color: #cbd5e1; text-align: center;">
- ratio <strong style="color: #67e8f9; font-size: 18px;">≈ 1,395 ×</strong> for this query
- </div>
- </div>
-
- <p>
- <strong>1,395 × is higher than the 60 × – 770 × headline range</strong>
- because vocab-mismatch queries are the worst case for <code>rg</code>
- (stopwords flood the output) and the best case for <code>skygrep</code>
- (the embedder bridges "URL into view" → <code>resolve()</code>).
- </p>
-
- <h4>Why the headline is 60 × – 770 ×, not a single number</h4>
- <p>
- <code>rg</code> output scales with
- <strong>(repo LOC) × (term-frequency of high-signal terms)</strong>.
- <code>skygrep</code> output is ~constant-per-K (top-10 ≈ 10 KB):
- </p>
- <div class="table-wrap">
- <table>
- <thead>
- <tr><th>Repo</th><th>LOC</th><th>Per-query <code>rg</code> tokens (avg)</th><th>Per-query <code>skygrep</code> tokens</th><th>Ratio</th></tr>
- </thead>
- <tbody>
- <tr><td><strong>Tokio</strong> (Rust)</td><td>80 K</td><td>~190 K</td><td>~3.1 K</td><td><strong>61 ×</strong></td></tr>
- <tr><td><strong>Django</strong> (Python)</td><td>524 K</td><td>~2.06 M</td><td>~2.9 K</td><td><strong>703 ×</strong></td></tr>
- <tr><td><strong>React</strong> (JS+TS)</td><td>270 K</td><td>~2.28 M</td><td>~2.9 K</td><td><strong>773 ×</strong></td></tr>
- </tbody>
- </table>
- </div>
- <p>
- Tokio is the floor (small repo, focused vocabulary). Django and
- React both blow up because <code>django</code> / <code>react</code>
- saturate term-OR scans across mid-sized monorepos.
- </p>
-
- <h4>Reproduce yourself (3 commands)</h4>
-<pre><code># rg side — counts bytes from term-OR scan
-cd /tmp/oss-bench/django
-for term in function incoming incom django handle should into that; do
-  rg -i -F --max-count 20 -C 2 "$term" .
-done | wc -c
-
-# skygrep side — counts bytes from top-10 JSON
-skygrep "Where does Django turn an incoming URL into the view function that should handle it?" \
-  --json --top 10 | wc -c
-
-# divide chars by 4 to approximate tokens</code></pre>
- <p>
- Numbers will land within ± 5 % of the ones above (variance from
- your Django clone's commit and rg minor-version output formatting).
- Per-task analysis for all 30 queries lives in
- <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>.
- </p>
-
- <h3 id="bench-self">4. skylakegrep self-test (regression guard)</h3>
- <p>
- Deterministic local benchmark over 30 repository-navigation tasks
- against this very repo. Compares a single <code>skygrep search</code>
- call against a simulated grep-agent. Token volumes are estimated
- as <code>chars / 4</code>. Every release is verified to keep
- <strong>30 / 30 at top-k 10</strong>.
- </p>
-
- <figure>
- <img src="assets/benchmark.svg" alt="Bar chart of token reduction and recall against top-k values 5, 10, 20, 50." />
- <figcaption>
- Bars: token reduction (left axis). Markers and dashed line:
- expected-file recall (right axis). Reproduce with the
- <code>benchmarks/agent_context_benchmark.py --top-k N</code>
- command.
- </figcaption>
- </figure>
-
- <div class="table-wrap">
- <table>
- <thead>
- <tr>
- <th>top-k</th>
- <th>recall</th>
- <th>total-token reduction</th>
- <th>context-token reduction</th>
- </tr>
- </thead>
- <tbody>
- <tr><td>5</td><td>28 / 30</td><td>2.66×</td><td>5.53×</td></tr>
- <tr><td><strong>10</strong></td><td><strong>30 / 30</strong></td><td><strong>2.00×</strong></td><td><strong>2.90×</strong></td></tr>
- <tr><td>20</td><td>30 / 30</td><td>1.36×</td><td>1.53×</td></tr>
- <tr><td>50</td><td>30 / 30</td><td>0.67×</td><td>0.60×</td></tr>
- </tbody>
- </table>
- </div>
- <p>
- Vs real ripgrep (not the simulated grep-agent), this same task set
- shows <strong>~17.7× total-token reduction at equal recall</strong>.
- See <a href="token-benchmarking.md">the benchmark protocol</a>
- for definitions and limitations.
- </p>
-
- <h3 id="bench-honest-framing">Which number to cite for which claim</h3>
- <ul>
- <li>
- <strong>"skygrep cuts agent tool calls"</strong> →
- <a href="#bench-e2e">benchmark 1</a>: −37.6 % single-turn,
- −82 % multi-turn (real Claude Code sub-agents, 20 + 1
- hand-labelled tasks).
- </li>
- <li>
- <strong>"skygrep matches rg on hit-rate while emitting 60×–770× less context"</strong> →
- <a href="#bench-multilang">benchmark 2</a>: 30 / 30 (100 %)
- across Django + React + Tokio public OSS, vs rg's 30 / 30 baseline
- (which dumps 20 M+ tokens per query for the agent to filter).
- </li>
- <li>
- <strong>"this is what one query actually looks like"</strong> →
- <a href="#bench-worked-example">benchmark 3</a>:
- <code>django-001</code> worked example with real measured volumes
- — <code>rg</code> 3.6 M tokens vs <code>skygrep</code> 2.6 K
- tokens (≈ 1,395 ×) on a single vocab-mismatch query.
- </li>
- <li>
- <strong>"skygrep is more token-efficient than ripgrep when feeding LLM context"</strong> →
- <a href="#bench-self">benchmark 4</a>: ~17.7× total-token
- reduction at equal recall on the 30-task self-test.
- </li>
- </ul>
- <p>
- Don't combine these into a single number; they answer different
- questions. The honest framing is in
- <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>'s
- "Strongest claims" section.
- </p>
- </section>
-
- <!-- ============== Limitations ============== -->
- <section id="limitations" class="doc-section">
- <p class="eyebrow">Evaluation · limitations</p>
- <h2>What the current data does and does not show.</h2>
- <ul>
+<!-- ============== Limitations summary ============== -->
+<section id="limitations" class="doc-section limitations-section">
+ <p class="eyebrow">Honesty</p>
+ <h2 class="overview-h2">What the data does and does NOT show.</h2>
+ <ul class="limits-list">
  <li>
  <strong>Sample sizes are measurement-grade, not study-grade.</strong>
- The e2e agent benchmark is n = 20 single-turn + 1 multi-turn
- session; the multi-language benchmark is n = 40; statistical
- significance is improving but small.
+ The agent benchmark is n = 20 single-turn + 1 multi-turn;
+ the multi-language benchmark is n = 30. Statistical
+ significance is improving, but small.
  </li>
  <li>
- <strong>Token cost is roughly flat in the agent loop</strong>
- (+6.5 % aggregate). The agent's own reasoning tokens dominate
- the bill; trimming retrieval payload doesn't move the total.
- The "17.7× reduction" cited in the self-test (benchmark 4)
- is static retrieval-output volume, not an agent's reasoning
- loop. Don't conflate the two.
+ <strong>Latency is honest, not hidden.</strong> bge-m3 inference
+ is slower than mxbai on Tokio (+57 % per-query); the three-repo
+ average is still −19 %. Tokio is the worst case, not the
+ average.
  </li>
  <li>
- <strong>Wall-time data is partially contaminated</strong> by
- parallel-spawn Ollama contention in the e2e agent
- batches. The 3-turn multi-turn session ran sequentially and
- is reportable; single-user usage has no contention.
+ <strong>The published benchmark is not your benchmark.</strong>
+ 30 hand-labelled queries on three public repos isn't your
+ codebase, your queries, your hardware. Reproduce locally.
  </li>
  <li>
- <strong>Tool-list compliance was prompt-instructed, not
- API-enforced.</strong> Each sub-agent published a TOOLS audit
- line; manual inspection confirms compliance, but it is not a
- hard guarantee.
- </li>
- <li>
- <strong>Answer correctness is graded by path substring</strong>
- against a hand-labelled ground truth (with explicit
- <code>expected_alternatives</code> for multi-file cases).
- Rubric-graded answer quality of <code>--answer</code> mode is
- not yet evaluated.
- </li>
- <li>
- <strong>Retrieval quality is bounded by the embedding model</strong>
- in use. Switching <code>OLLAMA_EMBED_MODEL</code> after indexing
- produces a dim/semantic mismatch and requires
- <code>skygrep index --reset</code>.
- </li>
- <li>
- <strong>Task sets are hand-curated, not user-collected.</strong>
- Real-world questions from real users likely exhibit more
- vocabulary mismatch than benchmark-curated questions, so the
- production gap likely widens, not narrows.
+ <strong>Some queries are out of scope.</strong> Metadata
+ questions ("recent files", "largest files", "all files") get
+ routed to a hint suggesting <code>git log</code> /
+ <code>find</code>. skygrep is content search, not file
+ management.
  </li>
  </ul>
- </section>
+ <p class="limits-footer">
+ The full bench protocol, per-task analysis, and worked example
+ (one query · 1,395 × token reduction) live on
+ <a href="benchmarks.html">the benchmarks page</a>.
+ </p>
+</section>
 
- <!-- ============== Roadmap ============== -->
- <section id="roadmap" class="doc-section">
- <p class="eyebrow">Roadmap</p>
- <h2>Planned work.</h2>
-
- <h3>Current capabilities</h3>
- <ul>
- <li>
- <strong>LLM-driven query routing.</strong>
- A small local Ollama model reads each query and returns
- structured intent / token / skip-cascade JSON. Three-layer
- fallback chain (LLM → rule-based → mixed) keeps the CLI
- working when Ollama is down. Confidence threshold protects
- accuracy: cascade always runs when the model is unsure.
- </li>
- <li>
- <strong>Three retrieval tiers, intent-ranked.</strong>
- Filename lookup (~10 ms) + lexical content shortcut (~50 ms)
- + confidence-gated semantic cascade (sub-second to ~3 s).
- All enabled tiers always run; results dedupe by path and
- rank by detected intent.
- </li>
- <li>
- <strong>Confidence-gated cascade.</strong>
- ~80 % of queries take a sub-second cheap file-mean cosine
- path; the rest escalate to HyDE-augmented retrieval +
- cross-encoder rerank + PageRank tiebreaker.
- </li>
- <li>
- <strong>Multi-repository retrieval recall.</strong>
- 38 / 40 (95 %) recall across Rust + Python + TypeScript
- hand-labelled queries at 3.55 s/q on Mac CPU.
- </li>
- <li>
- <strong>End-to-end agent tool-call efficiency.</strong>
- Real sub-agent harness measurements: −37.6 % single-turn,
- −82 % multi-turn vs <code>rg</code>-only baseline.
- </li>
- <li>
- <strong>Editor / agent integrations.</strong>
- <code>skygrep setup</code> auto-registers skylakegrep as the
- preferred semantic search for Claude Code, Codex, OpenCode,
- Gemini CLI, and Cursor — markdown snippet between
- BEGIN/END markers, cleanly removable via
- <code>skygrep setup --uninstall</code>.
- </li>
- <li>
- <strong>Binary file content extraction.</strong>
- Lazy on-demand <code>pdftotext</code> / <code>pypdf</code> /
- <code>python-docx</code> for filename matches in
- <code>--detail=full</code>. Optional <code>--ocr</code>
- (tesseract) for scanned PDFs. Editor lock-files
- (<code>~$*.docx</code>, <code>*.swp</code>, etc.) filtered.
- </li>
- <li>
- <strong>Framed terminal rendering.</strong>
- Pygments-driven syntax highlighting (300+ languages) inside
- rounded card frames. Four <code>--detail</code> levels;
- <code>NO_COLOR</code> opt-out honoured.
- </li>
- </ul>
-
- <h3>In progress / planned</h3>
- <ul>
- <li>
- <strong>Native MCP server.</strong> The 
- <code>skygrep setup</code> integration writes a
- "prefer skygrep over rg" instruction into agent rules files;
- a true MCP server (so agents can call skygrep as a structured
- tool rather than a shell command) is the next step.
- </li>
- <li>
- <strong>Multi-vector / late-interaction retrieval (ColBERT-style).</strong>
- Current retrieval is single-vector cosine + lexical rerank;
- token-level late interaction over a larger candidate pool
- is the most promising lever for the remaining ~5 % miss
- rate.
- </li>
- <li>
- <strong>Larger benchmark task sets.</strong> Push n from
- 20 single-turn / 1 multi-turn into the n = 100+ range so
- statistical significance moves from "directional" to
- "tight." Real-user query corpora are the goal.
- </li>
- <li>
- <strong>Packaged benchmark fixtures.</strong> Third parties
- should be able to reproduce every published number without
- copying internal scripts; needs a
- <code>benchmarks/</code> CLI plus fixture repos pinned to
- specific commits.
- </li>
- <li>
- <strong>Expanded ignore semantics + language coverage.</strong>
- Tree-sitter grammars and chunk heuristics for additional
- languages (Go, Java, Kotlin, Swift); richer
- <code>.gitignore</code> / <code>.skygrepignore</code>
- precedence rules.
- </li>
- </ul>
- </section>
- </main>
 
  <!-- =============================================================
  Right TOC
  ============================================================= -->
- <aside class="toc" aria-label="On this page">
+<aside class="toc" aria-label="On this page">
  <p>On this page</p>
  <a href="#overview">Overview</a>
- <a href="#install">Installation</a>
+ <a href="#scenarios">Scenarios</a>
+ <a href="#why-skylakegrep">Why skylakegrep?</a>
+ <a href="#how-it-works">How it works</a>
+ <a href="#install">Install</a>
  <a href="#quickstart">Quickstart</a>
- <a href="#indexing">Indexing model</a>
- <a href="#ranking">Ranking</a>
- <a href="#output">Output formats</a>
- <a href="#architecture">Architecture</a>
- <a href="#schema">Storage schema</a>
- <a href="#ranking-pipeline">Ranking pipeline</a>
- <a href="#cli">CLI</a>
- <a href="#configuration">Configuration</a>
- <a href="#json-schema">JSON schema</a>
- <a href="#benchmarks">Benchmark</a>
+ <a href="#bench">Benchmarks</a>
  <a href="#limitations">Limitations</a>
- <a href="#roadmap">Roadmap</a>
  </aside>
  </div>
  </body>

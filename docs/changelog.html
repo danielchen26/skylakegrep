@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep release notes — version history with links to detailed per-release docs." />
+ <meta name="theme-color" content="#0a0d12" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="Release notes · skylakegrep" />
+ <meta property="og:description" content="skylakegrep release notes — version history with links to detailed per-release docs." />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>Release notes · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.1.3" />
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">Release notes</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep/blob/master/docs/PRINCIPLES.md">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+
+<section class="doc-section">
+ <p class="eyebrow">Release notes</p>
+ <h1>What's new in skylakegrep.</h1>
+ <p class="lead">
+ Every release is documented in <code>docs/skylakegrep-X.Y.Z.md</code>
+ and on the
+ <a href="https://github.com/danielchen26/skylakegrep/releases">GitHub Releases page</a>
+ with attached wheel + sdist artifacts. The most recent shipped
+ versions, in chronological order:
+ </p>
+ <div class="release-grid">
+ <article class="release-card">
+ <div class="release-tag">0.2.13 · privacy</div>
+ <h3>User-personal references swept from public docs</h3>
+ <p>
+ Sanitisation pass across release notes, plan documents, README,
+ and GitHub Pages. No code change. Every public artefact now
+ free of user-personal example tokens.
+ </p>
+ <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.13.md">Full notes →</a>
+ </article>
+ <article class="release-card">
+ <div class="release-tag">0.2.12 · proactive</div>
+ <h3>Morphology fallback when LLM is unreachable</h3>
+ <p>
+ <code>filename_extend</code>'s should-fire gate now extracts
+ a candidate token via content-shape morphology when LLM didn't
+ supply <code>primary_token</code>. Filed the conversational
+ session-state plan.
+ </p>
+ <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.12.md">Full notes →</a>
+ </article>
+ <article class="release-card">
+ <div class="release-tag">0.2.11 · proactive</div>
+ <h3>Second built-in enhancer: <code>recovery_progress_hint</code></h3>
+ <p>
+ Content queries during a partial-index re-embed now get live
+ progress + ETA + retry guidance instead of "no matches yet".
+ Plus <code>ProactiveContext</code> infrastructure for future
+ enhancers.
+ </p>
+ <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.11.md">Full notes →</a>
+ </article>
+ <article class="release-card">
+ <div class="release-tag">0.2.7 - 0.2.10 · proactive</div>
+ <h3>Proactive enhancement framework + 4 iterations</h3>
+ <p>
+ Content-agnostic enhancer registry that runs in parallel after
+ the cascade with bounded latency budget. Built-in
+ <code>filename_extend</code> searches sibling home dirs when
+ the in-project search returned 0 hits. Four bug-fix iterations
+ (0.2.8 - 0.2.10) recorded as Principle 1 receipts.
+ </p>
+ <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.7.md">0.2.7 →</a>
+ <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.10.md">0.2.10 →</a>
+ </article>
+ <article class="release-card">
+ <div class="release-tag">0.2.6 · understanding</div>
+ <h3>LLM-driven scope classification</h3>
+ <p>
+ <code>RouterDecision.out_of_scope</code> set by the same LLM
+ router call. Replaces the keyword <code>_METADATA_TOKENS</code>
+ list. <strong>Principle 1 ✓ shipped</strong> — substrate
+ understanding over enumeration.
+ </p>
+ <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.6.md">Full notes →</a>
+ </article>
+ <article class="release-card">
+ <div class="release-tag">0.2.0 · substrate</div>
+ <h3><code>bge-m3</code> + content-agnostic graph + 30 / 30</h3>
+ <p>
+ Default embedder switched from <code>mxbai-embed-large</code>
+ to <code>bge-m3</code> (1024-d, multilingual, symmetric XLM-RoBERTa).
+ Content-agnostic <code>reference_graph.register_extractor()</code>
+ registry. σ-adaptive cascade. <strong>30 / 30 public-OSS recall</strong>
+ (was 28 / 30).
+ </p>
+ <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.0.md">Full notes →</a>
+ </article>
+ </div>
+ <p style="margin-top:36px;">
+ <a class="button primary" href="https://github.com/danielchen26/skylakegrep/releases">All releases on GitHub →</a>
+ </p>
+</section>
+<style>
+.release-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; margin-top: 28px; }
+.release-card { background: var(--panel); border: 1px solid var(--rule); border-radius: 12px; padding: 22px 22px 20px; }
+.release-card:hover { border-color: var(--rule-strong); }
+.release-tag { font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; color: var(--accent-bright); margin-bottom: 10px; font-weight: 600; }
+.release-card h3 { font-size: 17px; margin: 0 0 10px; color: var(--ink); font-weight: 600; line-height: 1.35; }
+.release-card p { color: var(--muted); font-size: 13.5px; line-height: 1.55; margin: 0 0 14px; }
+.release-link { color: var(--link); font-size: 12.5px; margin-right: 14px; text-decoration: none; }
+.release-link:hover { text-decoration: underline; }
+</style>
+
+ </main>
+ </div>
+ </body>
+</html>

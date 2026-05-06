@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="Complete CLI cheatsheet and environment variable reference for skylakegrep." />
+ <meta name="theme-color" content="#0a0d12" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="CLI reference · skylakegrep" />
+ <meta property="og:description" content="Complete CLI cheatsheet and environment variable reference for skylakegrep." />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>CLI reference · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.1.3" />
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">CLI reference</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html" class="active">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep/blob/master/docs/PRINCIPLES.md">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <!-- ============== CLI ============== -->
+ <section id="cli" class="doc-section">
+ <p class="eyebrow">Reference · CLI</p>
+ <h2 id="command-cheatsheet">Command cheatsheet — every command at a glance.</h2>
+ <p>
+ The <strong>bare form</strong> covers ~ 95 % of real-world use:
+ <code>skygrep "&lt;your question&gt;"</code>. No subcommand, no
+ flags. The system auto-routes (LLM router → <code>find</code> /
+ <code>rg</code> / semantic cascade), auto-indexes on first query,
+ and auto-recovers when the embedder is upgraded (0.2.2+). The
+ subcommand form below is for power use, admin, and CI.
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr>
+ <th>Command</th>
+ <th>When to use</th>
+ <th>Example</th>
+ </tr>
+ </thead>
+ <tbody>
+ <tr>
+ <td><strong><code>skygrep "&lt;query&gt;"</code></strong> (bare)</td>
+ <td>Default. Just ask a question. Auto-indexes and auto-recovers.</td>
+ <td><code>skygrep "where is the auth refresh logic"</code></td>
+ </tr>
+ <tr>
+ <td><code>skygrep search &lt;query&gt;</code></td>
+ <td>Explicit form when you need flags (<code>--top</code>, <code>--json</code>, <code>--agentic</code>, …).</td>
+ <td><code>skygrep search "session token" --top 20 --json</code></td>
+ </tr>
+ <tr>
+ <td><code>skygrep doctor</code></td>
+ <td>First-time troubleshooting. Probes Ollama, lists models, summarises the project index, checks LLM-CLI integrations.</td>
+ <td><code>skygrep doctor</code></td>
+ </tr>
+ <tr>
+ <td><code>skygrep setup</code></td>
+ <td>Register skygrep with detected LLM CLIs (Claude Code, Codex, OpenCode, Gemini CLI, Cursor) so agents prefer it. Run once.</td>
+ <td><code>skygrep setup</code> · <code>skygrep setup --uninstall</code></td>
+ </tr>
+ <tr>
+ <td><code>skygrep stats</code></td>
+ <td>Print chunk and file counts for the current project's index.</td>
+ <td><code>skygrep stats</code></td>
+ </tr>
+ <tr>
+ <td><code>skygrep index [PATH] [--reset]</code></td>
+ <td><strong>Rarely needed.</strong> The first query auto-indexes; the 0.2.2 recovery worker handles embedder upgrades. Use <code>--reset</code> only when you actively want a clean rebuild from scratch.</td>
+ <td><code>skygrep index .</code> · <code>skygrep index . --reset</code></td>
+ </tr>
+ <tr>
+ <td><code>skygrep watch [PATH] --interval N</code></td>
+ <td>Keep the index live in the background. Polls <code>PATH</code> every <code>N</code> seconds (default 5) and reindexes changed files.</td>
+ <td><code>skygrep watch .</code> · <code>skygrep watch . -i 2</code></td>
+ </tr>
+ <tr>
+ <td><code>skygrep serve [--host H] [--port P]</code></td>
+ <td>Daemon mode. Keeps the cross-encoder reranker and Ollama session warm in memory so warm queries land in 0.5–2 s.</td>
+ <td><code>skygrep serve --port 7878</code></td>
+ </tr>
+ <tr>
+ <td><code>skygrep enrich</code></td>
+ <td>Advanced. Generate doc2query-style natural-language descriptions for each chunk (improves vocab-mismatch retrieval at index-time cost).</td>
+ <td><code>skygrep enrich</code></td>
+ </tr>
+ </tbody>
+ </table>
+ </div>
+
+ <h3 id="first-time-workflow">First-time workflow (5 commands, &lt; 2 min)</h3>
+<pre><code># 1. install
+pip install skylakegrep
+
+# 2. pull the embedding model (1024-d, multilingual, ~ 2 GB)
+ollama pull bge-m3
+
+# 3. register skygrep with your LLM CLI(s) — claude code / codex / etc.
+skygrep setup
+
+# 4. cd into any project (no manual index step needed)
+cd ~/your-project
+
+# 5. ask anything
+skygrep "where does the cascade tau threshold get computed"</code></pre>
+ <p>
+ That's it. The first query auto-indexes in the background and
+ falls back to <code>rg</code> for the first ~ 1 s; subsequent
+ warm queries land in 0.5–2 s.
+ </p>
+
+ <h3 id="search-flags">Flags for <code>skygrep search</code> (and the bare form)</h3>
+ <p>The full <code>--help</code> is on every install. Quick reference:</p>
+ <div class="table-wrap">
+ <table class="flag-table">
+ <thead>
+ <tr><th>Flag</th><th>Default</th><th>Effect</th></tr>
+ </thead>
+ <tbody>
+ <tr><td><code>-m</code>, <code>-n</code>, <code>--top</code></td><td>5</td><td>Number of final results.</td></tr>
+ <tr><td><code>--json</code></td><td>off</td><td>Emit results as a JSON array; suppresses human formatting.</td></tr>
+ <tr><td><code>--answer</code></td><td>off</td><td>Synthesize an answer from retrieved snippets via Ollama.</td></tr>
+ <tr><td><code>--content / --no-content</code></td><td>on</td><td>Show or hide snippet bodies in human output.</td></tr>
+ <tr><td><code>--detail compact|full</code></td><td>compact</td><td>How much body to show (full extracts content from PDFs / docx).</td></tr>
+ <tr><td><code>--language</code></td><td>—</td><td>Restrict to one or more language keys; repeatable.</td></tr>
+ <tr><td><code>--include</code></td><td>—</td><td>Glob; only paths matching at least one pattern are kept; repeatable.</td></tr>
+ <tr><td><code>--exclude</code></td><td>—</td><td>Glob; paths matching any pattern are dropped; repeatable.</td></tr>
+ <tr><td><code>--semantic-only</code></td><td>off</td><td>Skip lexical reranking; rank by cosine similarity alone.</td></tr>
+ <tr><td><code>--agentic</code></td><td>off</td><td>Decompose the query into subqueries via Ollama before search.</td></tr>
+ <tr><td><code>--max-subqueries</code></td><td>3</td><td>Upper bound on agentic subqueries.</td></tr>
+ <tr><td><code>--hyde</code></td><td>off (cascade handles internally)</td><td>Force HyDE query rewriting (rarely needed; cascade escalation already uses HyDE for low-σ queries).</td></tr>
+ <tr><td><code>--rerank</code></td><td>auto</td><td>Force or skip the cross-encoder rerank step.</td></tr>
+ <tr><td><code>--cascade / --no-cascade</code></td><td>on</td><td>Use the σ-adaptive cascade. <code>--no-cascade</code> drops to chunk-level cosine.</td></tr>
+ </tbody>
+ </table>
+ </div>
+
+ <h3 id="reading-telemetry">Reading the per-query telemetry footer (0.2.2+)</h3>
+ <p>
+ Every search prints a one-line telemetry footer so you can see
+ <em>which retrieval path</em> answered your query and <em>why</em>:
+ </p>
+<pre><code>[0.42s · path=cosine-cheap · router=llm · intent=mixed (0.83)
+       · 1 filename + 0 lexical
+       · σ-gap=0.0820 ≥ τ=0.0050 (adaptive) → high-confidence early-exit
+       · index 20s ago · 36 files · L2 symbols on · graph prior on
+       · quality=BEST]</code></pre>
+ <p>Field-by-field:</p>
+ <ul>
+ <li><code>path=</code> — the retrieval strategy this query took. One of: <code>cosine-cheap</code>, <code>cosine-escalated-rerank</code>, <code>rg-only</code>, <code>cascade-skipped</code>. (The symbol-channel path will appear once the 0.3.x auto-router lands.)</li>
+ <li><code>σ-gap=… → reason</code> — Bayesian-evidence proxy that drove the cascade decision. High σ-gap = top-K candidates well-separated → cosine trusted, exit cheap. Low σ-gap = candidates tied → escalate to cross-encoder rerank.</li>
+ <li><code>recovery=in-progress chunks=N/T coverage=N% ETA=Nm</code> — only when the 0.2.2 recovery worker is active. Reads live from the metadata table.</li>
+ <li><code>quality=BEST</code> / <code>quality=DEGRADED-recovery</code> — at-a-glance "is this the full-quality semantic answer or partial during recovery". <code>DEGRADED</code> only means some files are still pending re-embed; your specific query may be unaffected.</li>
+ </ul>
+ </section>
+
+
+ <!-- ============== Configuration ============== -->
+ <section id="configuration" class="doc-section">
+ <p class="eyebrow">Reference · configuration</p>
+ <h2>Environment variables.</h2>
+ <p>
+ Configuration is read from environment variables on every invocation;
+ there is no config file. Defaults assume a local Ollama server on the
+ default port.
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr><th>Variable</th><th>Default</th><th>Effect</th></tr>
+ </thead>
+ <tbody>
+ <tr>
+ <td><code>OLLAMA_URL</code></td>
+ <td><code>http://localhost:11434</code></td>
+ <td>Base URL of the Ollama server used for embeddings and (optional) generation.</td>
+ </tr>
+ <tr>
+ <td><code>OLLAMA_EMBED_MODEL</code></td>
+ <td><code>bge-m3</code></td>
+ <td>Embedding model name. Must be the same at index time and query time.</td>
+ </tr>
+ <tr>
+ <td><code>OLLAMA_LLM_MODEL</code></td>
+ <td><code>qwen2.5:3b</code></td>
+ <td>Generation model used by <code>--answer</code> and <code>--agentic</code>.</td>
+ </tr>
+ <tr>
+ <td><code>SKYGREP_DB_PATH</code></td>
+ <td><code>~/.skylakegrep/index.db</code></td>
+ <td>SQLite index location. Use distinct paths to keep per-project indexes.</td>
+ </tr>
+ </tbody>
+ </table>
+ </div>
+ <div class="note warn">
+ <span class="label">Note</span>
+ <p>
+ Switching <code>OLLAMA_EMBED_MODEL</code> after indexing produces a
+ dimension or semantic mismatch and will not return useful results.
+ Reindex with <code>--reset</code> when the embedding model changes.
+ </p>
+ </div>
+ </section>
+
+ </main>
+ </div>
+ </body>
+</html>

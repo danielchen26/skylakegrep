@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep benchmarks — 30/30 public-OSS recall on Django + React + Tokio at 60×–770× less context than rg." />
+ <meta name="theme-color" content="#0a0d12" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="Benchmarks · skylakegrep" />
+ <meta property="og:description" content="skylakegrep benchmarks — 30/30 public-OSS recall on Django + React + Tokio at 60×–770× less context than rg." />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>Benchmarks · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.1.3" />
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">Benchmarks</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html" class="active">Benchmarks</a>
+ <a href="changelog.html">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep/blob/master/docs/PRINCIPLES.md">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <!-- ============== Benchmarks ============== -->
+ <section id="benchmarks" class="doc-section">
+ <p class="eyebrow">Evaluation · benchmarks</p>
+ <h2>Empirical results across four benchmark dimensions.</h2>
+ <p>
+ skylakegrep ships four reproducible benchmarks. Each measures a
+ different question; quoting the right number for the right claim
+ matters. The repository's
+ <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>
+ holds the full raw tables, methodology, and per-task data; this
+ page is the curated summary.
+ </p>
+
+ <h3 id="bench-e2e">1. End-to-end Claude Code agent (this)</h3>
+ <p>
+ Real Claude Code sub-agents answering hand-labelled code-search
+ questions in two prompted conditions —
+ <strong>rg-only</strong> (skygrep forbidden) vs
+ <strong>skygrep-on</strong> (rg/grep/find forbidden) — across
+ 21 questions and 1 multi-turn session in three repos.
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr>
+ <th>Bench</th>
+ <th>Tasks</th>
+ <th>rg-only tools</th>
+ <th>skygrep tools</th>
+ <th>Δ tools</th>
+ <th>Δ tokens</th>
+ </tr>
+ </thead>
+ <tbody>
+ <tr>
+ <td><strong>Multi-turn (3-turn Rust workspace session)</strong></td>
+ <td>1 × 3</td><td>38</td><td>7</td><td><strong>−82 %</strong></td><td>−5 %</td>
+ </tr>
+ <tr>
+ <td>6 medium tasks</td>
+ <td>6</td><td>25</td><td>6</td><td>−76 %</td><td>−8 %</td>
+ </tr>
+ <tr>
+ <td>14 single-turn ( + )</td>
+ <td>14</td><td>124</td><td>87</td><td>−30 %</td><td>+12 %</td>
+ </tr>
+ <tr>
+ <td><strong>20-task single-turn aggregate</strong></td>
+ <td>20</td><td><strong>149</strong></td><td><strong>93</strong></td><td><strong>−37.6 %</strong></td><td>+6.5 %</td>
+ </tr>
+ <tr>
+ <td><strong>Strict-label correctness (20 tasks)</strong></td>
+ <td>—</td><td>12 / 20</td><td><strong>14 / 20</strong></td><td><strong>+2 tasks</strong></td><td>—</td>
+ </tr>
+ </tbody>
+ </table>
+ </div>
+
+ <!-- Tool-call comparison chart — visual of -37.6% / -82% -->
+ <div style="background: #0a0d12; border: 1px solid #1f2937; border-radius: 8px; padding: 16px; margin: 16px 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px;">
+ <div style="color: #94a3b8; margin-bottom: 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;">agent tool calls — rg-only vs skygrep-on</div>
+
+ <div style="color: #cbd5e1; margin-bottom: 6px; font-size: 12px;">Multi-turn (3-turn Rust workspace session, 1 task)</div>
+ <div style="display: grid; grid-template-columns: 110px 1fr 80px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;">rg-only</span><div style="background: #ef4444; height: 18px; width: 100%; border-radius: 2px;"></div><span style="color: #f87171; text-align: right;">38</span></div>
+ <div style="display: grid; grid-template-columns: 110px 1fr 80px; gap: 8px; align-items: center; margin-bottom: 8px;"><span style="color: #cbd5e1;">skygrep</span><div style="background: #34d399; height: 18px; width: 18.4%; border-radius: 2px;"></div><span style="color: #6ee7b7; text-align: right;">7 <span style="color: #67e8f9;">(−82 %)</span></span></div>
+
+ <div style="color: #cbd5e1; margin: 12px 0 6px; font-size: 12px;">6 medium tasks</div>
+ <div style="display: grid; grid-template-columns: 110px 1fr 80px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;">rg-only</span><div style="background: #ef4444; height: 18px; width: 65.8%; border-radius: 2px;"></div><span style="color: #f87171; text-align: right;">25</span></div>
+ <div style="display: grid; grid-template-columns: 110px 1fr 80px; gap: 8px; align-items: center; margin-bottom: 8px;"><span style="color: #cbd5e1;">skygrep</span><div style="background: #34d399; height: 18px; width: 15.8%; border-radius: 2px;"></div><span style="color: #6ee7b7; text-align: right;">6 <span style="color: #67e8f9;">(−76 %)</span></span></div>
+
+ <div style="color: #cbd5e1; margin: 12px 0 6px; font-size: 12px;">14 single-turn (vocab-balanced mix)</div>
+ <div style="display: grid; grid-template-columns: 110px 1fr 80px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;">rg-only</span><div style="background: #ef4444; height: 18px; width: 100%; border-radius: 2px;"></div><span style="color: #f87171; text-align: right;">124</span></div>
+ <div style="display: grid; grid-template-columns: 110px 1fr 80px; gap: 8px; align-items: center; margin-bottom: 12px;"><span style="color: #cbd5e1;">skygrep</span><div style="background: #34d399; height: 18px; width: 70.2%; border-radius: 2px;"></div><span style="color: #6ee7b7; text-align: right;">87 <span style="color: #67e8f9;">(−30 %)</span></span></div>
+
+ <div style="border-top: 1px solid #1f2937; padding-top: 10px; color: #cbd5e1; text-align: center;">
+ <strong>20-task single-turn aggregate:</strong>
+ <span style="color: #f87171;">149</span> →
+ <span style="color: #6ee7b7;">93</span> tool calls ·
+ <strong style="color: #67e8f9; font-size: 16px;">−37.6 %</strong>
+ </div>
+ </div>
+
+ <p>
+ The cleanest, most consistent signal is
+ <strong>tool-call reduction</strong>: −37.6 % single-turn, −82 %
+ multi-turn. Each agent tool call costs an LLM round-trip + network
+ RTT + serialization + context-window growth, so reducing them
+ shortens the agent loop even when total tokens are equal. Token
+ cost across the 20-task aggregate is roughly flat (+6.5 %); we
+ do not claim skygrep saves the LLM bill.
+ </p>
+ <p>
+ Best-case task in the original aggregate: a vocabulary-mismatch
+ question (NL phrasing didn't match any code identifier) — skygrep
+ finished in 1 tool call vs rg-only's 25 (25× fewer), at one
+ eighth the wall time. Worst-case: a token-friendly question whose
+ vocabulary (auth / session / token) overlapped directly with
+ code-path tokens, so rg's straightforward scan was already
+ efficient — skygrep was 40 % more tool calls.
+ <strong>The lexical pre-gate addresses this</strong> via a
+ conservative four-condition gate that detects exactly these
+ queries and short-circuits to <code>rg</code> internally in
+ ~50 ms. Methodology and aggregate published in
+ <a href="skylakegrep-0.1.0.md">the release notes</a>;
+ see <a href="skylakegrep-0.1.0.md">the release notes</a> for the routing fix.
+ </p>
+
+ <h3 id="bench-multilang">2. Public OSS recall (Django · React · Tokio)</h3>
+ <p>
+ 30 hand-labelled questions across three popular open-source
+ codebases. Anyone can clone the repos and rerun
+ <a href="https://github.com/danielchen26/skylakegrep/blob/master/benchmarks/public_oss_bench.py"><code>benchmarks/public_oss_bench.py</code></a>
+ to reproduce every number below.
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr>
+ <th>Repo</th>
+ <th>Language</th>
+ <th>LOC ≈</th>
+ <th>Tasks</th>
+ <th>skygrep recall</th>
+ <th>rg recall</th>
+ <th>Token reduction</th>
+ </tr>
+ </thead>
+ <tbody>
+ <tr><td><code>django/django</code></td><td>Python</td><td>524 K</td><td>10</td><td><strong>10 / 10</strong></td><td>10 / 10</td><td><strong>703 ×</strong></td></tr>
+ <tr><td><code>tokio-rs/tokio</code></td><td>Rust</td><td>80 K</td><td>10</td><td><strong>10 / 10</strong></td><td>10 / 10</td><td>61 ×</td></tr>
+ <tr><td><code>facebook/react</code></td><td>JS+TS</td><td>270 K</td><td>10</td><td><strong>10 / 10</strong></td><td>10 / 10</td><td><strong>773 ×</strong></td></tr>
+ <tr><td><strong>Aggregate</strong></td><td>3 langs</td><td><strong>~ 870 K</strong></td><td><strong>30</strong></td><td><strong>30 / 30 (100 %)</strong></td><td>30 / 30</td><td><strong>60×–770×</strong></td></tr>
+ </tbody>
+ </table>
+ </div>
+ <p>
+ Honest framing: <code>rg</code>'s 100 % is a recall-ceiling
+ baseline — it returns 20 M+ tokens of term-OR scan output per
+ query, so the answer is in there but the agent has to read the
+ whole haystack. <strong>skygrep returns the right file ranked
+ top-10 in 30 / 30 cases while emitting 60×–770× less context.</strong>
+ React reached 10 / 10 after the Option-C substrate upgrade
+ (<code>bge-m3</code> embedder + content-agnostic
+ non-canonical-path filter); the original failure modes on
+ <code>react-007</code> and <code>react-010</code> and the
+ resolution are documented in
+ <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>
+ as the engineering record, not erased.
+ </p>
+
+ <h3 id="bench-worked-example">3. Worked example — <code>django-001</code> (one query, real numbers)</h3>
+ <p>
+ Reproduce locally to verify every number. One of the 30 tasks
+ aggregated into the public-OSS recall table above, run against
+ the actual Django source tree (524 K LOC).
+ </p>
+ <blockquote style="border-left: 3px solid #67e8f9; padding-left: 12px; margin: 16px 0; color: #cbd5e1;">
+ <strong>Query:</strong> "Where does Django turn an incoming URL
+ into the view function that should handle it?"<br>
+ <strong>Expected canonical:</strong>
+ <code>django/urls/resolvers.py</code> (<code>URLResolver.resolve()</code>)<br>
+ <strong>Vocab mismatch:</strong> query says "URL into view", code
+ identifier is <code>resolve</code> — the failure mode that
+ grep-as-search collapses on.
+ </blockquote>
+
+ <h4>Side A — <code>rg</code> term-OR scan</h4>
+ <p>
+ The rg-agent extracts up to 8 terms (TF-IDF-ish stopword filter),
+ runs <code>rg -i -F --max-count=20 -C2</code> per term,
+ concatenates output. For this query the extractor produced:
+ </p>
+<pre><code>['function', 'incoming', 'incom', 'django', 'handle', 'should', 'into', 'that']</code></pre>
+ <p>
+ The high-signal words <code>URL</code>, <code>view</code>,
+ <code>resolve</code> did not survive the extractor — they were
+ either stopword-filtered or pushed past the 8-term cap. That is
+ the vocab-mismatch failure: the query's actual intent is
+ <code>URLResolver.resolve()</code>, but <code>rg</code> searches
+ for <code>function</code>, <code>django</code>, <code>that</code>
+ instead.
+ </p>
+ <p>Real measured output volumes per <code>rg</code> invocation:</p>
+
+ <!-- Inline horizontal bar chart — token volume per term -->
+ <div style="background: #0a0d12; border: 1px solid #1f2937; border-radius: 8px; padding: 16px; margin: 16px 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px;">
+ <div style="color: #94a3b8; margin-bottom: 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;">rg output volume per term · django-001</div>
+ <div style="display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;"><code>django</code></span><div style="background: #ef4444; height: 18px; width: 100%; border-radius: 2px;"></div><span style="color: #f87171; text-align: right;">1,438,245</span></div>
+ <div style="display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;"><code>that</code></span><div style="background: #f87171; height: 18px; width: 58.5%; border-radius: 2px;"></div><span style="color: #fca5a5; text-align: right;">841,092</span></div>
+ <div style="display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;"><code>function</code></span><div style="background: #fb923c; height: 18px; width: 31.5%; border-radius: 2px;"></div><span style="color: #fdba74; text-align: right;">452,938</span></div>
+ <div style="display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;"><code>should</code></span><div style="background: #fb923c; height: 18px; width: 29.5%; border-radius: 2px;"></div><span style="color: #fdba74; text-align: right;">423,617</span></div>
+ <div style="display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;"><code>handle</code></span><div style="background: #fbbf24; height: 18px; width: 16.5%; border-radius: 2px;"></div><span style="color: #fcd34d; text-align: right;">238,008</span></div>
+ <div style="display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;"><code>into</code></span><div style="background: #fbbf24; height: 18px; width: 12.2%; border-radius: 2px;"></div><span style="color: #fcd34d; text-align: right;">175,039</span></div>
+ <div style="display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; margin-bottom: 4px;"><span style="color: #cbd5e1;"><code>incom</code></span><div style="background: #facc15; height: 18px; width: 4.4%; border-radius: 2px;"></div><span style="color: #fde68a; text-align: right;">63,593</span></div>
+ <div style="display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center; margin-bottom: 12px;"><span style="color: #cbd5e1;"><code>incoming</code></span><div style="background: #facc15; height: 18px; width: 0.3%; border-radius: 2px;"></div><span style="color: #fde68a; text-align: right;">4,024</span></div>
+ <div style="border-top: 1px solid #1f2937; padding-top: 10px; display: grid; grid-template-columns: 90px 1fr 110px; gap: 8px; align-items: center;"><span style="color: #f5f5f5; font-weight: 600;">TOTAL</span><div></div><span style="color: #f87171; text-align: right; font-weight: 600;">3,636,556</span></div>
+ </div>
+
+ <p>
+ <code>django</code> alone is <strong>1.4 million tokens</strong>
+ because the term matches in basically every file of the Django
+ source tree. <code>that</code> is <strong>840 K tokens</strong>
+ for the same reason — high-frequency words that the stopword
+ filter let through.
+ </p>
+
+ <h4>Side B — <code>skygrep --top 10 --json</code></h4>
+<pre><code>$ skygrep "Where does Django turn an incoming URL into the view function that should handle it?" \
+    --json --top 10
+$ wc -c   # 10,430 chars ≈ 2,607 tokens</code></pre>
+ <p>
+ Top files returned include <code>django/urls/resolvers.py</code>
+ and related canonical implementation files.
+ </p>
+
+ <h4>Reduction — visual comparison</h4>
+
+ <!-- Big visual: rg full-width bar vs skygrep nearly-invisible bar -->
+ <div style="background: #0a0d12; border: 1px solid #1f2937; border-radius: 8px; padding: 16px; margin: 16px 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px;">
+ <div style="color: #94a3b8; margin-bottom: 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;">tokens emitted · one query · log scale</div>
+ <div style="display: grid; grid-template-columns: 130px 1fr 130px; gap: 8px; align-items: center; margin-bottom: 8px;"><span style="color: #cbd5e1;"><code>rg</code> term-OR</span><div style="background: #ef4444; height: 22px; width: 100%; border-radius: 2px;"></div><span style="color: #f87171; text-align: right; font-weight: 600;">3,636,556</span></div>
+ <div style="display: grid; grid-template-columns: 130px 1fr 130px; gap: 8px; align-items: center;"><span style="color: #cbd5e1;"><code>skygrep --top 10</code></span><div style="background: #34d399; height: 22px; width: 0.072%; min-width: 2px; border-radius: 2px;"></div><span style="color: #6ee7b7; text-align: right; font-weight: 600;">2,607</span></div>
+ <div style="border-top: 1px solid #1f2937; padding-top: 10px; margin-top: 10px; color: #cbd5e1; text-align: center;">
+ ratio <strong style="color: #67e8f9; font-size: 18px;">≈ 1,395 ×</strong> for this query
+ </div>
+ </div>
+
+ <p>
+ <strong>1,395 × is higher than the 60 × – 770 × headline range</strong>
+ because vocab-mismatch queries are the worst case for <code>rg</code>
+ (stopwords flood the output) and the best case for <code>skygrep</code>
+ (the embedder bridges "URL into view" → <code>resolve()</code>).
+ </p>
+
+ <h4>Why the headline is 60 × – 770 ×, not a single number</h4>
+ <p>
+ <code>rg</code> output scales with
+ <strong>(repo LOC) × (term-frequency of high-signal terms)</strong>.
+ <code>skygrep</code> output is ~constant-per-K (top-10 ≈ 10 KB):
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr><th>Repo</th><th>LOC</th><th>Per-query <code>rg</code> tokens (avg)</th><th>Per-query <code>skygrep</code> tokens</th><th>Ratio</th></tr>
+ </thead>
+ <tbody>
+ <tr><td><strong>Tokio</strong> (Rust)</td><td>80 K</td><td>~190 K</td><td>~3.1 K</td><td><strong>61 ×</strong></td></tr>
+ <tr><td><strong>Django</strong> (Python)</td><td>524 K</td><td>~2.06 M</td><td>~2.9 K</td><td><strong>703 ×</strong></td></tr>
+ <tr><td><strong>React</strong> (JS+TS)</td><td>270 K</td><td>~2.28 M</td><td>~2.9 K</td><td><strong>773 ×</strong></td></tr>
+ </tbody>
+ </table>
+ </div>
+ <p>
+ Tokio is the floor (small repo, focused vocabulary). Django and
+ React both blow up because <code>django</code> / <code>react</code>
+ saturate term-OR scans across mid-sized monorepos.
+ </p>
+
+ <h4>Reproduce yourself (3 commands)</h4>
+<pre><code># rg side — counts bytes from term-OR scan
+cd /tmp/oss-bench/django
+for term in function incoming incom django handle should into that; do
+  rg -i -F --max-count 20 -C 2 "$term" .
+done | wc -c
+
+# skygrep side — counts bytes from top-10 JSON
+skygrep "Where does Django turn an incoming URL into the view function that should handle it?" \
+  --json --top 10 | wc -c
+
+# divide chars by 4 to approximate tokens</code></pre>
+ <p>
+ Numbers will land within ± 5 % of the ones above (variance from
+ your Django clone's commit and rg minor-version output formatting).
+ Per-task analysis for all 30 queries lives in
+ <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>.
+ </p>
+
+ <h3 id="bench-self">4. skylakegrep self-test (regression guard)</h3>
+ <p>
+ Deterministic local benchmark over 30 repository-navigation tasks
+ against this very repo. Compares a single <code>skygrep search</code>
+ call against a simulated grep-agent. Token volumes are estimated
+ as <code>chars / 4</code>. Every release is verified to keep
+ <strong>30 / 30 at top-k 10</strong>.
+ </p>
+
+ <figure>
+ <img src="assets/benchmark.svg" alt="Bar chart of token reduction and recall against top-k values 5, 10, 20, 50." />
+ <figcaption>
+ Bars: token reduction (left axis). Markers and dashed line:
+ expected-file recall (right axis). Reproduce with the
+ <code>benchmarks/agent_context_benchmark.py --top-k N</code>
+ command.
+ </figcaption>
+ </figure>
+
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr>
+ <th>top-k</th>
+ <th>recall</th>
+ <th>total-token reduction</th>
+ <th>context-token reduction</th>
+ </tr>
+ </thead>
+ <tbody>
+ <tr><td>5</td><td>28 / 30</td><td>2.66×</td><td>5.53×</td></tr>
+ <tr><td><strong>10</strong></td><td><strong>30 / 30</strong></td><td><strong>2.00×</strong></td><td><strong>2.90×</strong></td></tr>
+ <tr><td>20</td><td>30 / 30</td><td>1.36×</td><td>1.53×</td></tr>
+ <tr><td>50</td><td>30 / 30</td><td>0.67×</td><td>0.60×</td></tr>
+ </tbody>
+ </table>
+ </div>
+ <p>
+ Vs real ripgrep (not the simulated grep-agent), this same task set
+ shows <strong>~17.7× total-token reduction at equal recall</strong>.
+ See <a href="token-benchmarking.md">the benchmark protocol</a>
+ for definitions and limitations.
+ </p>
+
+ <h3 id="bench-honest-framing">Which number to cite for which claim</h3>
+ <ul>
+ <li>
+ <strong>"skygrep cuts agent tool calls"</strong> →
+ <a href="#bench-e2e">benchmark 1</a>: −37.6 % single-turn,
+ −82 % multi-turn (real Claude Code sub-agents, 20 + 1
+ hand-labelled tasks).
+ </li>
+ <li>
+ <strong>"skygrep matches rg on hit-rate while emitting 60×–770× less context"</strong> →
+ <a href="#bench-multilang">benchmark 2</a>: 30 / 30 (100 %)
+ across Django + React + Tokio public OSS, vs rg's 30 / 30 baseline
+ (which dumps 20 M+ tokens per query for the agent to filter).
+ </li>
+ <li>
+ <strong>"this is what one query actually looks like"</strong> →
+ <a href="#bench-worked-example">benchmark 3</a>:
+ <code>django-001</code> worked example with real measured volumes
+ — <code>rg</code> 3.6 M tokens vs <code>skygrep</code> 2.6 K
+ tokens (≈ 1,395 ×) on a single vocab-mismatch query.
+ </li>
+ <li>
+ <strong>"skygrep is more token-efficient than ripgrep when feeding LLM context"</strong> →
+ <a href="#bench-self">benchmark 4</a>: ~17.7× total-token
+ reduction at equal recall on the 30-task self-test.
+ </li>
+ </ul>
+ <p>
+ Don't combine these into a single number; they answer different
+ questions. The honest framing is in
+ <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>'s
+ "Strongest claims" section.
+ </p>
+ </section>
+
+ </main>
+ </div>
+ </body>
+</html>

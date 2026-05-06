@@ -31,19 +31,34 @@ reason).
        - Footer link list to release notes — add the new version.
   4. **`docs/index.html`** (the GitHub Pages site):
        - Hero `<p class="eyebrow">vX.Y.Z · …</p>` version bumped.
-       - "What's new in 0.2.x" usecase-grid — add one
-         `<div class="usecase-card">` per user-visible change.
-       - "Where it pulls ahead of `rg`, cloud RAG, or grep"
-         comparison panel — add a row if this release changed the
-         answer to one of those rows.
-       - "Reference · CLI" command cheatsheet — add any new
-         command, update any changed flag default.
+       - Hero `<h1>` headline — bumped if the headline number
+         changed.
+       - "Why skylakegrep?" comparison table — add or update
+         a row if this release changed the answer to a row.
+       - "How it works" three-step diagram — update step
+         labels (model name + latency) if that changed.
+       - "Benchmarks summary" three big numbers — bump if a
+         headline number changed.
+       - "Honesty" limitations list — extend if scope changed.
        - `og:title` / `og:description` / `twitter:description`
-         meta tags — bump if the headline number changed
-         (e.g. 28/30 → 30/30 in 0.2.0).
-       - "Configuration" env-var table — sweep stale defaults.
-       - "Reading the per-query telemetry footer" — extend if a
-         new field was added to the footer.
+         meta tags — bump if the headline number changed.
+  4b. **Subpages** (added in 0.2.14 — `docs/concepts.html`,
+      `docs/architecture.html`, `docs/cli.html`,
+      `docs/reference.html`, `docs/benchmarks.html`,
+      `docs/changelog.html`):
+       - `docs/cli.html` — add any new command or changed flag
+         default to the cheatsheet + env-var table.
+       - `docs/architecture.html` — extend the schema diagram if
+         a new index column or metadata field was added.
+       - `docs/benchmarks.html` — add a row to the relevant
+         sub-benchmark table; rerun the worked example if its
+         numbers shifted.
+       - `docs/reference.html` — extend the JSON schema if a new
+         field was added to the agent contract.
+       - `docs/changelog.html` — add a new release-card with a
+         link to `docs/skylakegrep-X.Y.Z.md`.
+       - `docs/concepts.html` — extend if the indexing /
+         ranking / output mental model changed.
   5. **GitHub repo description** (`gh repo edit --description …`)
      — only if the project's one-liner positioning changed.
   6. **PyPI upload**: `python -m build` then
