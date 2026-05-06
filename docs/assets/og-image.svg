@@ -99,6 +99,6 @@
 
   <!-- =================== Bottom row: install line + version =================== -->
   <g font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" font-size="16" fill="#71717a" text-anchor="middle">
-    <text x="600" y="582"><tspan fill="#67e8f9">pip install skylakegrep</tspan>  ·  <tspan fill="#a5f3fc">v0.2.13</tspan>  ·  Python 3.9+  ·  powered by Ollama</text>
+    <text x="600" y="582"><tspan fill="#67e8f9">pip install skylakegrep</tspan>  ·  <tspan fill="#a5f3fc">v0.2.15</tspan>  ·  Python 3.9+  ·  powered by Ollama</text>
   </g>
 </svg>

@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 460" role="img" aria-labelledby="perf-title perf-desc" font-family="Inter, ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
+  <title id="perf-title">skylakegrep — public-OSS benchmark performance</title>
+  <desc id="perf-desc">Performance matrix card showing 30 of 30 recall on Django, Tokio, and React with token-reduction multipliers vs ripgrep.</desc>
+
+  <defs>
+    <linearGradient id="pf-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#07090d"/>
+      <stop offset="100%" stop-color="#0a0d12"/>
+    </linearGradient>
+    <linearGradient id="pf-card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="rgba(255,255,255,0.05)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.018)"/>
+    </linearGradient>
+    <linearGradient id="pf-stroke" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="rgba(103,232,249,0.40)"/>
+      <stop offset="55%"  stop-color="rgba(167,139,250,0.22)"/>
+      <stop offset="100%" stop-color="rgba(52,211,153,0.22)"/>
+    </linearGradient>
+    <linearGradient id="pf-gleam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="rgba(255,255,255,0.16)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+    <linearGradient id="pf-stat" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="rgba(34,211,238,0.18)"/>
+      <stop offset="100%" stop-color="rgba(34,211,238,0.04)"/>
+    </linearGradient>
+    <filter id="pf-orb-blur" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="50"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="460" fill="url(#pf-bg)"/>
+  <g filter="url(#pf-orb-blur)" opacity="0.6">
+    <circle cx="200"  cy="80"  r="180" fill="rgba(52,211,153,0.16)"/>
+    <circle cx="1000" cy="380" r="200" fill="rgba(34,211,238,0.16)"/>
+  </g>
+
+  <g transform="translate(40 30)">
+    <rect width="1120" height="400" rx="16" fill="url(#pf-card)" stroke="url(#pf-stroke)" stroke-width="1.2"/>
+    <rect width="1120" height="40" rx="16" fill="url(#pf-gleam)"/>
+    <line x1="0" y1="40" x2="1120" y2="40" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+    <g transform="translate(20 20)">
+      <circle cx="0"  cy="0" r="6" fill="#ff5f57"/>
+      <circle cx="20" cy="0" r="6" fill="#ffbd2e"/>
+      <circle cx="40" cy="0" r="6" fill="#28ca42"/>
+    </g>
+    <text x="560" y="25" text-anchor="middle" font-size="11.5" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">skylakegrep — public-OSS benchmarks · v0.2.15</text>
+
+    <!-- Three big stat cards -->
+    <g transform="translate(40 80)">
+      <!-- Django -->
+      <rect x="0" y="0" width="320" height="120" rx="12" fill="url(#pf-stat)" stroke="rgba(34,211,238,0.20)"/>
+      <text x="20" y="32" font-size="11" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">Django · Python · 524 K LOC</text>
+      <text x="20" y="78" font-size="44" fill="#67e8f9" font-weight="700" letter-spacing="-0.02em">10/10</text>
+      <text x="200" y="76" font-size="22" fill="#34d399" font-weight="700">703 ×</text>
+      <text x="200" y="96" font-size="11" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">tokens vs rg</text>
+
+      <!-- Tokio -->
+      <rect x="356" y="0" width="320" height="120" rx="12" fill="url(#pf-stat)" stroke="rgba(34,211,238,0.20)"/>
+      <text x="376" y="32" font-size="11" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">Tokio · Rust · 80 K LOC</text>
+      <text x="376" y="78" font-size="44" fill="#67e8f9" font-weight="700" letter-spacing="-0.02em">10/10</text>
+      <text x="556" y="76" font-size="22" fill="#34d399" font-weight="700">61 ×</text>
+      <text x="556" y="96" font-size="11" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">tokens vs rg</text>
+
+      <!-- React -->
+      <rect x="712" y="0" width="320" height="120" rx="12" fill="url(#pf-stat)" stroke="rgba(34,211,238,0.20)"/>
+      <text x="732" y="32" font-size="11" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">React · JS · TS · 270 K LOC</text>
+      <text x="732" y="78" font-size="44" fill="#67e8f9" font-weight="700" letter-spacing="-0.02em">10/10</text>
+      <text x="912" y="76" font-size="22" fill="#34d399" font-weight="700">773 ×</text>
+      <text x="912" y="96" font-size="11" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">tokens vs rg</text>
+    </g>
+
+    <!-- Aggregate banner -->
+    <g transform="translate(40 240)">
+      <rect width="1032" height="100" rx="12" fill="rgba(52,211,153,0.08)" stroke="rgba(52,211,153,0.22)"/>
+      <text x="20" y="34" font-size="12" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">Aggregate across three repos · 30 hand-labelled questions, 10 per repo</text>
+      <text x="20" y="78" font-size="32" fill="#34d399" font-weight="700">30 / 30</text>
+      <text x="170" y="78" font-size="20" fill="#d4d4d8">recall  ·  </text>
+      <text x="290" y="78" font-size="32" fill="#67e8f9" font-weight="700">60 × – 770 ×</text>
+      <text x="500" y="78" font-size="20" fill="#d4d4d8">less context vs <tspan fill="#a5f3fc" font-family="ui-monospace, Menlo, Consolas, monospace">rg</tspan>  ·  </text>
+      <text x="775" y="78" font-size="32" fill="#67e8f9" font-weight="700">−82 %</text>
+      <text x="855" y="78" font-size="20" fill="#d4d4d8">tool calls (best multi-turn)</text>
+    </g>
+
+    <text x="20" y="380" font-size="11" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">reproducible: clone the three repos, run the supplied bench script · v0.2.15 · bge-m3 substrate</text>
+  </g>
+</svg>

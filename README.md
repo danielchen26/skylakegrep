@@ -109,14 +109,30 @@ $ skygrep "我昨天写的 cascade 调度代码"
 
 ## Why skylakegrep?
 
-|                                          | **skylakegrep** | `ripgrep`        | Cloud RAG <br/>(Cursor, Sourcegraph, …) |
-|------------------------------------------|:---------------:|:----------------:|:---------------------------------------:|
-| Find code by **concept**, not just token |       ✓         |       ✗          |                  ✓                      |
-| **Privacy** — no data egress             |       ✓         |       ✓          |                  ✗                      |
-| **Multi-content** — code · md · PDF · docx |     ✓         |   text only      |                  ✓                      |
-| **Setup** friction                       |   `pip install` |  `brew install`  |       account + subscription            |
-| **Cost**                                 |     $ 0 / mo    |    $ 0 / mo      |          $ 20 – 100 / mo                |
-| **Vocab mismatch** (NL → code identifier)|       ✓         |       ✗          |                  ✓                      |
+Sized against **four named alternatives**, not generic categories.
+
+<p align="center">
+  <img alt="skylakegrep — comparison matrix vs ripgrep, mgrep (predecessor), autodev-codebase, Sourcegraph Cody" src="docs/assets/comparison-matrix.svg" width="100%">
+</p>
+
+<details>
+<summary>Same data as a plain markdown table</summary>
+
+|                                              | **skylakegrep** v0.2.15 | `ripgrep` (lexical) | mgrep (predecessor) | autodev-codebase | Sourcegraph Cody (cloud) |
+|----------------------------------------------|:-----------------------:|:-------------------:|:-------------------:|:----------------:|:------------------------:|
+| Find by **concept**, not just token          |           ✓             |          ✗          | legacy substrate    |        ✓         |             ✓            |
+| **Privacy** — no data egress                  |           ✓             |          ✓          |          ✓          |        ✓         |   ✗ (cloud-side index)   |
+| **Content** — code · md · PDF · docx          |        all four         |       text only     |     code-first      |   code-first     |        code-first        |
+| **Setup**                                    |     `pip install`       |    `brew install`   |    `pip install`    |  npm + Ollama    |       account + sub      |
+| **Cost**                                     |       $ 0 / mo          |       $ 0 / mo      |       $ 0 / mo      |     $ 0 / mo     |    $ 20 – 100+ / mo      |
+| **Multilingual** queries (NL → code id)       |    bge-m3 native        |         n/a         |   English-leaning   |  embedder-dep.   |         supported        |
+
+`mgrep` is the predecessor; skylakegrep is the next-generation evolution
+with bge-m3 substrate + content-agnostic graph + σ-adaptive cascade.
+[`autodev-codebase`](https://github.com/anrgct/autodev-codebase) is the
+closest direct competitor in the offline-Ollama-CLI lane.
+
+</details>
 
 ---
 
@@ -174,12 +190,21 @@ cascade with the local LLM kept warm in memory.
 Public-OSS reproducible benchmark across three popular codebases
 (Django · React · Tokio · 30 hand-labelled questions, 10 each):
 
+<p align="center">
+  <img alt="skylakegrep — public-OSS benchmark performance (30/30 recall on Django + Tokio + React)" src="docs/assets/performance-matrix.svg" width="100%">
+</p>
+
+<details>
+<summary>Same data as a plain markdown table</summary>
+
 | Repo            | Lang     | LOC ≈ | skygrep recall | rg recall | Token reduction vs `rg` |
 |-----------------|----------|------:|:--------------:|:---------:|:-----------------------:|
 | **Django**      | Python   | 524 K |   **10 / 10**  |  10 / 10  |      **703 ×**          |
 | **Tokio**       | Rust     |  80 K |   **10 / 10**  |  10 / 10  |      **61 ×**           |
 | **React**       | JS · TS  | 270 K |   **10 / 10**  |  10 / 10  |      **773 ×**          |
 | **Aggregate**   |          |       | **30 / 30** (100 %) | 30 / 30 |   **60 × – 770 ×**      |
+
+</details>
 
 Honest reading:
 
