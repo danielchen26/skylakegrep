@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="release notes · v0.3.1 — principled rollback" />
+ <meta name="theme-color" content="#13192a" />
+ <title>v0.3.1 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.3.1" />
+ <style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+</style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html"><span class="brand-text">skylakegrep</span><span class="version">v0.3.1</span></a>
+ <nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a></nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section"><p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section"><p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div></nav></aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">release notes · v0.3.1 — principled rollback</p>
+<h1>skylakegrep 0.3.1 — principled rollback of graph-walk integration</h1>
+<p>This is a <strong>patch release</strong>: zero new features, one principled
+rollback. <strong>Production behaviour now strictly equals 0.2.21</strong> —
+both cheap path and escalation path are unchanged from 0.2.21.</p>
+<h2>What happened</h2>
+<p>0.3.0 shipped a graph-walk retrieval substrate:</p>
+<ul>
+<li>SQLite tables for nodes + edges (4 cheap edge types)</li>
+<li><code>graph_walk.py</code> — bounded Personalized PageRank</li>
+<li><code>query_seeds.py</code> — cold-start 4-matcher seed mapper</li>
+<li><code>graph_substrate.py</code> — index-time edge builder</li>
+<li>Cascade integration gated behind <code>SKYGREP_GRAPH_WALK=1</code></li>
+</ul>
+<p>The integration was claimed (in the 0.3.0 release notes) to satisfy
+two by-construction invariants — <em>latency unchanged</em> and <em>accuracy
+non-regressing</em>. <strong>Those claims were not measured.</strong></p>
+<p>After shipping, the first real-corpus end-to-end benchmark
+(<code>benchmarks/graph_walk_bench.py</code>, 5 queries on
+<code>skylakegrep/src/</code>) was run. Result:</p>
+<ul>
+<li><strong>2 / 5 queries hit the expected file</strong> (40 %).</li>
+<li>Walk latency was fine (p50 = 6.4 ms).</li>
+<li>But the <strong>right answer was correctly identified by the seed
+    mapper at 55 % seed mass</strong> (Q1: <code>graph_walk.py</code>), then
+    <strong>diluted out of the top-5 by the PPR walk's preset edge
+    weights</strong>.</li>
+</ul>
+<p>The root cause: 0.3.0 introduced <strong>9 + preset hyperparameters</strong>:</p>
+<pre><code>match_filenames     score_per_hit = 1.0
+match_symbols       score_per_hit = 1.5
+match_path_tokens   score_per_hit = 0.5
+match_semantic      threshold     = 0.45
+graph_substrate     path_prox     = 0.35
+graph_walk          α             = 0.15
+graph_walk          eps           = 1e-3
+graph_walk          max_visited   = 200
+graph_walk          top_k_edges   = 8
+</code></pre>
+<p>Each one a hand-chosen magic number. Each one a future tech-debt
+liability. Together they fully violate <code>docs/PRINCIPLES.md</code>
+Principle 1 — <em>Understanding &gt; Enumeration</em>. A learned bandit on
+top of nine handcrafted constants is not "intelligent retrieval";
+it's a lookup table with extra steps.</p>
+<p>User flagged it directly:</p>
+<blockquote>
+<p>你这里所谓的权重是怎么调的你是 preset 的呢还是这个 automatically
+的调的 … 所有的东西都不能 preset 要不然这就变成了 hyperparameter
+我们不能要这么多的 hyperparameter 因为这会 accumulate 这种
+technical debt</p>
+</blockquote>
+<h2>What 0.3.1 changes</h2>
+<p><strong>Three concrete moves.</strong> Detail in
+<a href="release-0.3.0-graph-walk.html"><code>benchmarks/release-0.3.0-graph-walk.md</code></a>.</p>
+<h3>1. Cascade integration removed</h3>
+<p><code>_graph_walk_candidates</code> is no longer called from <code>cascade_search</code>.
+The <code>SKYGREP_GRAPH_WALK</code> env var is dead — toggling it has no
+effect. The escalation path reverts to 0.2.21's pure
+Round-A ∪ Round-C union.</p>
+<h3>2. Preset score-per-hit constants stripped from <code>query_seeds.py</code></h3>
+<p>All four matchers (<code>match_filenames</code>, <code>match_symbols</code>,
+<code>match_path_tokens</code>, <code>match_semantic</code>) now return <strong>raw token-hit
+counts</strong> (or, for semantic, the cosine score itself which is
+data-derived). No <code>1.0</code> / <code>1.5</code> / <code>0.5</code> ratios anywhere in the
+seed mapper.</p>
+<h3>3. <code>path_prox</code> edge weight derived from data</h3>
+<p>Instead of the preset <code>0.35</code> (earlier <code>0.7</code>) constant, the weight is
+now <code>1 / (1 + max(0, 8 - depth))</code> — depth-derived from the file's
+path itself, no free parameter.</p>
+<h2>What stays — substrate as primitive</h2>
+<p>The schema (<code>graph_node</code>, <code>graph_edge</code> tables), the modules
+(<code>graph_walk.py</code>, <code>query_seeds.py</code>, <code>graph_substrate.py</code>), and the
+20 unit tests <strong>all stay</strong>. They're useful primitives — just not
+on the cascade critical path until weights can be derived from
+corpus statistics rather than human picks.</p>
+<p>When graph-walk reintegration is attempted again, the weights and
+walk parameters MUST come from one of:</p>
+<ul>
+<li><strong>TF-IDF derived from the corpus</strong>: edge weight =
+    <code>log(N_files / N_files_containing_token)</code></li>
+<li><strong>Learned per-query by the LLM router</strong>: α tuned by the same
+    head that already classifies intent / scope / primary_token</li>
+<li><strong>σ-adaptive walk stop</strong>: replace <code>eps</code> with the same Bayesian
+    σ-evidence framing already used in <code>cascade_search</code> —
+    <code>eps_eff = max(eps_floor, k · σ(top_K_residuals))</code></li>
+</ul>
+<p>None of these are implemented in 0.3.1; they're the design contract
+for the next attempt.</p>
+<h2>Compatibility</h2>
+<ul>
+<li>Python: unchanged — 3.9+</li>
+<li>Default embedder / LLM router: unchanged</li>
+<li>Wheel surface: unchanged</li>
+<li>Index format: forward-compatible (graph tables stay; data
+    written by 0.3.0 is preserved but not consumed)</li>
+<li>JSON output schema: unchanged</li>
+<li><strong>Production behaviour identical to 0.2.21</strong> (the v0.3.0
+    cascade integration is the only thing that changed; rolling it
+    back returns to the prior baseline)</li>
+</ul>
+<h2>Bench numbers</h2>
+<ul>
+<li>Public-OSS bench: identical to 0.2.21 (cascade unchanged).</li>
+<li>Real-corpus 5-query bench: cascade-only baseline (no graph
+    walk) is now the operating point; the substrate-integrated
+    2 / 5 result is <strong>the rollback receipt</strong>, documented in
+    <code>benchmarks/release-0.3.0-graph-walk.md</code>.</li>
+<li>Tests: 221 / 221 pass.</li>
+</ul>
+<h2>Auto-memory entry added</h2>
+<p><code>feedback_comprehensive_test_before_release.md</code> — every release
+must include real-corpus end-to-end benchmark with concrete numbers,
+not just unit tests. Unit tests passed in 0.3.0 (20 / 20 in
+<code>test_graph_walk.py</code>); the integration still failed because <strong>unit
+correctness is not end-to-end intelligence</strong>.</p>
+<h2>Acknowledgments</h2>
+<p>User caught the principle violation in two messages:
+  1. <em>"你有做test来去证明和benchmark吗以後每一次release前都要做
+     comprehensive test"</em> — every release needs comprehensive end-
+     to-end test
+  2. <em>"所有的东西都不能 preset … 我们不能要这么多的 hyperparameter
+     … 我们要的 intelligence 是要足够的 generic 的"</em> — no preset
+     hyperparameters; intelligence must be generic</p>
+<p>Both lessons are now in auto-memory and reflected in the rollback.
+This is the right kind of release: smaller, more honest, restores
+strict baseline behaviour, documents what didn't work and why.</p>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

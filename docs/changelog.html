@@ -66,6 +66,25 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.3.1 · principled rollback</div>
+ <h3>Graph-walk integration rolled back; preset hyperparameters stripped</h3>
+ <p>
+ 0.3.0 shipped on by-construction arguments without an end-to-end
+ bench. First real-corpus run (5 queries on
+ <code>skylakegrep/src/</code>) showed only <strong>2/5</strong>
+ hits — the seed mapper correctly ranked the answer first
+ (graph_walk.py at 55% seed mass), but PPR walk diluted it through
+ 9+ preset edge weights into structurally-adjacent siblings.
+ 0.3.1 reverts the cascade integration (production behaviour ≡
+ 0.2.21), strips all <code>score_per_hit</code> constants,
+ derives <code>path_prox</code> weight from path depth. Substrate
+ modules + tests stay; integration deferred until weights are
+ derived from corpus stats. Full benchmark and rollback rationale
+ in <a href="release-0.3.0-graph-walk.html">benchmarks/release-0.3.0-graph-walk.md</a>.
+ </p>
+ <a class="release-link" href="skylakegrep-0.3.1.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.3.0 · graph-walk retrieval (v2 MVP)</div>
  <h3>Knowledge-graph substrate · cold-start seeds · bounded PPR walk</h3>
  <p>

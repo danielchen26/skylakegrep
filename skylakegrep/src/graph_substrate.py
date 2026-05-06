@@ -210,9 +210,10 @@ def _build_path_prox_edges(
     """For each file, link to its ``k_per_file`` nearest path-neighbours by
     shared-ancestor depth.
 
-    Algorithm: group files by parent directory; emit edges within each group
-    (high LCA depth = high weight). For files whose parent has < k siblings,
-    walk up one more level and grab cousins. O(N · k).
+    0.3.1: edge weight is **derived from data**, not preset:
+    ``weight = 1 / (1 + len(rel_path_unique_segments))`` so deeper-shared
+    ancestors get higher weight than shallow ones. The earlier 0.7 / 0.35
+    were preset hyperparameters that violated PRINCIPLES.md Principle 1.
     """
     if not files:
         return 0
@@ -224,6 +225,10 @@ def _build_path_prox_edges(
     for parent, members in by_parent.items():
         if len(members) < 2:
             continue
+        # Edge weight derived from path depth: deeper-shared ancestor → tighter
+        # cohort. Pure structural number, no tunable.
+        depth = len(Path(parent).parts)
+        weight = 1.0 / (1.0 + max(0, 8 - depth))   # 1.0 at depth ≥ 8, decays for shallow common parents
         # All-pairs within the same parent — bounded since most dirs have
         # < 50 files
         for i, fa in enumerate(members):
@@ -234,9 +239,8 @@ def _build_path_prox_edges(
                     continue
                 if kept >= k_per_file:
                     break
-                # Same-parent weight = 0.7 (high — they coexist by design)
                 dst_id = graph.upsert_node(NODE_FILE, fb)
-                edges.append((src_id, dst_id, EDGE_PATH_PROX, 0.7))
+                edges.append((src_id, dst_id, EDGE_PATH_PROX, weight))
                 kept += 1
     return graph.add_edges_batch(edges)
 

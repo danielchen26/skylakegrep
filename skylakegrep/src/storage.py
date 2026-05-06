@@ -1207,54 +1207,31 @@ def cascade_search(
         use_symbol_boost=use_symbol_boost,
         use_graph_tiebreak=use_graph_tiebreak,
     )
-    # 0.3.0+: graph-walk third candidate source. Gated behind
-    # ``SKYGREP_GRAPH_WALK=1`` for the MVP — the cheap path is unchanged,
-    # the escalation path adds graph-walk candidates as a purely additive
-    # third source so the rerank pool can promote previously-missed files.
-    # See docs/plans/2026-05-05-graph-prior-folder-inference.md § 14, § 15
-    # (latency + accuracy invariants — by construction this only ADDS to
-    # the candidate pool, never demotes).
-    gw_results: list[dict] = []
-    gw_telemetry: dict = {}
-    if os.environ.get("SKYGREP_GRAPH_WALK") == "1":
-        gw_paths, gw_telemetry = _graph_walk_candidates(
-            conn, query_text, query_embedding,
-            expected_dim=int(qv.size) if qv.size else None,
-            top_k=max(top_k * 2, 20),
-            budget_ms=600,
-        )
-        if gw_paths:
-            gw_results = search(
-                conn,
-                query_embedding,
-                top_k=top_k,
-                languages=languages,
-                include_patterns=include_patterns,
-                exclude_patterns=exclude_patterns,
-                query_text=query_text,
-                rerank=False,
-                multi_resolution=True,
-                file_top=top_k,
-                candidate_paths=set(gw_paths),
-                rank_by="file",
-                use_symbol_boost=use_symbol_boost,
-                use_graph_tiebreak=use_graph_tiebreak,
-            )
-
+    # 0.3.1: graph-walk integration ROLLED BACK from cascade_search.
+    # 0.3.0 introduced ``SKYGREP_GRAPH_WALK=1`` gating a third candidate
+    # source from the v2 substrate, but the integration relied on >9
+    # preset weights (``path_prox=0.35``, ``score_per_hit=1.0/1.5/0.5``,
+    # ``α=0.15``, ``eps=1e-3``, ``max_visited=200``, ``top_k_edges=8``,
+    # ``semantic_threshold=0.45``, ``containment=1.0``) — all hand-tuned
+    # magic numbers, exactly the kind of hyperparameter accumulation
+    # PRINCIPLES.md Principle 1 ("Understanding > Enumeration") forbids.
+    # Real-corpus bench (`benchmarks/release-0.3.0-graph-walk.md`) showed
+    # the seed mapper correctly ranked the answer first (graph_walk.py at
+    # 55% seed mass on Q1) but PPR walk diluted it through those preset
+    # edge weights so the top-5 dropped the right file. The substrate
+    # (graph_node / graph_edge tables, ``graph_walk.py``, ``query_seeds.py``)
+    # stays for principled-weight follow-up; the *integration* is
+    # reverted in 0.3.1 until weights are derived from corpus statistics
+    # rather than presets.
     merged: dict[tuple, dict] = {}
-    for r in a + c + gw_results:
+    for r in a + c:
         key = (r.get("path"), r.get("start_line"), r.get("end_line"))
         if key not in merged or r.get("score", 0.0) > merged[key].get("score", 0.0):
             merged[key] = r
     out = sorted(merged.values(), key=lambda r: r.get("score", 0.0), reverse=True)[:top_k]
-    telemetry = {
-        "early_exit": False, "gap": gap, "tau": tau_eff,
-        "tau_static": tau, "tau_mode": tau_mode,
-        "path": "cosine-escalated-rerank",
-    }
-    if gw_telemetry:
-        telemetry["graph_walk"] = gw_telemetry
-    return out, telemetry
+    return out, {"early_exit": False, "gap": gap, "tau": tau_eff,
+                 "tau_static": tau, "tau_mode": tau_mode,
+                 "path": "cosine-escalated-rerank"}
 
 
 def get_indexed_files(conn) -> dict:

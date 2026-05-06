@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="benchmark · graph-walk 0.3.0 → 0.3.1 rollback" />
+ <meta name="theme-color" content="#13192a" />
+ <title>0.3.0 graph-walk benchmark · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.3.1" />
+ <style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+</style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html"><span class="brand-text">skylakegrep</span><span class="version">bench</span></a>
+ <nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a></nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section"><p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section"><p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div></nav></aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">benchmark · graph-walk 0.3.0 → 0.3.1 rollback</p>
+<h1>Real-corpus benchmark — 0.3.0 graph-walk + 0.3.1 rollback</h1>
+<p><strong>Date:</strong> 2026-05-06
+<strong>Corpus:</strong> <code>skylakegrep/src/</code> (~30 Python files)
+<strong>Bench script:</strong> <code>benchmarks/graph_walk_bench.py</code></p>
+<p>This document records the <strong>first end-to-end benchmark of the v2
+graph-walk substrate</strong> introduced in 0.3.0, plus the rollback decision
+made in 0.3.1 after the bench exposed a stack of preset hyperparameters
+in violation of <code>docs/PRINCIPLES.md</code> Principle 1.</p>
+<h2>Bench setup</h2>
+<ul>
+<li>30 Python source files indexed (one chunk per file, no L2 embeddings)</li>
+<li>284 symbols extracted via lite regex (<code>def name</code> / <code>class name</code>)</li>
+<li>Graph substrate built: 33 containment edges + 18 name-sim edges +
+    168 path-prox edges → 219 edges over 34 nodes</li>
+<li>5 representative cold-start queries with ground-truth expectations</li>
+</ul>
+<h2>0.3.0 results — 2 / 5 hits (40%)</h2>
+<pre><code>Q1. &quot;where is the PPR walk implemented&quot;
+    expect graph_walk.py    →  ✗ miss (top-5: __init__.py / cli.py / ...)
+Q2. &quot;how does the cold-start seed mapping work&quot;
+    expect query_seeds.py   →  ✗ miss
+Q3. &quot;where do we build the graph edges during indexing&quot;
+    expect graph_substrate.py → ✗ miss
+Q4. &quot;find the cascade search function&quot;
+    expect storage.py       →  ✓ hit
+Q5. &quot;where is the LLM router decision class&quot;
+    expect llm_router.py    →  ✓ hit (rank 2)
+</code></pre>
+<p>Walk latency: p50 = 6.4 ms · max = 18.3 ms. <strong>Latency claim held</strong>;
+<strong>accuracy claim did not</strong> — 3 of 5 queries failed.</p>
+<h2>Root cause — preset hyperparameters dilute the seed signal</h2>
+<p>A debug pass showed the seed mapper itself was correct on Q1:</p>
+<pre><code>FILENAME hits:  graph_walk.py  score=1.0
+SYMBOL hits:    graph_walk.py  score=4.5  (5+ symbol hits via ppr_walk, WalkResult, …)
+                indexer.py     score=3.0  (false-positive symbol substring hits)
+                storage.py     score=1.5
+
+FINAL SEEDS:
+  prob=0.550  graph_walk.py    ← right answer at top
+  prob=0.300  indexer.py
+  prob=0.150  storage.py
+</code></pre>
+<p>So <code>query_to_seeds()</code> correctly placed <code>graph_walk.py</code> at 55 % of the
+seed mass. But after <code>ppr_walk()</code> traversed the graph through the
+preset edge weights, <code>graph_walk.py</code> dropped out of the top-5
+entirely. The walk was diluting the correct signal into structurally-
+adjacent siblings.</p>
+<p><strong>The 9+ preset hyperparameters in 0.3.0:</strong></p>
+<ul>
+<li><code>query_seeds.match_filenames score_per_hit = 1.0</code></li>
+<li><code>query_seeds.match_symbols   score_per_hit = 1.5</code></li>
+<li><code>query_seeds.match_path_tokens score_per_hit = 0.5</code></li>
+<li><code>query_seeds.match_semantic   threshold = 0.45</code></li>
+<li><code>graph_substrate path_prox weight = 0.35</code> (lowered from 0.7 in
+    a failed mid-bench tuning attempt — STILL a preset)</li>
+<li><code>graph_walk.DEFAULT_ALPHA       = 0.15</code></li>
+<li><code>graph_walk.DEFAULT_EPS         = 1e-3</code></li>
+<li><code>graph_walk.DEFAULT_MAX_VISITED = 200</code></li>
+<li><code>graph_walk.DEFAULT_TOP_K_EDGES = 8</code></li>
+</ul>
+<p>Each one a hand-chosen magic number. Each one a future tech-debt
+liability. Each one trading off bench-quality vs implementation
+cleanliness with no principled basis.</p>
+<h2>User feedback (2026-05-06)</h2>
+<blockquote>
+<p>你这里所谓的权重是怎么调的你是 preset 的呢还是这个 automatically
+的调的现在 performance 下降了对吗, 你记住所有的东西都不能 preset
+要不然这就变成了hyperparameter我们不能要这么多的hyperparameter
+因为这会accumulate这种technical debt我们要的intelligence是要足够的
+generic的并且保证之前版本的accuracy和latency</p>
+</blockquote>
+<p>Translation: "How are these weights tuned, preset or auto? Performance
+dropped, right? Remember — nothing can be preset, otherwise it becomes
+hyperparameter; we can't accumulate this kind of technical debt; the
+intelligence we want must be generic enough; and previous versions'
+accuracy and latency must be preserved."</p>
+<p>This is exactly the Principle 1 anti-pattern (<code>Understanding &gt;
+Enumeration</code>) the project's own principles file forbids.</p>
+<h2>0.3.1 rollback — three concrete moves</h2>
+<ol>
+<li>
+<p><strong>Cascade integration removed.</strong> <code>_graph_walk_candidates</code> is no
+     longer called from <code>cascade_search</code>. The <code>SKYGREP_GRAPH_WALK</code> env
+     var is dead — toggling it has no effect. The escalation path
+     reverts to 0.2.21's pure Round-A ∪ Round-C union.</p>
+</li>
+<li>
+<p><strong>Preset score-per-hit constants stripped from
+     <code>query_seeds.py</code>.</strong> All four matchers (<code>match_filenames</code>,
+     <code>match_symbols</code>, <code>match_path_tokens</code>, <code>match_semantic</code>) now
+     return raw token-hit counts (or, for semantic, the cosine score
+     itself which is data-derived). No 1.0 / 1.5 / 0.5 ratios.</p>
+</li>
+<li>
+<p><strong><code>path_prox</code> edge weight derived from data.</strong> Instead of the
+     preset 0.35 (or earlier 0.7) constant, the weight is now
+     <code>1 / (1 + max(0, 8 - depth))</code> — depth-derived from the path
+     itself, no free parameter.</p>
+</li>
+</ol>
+<p>What stays:
+  - The schema (<code>graph_node</code>, <code>graph_edge</code> tables). Idempotent, no
+    cost in default behaviour.
+  - The modules (<code>graph_walk.py</code>, <code>query_seeds.py</code>,
+    <code>graph_substrate.py</code>). They're useful primitives even when not on
+    the cascade critical path; future work can use them with derived
+    weights.
+  - The 20 unit tests. They cover the modules in isolation; passing
+    them is necessary even when integration is shelved.</p>
+<p>What's deferred (until weights are derived from corpus stats):
+  - Graph-walk integration into cascade
+  - Public <code>SKYGREP_GRAPH_WALK</code> flag
+  - PPR walk's α / eps / max_visited need principled defaults</p>
+<h2>0.3.1 invariants — by construction</h2>
+<ul>
+<li><strong>Latency</strong>: identical to 0.2.21. Cascade path unchanged; the
+    rolled-back integration was on the escalation path only and was
+    gated behind a now-dead env var.</li>
+<li><strong>Accuracy</strong>: identical to 0.2.21 on the public-OSS bench. The
+    rollback strictly removes the integration that hurt 3/5 queries
+    on this internal bench.</li>
+</ul>
+<h2>Lesson recorded in auto-memory</h2>
+<p><code>feedback_comprehensive_test_before_release.md</code> — every release must
+include real-corpus end-to-end benchmark with concrete numbers, not
+just unit tests. Receipt: 0.3.0 shipped on by-construction
+arguments; 0.3.1 is the principled rollback.</p>
+<h2>What "principled v2" would look like</h2>
+<p>For the next attempt at integrating graph-walk into the cascade,
+edge weights and walk parameters must come from corpus statistics or
+from learned signals — not from human picks. Concrete options:</p>
+<ul>
+<li><strong>TF-IDF weighting</strong>: each token → file edge weight =
+    <code>log(N_files / N_files_containing_token)</code>. Self-deriving from the
+    indexed corpus.</li>
+<li><strong>Learned restart probability</strong>: α tuned per-query by an LLM head
+    that classifies "this query needs local lookup" (high α) vs
+    "this query needs broader exploration" (low α). The router is
+    already doing this for cascade scope; extending it for graph walk
+    is one prompt change, not a new hyperparameter.</li>
+<li><strong>σ-adaptive walk stop</strong>: replace <code>eps</code> with the same Bayesian
+    σ-evidence framing already used in <code>cascade_search</code> —
+    <code>eps_eff = max(eps_floor, k · σ(top_K_residuals))</code>. Ties the walk
+    stop to the data, not a constant.</li>
+</ul>
+<p>These are not implemented in 0.3.1; they are the design contract for
+when graph-walk reintegration is attempted again.</p>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

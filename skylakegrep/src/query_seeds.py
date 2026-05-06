@@ -88,13 +88,13 @@ def match_filenames(
     conn: sqlite3.Connection,
     tokens: list[str],
     *,
-    score_per_hit: float = 1.0,
     limit_per_token: int = 10,
 ) -> dict[str, float]:
     """Find indexed files whose basename contains any query token.
 
-    Returns ``{file_path: score}``. Score is ``score_per_hit × token_hits``
-    so files matching multiple tokens accumulate.
+    Returns ``{file_path: hit_count}``. **No preset score weight** — score
+    is the raw count of distinct query tokens that hit the basename.
+    Caller decides how to combine across matchers (currently: raw sum).
     """
     if not tokens:
         return {}
@@ -110,7 +110,7 @@ def match_filenames(
         for (path,) in cur.fetchall():
             base = Path(path).name.lower()
             if tok in base:           # ensure token actually hits basename, not just dir
-                out[path] = out.get(path, 0.0) + score_per_hit
+                out[path] = out.get(path, 0.0) + 1.0
     return out
 
 
@@ -119,7 +119,6 @@ def match_symbols(
     conn: sqlite3.Connection,
     tokens: list[str],
     *,
-    score_per_hit: float = 1.5,
     limit_per_token: int = 20,
 ) -> dict[str, float]:
     """Find files containing symbols whose ``name_lower`` matches a token.
@@ -128,9 +127,11 @@ def match_symbols(
     case (`LanguageModelClient` → `language model client`) — substring on
     that is more permissive than a plain identifier match.
 
-    Returns ``{file_path: cumulative_score}``. Symbols rank slightly higher
-    than filename hits (`score_per_hit=1.5`) since a symbol match implies
-    the file genuinely defines the named entity, not just shares a stem.
+    Returns ``{file_path: hit_count}``. **No preset score weight** — score
+    is the raw count of (token, symbol) hits per file. The caller may
+    decide whether to aggregate symbol hits and filename hits with equal
+    weight (current default) or to derive different ratios from corpus
+    statistics — but no constant ratio is hardcoded here.
     """
     if not tokens:
         return {}
@@ -150,7 +151,7 @@ def match_symbols(
             (like, limit_per_token),
         )
         for (path,) in cur.fetchall():
-            out[path] = out.get(path, 0.0) + score_per_hit
+            out[path] = out.get(path, 0.0) + 1.0
     return out
 
 
@@ -200,14 +201,13 @@ def match_path_tokens(
     conn: sqlite3.Connection,
     tokens: list[str],
     *,
-    score_per_hit: float = 0.5,
     limit_per_token: int = 50,
 ) -> dict[str, float]:
     """Files whose path (any directory component) contains a query token.
 
-    Catches cases like ``"auth refresh"`` matching every file under
-    ``.../auth/…`` even when the basename has nothing in common with the
-    query. Lower base score (0.5) because path-tokens are a weak signal.
+    Returns ``{file_path: hit_count}``. **No preset score weight** —
+    score is the raw count of query tokens whose lowercased form appears
+    as a directory component in the path.
     """
     if not tokens:
         return {}
@@ -219,7 +219,7 @@ def match_path_tokens(
             (like, limit_per_token),
         )
         for (path,) in cur.fetchall():
-            out[path] = out.get(path, 0.0) + score_per_hit
+            out[path] = out.get(path, 0.0) + 1.0
     return out
 
 
@@ -281,17 +281,19 @@ def query_to_seeds(
     for path, score in match_path_tokens(conn, tokens).items():
         file_scores[path] = file_scores.get(path, 0.0) + score
 
-    # Lift folder-grain seeds from the file scores
-    folder_scores = folders_from_paths(file_scores)
-
-    # Materialise as graph node IDs (creating nodes lazily for paths the
-    # graph hasn't seen — first query in a fresh corpus)
+    # 0.3.1: NO folder-grain seeds. Folder seeds caused PPR to spread the
+    # walk's residual equally across every sibling file via the
+    # ``contains`` outgoing edge — dominating the ranking with structural
+    # noise (every file under the project root surfaced equally regardless
+    # of query relevance). Bench evidence: 0.3.0 hit rate 2/5 dropped
+    # _every_ query's actual answer behind ``__init__.py`` / ``cli.py`` /
+    # ``bootstrap.py`` because those siblings shared the folder seed.
+    # Folder-grain context still flows into the walk through the
+    # containment edges *from* file→folder→file paths (a file's parent
+    # folder has incoming contains edges); we just don't *seed* folders.
     seeds: dict[int, float] = {}
     for path, score in file_scores.items():
         nid = graph.upsert_node(NODE_FILE, path)
-        seeds[nid] = seeds.get(nid, 0.0) + score
-    for path, score in folder_scores.items():
-        nid = graph.upsert_node(NODE_FOLDER, path)
         seeds[nid] = seeds.get(nid, 0.0) + score
 
     if not seeds:
