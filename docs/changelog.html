@@ -66,6 +66,27 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.4.1 · real-corpus bench backfill</div>
+ <h3>Honest end-to-end measurement of 0.4.0 graph_expand on real bge-m3</h3>
+ <p>
+ Backfills the real-CLI bench that 0.4.0 should have included
+ before shipping. Indexed 27 Python files of skylakegrep itself
+ with real bge-m3 embeddings, populated 108 graph nodes + 190
+ reference edges, ran 5 representative semantic queries with
+ tau=0 forced escalation. <strong>graph_expand fired correctly
+ on 3/3 escalated queries</strong> (4–9 candidates contributed
+ each), <strong>correctly skipped on 2/2 cheap-path queries</strong>,
+ latency invariant held (cheap path ~7ms, escalation 1.7–2.6s).
+ Top-5 hit rate 3/5 on this bench — substrate works, but doesn't
+ magically improve recall on queries where the answer is 2+ hops
+ from cosine top-K. Honest framing now propagated to all GH
+ surfaces. New auto-memory rule: every release MUST include real
+ corpus end-to-end run before public-surface update.
+ Full bench: <a href="release-0.4.0-real-corpus.html">benchmarks/release-0.4.0-real-corpus.md</a>.
+ </p>
+ <a class="release-link" href="skylakegrep-0.4.1.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.4.0 · holistic graph-aware retrieval (zero new hyperparameters)</div>
  <h3>1-hop reference-graph expansion in cascade escalation — by-construction additive, by-construction latency-neutral</h3>
  <p>

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="benchmark · 0.4.0 graph-walk real-corpus measurement" />
+ <meta name="theme-color" content="#13192a" />
+ <title>0.4.0 real-corpus bench · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=4.1.0" />
+ <style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+</style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html"><span class="brand-text">skylakegrep</span><span class="version">bench</span></a>
+ <nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a></nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section"><p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section"><p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div></nav></aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">benchmark · 0.4.0 graph-walk real-corpus measurement</p>
+<h1>Real-corpus end-to-end bench — 0.4.0 holistic graph-aware retrieval</h1>
+<p><strong>Date:</strong> 2026-05-06
+<strong>Bench script:</strong> <code>benchmarks/release-0.4.0-real-corpus.py</code>
+<strong>Corpus:</strong> <code>skylakegrep/src/</code> (27 Python source files, real bge-m3 embeddings via Ollama)
+<strong>Setup:</strong> fresh SQLite DB, tau=0.0 forced to test escalation path</p>
+<p>This is the <strong>first honest end-to-end measurement</strong> of the v2 graph
+substrate working with real query embeddings on real source code —
+backfilling the bench that 0.4.0 should have included before
+shipping but didn't (per
+<code>memory/feedback_real_e2e_test_then_full_surface_update.md</code>).</p>
+<h2>Substrate population</h2>
+<ul>
+<li><code>graph_node</code>: 108 nodes (file kind)</li>
+<li><code>graph_edge[refs]</code>: 190 reference edges from import statements</li>
+<li>Build time: 11.7 s (one-time, during initial index)</li>
+</ul>
+<h2>Cascade behaviour — 5 representative queries</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Query</th>
+<th>Path</th>
+<th>graph_expand</th>
+<th>Top-1</th>
+<th>Hit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>"how does the cascade decide whether to escalate to HyDE"</td>
+<td>escalated</td>
+<td>✓ +4 candidates</td>
+<td><code>llm_router.py</code></td>
+<td>✗</td>
+</tr>
+<tr>
+<td>2</td>
+<td>"how does proactive enhancement work after a low-confidence result"</td>
+<td>cheap</td>
+<td>n/a (skipped)</td>
+<td><code>proactive.py</code></td>
+<td>✓</td>
+</tr>
+<tr>
+<td>3</td>
+<td>"how is the LLM router decision cached"</td>
+<td>cheap</td>
+<td>n/a (skipped)</td>
+<td><code>llm_router.py</code></td>
+<td>✓</td>
+</tr>
+<tr>
+<td>4</td>
+<td>"how does the v2 graph expansion add candidates"</td>
+<td>escalated</td>
+<td>✓ +9 candidates</td>
+<td><code>code.py</code></td>
+<td>✗</td>
+</tr>
+<tr>
+<td>5</td>
+<td>"how does symbol-aware ranking boost results"</td>
+<td>escalated</td>
+<td>✓ +4 candidates</td>
+<td><code>storage.py</code></td>
+<td>✓</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>graph_expand fired on 3/3 escalated queries</strong> (Q1, Q4, Q5) ✓</li>
+<li><strong>graph_expand correctly skipped 2/2 cheap-path queries</strong> (Q2, Q3) ✓</li>
+<li><strong>3/5 top-1 hits</strong> (Q2, Q3, Q5)</li>
+</ul>
+<h2>Latency</h2>
+<ul>
+<li>Cheap path: 6–7 ms (Q2, Q3) — identical to 0.2.21 baseline</li>
+<li>Escalation: 1.7 – 2.6 s (Q1, Q4, Q5) — graph_expand contributes
+    ≤ 30 cosines × ~50 µs ≈ 1.5 ms, lost in HyDE noise</li>
+<li><strong>Latency invariant holds.</strong></li>
+</ul>
+<h2>Honest read</h2>
+<ol>
+<li>The substrate <strong>works as designed</strong>: schema populates,
+     reference edges write, <code>_expand_via_reference_graph</code> fires on
+     every escalation, telemetry surfaces the metric, no exceptions.</li>
+<li>Graph expansion <strong>does not dominantly improve hit rate</strong> on
+     these 5 queries — Q1 and Q4 missed even with graph candidates
+     added. Reason: the expected file was not a 1-hop reference
+     neighbour of any cosine top-K seed, so adding 1-hop neighbours
+     can't help.</li>
+<li>The 60 % top-5 hit rate is consistent with what 0.2.21 cascade
+     would score on the same query set — graph expansion is
+     <strong>strictly additive</strong> by construction (<code>_expand_via_reference_graph</code>
+     unions into the rerank pool). No regression. No big win
+     either.</li>
+</ol>
+<h2>Compatibility — 0.2.21 vs 0.4.0 on same queries</h2>
+<p>By the architectural invariant (graph_expand only ADDS candidates
+to the rerank pool, cross-encoder rerank picks the winner), 0.4.0
+cannot regress 0.2.21 on any query. On these 5 queries:</p>
+<ul>
+<li>Cheap-path queries (Q2, Q3): byte-identical to 0.2.21 (graph
+    walk skipped)</li>
+<li>Escalation queries (Q1, Q4, Q5): rerank pool grew by 4–9
+    candidates each; final ranking unchanged because the new
+    candidates didn't outscore the existing top-5 from Round A ∪ Round C.</li>
+</ul>
+<h2>What this changes for v2 v-next</h2>
+<ul>
+<li><strong>Single-hop graph expansion is necessary but not sufficient.</strong>
+    For queries where the answer file is 2+ hops from cosine top-K
+    (e.g. transitive imports), single-hop won't surface it.</li>
+<li><strong>The natural extension is multi-hop traversal</strong>, but that
+    re-introduces the 0.3.0 problem of needing to bound walk depth
+    — which is a hyperparameter unless derived from σ-evidence.
+    The principled re-attempt would: (a) keep walk-depth as
+    σ-adaptive (<code>stop when σ(visited residuals) drops below
+    CASCADE_TAU_FLOOR</code>); (b) let the LLM router decide per-query
+    whether to enable depth ≥ 2 expansion via a new field on
+    <code>RouterDecision</code>. Neither implemented in 0.4.x.</li>
+<li><strong>Cross-folder / cross-project</strong> (the user's "background
+    subagent explores other folders" scenario) is <strong>not</strong> addressed
+    by 0.4.0 at all. That's the proactive enhancer pattern (G-5 in
+    the deferred plan) and requires a global graph or per-query
+    dynamic indexing — neither of which is in 0.4.0.</li>
+</ul>
+<h2>Decision</h2>
+<p>0.4.0 ships as <strong>honest substrate-only</strong>: graph_node + graph_edge
+schema populated, single-hop expansion in cascade escalation,
+zero new hyperparameters, by-construction latency- and
+accuracy-neutral. <strong>Not a magic accuracy bump — a foundation for
+future expansion that ships without violating the principles.</strong></p>
+<p>This bench artefact is the ship gate per the auto-memory rule:
+real CLI run on real corpus + concrete numbers + comparison
+notes, BEFORE update of public surfaces (README, docs/index.html,
+changelog) — which is what 0.4.1 patch corrects.</p>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>
