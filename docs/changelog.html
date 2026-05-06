@@ -66,6 +66,23 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.2.20 · hero geometry · raster stability</div>
+ <h3>Third result row no longer collides with terminal frame; pill row stable in raster too</h3>
+ <p>
+ Reviewer caught the row-3 issue in one screenshot:
+ <code>utils/jwt.py</code> overlapped its own <code>:22-39</code>
+ line range, and the third result card overflowed the terminal
+ bottom border by 6 px. Path range moved x=100→120 (+14 px gap);
+ card height 358→380 px (16 px bottom margin). Plus three issues
+ caught in the sweep — XML-invalid <code>&lt;query&gt;</code> /
+ <code>&amp;</code> in cli-cheatsheet + configuration descs, and
+ the cairosvg-only pill-row tspan glitch on hero + og-image
+ (which broke social-preview unfurls). Both pill rows
+ flattened to plain text.
+ </p>
+ <a class="release-link" href="skylakegrep-0.2.20.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.2.19 · themed everywhere</div>
  <h3>Every clickable link now stays in the themed shell</h3>
  <p>

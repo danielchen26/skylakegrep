@@ -118,7 +118,7 @@ Sized against **four named alternatives**, not generic categories.
 <details>
 <summary>Same data as a plain markdown table</summary>
 
-|                                              | **skylakegrep** v0.2.19 | `ripgrep` (lexical) | mgrep (Mixedbread · paid) | autodev-codebase | Sourcegraph Cody (cloud) |
+|                                              | **skylakegrep** v0.2.20 | `ripgrep` (lexical) | mgrep (Mixedbread · paid) | autodev-codebase | Sourcegraph Cody (cloud) |
 |----------------------------------------------|:-----------------------:|:-------------------:|:-------------------:|:----------------:|:------------------------:|
 | Find by **concept**, not just token          |           ✓             |          ✗          |          ✓          |        ✓         |             ✓            |
 | **Privacy** — no data egress                  |           ✓             |          ✓          | ✗ (cloud-backed)    |        ✓         |   ✗ (cloud-side index)   |
