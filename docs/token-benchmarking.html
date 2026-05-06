@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="Token-reduction benchmark protocol comparing skygrep vs rg context payloads." />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="Token benchmarking · skylakegrep" />
+ <meta property="og:description" content="Token-reduction benchmark protocol comparing skygrep vs rg context payloads." />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>Token benchmarking · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">Token benchmarking</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html" class="active">Benchmarks</a>
+ <a href="changelog.html">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">Token-reduction methodology</p>
+<h1>Benchmark protocol</h1>
+<p>This document defines what the included benchmarks measure, how they are run,
+and what they explicitly do not measure.</p>
+<blockquote>
+<p><strong>See also:</strong> <a href="parity-benchmarks.html"><code>parity-benchmarks.html</code></a> consolidates
+the headline numbers, including the real-ripgrep comparison and the
+cross-repo (Rust workspace) results, in a single table.</p>
+</blockquote>
+<p>The benchmarks live in <code>benchmarks/</code> in the project root:</p>
+<ul>
+<li><code>benchmarks/token_savings.py</code> — retrieval-layer context compression.</li>
+<li><code>benchmarks/agent_context_benchmark.py</code> — agent-style context-gathering
+  comparison against a <em>simulated</em> grep-agent baseline.</li>
+<li><code>benchmarks/parity_vs_ripgrep.py</code> — same comparison against a <em>real</em>
+  <code>rg</code> baseline; supports cross-repo task lists via <code>--tasks</code>.</li>
+<li><code>benchmarks/parity_vs_mixedbread.py</code> — Mixedbread cloud parity harness;
+  requires interactive <code>skygrep login</code> and is not run by CI.</li>
+</ul>
+<h2>Headline result</h2>
+<p><img alt="skylakegrep benchmark" src="assets/benchmark.svg" /></p>
+<p>At top-k 10 on the deterministic context-gathering benchmark in this
+repository:</p>
+<pre><code class="language-text">skygrep hit rate:                       30/30
+grep hit rate:                        30/30
+estimated total-token reduction:      2.00×
+context-token reduction:              2.90×
+skygrep tool calls:                      30
+grep-agent tool calls:                 227
+</code></pre>
+<p>The result is reproducible from a fresh clone. It is not an end-to-end
+provider billing measurement; see <a href="#limitations">Limitations</a> below.</p>
+<h2>What is measured</h2>
+<p>There are two distinct measurements, intentionally kept separate.</p>
+<h3>1. Retrieval-layer context compression</h3>
+<p><code>benchmarks/token_savings.py</code> reports two ratios:</p>
+<pre><code class="language-text">indexed_context_reduction_x      = indexed corpus tokens / retrieved JSON tokens
+source_doc_context_reduction_x   = source + docs tokens / retrieved JSON tokens
+</code></pre>
+<p>The numerator approximates the size of context that an agent would otherwise
+read; the denominator approximates the size of the top-k JSON snippets
+returned by <code>skygrep search</code>. Token volumes are estimated as <code>chars / 4</code>.</p>
+<p>This measures how much smaller the <em>retrieved</em> context is than the <em>whole
+indexed corpus</em>. It does not measure full agent session usage; it does not
+count planning prompts, tool-call wrappers, repeated searches, follow-up
+file reads, final answers, or failed attempts.</p>
+<p>Run it locally:</p>
+<pre><code class="language-bash">OLLAMA_EMBED_MODEL=mxbai-embed-large \
+  .venv/bin/python benchmarks/token_savings.py
+</code></pre>
+<h3>2. Agent-style context-gathering benchmark</h3>
+<p><code>benchmarks/agent_context_benchmark.py</code> runs each task in two conditions:</p>
+<ul>
+<li><strong>Baseline.</strong> A grep-agent simulation issues exact-token searches and
+  returns matching line windows, repeated until the expected file is found
+  or a budget is exhausted.</li>
+<li><strong>Treatment.</strong> A single <code>skygrep search</code> call retrieves the top-k JSON
+  snippets.</li>
+</ul>
+<p>For both conditions the script counts:</p>
+<ul>
+<li>the size of the gathered context, in approximate tokens,</li>
+<li>whether the expected file appears in the gathered context,</li>
+<li>the number of tool calls used.</li>
+</ul>
+<p><code>estimated_total_token_reduction_x</code> adds a fixed grep-agent prompt-and-overhead
+estimate to each side and reports the ratio. <code>context_token_reduction_x</code>
+reports the ratio of context-only token volumes.</p>
+<p>Run it locally:</p>
+<pre><code class="language-bash">OLLAMA_EMBED_MODEL=mxbai-embed-large \
+  .venv/bin/python benchmarks/agent_context_benchmark.py
+</code></pre>
+<h2>Results across top-k</h2>
+<table>
+<thead>
+<tr>
+<th>top-k</th>
+<th>recall (skygrep)</th>
+<th>recall (grep)</th>
+<th>estimated total-token reduction</th>
+<th>context-token reduction</th>
+<th>notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5</td>
+<td>28 / 30</td>
+<td>30 / 30</td>
+<td>2.66×</td>
+<td>5.53×</td>
+<td>Highest token efficiency; misses two expected files.</td>
+</tr>
+<tr>
+<td>10</td>
+<td>30 / 30</td>
+<td>30 / 30</td>
+<td>2.00×</td>
+<td>2.90×</td>
+<td>Equal recall to grep with the largest token reduction at parity.</td>
+</tr>
+<tr>
+<td>20</td>
+<td>30 / 30</td>
+<td>30 / 30</td>
+<td>1.36×</td>
+<td>1.53×</td>
+<td>Equal recall, smaller reduction.</td>
+</tr>
+<tr>
+<td>50</td>
+<td>30 / 30</td>
+<td>30 / 30</td>
+<td>0.67×</td>
+<td>0.60×</td>
+<td>Equal recall, but more tokens than the grep baseline.</td>
+</tr>
+</tbody>
+</table>
+<p>Top-k 10 is the only setting in this table where skylakegrep matches
+grep-agent recall while keeping the estimated total-token reduction above 1×.</p>
+<p>Reproduce a single row with:</p>
+<pre><code class="language-bash">.venv/bin/python benchmarks/agent_context_benchmark.py --top-k 10 --summary-only
+</code></pre>
+<h2>Limitations</h2>
+<p>The numbers above support narrow claims only.</p>
+<ul>
+<li><strong>Not provider billing.</strong> No real coding agent is executed against a
+  paid model in this benchmark. The total-token figure uses a fixed prompt
+  and overhead model for the grep agent rather than a measured session.</li>
+<li><strong>Not an answer-quality evaluation.</strong> Recall is "did the expected file
+  appear in the gathered context", not "is the final synthesized answer
+  correct against a rubric".</li>
+<li><strong>Repository-specific task set.</strong> The 30 tasks are tied to this
+  repository's structure and naming. Results on a different codebase may
+  differ and should be measured on an independent task set.</li>
+<li><strong>Embedding model dependency.</strong> The embedding model affects retrieval
+  quality and changes the headline numbers. The numbers above were
+  measured with <code>mxbai-embed-large</code>. The current default substrate is
+  <code>bge-m3</code> (1024-d, multilingual, symmetric); re-running this bench on
+  <code>bge-m3</code> is a follow-up.</li>
+<li><strong>No cross-encoder rerank.</strong> The lexical reranker uses simple token and
+  phrase overlap. A second-stage reranker over a larger candidate pool is
+  on the roadmap and would change the trade-off curve.</li>
+</ul>
+<h2>Conditions for an end-to-end claim</h2>
+<p>A future end-to-end benchmark, suitable for the broader claim that
+<code>skylakegrep</code> reduces token usage in real coding-agent sessions, requires
+the following:</p>
+<ol>
+<li>A task set of 30–50 questions or navigation tasks with expected files
+   and rubric answers, including easy, medium, and multi-hop items.</li>
+<li>The same model, repository commit, and system prompt across both
+   conditions.</li>
+<li>Per task and per condition, recorded measurements for input tokens,
+   output tokens, tool-call/result tokens, number of tool calls,
+   wall-clock latency, retrieval correctness, and a rubric-graded final
+   answer score.</li>
+<li>Two conditions:
+   - <strong>Baseline.</strong> The agent may use exact search tools (<code>grep</code>, <code>rg</code>),
+     file reads, and shell inspection, but not <code>skylakegrep</code>.
+   - <strong>Treatment.</strong> The agent may issue one or more <code>skygrep search</code> calls
+     before reading files and may verify with file reads afterwards.</li>
+<li>The reported headline metric is
+   <code>end_to_end_token_reduction = baseline total tokens / treatment total tokens</code>,
+   reported alongside the rubric quality score on each side. A workflow
+   that uses fewer tokens but produces a worse answer is worse, not better.</li>
+</ol>
+<p>Until that benchmark is run, the claim from this repository is the narrower
+one stated at the top of this document: equal recall at top-k 10 with about
+a 2× estimated total-token reduction in a deterministic local
+context-gathering benchmark on this codebase.</p>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

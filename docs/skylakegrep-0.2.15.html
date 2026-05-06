@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep v0.2.15 release notes" />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="v0.2.15 · skylakegrep" />
+ <meta property="og:description" content="skylakegrep v0.2.15 release notes" />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>v0.2.15 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">v0.2.15</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">release notes · v0.2.15</p>
+<h1>skylakegrep 0.2.15 — comparison matrix + visual unification</h1>
+<p>This is a <strong>documentation-surface release</strong>, not a code-path
+release. Zero behaviour change, same wheel surface, same CLI, same
+JSON contract. Existing 0.2.14 indexes work unchanged.</p>
+<p>What changed: the 0.2.14 homepage redesign was correct in structure
+but had two visual gaps a reviewer caught quickly:</p>
+<ol>
+<li>The comparison surface compared skylakegrep against generic
+     "Cloud RAG (Cursor, Sourcegraph, …)" — a category, not a named
+     tool. There was no comparison against <code>mgrep</code> (the predecessor)
+     or against the closest direct competitor in the offline-Ollama-CLI
+     lane.</li>
+<li>The hero image and the comparison / performance tables on the
+     README didn't share a visual theme. The hero is a frosted-glass
+     terminal card; the tables were plain markdown tables. The eye
+     bounced between two visual languages.</li>
+</ol>
+<p>This release fixes both.</p>
+<h2>What's new</h2>
+<h3>A comparison sized against named tools</h3>
+<p>The comparison surface now sizes skylakegrep against <strong>four named
+alternatives</strong>, not generic categories:</p>
+<ul>
+<li><strong><code>ripgrep</code></strong> — the lexical baseline.</li>
+<li><strong><code>mgrep</code></strong> — the predecessor. skylakegrep is the next-generation
+    evolution with the bge-m3 substrate, content-agnostic reference
+    graph, and σ-adaptive cascade. mgrep is recorded honestly as a
+    legacy substrate with English-leaning behaviour.</li>
+<li><strong><a href="https://github.com/anrgct/autodev-codebase"><code>autodev-codebase</code></a></strong> —
+    the closest direct competitor in the offline-Ollama-CLI lane.
+    Vector-embedding semantic search, MCP server + CLI, Ollama
+    integration. Apples-to-apples on the privacy + offline + concept-
+    search axes; skylakegrep wins on multi-content (code · md · PDF
+    · docx) and on multilingual queries (bge-m3 substrate).</li>
+<li><strong>Sourcegraph Cody</strong> — the cloud commercial reference point.
+    The honest answer to "why not just use a cloud agent?"</li>
+</ul>
+<p>The six rows are: concept-find · privacy · content types · setup
+friction · cost · multilingual queries. Each cell is a real claim,
+not a checkmark — <em>legacy substrate</em>, <em>English-leaning</em>, <em>embedder-
+dependent</em> are surfaced where appropriate. The footer reminds the
+reader: "positions are descriptive, not endorsements."</p>
+<h3>A visual language that matches the hero</h3>
+<p>Two new SVG surfaces — both rendered in the same frosted-glass
+terminal-card aesthetic as the hero:</p>
+<ul>
+<li><strong><code>docs/assets/comparison-matrix.svg</code></strong> — the comparison rendered
+    as a designed card with macOS traffic lights, the cyan/violet/
+    emerald glass-stroke gradient, the self-column highlight, and
+    inline ✓ / ✗ / partial typography that matches the hero result
+    cards.</li>
+<li><strong><code>docs/assets/performance-matrix.svg</code></strong> — the three-repo
+    benchmark rendered as three accent-tinted stat cards (10/10
+    each) plus an aggregate banner (30/30 · 60×–770× · −82%).
+    Same dark gradient, same chrome.</li>
+</ul>
+<p>These now anchor the README. The plain-markdown tables stay below
+each SVG inside <code>&lt;details&gt;</code> blocks for keyboard / screen-reader
+fallback.</p>
+<h3>docs/index.html: comparison restyled in-place</h3>
+<p>The <code>&lt;table&gt;</code> markup was replaced with a CSS-grid card that uses
+the same <code>themed-card</code> chrome the hero terminal uses — traffic
+lights, dark gradient bg, frosted border, soft shadow. The
+self-column gets a subtle accent gradient. Mobile breakpoint
+collapses to a single column with each capability as a sticky
+section header.</p>
+<h3>Hero version bumped</h3>
+<p>The version pill on <code>hero-dark.svg</code>, the install-line version on
+<code>og-image.svg</code>, and the re-rasterized <code>og-image.png</code> (1200×630) all
+now show <strong>v0.2.15</strong>. The previous release shipped with v0.2.13 still
+visible on the rendered hero — caught by the reviewer.</p>
+<h2>Compatibility</h2>
+<ul>
+<li>Python: unchanged — 3.9+</li>
+<li>Default embedder: unchanged — <code>bge-m3</code></li>
+<li>Default LLM router: unchanged — <code>qwen2.5:3b</code></li>
+<li>Wheel surface: unchanged</li>
+<li>Index format: unchanged — byte-compatible with 0.2.14</li>
+<li>JSON output schema: unchanged</li>
+</ul>
+<h2>Bench numbers</h2>
+<p>Unchanged from 0.2.14 — this release ships zero ranking-path code.
+30 / 30 public-OSS recall holds.</p>
+<h2>Eight-surface checklist</h2>
+<ul>
+<li>[x] <code>pyproject.toml</code> 0.2.14 → 0.2.15</li>
+<li>[x] <code>skylakegrep-0.2.15.html</code> (this file)</li>
+<li>[x] <code>README.md</code> — comparison + perf tables replaced with themed
+        SVG cards; named-tool comparison row updated</li>
+<li>[x] <code>docs/index.html</code> — <code>.why-table</code> replaced with
+        <code>.themed-card</code> + 5-column CSS grid; <code>.themed-card</code> chrome
+        added as a reusable pattern</li>
+<li>[x] <code>docs/assets/comparison-matrix.svg</code> (new)</li>
+<li>[x] <code>docs/assets/performance-matrix.svg</code> (new)</li>
+<li>[x] <code>docs/assets/hero-dark.svg</code> v0.2.13 → v0.2.15</li>
+<li>[x] <code>docs/assets/og-image.svg</code> v0.2.13 → v0.2.15</li>
+<li>[x] <code>docs/assets/og-image.png</code> re-rasterized</li>
+<li>[ ] GitHub repo description — unchanged</li>
+<li>[x] PyPI upload (manual <code>twine</code>)</li>
+<li>[x] GitHub Release with attached wheel + sdist</li>
+<li>[x] <code>git tag -a v0.2.15</code> + push</li>
+</ul>
+<h2>Known follow-ups</h2>
+<ul>
+<li>The <code>.themed-card</code> chrome (traffic lights + dark gradient) is
+    reusable. A future polish pass could apply it to other tables
+    (<code>docs/cli.html</code> cheatsheet, <code>docs/architecture.html</code> schema,
+    <code>docs/benchmarks.html</code> per-repo breakdowns) for full visual
+    unification across the doc site.</li>
+<li>The README still has two markdown tables that didn't get the
+    SVG treatment ("What you can search" content-type table and
+    the command cheatsheet). They're fine as plain markdown, but
+    a future pass could convert them too.</li>
+</ul>
+<h2>Acknowledgments</h2>
+<p>This release was driven by direct feedback flagging that the
+comparison didn't include <code>mgrep</code>, that the tables didn't share
+a visual theme with the hero image, and that the hero version
+detail hadn't been updated. All three: fixed.</p>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

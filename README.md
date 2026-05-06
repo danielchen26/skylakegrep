@@ -118,7 +118,7 @@ Sized against **four named alternatives**, not generic categories.
 <details>
 <summary>Same data as a plain markdown table</summary>
 
-|                                              | **skylakegrep** v0.2.18 | `ripgrep` (lexical) | mgrep (Mixedbread · paid) | autodev-codebase | Sourcegraph Cody (cloud) |
+|                                              | **skylakegrep** v0.2.19 | `ripgrep` (lexical) | mgrep (Mixedbread · paid) | autodev-codebase | Sourcegraph Cody (cloud) |
 |----------------------------------------------|:-----------------------:|:-------------------:|:-------------------:|:----------------:|:------------------------:|
 | Find by **concept**, not just token          |           ✓             |          ✗          |          ✓          |        ✓         |             ✓            |
 | **Privacy** — no data egress                  |           ✓             |          ✓          | ✗ (cloud-backed)    |        ✓         |   ✗ (cloud-side index)   |
@@ -218,7 +218,7 @@ Honest reading:
 
 For the full bench protocol, per-task analysis, and worked
 example (one query · 1,395 × token reduction), see
-[`docs/parity-benchmarks.md`](docs/parity-benchmarks.md).
+[`docs/parity-benchmarks.html`](docs/parity-benchmarks.html).
 
 ---
 
@@ -370,7 +370,7 @@ Behavior toggles.
     End-to-end verified before tagging.
   - **`0.2.9` ← `0.2.7`** — Three iterations on the proactive
     framework's gate logic, recorded in the
-    [Principle 1 receipts table](docs/PRINCIPLES.md). Each was a
+    [Principle 1 receipts table](docs/principles.html). Each was a
     Principle-1 lapse the user caught.
   - **`0.2.6`** — LLM-driven scope classification replaces the
     keyword `_METADATA_TOKENS` list. Principle 1 ✓ shipped.
@@ -386,7 +386,7 @@ Behavior toggles.
 
 Architecture rules every contributor (human or AI agent) should
 follow. Recorded in
-[`docs/PRINCIPLES.md`](docs/PRINCIPLES.md). Loaded into Claude
+[`docs/principles.html`](docs/principles.html). Loaded into Claude
 sessions automatically via `CLAUDE.md`.
 
   1. **Understanding > Enumeration** — substrate (LLM / embedder
@@ -396,7 +396,7 @@ sessions automatically via `CLAUDE.md`.
      model before layering priors on top.
   3. **Latency / quality / correctness** — in that priority order.
   4. **Public surfaces sync at every release** — the 8-surface
-     checklist in [`docs/RELEASING.md`](docs/RELEASING.md).
+     checklist in [`docs/releasing.html`](docs/releasing.html).
   5. **Honest evaluation over hopeful claims** — name the bench,
      show the numbers, don't combine across benches.
   6. **Proactive over Passive** — when the cascade can't answer,
@@ -418,7 +418,7 @@ pip install -e .[rerank]
 ```
 
 The release protocol is documented in
-[`docs/RELEASING.md`](docs/RELEASING.md). Every release must
+[`docs/releasing.html`](docs/releasing.html). Every release must
 sync 8 public-facing surfaces (PyPI, GitHub Release, README,
 GitHub Pages, plan docs, principles, version bump, tag) in a
 specific order.

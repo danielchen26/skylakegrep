@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep v0.1.0 release notes" />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="v0.1.0 · skylakegrep" />
+ <meta property="og:description" content="skylakegrep v0.1.0 release notes" />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>v0.1.0 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">v0.1.0</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">release notes · v0.1.0</p>
+<h1>skylakegrep 0.1.0 — release notes</h1>
+<p>The first public release of <code>skylakegrep</code>. This is the objective
+description of what the project is and does today, not a historical
+incremental changelog.</p>
+<blockquote>
+<p><strong>License:</strong> PolyForm Noncommercial 1.0.0. Personal / academic /
+research / hobby use is fully permitted. Commercial use requires
+a separate license — contact <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;">&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;</a>.</p>
+</blockquote>
+<h2>What it does</h2>
+<p><code>skygrep</code> is a local semantic code-search tool. It builds a SQLite
+vector index from a repository's source files and answers
+natural-language queries with line-cited snippets — fully offline,
+backed by a local Ollama server.</p>
+<pre><code>$ skygrep &quot;how does the auth token get refreshed?&quot;
+
+╭─ auth/refresh.py:34-51 ────────────────────────────  python   0.93
+│ def refresh_token(refresh_jwt: str) -&gt; AccessToken:
+│     claims = jwt.decode(refresh_jwt, key, algorithms=ALGS)
+│     ...
+╰────────────────────────────────────────────────────────────────────
+
+╭─ auth/middleware.py:78-94 ────────────────────────  python   0.81
+│ async def renew_session(req: Request) -&gt; Response:
+│     if req.cookies.get(&quot;rt&quot;) and access_expired(req):
+│     ...
+╰────────────────────────────────────────────────────────────────────
+</code></pre>
+<h2>Capabilities</h2>
+<h3>LLM-driven query routing</h3>
+<p>A small local Ollama model (default <code>qwen2.5:3b</code>) reads each query
+and returns a structured <code>{intent, primary_token, skip_cascade,
+extract_content, confidence}</code> JSON. The CLI uses this to decide
+which retrieval tiers to run.</p>
+<p>Three-layer fallback chain:</p>
+<pre><code>primary    : LLM router (Ollama HTTP, 500 ms timeout)
+                  ↓ on any failure
+fallback-1 : hand-rolled rule-based classifier
+                  ↓ on any failure
+fallback-2 : intent=&quot;mixed&quot; — every tier runs, no smart routing
+</code></pre>
+<p>Confidence threshold protects accuracy: <code>skip_cascade</code> is honored
+only when LLM confidence ≥ 0.7. Below that, cascade always runs.
+Per-session SQLite cache so the same query never pays the LLM cost
+twice.</p>
+<p>Override with <code>--no-llm-router</code> to force the rule-based path
+(useful for benchmarking or air-gapped use).</p>
+<h3>Three retrieval tiers, ranked by intent</h3>
+<pre><code>L-2: filename lookup    ~10 ms   `where is X file?`
+L-1: lexical content    ~50 ms   ripgrep-friendly content
+L0+: semantic cascade   ~0.5-3s  vocabulary-mismatch
+</code></pre>
+<p>Each tier has a conservative four-condition gate; borderline queries
+fall through. Every enabled tier always runs; results are
+deduplicated by path and ranked by <code>classify_intent(query)</code> so the
+right tier wins top slots.</p>
+<h3>Confidence-gated semantic cascade</h3>
+<p>Sub-second cheap path (file-mean cosine) on most queries, escalating
+to HyDE-augmented retrieval + cross-encoder rerank + PageRank
+tiebreaker only on uncertain queries. Full pipeline:</p>
+<ol>
+<li><strong>L0 — ripgrep cold-start fallback.</strong> When the index is being
+     built in the background, the first query in a fresh project
+     gets ripgrep results in ~100 ms.</li>
+<li><strong>L1 — file-mean cosine.</strong> Whole-corpus cosine on file-level
+     embeddings; cheap path returns when top-1 vs top-2 gap &gt; τ.</li>
+<li><strong>L2 — symbol-aware retrieval.</strong> Tree-sitter extracts
+     function / class / method symbols; symbol matches are boosted.</li>
+<li><strong>L3 — HyDE + doc2query.</strong> When the cheap path is uncertain,
+     a local LLM rewrites the query into a hypothetical document
+     for cosine retrieval over the union.</li>
+<li><strong>L4 — PageRank tiebreaker.</strong> Per-file import / export graph
+     produces a centrality prior that breaks score ties.</li>
+<li><strong>Cross-encoder rerank.</strong> A second-stage rerank over the
+     candidate pool for the highest-precision tier.</li>
+</ol>
+<h3>Binary file content extraction</h3>
+<p>Lazy on-demand text extraction for filename matches in
+<code>--detail=full</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Extractor</th>
+<th>Fallback</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.pdf</code> (text layer)</td>
+<td><code>pdftotext</code> (poppler)</td>
+<td><code>pypdf</code> (pure Python)</td>
+</tr>
+<tr>
+<td><code>.pdf</code> (scanned)</td>
+<td><code>tesseract</code> (opt-in, <code>--ocr</code>)</td>
+<td>hint to user</td>
+</tr>
+<tr>
+<td><code>.docx</code></td>
+<td><code>python-docx</code></td>
+<td>error hint</td>
+</tr>
+<tr>
+<td><code>.txt</code>/<code>.md</code>/<code>.csv</code>/<code>.tsv</code></td>
+<td>direct read</td>
+<td>n/a</td>
+</tr>
+</tbody>
+</table>
+<p>Scanned-PDF detection: text-layer extraction returning &lt; 100
+characters yields a friendly hint suggesting <code>--ocr</code>. OCR is
+<strong>never auto-run</strong> (5–30 s/page is too slow for default).</p>
+<p>Editor / app session-lock files (<code>~$*.docx</code> MS Word locks,
+<code>*.swp</code> vim swap, <code>.#*</code> emacs lock, <code>*~</code> backup) are filtered at
+both the find layer and the extract layer.</p>
+<h3>Hierarchical merge with intent-aware ranking</h3>
+<p>Results from all tiers are deduplicated by path and ranked by
+the LLM-detected intent. Filename-intent queries pin the
+filename match to top while still surfacing relevant code chunks.
+Semantic-intent queries put cascade results first and surface
+filename matches only as low-priority context.</p>
+<h3>Framed terminal output</h3>
+<p>Each result wrapped in a rounded card:</p>
+<pre><code>╭─ &lt;path:lines&gt; ──────────────────────────  &lt;pill&gt;   &lt;score&gt;
+│ &lt;symbol if present&gt;
+│
+│ &lt;Pygments-highlighted body&gt;
+╰────────────────────────────────────────────────────────────
+</code></pre>
+<ul>
+<li>Cyan repo-relative paths</li>
+<li>Right-aligned cyan-pill language tag + bold-green score</li>
+<li>Pygments <code>Terminal256Formatter</code> (<code>monokai</code> default; override via
+  <code>SKYGREP_PYGMENTS_STYLE</code>) — 300+ languages</li>
+<li>Dim grey separator rule</li>
+<li>Auto-detected: ANSI only when stdout is a TTY and <code>NO_COLOR</code>
+  is unset; <code>SKYGREP_FORCE_COLOR=1</code> forces colour for piped output</li>
+</ul>
+<h3><code>--detail</code> levels</h3>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Body</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>brief</code></td>
+<td>header only, no body</td>
+</tr>
+<tr>
+<td><code>standard</code> (default)</td>
+<td>+ ~10 lines of code body / metadata</td>
+</tr>
+<tr>
+<td><code>full</code></td>
+<td>+ extracted PDF/docx content for filename matches</td>
+</tr>
+<tr>
+<td><code>summary</code></td>
+<td>+ 1-line truncated preview</td>
+</tr>
+</tbody>
+</table>
+<h3><code>skygrep setup</code> — auto-register with LLM CLIs</h3>
+<p>Detects installed coding agents (Claude Code, Codex, OpenCode,
+Gemini CLI, Cursor) and writes a markdown snippet into each one's
+user-level instructions file so the agent prefers <code>skygrep</code> over
+<code>rg</code> for natural-language code questions. Snippet lives between
+explicit BEGIN/END markers; <code>skygrep setup --uninstall</code> removes
+it cleanly.</p>
+<h3>Multi-language indexing</h3>
+<p>Tree-sitter grammars for <strong>Python, JavaScript, TypeScript</strong> are
+bundled by default (declared in <code>pyproject.toml</code>). The indexer can
+also use grammars for <strong>Go, Rust, Java, C, C++, C#, Ruby, PHP,
+Swift, Kotlin, Scala</strong> if the corresponding <code>tree-sitter-&lt;lang&gt;</code>
+package is installed manually (<code>pip install tree-sitter-rust</code> etc.).
+Files in unsupported languages fall back to generic line-based
+chunking.</p>
+<p><code>.gitignore</code> / <code>.skygrepignore</code> precedence honored.</p>
+<h3>Per-project, fully offline</h3>
+<p>Per-project SQLite database at <code>~/.skylakegrep/repos/&lt;basename&gt;-&lt;hash&gt;.db</code>.
+Indexes / embeddings / queries / answers all run on the local host
+via Ollama. No remote service required. No telemetry.</p>
+<h3>CLI flags</h3>
+<pre><code>skygrep &quot;&lt;query&gt;&quot;                    # bare query (default subcommand)
+skygrep search &quot;&lt;query&gt;&quot; -m 10       # explicit search subcommand
+skygrep index                         # build / refresh the index
+skygrep watch                         # incremental file watcher
+skygrep stats                         # per-project index info
+skygrep doctor                        # runtime + integrations health check
+skygrep setup                         # register with LLM CLIs
+skygrep enrich                        # one-time chunk doc2query enrichment
+skygrep serve                         # daemon mode (avoids reranker cold-load)
+
+Common flags:
+  --top, -m N                          number of results
+  --json                               machine-readable output
+  --detail brief|standard|full|summary verbosity
+  --ocr                                tesseract OCR for scanned PDFs (slow)
+  --rg-shortcut/--no-rg-shortcut       lexical pre-gate (default on)
+  --filename-shortcut/                 filename pre-gate (default on)
+    --no-filename-shortcut
+  --llm-router/--no-llm-router         LLM routing (default on)
+  --cascade/--no-cascade               semantic cascade (default on)
+  --rerank/--no-rerank                 cross-encoder rerank (default on)
+  --hyde/--no-hyde                     HyDE rewrite
+  --multi-resolution/                  two-stage file → chunk retrieval
+    --no-multi-resolution
+  --rank-by chunk|file                 ranking strategy
+  --include / --exclude                path filters
+  --language                           language filter
+  --agentic                            local Ollama subquery decomposition
+  --answer                             synthesise an answer from results
+  --daemon-url                         use a running skygrep daemon
+</code></pre>
+<h3>Environment variables</h3>
+<pre><code>OLLAMA_URL                  default http://localhost:11434
+OLLAMA_EMBED_MODEL          default nomic-embed-text
+OLLAMA_LLM_MODEL            default qwen2.5:3b
+OLLAMA_HYDE_MODEL           default qwen2.5:3b
+OLLAMA_KEEP_ALIVE           default -1 (keep models warm)
+
+SKYGREP_DB_PATH             override per-project DB path
+SKYGREP_FORCE_COLOR         force ANSI in non-TTY output
+SKYGREP_LLM_ROUTER_MODEL    override LLM routing model
+SKYGREP_LLM_ROUTER_TIMEOUT_SECONDS    default 0.5
+SKYGREP_LLM_ROUTER_MIN_CONFIDENCE     default 0.7
+SKYGREP_PYGMENTS_STYLE      default monokai
+SKYGREP_AUTO_REFRESH_THROTTLE_SECONDS default 30
+NO_COLOR                    standard ANSI opt-out
+</code></pre>
+<h2>Install</h2>
+<pre><code class="language-bash">pip install skylakegrep
+skygrep setup        # one-time: register with detected LLM CLIs
+skygrep &quot;where is the config file?&quot;
+</code></pre>
+<p>Requires Python 3.9+ and a local Ollama server with at least one
+embedding model pulled (<code>ollama pull nomic-embed-text</code>). Pull a
+generation model only if you use <code>--answer</code>, <code>--agentic</code>, the LLM
+router, or the cascade's HyDE escalation
+(<code>ollama pull qwen2.5:3b</code>).</p>
+<h2>Compatibility / honesty</h2>
+<ul>
+<li>120 unit tests pass.</li>
+<li>PolyForm Noncommercial 1.0.0 is <strong>not</strong> OSI-approved open source.
+    GitHub will mark this repo as "non-permissive". Personal use
+    remains fully free.</li>
+<li><code>pdftotext</code>, <code>tesseract</code>, <code>pdftoppm</code> are only required when
+    using the corresponding extraction features; install via
+    <code>brew install poppler tesseract</code> on macOS if needed.</li>
+</ul>
+<h2>Why a fresh start?</h2>
+<p>This codebase has prior history — earlier iterations explored
+cascade tuning, multi-language benchmarks, end-to-end agent
+benchmarks, and a 5-tier retrieval architecture. The historical
+incremental release notes are not preserved here because the
+project has been re-licensed (MIT → PolyForm NC) and rebranded;
+the current source tree, retroactively rewritten git history, and
+this 0.1.0 release notes file are the single source of truth for
+what <code>skylakegrep</code> is today.</p>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

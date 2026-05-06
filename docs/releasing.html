@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="Release checklist for skylakegrep — eight surfaces every version touches." />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="Release protocol · skylakegrep" />
+ <meta property="og:description" content="Release checklist for skylakegrep — eight surfaces every version touches." />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>Release protocol · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">Release protocol</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">Eight-surface release checklist</p>
+<h1>Release checklist for skylakegrep</h1>
+<p>This checklist exists because the 0.2.2 release shipped to PyPI but
+its features (intelligent recovery, routing transparency) never
+made it onto the GitHub Pages site or the README — a new user
+landing on either surface had no way to find out the features
+existed. From 0.2.3 onwards, no release leaves the workstation
+without the full surface sync.</p>
+<p>A release is <strong>not</strong> a <code>git tag</code> + <code>twine upload</code>. It is a
+coordinated update across <strong>eight surfaces</strong>, every one of which
+has to be touched (or explicitly skipped with a documented
+reason).</p>
+<h2>Eight surfaces, every release</h2>
+<ol>
+<li><strong><code>pyproject.toml</code></strong> — bump <code>version</code>. Required for the CI
+     <code>Verify the tag matches pyproject.toml</code> step to pass.</li>
+<li><strong><code>docs/skylakegrep-X.Y.Z.md</code></strong> — new release-notes file.
+     Use the previous release's file as a template: headline,
+     change-by-change bullets with the <strong>why</strong> (not just the what),
+     compatibility notes, bench numbers (or "unchanged"), known
+     follow-ups list.</li>
+<li><strong><code>README.md</code></strong>:<ul>
+<li>"What's new in 0.2.x" table — add one row per
+     user-visible change in this release.</li>
+<li>Capability matrix at the bottom — add one row per
+     capability with the version it was introduced in.</li>
+<li>Any stale defaults (e.g. <code>ollama pull &lt;old-model&gt;</code>,
+     <code>OLLAMA_EMBED_MODEL</code> default) swept.</li>
+<li>Footer link list to release notes — add the new version.</li>
+</ul>
+</li>
+<li><strong><code>docs/index.html</code></strong> (the GitHub Pages site):<ul>
+<li>Hero <code>&lt;p class="eyebrow"&gt;vX.Y.Z · …&lt;/p&gt;</code> version bumped.</li>
+<li>Hero <code>&lt;h1&gt;</code> headline — bumped if the headline number
+     changed.</li>
+<li>"Why skylakegrep?" comparison table — add or update
+     a row if this release changed the answer to a row.</li>
+<li>"How it works" three-step diagram — update step
+     labels (model name + latency) if that changed.</li>
+<li>"Benchmarks summary" three big numbers — bump if a
+     headline number changed.</li>
+<li>"Honesty" limitations list — extend if scope changed.</li>
+<li><code>og:title</code> / <code>og:description</code> / <code>twitter:description</code>
+     meta tags — bump if the headline number changed.
+  4b. <strong>Subpages</strong> (added in 0.2.14 — <code>docs/concepts.html</code>,
+  <code>docs/architecture.html</code>, <code>docs/cli.html</code>,
+  <code>docs/reference.html</code>, <code>docs/benchmarks.html</code>,
+  <code>docs/changelog.html</code>):</li>
+<li><code>docs/cli.html</code> — add any new command or changed flag
+     default to the cheatsheet + env-var table.</li>
+<li><code>docs/architecture.html</code> — extend the schema diagram if
+     a new index column or metadata field was added.</li>
+<li><code>docs/benchmarks.html</code> — add a row to the relevant
+     sub-benchmark table; rerun the worked example if its
+     numbers shifted.</li>
+<li><code>docs/reference.html</code> — extend the JSON schema if a new
+     field was added to the agent contract.</li>
+<li><code>docs/changelog.html</code> — add a new release-card with a
+     link to <code>docs/skylakegrep-X.Y.Z.md</code>.</li>
+<li><code>docs/concepts.html</code> — extend if the indexing /
+     ranking / output mental model changed.</li>
+</ul>
+</li>
+<li><strong>GitHub repo description</strong> (<code>gh repo edit --description …</code>)
+     — only if the project's one-liner positioning changed.</li>
+<li><strong>PyPI upload</strong>: <code>python -m build</code> then
+     <code>twine upload dist/skylakegrep-X.Y.Z*</code>. The CI workflow tries
+     this on tag push but currently 403s on the <code>PYPI_API_TOKEN</code>
+     secret; the manual <code>~/.pypirc</code> flow is the working path until
+     that's fixed.</li>
+<li><strong>GitHub Release</strong>: <code>gh release create vX.Y.Z --target master
+     --title "vX.Y.Z — …" --notes-file docs/skylakegrep-X.Y.Z.md
+     dist/skylakegrep-X.Y.Z-py3-none-any.whl
+     dist/skylakegrep-X.Y.Z.tar.gz</code>. The artifacts must be
+     attached so the Release page is a self-contained record.</li>
+<li><strong><code>git tag -a vX.Y.Z</code></strong> + <code>git push origin vX.Y.Z</code>. Tag
+     <strong>after</strong> the version bump is committed so CI's tag-vs-version
+     check doesn't fail.</li>
+</ol>
+<h2>Per-step ordering</h2>
+<p>Order matters. The order below is the one that prevents partial
+state from being visible to anyone:</p>
+<pre><code>1.  bump pyproject + write release notes + sweep README +
+    sweep index.html + (optionally) repo description
+2.  pytest -q tests/                        ← 134/134 must pass
+3.  git add -p &amp;&amp; git commit -m &quot;release: vX.Y.Z — …&quot;
+4.  git push origin master                  ← surfaces are live
+                                              with the new content
+                                              before the tag
+                                              announces a release
+5.  python -m build                         ← produces dist/*
+6.  twine check dist/*                      ← both PASSED
+7.  git tag -a vX.Y.Z -m &quot;vX.Y.Z — …&quot;
+8.  git push origin vX.Y.Z                  ← CI fires; ignore the
+                                              PyPI-401 step until
+                                              the token gets fixed
+9.  twine upload --non-interactive dist/skylakegrep-X.Y.Z*
+                                            ← manual upload
+                                              (CI replacement)
+10. gh release create vX.Y.Z --target master
+        --title &quot;vX.Y.Z — …&quot;
+        --notes-file docs/skylakegrep-X.Y.Z.md
+        dist/skylakegrep-X.Y.Z-py3-none-any.whl
+        dist/skylakegrep-X.Y.Z.tar.gz
+11. verify:
+        curl -s https://pypi.org/pypi/skylakegrep/json | jq .info.version
+        gh release list --limit 3
+</code></pre>
+<h2>What "release" does NOT mean</h2>
+<ul>
+<li><strong>A code-only commit is not a release.</strong> Code reaches users
+    only when the eight surfaces above are sync'd. If you don't
+    want to ship to PyPI, name your work as a milestone commit,
+    not a release.</li>
+<li><strong>A docs-only commit between releases is fine.</strong> Major doc
+    overhauls between releases are normal; they don't require a
+    version bump unless they change the public surface
+    (e.g. updating the headline benchmark number on the GitHub
+    Pages site is enough to warrant a metadata bump, à la 0.2.1
+    → 0.2.3).</li>
+<li><strong>Skipping any of the eight surfaces requires a documented
+    reason</strong> in the release-notes "Known follow-ups" section.
+    "I forgot" is not a documented reason.</li>
+</ul>
+<h2>When to bump major / minor / patch</h2>
+<p>skylakegrep follows SemVer 2.0 with these conventions:</p>
+<ul>
+<li><strong>Major (1.x → 2.x)</strong> — reserved for the post-1.0 era; not
+    relevant yet.</li>
+<li><strong>Minor (0.x → 0.y)</strong> — public-API additions, behaviour
+    changes that may surprise existing users (default-embedder
+    swap, new env vars, new CLI subcommands, new retrieval paths).
+    Existing indexes may need to be rebuilt or re-embedded.</li>
+<li><strong>Patch (0.x.y → 0.x.z)</strong> — bug fixes, doc sync, performance
+    work that doesn't change the public surface, internal
+    refactors. Existing indexes are byte-compatible.</li>
+</ul>
+<p>This release (<code>0.2.3</code>) is a patch — pure docs sync, no code path
+changed.</p>
+<h2>Past lapses (lessons)</h2>
+<ul>
+<li><strong>0.2.2</strong> shipped its features to PyPI but did not update
+    <code>docs/index.html</code> or <code>README.md</code>. New users could not discover
+    the intelligent-recovery and routing-transparency features
+    until 0.2.3. This document exists to prevent that recurring.</li>
+<li><strong>0.1.0 / 0.2.0 / 0.2.1 / 0.2.2 GitHub Actions PyPI uploads
+    all 403'd</strong> because the <code>PYPI_API_TOKEN</code> repo secret is unset
+    or invalid. The manual <code>twine upload</code> flow has been working
+    around it. <strong>Fix is tracked but separate work.</strong></li>
+</ul>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

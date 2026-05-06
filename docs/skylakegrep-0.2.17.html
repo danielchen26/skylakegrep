@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep v0.2.17 release notes" />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="v0.2.17 · skylakegrep" />
+ <meta property="og:description" content="skylakegrep v0.2.17 release notes" />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>v0.2.17 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">v0.2.17</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">release notes · v0.2.17</p>
+<h1>skylakegrep 0.2.17 — lifted dark theme · cheatsheet &amp; config visualised · "custom type" rename</h1>
+<p>This is a <strong>documentation-surface release</strong>, not a code-path release.
+Zero behaviour change, byte-compatible 0.2.16 indexes, same wheel
+surface, same CLI, same JSON contract.</p>
+<p>Three reviewer-flagged gaps from 0.2.16 fixed:</p>
+<h2>1. Lifted dark theme — slate-blue base, more visible glass effect</h2>
+<p>The 0.2.16 palette read as "still too dark — can the frosted glass
+feel more <em>modern UI</em>?" Adjusted the entire surface up one notch:</p>
+<ul>
+<li><code>--bg</code>: <code>#0a0d12</code> (near-black) → <code>#13192a</code> (slate-blue)</li>
+<li><code>--bg-2</code>: <code>#0f131a</code> → <code>#181f33</code></li>
+<li><code>--panel*</code>: opacity tokens bumped 1.6×–2.5× so panels feel lifted
+    instead of flat.</li>
+<li><code>--panel-deep</code>: <code>#06080c</code> → <code>#0e1320</code></li>
+<li><code>.themed-card</code> background opacity dropped to 62–72% (from 82%) so
+    the slate-blue ambient orbs in the page background read through
+    the frosted panel — true Liquid-Glass aesthetic, not solid
+    "near-black + line border".</li>
+<li><code>backdrop-filter: blur(24px) saturate(1.1)</code> → <code>blur(36px) saturate(1.2)</code>.</li>
+<li>All 6 SVG assets (<code>hero-dark</code>, <code>og-image</code>, <code>comparison-matrix</code>,
+    <code>performance-matrix</code>, <code>workflow-diagram</code>, <code>content-types</code>) had
+    their deep-black bg gradient stops lifted from <code>#070910</code> /
+    <code>#07090d</code> → <code>#0e1320</code> and the slate stop from <code>#0a0d12</code> →
+    <code>#13192a</code>. Glass-fill rgba opacity bumped ~50% across the cards
+    so the glass actually feels translucent instead of "solid panel
+    with cyan border". <code>og-image.png</code> re-rasterized.</li>
+</ul>
+<p>Net effect: the dark <em>is</em> dark, but no longer pure black. Panels
+feel like real frosted glass over a slate-blue depth field.</p>
+<h2>2. Two more themed SVG cards — CLI cheatsheet · Configuration</h2>
+<p>The 0.2.16 README still had two surfaces in plain markdown:
+<strong>Command cheatsheet</strong> and <strong>Configuration</strong>. Both now anchored
+by themed SVG cards in the same Liquid-Glass aesthetic:</p>
+<ul>
+<li><strong><code>docs/assets/cli-cheatsheet.svg</code></strong> — hero featured tile for
+    the bare form <code>skygrep "&lt;query&gt;"</code> (95% of real use), then 8
+    secondary commands as 4×2 tiles:<ul>
+<li>row 1 (cyan accents): <code>search</code> · <code>doctor</code> · <code>setup</code> · <code>stats</code></li>
+<li>row 2 (violet &amp; mint accents): <code>index</code> · <code>watch</code> · <code>serve</code> ·
+  <code>enrich</code></li>
+</ul>
+</li>
+<li><strong><code>docs/assets/configuration.svg</code></strong> — three grouped panels with
+    distinct accent colors:<ul>
+<li>cyan: <strong>Ollama setup</strong> (<code>OLLAMA_URL</code> · <code>EMBED_MODEL</code> ·
+  <code>LLM_MODEL</code> · <code>HYDE_MODEL</code> · <code>KEEP_ALIVE</code>)</li>
+<li>violet: <strong>Indexing &amp; rerank</strong> (<code>SKYGREP_DB_PATH</code> · <code>AUTO_PULL</code>
+  · <code>AUTO_REFRESH_THROTTLE_SECONDS</code> · <code>RERANK_MODEL</code> ·
+  <code>RERANK_POOL</code>)</li>
+<li>mint: <strong>Behavior toggles</strong> (<code>SKYGREP_NO_HINTS</code> · <code>NO_PROACTIVE</code>
+  · <code>PROACTIVE_BUDGET_MS</code> · <code>FOOTER_COMPACT</code>)</li>
+</ul>
+</li>
+</ul>
+<p>Plain-markdown tables stay below each SVG inside <code>&lt;details&gt;</code> blocks
+as keyboard / screen-reader fallback. The README is now four
+themed-SVG anchors deep: comparison, performance, content types,
+<strong>cheatsheet, configuration</strong>, plus the workflow diagram.</p>
+<h2>3. "Custom type" tile dropped — content-agnostic doesn't mean "you must customize"</h2>
+<p>The 0.2.16 <code>content-types.svg</code> had a 6th tile labelled "Your
+custom type" sitting alongside Code / Markdown / PDF / Word docs /
+Plain text family. Reviewer feedback: <em>"why does it say customize?
+Isn't this content-agnostic? I have to customize?"</em> — fair point.
+The 5 built-in types cover ~all practical formats; the
+<code>register_extractor()</code> API is <strong>extensibility</strong>, not a content type
+the user has to provide.</p>
+<p>Restructured:</p>
+<ul>
+<li>5 built-in tiles (3 + 2 layout) instead of 6 — Code, Markdown,
+    PDF, Word docs, Plain text family.</li>
+<li>A wide footer banner with mint-cyan-violet gradient:
+    <em>"Other formats? <code>register_extractor()</code> plugs any new content
+    type into the same pipeline — that's what content-agnostic
+    means."</em></li>
+</ul>
+<p>Now the sales pitch reads correctly: <strong>5 types work out of the box;
+extensibility is a property of the substrate, not a chore for the
+user.</strong></p>
+<h2>Compatibility</h2>
+<ul>
+<li>Python: unchanged — 3.9+</li>
+<li>Default embedder / LLM router: unchanged — <code>bge-m3</code> / <code>qwen2.5:3b</code></li>
+<li>Wheel surface: unchanged</li>
+<li>Index format: unchanged — byte-compatible with 0.2.16</li>
+<li>JSON output schema: unchanged</li>
+</ul>
+<h2>Bench numbers</h2>
+<p>Unchanged from 0.2.16. 30 / 30 public-OSS recall holds.</p>
+<h2>Eight-surface checklist</h2>
+<ul>
+<li>[x] <code>pyproject.toml</code> 0.2.16 → 0.2.17</li>
+<li>[x] <code>skylakegrep-0.2.17.html</code> (this file)</li>
+<li>[x] <code>README.md</code> — <code>cli-cheatsheet.svg</code> + <code>configuration.svg</code>
+        anchored above the markdown tables; v0.2.17 in pill text</li>
+<li>[x] <code>docs/index.html</code> — comparison <code>v0.2.16</code> → <code>v0.2.17</code>;
+        <code>.themed-card</code> background lifted to slate-blue, blur
+        bumped to 36px</li>
+<li>[x] <code>docs/styles.css</code> — <code>--bg</code>, <code>--bg-2</code>, <code>--panel*</code>,
+        <code>--panel-deep</code> lifted from near-black to slate-blue</li>
+<li>[x] <code>docs/assets/content-types.svg</code> — fully rewritten: 5 tiles
+        + extensibility footer banner (was 6 with confusing custom
+        tile)</li>
+<li>[x] <code>docs/assets/cli-cheatsheet.svg</code> (new)</li>
+<li>[x] <code>docs/assets/configuration.svg</code> (new)</li>
+<li>[x] <code>docs/assets/hero-dark.svg</code> v0.2.16 → v0.2.17, bg lifted,
+        glass opacity bumped</li>
+<li>[x] <code>docs/assets/og-image.svg</code> v0.2.16 → v0.2.17, bg lifted</li>
+<li>[x] <code>docs/assets/og-image.png</code> re-rasterized</li>
+<li>[x] <code>docs/assets/comparison-matrix.svg</code> + <code>performance-matrix.svg</code>
+        + <code>workflow-diagram.svg</code> all bg lifted, glass-opacity bumped</li>
+<li>[x] <code>docs/changelog.html</code> — 0.2.17 release card</li>
+<li>[ ] GitHub repo description — unchanged</li>
+<li>[x] PyPI upload (manual <code>twine</code>)</li>
+<li>[x] GitHub Release with attached wheel + sdist</li>
+<li>[x] <code>git tag -a v0.2.17</code> + push</li>
+</ul>
+<h2>Acknowledgments</h2>
+<p>Three rounds of feedback in one session:</p>
+<ol>
+<li><em>"You didn't compare with mgrep"</em> — fixed in 0.2.15.</li>
+<li><em>"You got mgrep wrong — it's a paid Mixedbread cloud product"</em>
+     — fixed in 0.2.16.</li>
+<li><em>"The dark is still too dark — can it be lifted with more
+     visible glass effect? And why does the diagram say customize?
+     And the cheatsheet + config tables are still plain markdown"</em>
+     — all three: fixed in this release.</li>
+</ol>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

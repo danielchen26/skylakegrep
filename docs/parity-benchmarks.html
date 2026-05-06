@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="Full parity benchmark protocol: clone three OSS repos, run the bench script, compare against rg." />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="Parity benchmarks · skylakegrep" />
+ <meta property="og:description" content="Full parity benchmark protocol: clone three OSS repos, run the bench script, compare against rg." />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>Parity benchmarks · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">Parity benchmarks</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html" class="active">Benchmarks</a>
+ <a href="changelog.html">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">Reproducible bench protocol</p>
+<h1>Parity benchmarks</h1>
+<p>Reproducible head-to-head comparisons of <code>skygrep</code> against real
+<code>ripgrep</code>, run on three popular open-source codebases. Anyone with
+the repos cloned can rerun in a few minutes and verify every number
+on this page.</p>
+<blockquote>
+<p><strong>Headline:</strong> <code>skygrep</code> matches <code>rg</code> exactly across all three
+codebases (<strong>10 / 10 each</strong> on Django · Tokio · React,
+<strong>30 / 30 aggregate</strong>). React reached 10 / 10 after the
+Option-C substrate upgrade (<code>bge-m3</code> 1024-d symmetric
+embedder + a content-agnostic non-canonical-path filter); the
+two original React misses (<code>react-007</code>, <code>react-010</code>) and how
+they were resolved are documented below as the engineering
+record, not erased.</p>
+<p><code>skygrep</code> returns <strong>60×–770× less context tokens</strong> than <code>rg</code>'s
+term-OR scan, so a downstream agent loop that consumes the
+context pays dramatically less even when recall is the same.</p>
+</blockquote>
+<h2>Setup</h2>
+<pre><code class="language-bash">git clone --depth=1 https://github.com/django/django   /tmp/oss-bench/django
+git clone --depth=1 https://github.com/facebook/react  /tmp/oss-bench/react
+git clone --depth=1 https://github.com/tokio-rs/tokio  /tmp/oss-bench/tokio
+
+cd skylakegrep
+.venv/bin/python benchmarks/public_oss_bench.py
+</code></pre>
+<p>The runner:</p>
+<ol>
+<li>Reads each fixture from
+     <a href="../benchmarks/cross_repo/"><code>benchmarks/cross_repo/{django,react,tokio}.json</code></a>
+     — 10 hand-labeled questions per repo, each with a canonical
+     expected file plus zero or more <code>expected_alternatives</code> for
+     queries with multiple legitimate answers.</li>
+<li>Indexes the OSS repo into a tmp SQLite DB (5–10 min one-time
+     per repo).</li>
+<li>For each task, runs both:<ul>
+<li><code>rg</code>: term-OR over up to 8 extracted query terms × 20 matches
+   per term × 2-line context window (the real ripgrep agent
+   baseline).</li>
+<li><code>skygrep</code>: one semantic top-10 search.</li>
+</ul>
+</li>
+<li>Reports per-task hit / miss + average latency + total context
+     tokens emitted.</li>
+</ol>
+<h2>Aggregate result</h2>
+<table>
+<thead>
+<tr>
+<th>Repo</th>
+<th style="text-align: center;">LOC ≈</th>
+<th style="text-align: center;">skygrep recall</th>
+<th style="text-align: center;">rg recall</th>
+<th style="text-align: center;">sky lat</th>
+<th style="text-align: center;">rg lat</th>
+<th style="text-align: center;">sky tokens</th>
+<th style="text-align: center;">rg tokens</th>
+<th style="text-align: center;">token reduction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Django</strong> (Python)</td>
+<td style="text-align: center;">524K</td>
+<td style="text-align: center;"><strong>10 / 10</strong></td>
+<td style="text-align: center;">10 / 10</td>
+<td style="text-align: center;">10.13 s</td>
+<td style="text-align: center;">2.97 s</td>
+<td style="text-align: center;">~29 K</td>
+<td style="text-align: center;">~20.6 M</td>
+<td style="text-align: center;"><strong>703 ×</strong></td>
+</tr>
+<tr>
+<td><strong>Tokio</strong> (Rust)</td>
+<td style="text-align: center;">80K</td>
+<td style="text-align: center;"><strong>10 / 10</strong></td>
+<td style="text-align: center;">10 / 10</td>
+<td style="text-align: center;">21.91 s</td>
+<td style="text-align: center;">1.49 s</td>
+<td style="text-align: center;">~31 K</td>
+<td style="text-align: center;">~1.9 M</td>
+<td style="text-align: center;"><strong>61 ×</strong></td>
+</tr>
+<tr>
+<td><strong>React</strong> (JS+TS)</td>
+<td style="text-align: center;">270K</td>
+<td style="text-align: center;"><strong>10 / 10</strong></td>
+<td style="text-align: center;">10 / 10</td>
+<td style="text-align: center;">11.71 s</td>
+<td style="text-align: center;">4.58 s</td>
+<td style="text-align: center;">~29 K</td>
+<td style="text-align: center;">~22.8 M</td>
+<td style="text-align: center;"><strong>773 ×</strong></td>
+</tr>
+<tr>
+<td><strong>Aggregate</strong></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"><strong>30 / 30 (100 %)</strong></td>
+<td style="text-align: center;">30 / 30 (100 %)</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"><strong>~ 60×–770× less</strong></td>
+</tr>
+</tbody>
+</table>
+<h2>Worked example — <code>django-001</code> (one query, real numbers)</h2>
+<p>Reproduce locally to verify every number. Cloned at the same commit
+the headline table was measured against, against the actual Django
+repo (524 K LOC). This is one of the 30 tasks aggregated into the
+table above.</p>
+<blockquote>
+<p><strong>Query</strong>: "Where does Django turn an incoming URL into the view
+function that should handle it?"
+<strong>Expected canonical</strong>: <code>django/urls/resolvers.py</code>
+(<code>URLResolver.resolve()</code>)
+<strong>Vocab mismatch</strong>: query says "URL into view", code identifier is
+<code>resolve</code> — the failure mode that grep-as-search collapses on.</p>
+</blockquote>
+<h3>Side A — <code>rg</code> term-OR scan (the rg-agent baseline)</h3>
+<p>The rg-agent extracts up to 8 terms (TF-IDF-ish stopword filter),
+runs <code>rg -i -F --max-count=20 -C2</code> per term, concatenates the
+output. For this query the extractor produced:</p>
+<pre><code>['function', 'incoming', 'incom', 'django', 'handle', 'should', 'into', 'that']
+</code></pre>
+<p>The high-signal words <code>URL</code>, <code>view</code>, <code>resolve</code> did not survive the
+extractor — they were either stopword-filtered or pushed past the
+8-term cap. That's the vocab-mismatch failure: the query's actual
+intent is <code>URLResolver.resolve()</code>, but <code>rg</code> searches for <code>function</code>,
+<code>django</code>, <code>that</code> instead.</p>
+<p>Real measured output volumes per <code>rg</code> invocation (one per term):</p>
+<table>
+<thead>
+<tr>
+<th><code>rg</code> term</th>
+<th style="text-align: right;">Output chars</th>
+<th style="text-align: right;">Tokens (chars / 4)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>function</code></td>
+<td style="text-align: right;">1,811,753</td>
+<td style="text-align: right;">452,938</td>
+</tr>
+<tr>
+<td><code>incoming</code></td>
+<td style="text-align: right;">16,095</td>
+<td style="text-align: right;">4,024</td>
+</tr>
+<tr>
+<td><code>incom</code></td>
+<td style="text-align: right;">254,373</td>
+<td style="text-align: right;">63,593</td>
+</tr>
+<tr>
+<td><code>django</code></td>
+<td style="text-align: right;">5,752,979</td>
+<td style="text-align: right;">1,438,245</td>
+</tr>
+<tr>
+<td><code>handle</code></td>
+<td style="text-align: right;">952,033</td>
+<td style="text-align: right;">238,008</td>
+</tr>
+<tr>
+<td><code>should</code></td>
+<td style="text-align: right;">1,694,468</td>
+<td style="text-align: right;">423,617</td>
+</tr>
+<tr>
+<td><code>into</code></td>
+<td style="text-align: right;">700,156</td>
+<td style="text-align: right;">175,039</td>
+</tr>
+<tr>
+<td><code>that</code></td>
+<td style="text-align: right;">3,364,369</td>
+<td style="text-align: right;">841,092</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td style="text-align: right;"><strong>14,546,226</strong></td>
+<td style="text-align: right;"><strong>3,636,556</strong></td>
+</tr>
+</tbody>
+</table>
+<p><code>django</code> alone is <strong>1.4 million tokens</strong> because the term matches in
+basically every file of the Django source tree. <code>that</code> is <strong>840 K
+tokens</strong> for the same reason — high-frequency words that the
+stopword filter let through.</p>
+<h3>Side B — <code>skygrep --top 10 --json</code></h3>
+<pre><code class="language-bash">skygrep &quot;Where does Django turn an incoming URL into the view function that should handle it?&quot; \
+  --json --top 10
+</code></pre>
+<p>Real measured output: <strong>10,430 chars ≈ 2,607 tokens</strong>. Top files
+returned include <code>django/urls/resolvers.py</code> and related canonical
+implementation files.</p>
+<h3>Reduction</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th style="text-align: right;">Tokens</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rg</code> term-OR scan</td>
+<td style="text-align: right;"><strong>3,636,556</strong></td>
+<td>dominated by <code>django</code> (1.4 M) and <code>that</code> (840 K) — stopwords flooded the haystack</td>
+</tr>
+<tr>
+<td><code>skygrep --top 10</code></td>
+<td style="text-align: right;"><strong>2,607</strong></td>
+<td>top-K cosine over <code>bge-m3</code> substrate, no token-level matching</td>
+</tr>
+<tr>
+<td><strong>Ratio</strong></td>
+<td style="text-align: right;"><strong>≈ 1,395 ×</strong></td>
+<td>for this query</td>
+</tr>
+</tbody>
+</table>
+<p>This is <strong>higher</strong> than the 60 × – 770 × headline range because
+vocab-mismatch queries are the worst case for <code>rg</code> (stopwords flood
+the output) and the best case for <code>skygrep</code> (the embedder bridges
+"URL into view" → <code>resolve()</code>).</p>
+<h3>Why the headline range is 60 × – 770 ×, not a single number</h3>
+<p><code>rg</code> output volume scales with <strong>(repo LOC) × (term-frequency of the
+high-signal terms in the query)</strong>. <code>skygrep</code> output is
+~constant-per-K (top-10 ≈ 10 KB of JSON):</p>
+<table>
+<thead>
+<tr>
+<th>Repo</th>
+<th style="text-align: right;">LOC</th>
+<th style="text-align: right;">Per-query rg tokens (avg)</th>
+<th style="text-align: right;">Per-query skygrep tokens</th>
+<th style="text-align: right;">Ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tokio</strong> (Rust)</td>
+<td style="text-align: right;">80 K</td>
+<td style="text-align: right;">~190 K</td>
+<td style="text-align: right;">~3.1 K</td>
+<td style="text-align: right;"><strong>61 ×</strong></td>
+</tr>
+<tr>
+<td><strong>Django</strong> (Python)</td>
+<td style="text-align: right;">524 K</td>
+<td style="text-align: right;">~2.06 M</td>
+<td style="text-align: right;">~2.9 K</td>
+<td style="text-align: right;"><strong>703 ×</strong></td>
+</tr>
+<tr>
+<td><strong>React</strong> (JS+TS)</td>
+<td style="text-align: right;">270 K</td>
+<td style="text-align: right;">~2.28 M</td>
+<td style="text-align: right;">~2.9 K</td>
+<td style="text-align: right;"><strong>773 ×</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Tokio is the floor (small repo, focused vocabulary). Django and
+React both blow up because <code>django</code> / <code>react</code> saturate term-OR scans
+across mid-sized monorepos.</p>
+<h3>Reproduce yourself (3 commands)</h3>
+<pre><code class="language-bash"># rg side — counts bytes from term-OR scan
+cd /tmp/oss-bench/django
+for term in function incoming incom django handle should into that; do
+  rg -i -F --max-count 20 -C 2 &quot;$term&quot; .
+done | wc -c
+
+# skygrep side — counts bytes from top-10 JSON
+skygrep &quot;Where does Django turn an incoming URL into the view function that should handle it?&quot; \
+  --json --top 10 | wc -c
+
+# divide chars by 4 to approximate tokens
+</code></pre>
+<p>Numbers will land within ± 5 % of the table above (variance from
+your Django clone's commit and rg minor-version output formatting).</p>
+<h2>How to read these numbers</h2>
+<h3>"rg recall = 100 %" looks impressive but isn't apples-to-apples</h3>
+<p>The <code>rg</code> agent in this benchmark is the ripgrep equivalent of "search
+for every word the user said and dump every line that matches." It
+collects up to 160 file-tokens of context per query
+(8 terms × 20 matches × 2-line context windows). In practice that
+context is enormous: <strong>20 M tokens of <code>rg</code> output across the 10
+Django queries</strong> vs. <strong>29 K tokens of <code>skygrep</code> output</strong>. So:</p>
+<ul>
+<li><strong>Yes, <code>rg</code> finds the answer in the dump.</strong> Always, on Django
+    and Tokio. The expected file is somewhere in the 100 K-line
+    haystack.</li>
+<li><strong>No, <code>rg</code> does not give the agent a useful starting point.</strong>
+    The agent now has to read 20 M tokens to figure out which one
+    of the 100 file-fragments is the actual answer. That is not a
+    realistic real-world workflow — it's a recall ceiling on a
+    deliberately permissive ripgrep configuration.</li>
+<li><strong><code>skygrep</code> returns the right file ranked top-10 in 30 of 30
+    cases.</strong> That is the user-facing number.</li>
+</ul>
+<h3>Why React used to lag (and how it was resolved)</h3>
+<p>The React fixture used to surface two honest skygrep weaknesses,
+both fixed by the Option-C substrate upgrade. The original failure
+modes are documented here as the engineering record:</p>
+<ol>
+<li><strong>Test-fixture path bias.</strong> <code>react-007</code> asks for the
+     <code>React.createElement</code> implementation. The canonical answer is
+     <code>packages/react/src/jsx/ReactJSXElement.js</code>. skygrep's top-10
+     used to be dominated by test fixtures
+     <code>fixtures/legacy-jsx-runtimes/react-{14,15,16,17}/cjs/...</code> —
+     filename-token similarity to "jsx-runtime" pulled the legacy
+     fixture files ahead of the real source.</li>
+<li><strong>Devtools vs reconciler conflict.</strong> <code>react-010</code> asks for the
+     Profiler component implementation. The canonical answer is in
+     the <code>react-reconciler/</code> package. skygrep used to return several
+     <code>react-devtools-shared/.../profilingHooks.js</code> files instead —
+     the devtools profiler had many more "profiler" filename
+     mentions than the reconciler's internal timer.</li>
+</ol>
+<p><strong>Resolution (Option C).</strong> Both classes of failure shared a single
+root cause: the <code>mxbai-embed-large</code> substrate ranked re-export /
+fixture aggregators above canonical implementations, and any
+post-hoc graph prior could not recover candidates that were not in
+the rerank pool. Two changes lifted React to <strong>10 / 10</strong>:</p>
+<ul>
+<li><strong><code>bge-m3</code> substrate</strong> (1024-d, symmetric, multilingual
+    XLM-RoBERTa). The canonical reconciler / source files now land
+    inside the top-K cosine pool for both queries. A better prior
+    cannot save you when cosine never surfaces the right file —
+    upgrading the embedder is the only fix that worked.</li>
+<li><strong>Content-agnostic non-canonical-path filter</strong> (24 universal
+    aux conventions: <code>/fixtures/</code>, <code>/examples/</code>, <code>/vendor/</code>,
+    <code>/node_modules/</code>, <code>/dist/</code>, <code>.development.js</code>, <code>.production.min.js</code>,
+    <code>.min.js</code>, …). This is a structural prior, not a language-specific
+    rule, and applies to any corpus that follows similar conventions
+    (markdown notes with <code>/drafts/</code>, knowledge graphs with
+    <code>/archive/</code>, etc.).</li>
+</ul>
+<h3>Why per-query latency is higher than <code>rg</code>'s</h3>
+<p>The benchmark cold-loads the cross-encoder reranker once per process
+(~30 s) and runs each query through the cascade including the HyDE
+escalation path on uncertain queries. In <code>skygrep serve</code> daemon mode
+the reranker stays warm in memory, and warm queries land in the
+~0.5 – 2 s band. The 11–20 s/q numbers here are an honest CLI-from-
+cold-start measurement, not a daemon throughput claim.</p>
+<p>For an AI agent the relevant cost is <em>the LLM round-trip after the
+search</em>, which scales with <strong>token count of the context</strong> — and
+that is where skygrep's 60–770× reduction lives.</p>
+<h2>Per-task detail</h2>
+<p>Run the benchmark without <code>--summary-only</code> to get every task's
+expected path, returned top-10, and per-tier hit / miss:</p>
+<pre><code class="language-bash">.venv/bin/python benchmarks/parity_vs_ripgrep.py \
+  --root /tmp/oss-bench/react \
+  --tasks benchmarks/cross_repo/react.json \
+  --top-k 10 &gt; /tmp/react-detail.json
+
+python3 -c &quot;
+import json; d = json.load(open('/tmp/react-detail.json'))
+for t in d['tasks']:
+    print(f\&quot;{t['id']}: skygrep_hit={t['skygrep']['hit']} rg_hit={t['rg']['hit']}\&quot;)
+&quot;
+</code></pre>
+<h2>Reproducing yourself</h2>
+<p>The fixtures, runner, and <code>parity_vs_ripgrep.py</code> are all in this
+repo. Pin the OSS clones at the commits you tested against (<code>git
+log --oneline -1</code> inside each clone) when reporting numbers, since
+upstream code drifts.</p>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep v0.2.14 release notes" />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="v0.2.14 · skylakegrep" />
+ <meta property="og:description" content="skylakegrep v0.2.14 release notes" />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>v0.2.14 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">v0.2.14</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">release notes · v0.2.14</p>
+<h1>skylakegrep 0.2.14 — homepage redesign</h1>
+<p>This release is a <strong>documentation-surface release</strong>, not a code-path
+release. Zero behaviour change. Existing installs do not need to
+rebuild any indexes, refresh any caches, or re-pull any models.
+Same wheel surface, same CLI, same JSON contract.</p>
+<p>What changed: the GitHub Pages site and the <code>README.md</code> were stacked,
+unfocused, and didn't pass the five-second test. A new visitor had no
+way to answer <em>what is this, is it for me, why should I care</em> without
+scrolling through 1,400 lines of dense reference docs.</p>
+<p>This release rebuilds the front door.</p>
+<h2>What's new</h2>
+<h3>A new home page</h3>
+<p><code>docs/index.html</code> is now a focused landing page (~850 lines, was
+1,405). It tells the story in seven beats:</p>
+<ol>
+<li><strong>Hero</strong> with an animated terminal demo — three queries cycle
+     through (auth-token refresh, retry-with-backoff, JWT expiration)
+     so a visitor sees the <em>kind of question</em> skygrep answers, not
+     just a feature list.</li>
+<li><strong>Three scenarios</strong> — code by concept, cross-content (PDF +
+     code + markdown together), multilingual &amp; private. The
+     audience-selector that the old site lacked.</li>
+<li><strong>Why skylakegrep?</strong> — six-row comparison table against
+     <code>ripgrep</code> and Cloud RAG (Cursor, Sourcegraph, …). The first
+     surface that frames the actual landscape.</li>
+<li><strong>How it works</strong> — three-step horizontal flow: LLM router →
+     cosine cascade → proactive layer. Each step names the model
+     and its latency budget so the architecture is legible at a
+     glance.</li>
+<li><strong>Install + Quickstart</strong> — compacted to the minimum four
+     commands.</li>
+<li><strong>Benchmarks headline</strong> — three big numbers (30/30 OSS recall ·
+     60×–770× less context · −82% tool calls in agent loops) with a
+     single CTA into the full benchmarks page.</li>
+<li><strong>Honesty</strong> — what the data does and does NOT show, in four
+     bullet points. Sample sizes, latency caveats, scope limits.</li>
+</ol>
+<h3>Five new subpages</h3>
+<p>The deep-reference content moved out of the home page and into
+purpose-built subpages with shared chrome (topbar + sidebar, no
+right-TOC clutter):</p>
+<ul>
+<li><code>docs/concepts.html</code> — indexing · ranking · output mechanics</li>
+<li><code>docs/architecture.html</code> — local Ollama + SQLite + ranking pipeline</li>
+<li><code>docs/cli.html</code> — full CLI cheatsheet + configuration env vars</li>
+<li><code>docs/reference.html</code> — JSON output schema (the agent contract)</li>
+<li><code>docs/benchmarks.html</code> — all four sub-benchmarks + worked example</li>
+<li><code>docs/changelog.html</code> — release-card grid linking to per-version
+    notes</li>
+</ul>
+<h3>A rewritten <code>README.md</code></h3>
+<p>The GitHub README is now a focused landing surface, not a wall of
+release tables. It opens with the same hero, the same three
+scenarios, the same comparison table, the same how-it-works diagram
+that the GitHub Pages site uses, then condenses to a four-command
+install + a performance highlight + a command cheatsheet + a
+condensed "what's new" pointer.</p>
+<p>The release-history table that previously consumed 60% of the README
+moved to <code>docs/changelog.html</code>.</p>
+<h2>Why this matters</h2>
+<p>A new visitor decides whether your project is for them in the first
+five seconds. Before this release:</p>
+<ul>
+<li>The first paragraph was dense reference text.</li>
+<li>There was no comparison surface — no answer to "I already use
+    ripgrep / Cursor, why would I install this?"</li>
+<li>There was no how-it-works diagram — the architecture was buried
+    20+ sections in.</li>
+<li>The benchmark headline was buried beneath four sub-benchmarks
+    each with their own caveats.</li>
+</ul>
+<p>After this release, every one of those questions gets answered above
+the fold.</p>
+<h2>Compatibility</h2>
+<ul>
+<li><strong>Python</strong>: unchanged — 3.9+</li>
+<li><strong>Default embedder</strong>: unchanged — <code>bge-m3</code></li>
+<li><strong>Default LLM router</strong>: unchanged — <code>qwen2.5:3b</code></li>
+<li><strong>Wheel surface</strong>: unchanged — same <code>skygrep</code> entry point, same
+    flags, same env var contract</li>
+<li><strong>Index format</strong>: unchanged — <code>~/.local-mgrep/&lt;repo-id&gt;/index.db</code>
+    is byte-compatible with 0.2.13</li>
+<li><strong>JSON output schema</strong>: unchanged</li>
+</ul>
+<h2>Bench numbers</h2>
+<p>Unchanged from 0.2.13 — this release ships zero ranking-path code.</p>
+<ul>
+<li>Public-OSS recall: <strong>30 / 30</strong> on Django + React + Tokio</li>
+<li>Agent loops: <strong>−37.6%</strong> single-turn, <strong>−82%</strong> best-case multi-turn
+    tool calls vs. <code>rg</code>-only</li>
+<li>Worst-case latency: bge-m3 inference is +57% per-query slower than
+    mxbai on Tokio specifically; the three-repo average is still −19%.</li>
+</ul>
+<h2>Eight-surface checklist</h2>
+<ul>
+<li>[x] <code>pyproject.toml</code> 0.2.13 → 0.2.14</li>
+<li>[x] <code>skylakegrep-0.2.14.html</code> (this file)</li>
+<li>[x] <code>README.md</code> (full rewrite)</li>
+<li>[x] <code>docs/index.html</code> (full rewrite)</li>
+<li>[x] <code>docs/concepts.html</code> + <code>architecture.html</code> + <code>cli.html</code> +
+        <code>reference.html</code> + <code>benchmarks.html</code> + <code>changelog.html</code> (new)</li>
+<li>[x] <code>releasing.html</code> (extended to cover the new pages)</li>
+<li>[ ] GitHub repo description — unchanged (positioning is the same)</li>
+<li>[x] PyPI upload — manual <code>twine upload</code> flow (CI 403 still
+        unfixed; tracked separately)</li>
+<li>[x] GitHub Release with attached wheel + sdist</li>
+<li>[x] <code>git tag -a v0.2.14</code> + push</li>
+</ul>
+<h2>Known follow-ups</h2>
+<ul>
+<li>The CI workflow still 403s on <code>PYPI_API_TOKEN</code>. Manual <code>twine</code>
+    flow remains the working path; the secret-fix is tracked
+    separately and not gating this release.</li>
+<li>Sub-page content was lifted verbatim from the previous
+    <code>docs/index.html</code>. A second pass to tighten copy on each subpage
+    is a candidate follow-up.</li>
+<li>The animated hero terminal demo respects
+    <code>prefers-reduced-motion</code>; the static fallback shows only frame 1.
+    A future iteration could add a "Pause animation" affordance.</li>
+</ul>
+<h2>Acknowledgments</h2>
+<p>This release was driven by direct feedback that the homepage was
+"just stacked content" with no five-second pitch. The redesign plan
+lives at <code>docs/plans/2026-05-05-homepage-redesign.md</code>.</p>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

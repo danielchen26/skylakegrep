@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep v0.2.7 release notes" />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="v0.2.7 · skylakegrep" />
+ <meta property="og:description" content="skylakegrep v0.2.7 release notes" />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>v0.2.7 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">v0.2.7</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">release notes · v0.2.7</p>
+<h1>skylakegrep 0.2.7 — release notes</h1>
+<p><code>0.2.7</code> ships <strong>Principle 6 — Proactive over Passive</strong> and its
+first concrete enhancer (<code>filename_extend</code>). When the system can't
+answer the user's query under its current bounded scope, it no
+longer just shrugs ("no matches", "index is building"). It tries
+extra work in parallel within a strict latency budget and
+surfaces help the user can act on.</p>
+<p>Also in this release: a sweep of user-personal examples
+(<code>&lt;token&gt;</code> / <token> references) out of source code per the user's
+explicit directive — replaced with generic identifier-shape
+tokens (<code>task-001</code>, <code>req-2024-08</code>).</p>
+<blockquote>
+<p><strong>License:</strong> PolyForm Noncommercial 1.0.0. Personal / academic /
+research / hobby use is fully permitted. Commercial use requires
+a separate license — contact <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;">&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;</a>.</p>
+</blockquote>
+<h2>What changed</h2>
+<h3>1. New <code>skylakegrep.src.proactive</code> framework</h3>
+<p>Content-agnostic enhancer registry, runs in parallel after the
+main cascade returns, with a hard total-budget cap so normal
+queries pay zero extra latency.</p>
+<pre><code class="language-python">from skylakegrep.src.proactive import (
+    register_enhancer,
+    ProactiveEnhancement,
+    ProactiveResult,
+)
+
+def my_enhancer_should_fire(query, decision, results):
+    # O(1), cheap. No I/O. No LLM calls.
+    return decision.intent == &quot;filename&quot; and not results
+
+def my_enhancer_execute(query, decision, top_k, individual_budget_ms):
+    # Honour the budget internally (subprocess timeout, LLM timeout, …).
+    return ProactiveResult(
+        enhancer_name=&quot;my_enhancer&quot;,
+        extra_hits=[...],
+        note=&quot;Found additional matches:&quot;,
+    )
+
+register_enhancer(ProactiveEnhancement(
+    name=&quot;my_enhancer&quot;,
+    should_fire=my_enhancer_should_fire,
+    execute=my_enhancer_execute,
+    individual_budget_ms=400,
+))
+</code></pre>
+<p>The runner uses <code>ThreadPoolExecutor.shutdown(wait=False,
+cancel_futures=True)</code> so over-budget enhancers don't bleed into
+the user's perceived latency. Every enhancer is failure-isolated
+— one raising / hanging won't break the others. Master kill-switch
+via <code>SKYGREP_NO_PROACTIVE=1</code> (and <code>SKYGREP_NO_HINTS=1</code>).</p>
+<h3>2. Built-in <code>filename_extend</code> enhancer</h3>
+<p>The motivating case: a user asks <code>where is my &lt;file&gt;?</code> from one
+directory but the file actually lives in <code>~/Downloads</code> /
+<code>~/Desktop</code> / <code>~/Documents</code>. The in-project filename shortcut
+returns 0 hits because it's bounded to <code>project_root</code>. Before
+0.2.7, the cold-start path printed <code>No matches yet — semantic
+index is building</code>. Now:</p>
+<pre><code>$ skygrep &quot;Where is my &lt;file&gt;?&quot;
+[main results render — 0 in this case]
+[footer telemetry]
+
+💡 Found 2 match(es) outside the current project root while the cascade was running:
+   📄 /Users/.../Downloads/&lt;file&gt;.pdf · 2300 KB
+   📄 /Users/.../Desktop/&lt;file&gt;-draft.docx · 145 KB
+   → next: cd /Users/.../Downloads &amp;&amp; skygrep &quot;&lt;query&gt;&quot;
+</code></pre>
+<p>Implementation:</p>
+<ul>
+<li>Should-fire: <code>intent in {"filename", "mixed"}</code> (LLM router) OR
+    English / Chinese natural-language lookup phrases (<code>where is</code>,
+    <code>find me</code>, <code>locate</code>, <code>在哪</code>, <code>找一下</code>, ...) AND the cascade
+    returned 0 results.</li>
+<li>Execute: parallel <code>find -iname '*&lt;token&gt;*' -maxdepth 4</code> across
+    <code>~/Downloads</code>, <code>~/Desktop</code>, <code>~/Documents</code> with a 400 ms
+    individual budget. Reuses the <code>auto_index._FN_TOKEN_RE</code> /
+    <code>_is_identifier_like</code> token-extractor from the in-project
+    filename_shortcut path so scoring is consistent.</li>
+<li>Search dirs are dependency-injectable (<code>search_dirs=...</code>) so
+    tests target <code>tempfile.TemporaryDirectory</code> fixtures and never
+    touch the user's real <code>~/Downloads</code>.</li>
+</ul>
+<h3>3. New <code>principles.html</code> Principle 6</h3>
+<p>Full contract documented as Principle 6. Bounds (latency, gating,
+content-agnosticism, failure-isolation, killable), what proactive
+should NOT do (mutate state, replace the user, latency creep on
+the common case), receipts table for shipped + open enhancers,
+and a PR-checklist for new enhancers (state should-fire signal,
+state individual_budget_ms, confirm no state mutation, contract
+test).</p>
+<h3>4. Sweep of user-personal examples</h3>
+<p>Per the user's directive ("why you wrote <token> file in the actual
+code that is just an example do not expose such thing"):</p>
+<ul>
+<li><code>skylakegrep/src/auto_index.py</code> — 5 in-comment references
+    replaced with generic <code>task-001</code>-style examples.</li>
+<li><code>skylakegrep/src/binary_extract.py</code> — docstring example.</li>
+<li><code>skylakegrep/src/llm_router.py</code> — LLM router prompt example
+    query (<code>"where is &lt;token&gt; file?"</code> → <code>"where is task-001 file?"</code>).
+    Prompt still has 5 examples covering filename / semantic /
+    lexical / recency-out-of-scope / size-out-of-scope intents.</li>
+<li><code>skylakegrep/src/proactive.py</code> — newly written, all
+    pre-commit references swept before push.</li>
+</ul>
+<p>A new auto-memory entry recording the rule (<code>Don't expose
+user-personal examples in source code</code>) so this category of
+mistake doesn't recur in future sessions.</p>
+<h2>Implementation files</h2>
+<ul>
+<li><code>skylakegrep/src/proactive.py</code> — new module (~430 lines).</li>
+<li><code>skylakegrep/src/cli.py</code> — search_cmd hooks
+    <code>proactive.run_enhancers_parallel(...)</code> after main results
+    render and before the low-confidence quality hint. Quality
+    hint is suppressed when proactive surfaced anything (no
+    point nagging when the user got more info).</li>
+<li><code>tests/test_proactive.py</code> — 23 new tests covering the four
+    contract guarantees (should-fire gating, budget enforcement,
+    failure isolation, kill-switches) plus filename_extend
+    regression coverage.</li>
+</ul>
+<p>Test suite: <strong>188 / 188 passing</strong> (16 subtests). Added 23 new
+tests for the proactive framework.</p>
+<h2>Latency contract</h2>
+<p><strong>Normal queries pay zero extra cost</strong> — the should-fire gate
+returns False unless the enhancer's preconditions hold. Eligible
+enhancers (the user-reported cold-start case) get a parallel budget
+of 500 ms total; whatever finishes within that wall clock gets
+surfaced.</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th style="text-align: center;">0.2.6</th>
+<th style="text-align: center;">0.2.7</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Normal query (top hit confident)</td>
+<td style="text-align: center;">0.5 s</td>
+<td style="text-align: center;"><strong>0.5 s</strong> (proactive doesn't fire)</td>
+</tr>
+<tr>
+<td>Filename lookup, 0 in-project hits</td>
+<td style="text-align: center;">0.5 s + "no match"</td>
+<td style="text-align: center;"><strong>~0.7-0.9 s</strong> + parallel <code>find</code> results</td>
+</tr>
+<tr>
+<td>Worst case (all enhancers fire)</td>
+<td style="text-align: center;">n/a</td>
+<td style="text-align: center;"><strong>≤ 1.0 s</strong> (total budget cap)</td>
+</tr>
+</tbody>
+</table>
+<p><code>SKYGREP_PROACTIVE_BUDGET_MS=0</code> disables the framework cleanly.</p>
+<h2>Compatibility</h2>
+<ul>
+<li>Python ≥ 3.9 (unchanged)</li>
+<li>Existing 0.2.0–0.2.6 indexes: no migration; proactive runs on
+    top of cascade output without touching the index.</li>
+<li>Bench numbers unchanged: 30 / 30 across Django + React +
+    Tokio at ~14.6 s/q aggregate.</li>
+</ul>
+<h2>Verifying the user-reported case</h2>
+<pre><code class="language-bash"># from a directory where your target file isn't located:
+$ skygrep &quot;Where is my &lt;filename&gt;?&quot;
+... [main results — 0 hits]
+[footer]
+
+💡 Found N match(es) outside the current project root...
+   📄 ~/Downloads/&lt;filename&gt;.pdf
+   ...
+</code></pre>
+<p>The old behaviour ("No matches yet — semantic index is building")
+no longer leaves the user wondering whether they're in the wrong
+directory. The system already looked.</p>
+<h2>Known follow-ups (not in 0.2.7)</h2>
+<ul>
+<li><strong>0.2.8</strong> — additional proactive enhancers from the receipts
+    table: <code>query_refinement</code>, <code>markdown_link_traverse</code>,
+    <code>pdf_section_extract</code>, <code>git_history_related</code>. Each sized to
+    its own individual_budget_ms.</li>
+<li><strong>Phase C</strong> — full intelligent-retrieval audit; tracked in
+    <a href="plans/2026-05-05-phase-c-audit.md"><code>docs/plans/2026-05-05-phase-c-audit.md</code></a><ul>
+<li><a href="plans/2026-05-05-phase-c-exploration.md"><code>docs/plans/2026-05-05-phase-c-exploration.md</code></a>.</li>
+</ul>
+</li>
+<li>Re-render <code>docs/assets/{benchmark,schema,hero-dark,og-image}.svg</code>
+    to reflect bge-m3 defaults.</li>
+<li>Re-run the self-test bench on bge-m3 and update
+    <code>token-benchmarking.html</code>.</li>
+<li>Fix the GitHub Actions <code>PYPI_API_TOKEN</code> 403; manual <code>twine</code>
+    flow continues to work.</li>
+</ul>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

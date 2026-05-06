@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="Six architectural principles guiding skylakegrep design." />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="Principles · skylakegrep" />
+ <meta property="og:description" content="Six architectural principles guiding skylakegrep design." />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>Principles · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">Principles</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">skylakegrep architectural principles</p>
+<h1>Project principles for skylakegrep</h1>
+<p>This document is the <strong>deepest memory</strong> of the project — durable
+guidance for any contributor (human or AI agent) working in this
+repository. Loaded into Claude sessions via <code>CLAUDE.md</code> so the
+principles travel with the code.</p>
+<hr />
+<h2>Principle 1 — Understanding &gt; Enumeration</h2>
+<p><strong>The anti-pattern:</strong> when a question can be answered by a generic
+<em>understanding</em> layer (a language model, a multilingual embedder,
+a pluggable registry), do not answer it by enumerating cases
+(per-language regex, per-keyword token list, per-content-type
+hardcoded branch). Enumeration is a patch you can never finish; new
+vocabulary, new languages, new content types appear faster than you
+can add them.</p>
+<p><strong>The pattern:</strong> identify the substrate or registry that already
+handles the generic case. Use it as the <em>primary</em> path. Keep
+enumeration only as an <strong>offline fallback</strong> when the substrate is
+unavailable, with a written rationale for why the enumeration is
+acceptable in that bounded context.</p>
+<h3>Past lapses in this project (the receipts)</h3>
+<p>These are real mistakes the project has made — recorded here so
+future contributors see the pattern and don't repeat it.</p>
+<table>
+<thead>
+<tr>
+<th>Lapse</th>
+<th>Anti-pattern instance</th>
+<th>Principled fix</th>
+<th>Released in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>code_graph.py</strong></td>
+<td>hardcoded Rust + Python + JS + TS regex extractors as the sole way to build the file-export graph; new languages required new regex branches inside the retrieval module</td>
+<td><code>reference_graph.register_extractor(name, extensions, fn)</code> — the abstraction is now "A references B"; <code>code_graph.py</code> is a 75-line back-compat facade; new content types (markdown shipped, YAML / knowledge-graph / Obsidian one line away) plug in without touching retrieval</td>
+<td><code>0.2.0</code></td>
+</tr>
+<tr>
+<td><strong>mxbai-embed-large substrate</strong></td>
+<td>English-and-code-only embedder ranked re-export aggregators above canonical implementations; Chinese / mixed-language code comments performed poorly</td>
+<td><code>bge-m3</code> substrate (multilingual XLM-RoBERTa, symmetric, 8 k context); query and passage share the same vector space; new languages cost zero code</td>
+<td><code>0.2.0</code></td>
+</tr>
+<tr>
+<td><strong>symbol_channel.py</strong></td>
+<td>tree-sitter symbol extraction only knows Rust / Python / JS / TS; adding Go / Ruby / Java requires installing new grammars + extending <code>symbol_kinds_for_language()</code>; markdown / PDF / YAML get nothing</td>
+<td>tracked as <strong>Phase C path B</strong> (<code>docs/plans/2026-05-05-phase-c-audit.md</code>): generalise to a <code>register_structural_extractor</code> registry covering code symbols, markdown headings, PDF sections, YAML keys, etc.; the router's <code>looks_like_structural_ref(query)</code> becomes content-type-agnostic</td>
+<td>open (slated for <code>0.3.x</code>)</td>
+</tr>
+<tr>
+<td><strong>intelligent_cli._METADATA_TOKENS</strong></td>
+<td>hand-curated set of recency / size / listing keywords (<code>recent</code>, <code>latest</code>, <code>最近</code>, <code>最新</code>, …) used to detect out-of-scope queries; the user reported <code>我昨天打开过的十个文件</code> → not flagged because <code>昨天</code> was missing; patched in <code>0.2.5</code> by adding <code>昨天 / 今天 / 前天 / 上周 / 本周 / 打开过 / 改过 / yesterday / today / this week / last week</code>; this is a patch, not the answer</td>
+<td><code>0.2.6</code>: <code>RouterDecision</code> gained an <code>out_of_scope</code> field (<code>none</code> / <code>recency</code> / <code>size</code> / <code>listing</code>); the existing <code>llm_router.route_query()</code> LLM prompt now classifies scope on the same call that's already running for retrieval intent — zero added latency. <code>intelligent_cli.detect_out_of_scope</code> consults <code>decision.out_of_scope</code> first; the keyword list is now strictly an <strong>offline safety net</strong> for when Ollama is unreachable</td>
+<td><code>0.2.6</code> ✓ shipped</td>
+</tr>
+<tr>
+<td><strong>proactive.filename_extend_should_fire</strong></td>
+<td>0.2.7 shipped the proactive framework but its built-in gate enumerated English / Chinese natural-language lookup phrases (<code>"where is" / "find me" / "在哪" / "找一下" / "我的"</code>) as a fallback when <code>decision.intent</code> was not <code>"filename"</code>. The user caught this on the same day: "I see you're still using a lot of these keyword phrases. We shouldn't use keywords." This was the <strong>third</strong> Principle-1 lapse against the same anti-pattern in this project</td>
+<td><code>0.2.8</code>: gate trusts <code>decision.intent</code> exclusively. When LLM router (or its rule-based fallback) classifies intent as <code>filename</code> / <code>mixed</code> → fire; anything else → don't. <code>decision is None</code> means "no understanding available" and refuses to fire rather than enumerate. The LLM is the only source of intent truth</td>
+<td><code>0.2.8</code> ✓ shipped</td>
+</tr>
+<tr>
+<td><strong>proactive gate iteration (0.2.9 → 0.2.10)</strong></td>
+<td>0.2.8's strict <code>intent ∈ {filename, mixed}</code> gate rejected the LLM-unreachable case where rule-based fallback returned <code>intent=lexical, primary_token=""</code>. 0.2.9 added a third eligibility case based on token-shape morphology (<code>_looks_like_identifier</code>) — and the user immediately caught this as the same anti-pattern in different clothes ("我不是要什么关不关键的短语就是说你现在不是有一个intent吗任何的intent如果当前的问题识别不了或者在当前的问题下识别不了应该触发"). <strong>Fourth Principle-1 lapse.</strong></td>
+<td><code>0.2.10</code>: gate is purely results-based. <code>not results</code> → fire; <code>results present + primary_token + no basename match</code> → fire; everything else → don't. Token-shape / morphology decisions moved INTO <code>filename_extend_execute</code> where they shape the <em>mechanism</em> (which token to <code>find</code> for, return None if none usable) but never gate <em>eligibility</em>. The cleanest realisation of "policy = did scope fail; mechanism = how to extend scope"</td>
+<td><code>0.2.10</code> ✓ shipped</td>
+</tr>
+<tr>
+<td><strong>proactive <code>find</code> budget bug (0.2.7 → 0.2.10)</strong></td>
+<td>0.2.7-0.2.9 divided the per-enhancer budget by the number of search dirs (<code>per_dir_s = budget / N</code>), even though the dirs run in <strong>parallel</strong> threads. A 400 ms budget across 3 dirs gave 133 ms per <code>find</code> — under the typical <code>~/Downloads</code> <code>find</code> time of 161 ms. <code>find</code> got SIGKILLed seconds before yielding its output, returning 0 hits despite matching files existing. Three releases of "the gate fires, why is there no output?" came from this. <strong>Lesson:</strong> end-to-end time-the-actual-thing before shipping. Unit tests on the gate alone don't catch mechanism timing bugs</td>
+<td><code>0.2.10</code>: <code>per_dir_s = max(0.2, individual_budget_ms / 1000.0)</code> (no division). Defaults bumped to <code>DEFAULT_TOTAL_BUDGET_MS = 2000</code>, <code>filename_extend.individual_budget_ms = 1500</code>. End-to-end verified before tagging: 1093 ms wall clock to surface 4 actual user-reported files from the user's real home dirs</td>
+<td><code>0.2.10</code> ✓ shipped</td>
+</tr>
+</tbody>
+</table>
+<h3>The rule (for every PR)</h3>
+<p>Before adding a token to a list, a regex to a language branch, or a
+new <code>if content_type == "x"</code> arm, the PR description must answer:</p>
+<ol>
+<li>Is there a substrate (embedder, LLM router, registry) that
+     could handle this generically?</li>
+<li>If yes — why isn't it being used? What's blocking?</li>
+<li>If no — would a registry / plugin layer make sense here?</li>
+</ol>
+<p>Acceptable enumerations:</p>
+<ul>
+<li><strong>Offline fallback</strong> for substrate failure (LLM unreachable,
+    deterministic CI).</li>
+<li><strong>Genuinely closed sets</strong> (Click subcommand names, SQLite type
+    affinities, HTTP method verbs).</li>
+<li><strong>Plugin defaults</strong> behind a registry where extension is one
+    line of caller code.</li>
+</ul>
+<p>If none of those apply, the enumeration is wrong. Push back on it.</p>
+<hr />
+<h2>Principle 2 — Substrate before scaffolding</h2>
+<p>When accuracy / capability is bounded by the underlying substrate
+(embedder, model, vector space, parser), no amount of clever
+re-ranking, prior weighting, graph traversal, or rule-based
+filtering can break the ceiling. Upgrade the substrate first; layer
+priors on top only when the substrate is good enough that the
+priors have signal to work with.</p>
+<p><strong>Example:</strong> Phase 1 of the bge-m3 work tried a parade of priors
+(P4-LFA / P4-CGC / P4-MH / RRF rerank / multi-channel fusion) on
+the <code>mxbai-embed-large</code> substrate and <strong>all of them returned null
+or regressed</strong>. Switching the substrate to <code>bge-m3</code> alone broke the
+28/30 → 30/30 ceiling that no prior could touch. The priors came
+back into play once the substrate was strong enough that they had
+signal to refine.</p>
+<hr />
+<h2>Principle 3 — Latency / quality / correctness, in that order</h2>
+<p>When trade-offs collide, the priorities are:</p>
+<ol>
+<li><strong>Correctness</strong> — never silently return wrong results. If we
+     can't answer well (vocab mismatch, out-of-scope query, broken
+     index), say so up front via an <code>intelligent_cli</code> hint and let
+     the user redirect.</li>
+<li><strong>Quality</strong> — semantic-quality answers beat rg-quality
+     answers; full re-embed beats stale-dim filtered.</li>
+<li><strong>Latency</strong> — prefer instant rg-fallback under degradation
+     over blocking the user; pay LLM router cost once amortized
+     across the full search.</li>
+</ol>
+<p>Background workers (recovery, watch, serve) exist to give the user
+<strong>both</strong> a fast first answer AND eventual full quality.</p>
+<hr />
+<h2>Principle 4 — Public surfaces must be sync'd at every release</h2>
+<p><code>releasing.html</code> codifies the eight surfaces every release
+touches. The 0.2.2 → 0.2.3 lapse (PyPI shipped, GitHub Pages
+silent) is the receipts; the checklist is the prevention. No
+release is done until every surface is updated.</p>
+<hr />
+<h2>Principle 6 — Proactive over Passive</h2>
+<p><strong>The anti-pattern:</strong> when the system can't answer the user's
+query under its current bounded scope, it shrugs — "no matches",
+"index is building", "try a different query later". The user has
+to guess what to do next, possibly across multiple invocations,
+sometimes hitting <code>Ctrl-C</code> because they think the tool is broken.</p>
+<p><strong>The pattern:</strong> the system should <strong>try extra work in parallel
+within a strict latency budget</strong> to surface help the user can act
+on. If the answer is "no match in this directory", surface what
+the answer would be in a likely alternative directory. If the
+answer is "low-confidence top hit", surface the confidence and
+suggest a refinement. If the top hit is a markdown file, surface
+its linked references. <strong>Proactivity is not optional; it's the
+default — bounded by latency, gated by should-fire, and
+content-agnostic by construction.</strong></p>
+<h3>Bounds (the contract)</h3>
+<p>Proactive work is only acceptable when ALL these hold:</p>
+<ol>
+<li><strong>Bounded latency.</strong> Total wall-clock cap (default 500 ms,
+     <code>SKYGREP_PROACTIVE_BUDGET_MS</code>); each enhancer also has its
+     own <code>individual_budget_ms</code>. The runner uses
+     <code>ThreadPoolExecutor.shutdown(wait=False, cancel_futures=True)</code>
+     so over-budget work doesn't bleed into the user's perceived
+     latency.</li>
+<li><strong>Gated by should-fire.</strong> Each enhancer declares cheap
+     conditions under which it's worth running. We don't pay the
+     budget for enhancers that aren't going to produce useful
+     output. Should-fire is O(1) on already-computed inputs
+     (query, decision, results) — no I/O, no LLM calls.</li>
+<li><strong>Content-agnostic by registry.</strong> New enhancers plug in via
+     <code>register_enhancer()</code> — same architectural shape as
+     <code>reference_graph.register_extractor()</code> (Principle 1).
+     Filename-extend is content-agnostic by accident; markdown
+     link-traversal, PDF section extraction, git-history
+     traversal, query refinement etc. are all eligible plug-ins.</li>
+<li><strong>Failure-isolated.</strong> One enhancer raising / hanging /
+     misbehaving must NOT break the others. The runner runs each
+     in its own thread + catches all exceptions + drops their
+     result silently.</li>
+<li><strong>Killable.</strong> <code>SKYGREP_NO_PROACTIVE=1</code> (or
+     <code>SKYGREP_NO_HINTS=1</code>) disables the whole framework so users
+     who need a quiet CLI / strictly-deterministic CI can opt
+     out.</li>
+</ol>
+<h3>What proactive should NOT do</h3>
+<ul>
+<li><strong>Latency creep on the common case.</strong> The 95 % of queries
+    where the cascade returned good results should pay zero
+    extra cost. The should-fire gate is the protection.</li>
+<li><strong>Mutate state silently.</strong> Proactive enhancers produce
+    <em>suggestions</em> and <em>additional read-only results</em>. They do not
+    create files, run shell commands, modify the index, etc.,
+    without an explicit user confirmation step (which we do not
+    yet provide; future enhancers requiring action must ask).</li>
+<li><strong>Replace the user.</strong> Proactive output is additional
+    information, never a substitute for the main results. The
+    main cascade results render first; proactive output appears
+    as a footer block.</li>
+</ul>
+<h3>Receipts (proactive enhancers shipped)</h3>
+<table>
+<thead>
+<tr>
+<th>Enhancer</th>
+<th>What</th>
+<th style="text-align: center;">Released in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>filename_extend</code></strong></td>
+<td>When the user asks for a file by name (<code>intent=filename</code> or <code>where is …</code> / <code>在哪 / 找一下 …</code> phrases) and the in-project search returns 0 hits, parallel <code>find</code> across <code>~/Downloads</code>, <code>~/Desktop</code>, <code>~/Documents</code> (depth=4, individual budget 400 ms). Surfaces matches that would have required the user to <code>cd</code> and re-issue the query.</td>
+<td style="text-align: center;"><code>0.2.7</code> ✓</td>
+</tr>
+<tr>
+<td><code>query_refinement</code> (open)</td>
+<td>When the cascade returns top-1 &lt; floor AND σ-gap &lt; floor, ask the LLM router for a refined query suggestion. Bounded by individual_budget_ms ≤ 400 ms.</td>
+<td style="text-align: center;">open</td>
+</tr>
+<tr>
+<td><code>markdown_link_traverse</code> (open)</td>
+<td>When a top hit is a <code>.md</code> file, surface notes linked from it via <code>extractors.markdown</code> (already shipped in 0.2.0). Pure SQL on the existing reference graph; budget ≤ 100 ms.</td>
+<td style="text-align: center;">open</td>
+</tr>
+<tr>
+<td><code>pdf_section_extract</code> (open)</td>
+<td>When a top hit is a <code>.pdf</code>, surface section titles. Reuses the 0.1.0 <code>pypdf</code> extraction. Budget ≤ 300 ms.</td>
+<td style="text-align: center;">open</td>
+</tr>
+<tr>
+<td><code>git_history_related</code> (open)</td>
+<td>When a top hit is in a git repo, surface the last 5 commits that touched the same file. Budget ≤ 150 ms.</td>
+<td style="text-align: center;">open</td>
+</tr>
+</tbody>
+</table>
+<h3>The rule (for every enhancer PR)</h3>
+<p>Before adding a new enhancer:</p>
+<ol>
+<li>State the <strong>should-fire</strong> signal that gates it. Cheap, O(1).</li>
+<li>State the <strong>individual budget</strong> in milliseconds. Justify.</li>
+<li>Confirm it doesn't mutate state.</li>
+<li>Add a contract test in <code>tests/test_proactive.py</code>
+     demonstrating that should-fire returns False on the common
+     case (so the enhancer doesn't bleed budget on every query).</li>
+</ol>
+<p>If the enhancer wants to do ONLINE work (LLM call, network), the
+individual budget must be measured against <code>qwen2.5:3b</code>'s 90th
+percentile response time, not its mean.</p>
+<hr />
+<h2>Principle 5 — Honest evaluation over hopeful claims</h2>
+<p>Numbers in headlines must be measurable, reproducible, and named
+by their bench. Three benches live in this project:</p>
+<ul>
+<li><strong>End-to-end Claude Code agent</strong> — tool-call reductions
+    (−37.6 % single-turn, −82 % multi-turn).</li>
+<li><strong>Public OSS recall</strong> — Django + React + Tokio,
+    30 / 30 (100 %) at top-10.</li>
+<li><strong>Self-test regression</strong> — 30 internal tasks, recall × token
+    reduction across top-k.</li>
+</ul>
+<p>Don't combine numbers across benches. When a feature can't be
+measured (e.g. "future Phase C wins"), say so — don't claim it.</p>
+<hr />
+<h2>How this document gets used</h2>
+<ul>
+<li><code>CLAUDE.md</code> imports this file via <code>@principles.html</code> so any
+    Claude session in this repo loads the principles automatically.</li>
+<li>Human contributors should read this once on first PR; the rule
+    in <strong>Principle 1</strong> is the most likely tripwire.</li>
+<li>Update this file whenever a new architectural lapse is
+    identified — receipts go in the table above; the rule and
+    pattern stay stable.</li>
+</ul>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

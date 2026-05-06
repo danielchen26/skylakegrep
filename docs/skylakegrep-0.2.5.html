@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep v0.2.5 release notes" />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="v0.2.5 · skylakegrep" />
+ <meta property="og:description" content="skylakegrep v0.2.5 release notes" />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>v0.2.5 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">v0.2.5</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">release notes · v0.2.5</p>
+<h1>skylakegrep 0.2.5 — release notes</h1>
+<p><code>0.2.5</code> is a focused bug-fix + UX release. Three things, all
+user-reported. <strong>Critical bug</strong>: pre-0.2.2 indexes were silently
+filtered down to nothing because the recovery worker wasn't
+detecting them (PDFs / older chunks invisible to the bge-m3
+cosine query). The remaining two are smaller — keyword
+stop-gap for the <code>昨天</code> (yesterday) miss in out-of-scope detection
+and a hierarchical telemetry footer that's actually scannable.</p>
+<blockquote>
+<p><strong>License:</strong> PolyForm Noncommercial 1.0.0. Personal / academic /
+research / hobby use is fully permitted. Commercial use requires
+a separate license — contact <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;">&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;</a>.</p>
+</blockquote>
+<h2>Critical bug fix — recovery worker now triggers on pre-0.2.2 indexes</h2>
+<p>In 0.2.2–0.2.4, <code>recovery.detect_mismatch</code> had this logic:</p>
+<pre><code class="language-python">if stored is None:
+    # Fresh index, or pre-0.2.2 index with no fingerprint yet —
+    # record the current one. Do not trigger recovery.
+    set_meta(conn, &quot;embedder_fingerprint&quot;, current)
+    return None
+</code></pre>
+<p>This was wrong for <strong>pre-0.2.2 indexes that already had stale-dim
+chunks</strong>. The metadata table existed (it was added in 0.2.2), but
+the <code>embedder_fingerprint</code> key was unset. The "fresh index"
+short-circuit treated this as "nothing to do" and silently stamped
+the current fingerprint, leaving the user's existing 768-d /
+old-mxbai chunks invisible to the bge-m3 cosine query. The
+<code>_filter_to_matching_dim</code> helper from 0.2.1 dutifully filtered
+them out on every search, but no recovery worker spawned to
+re-embed them.</p>
+<p><strong>The user-visible symptom:</strong> search results that should include
+PDFs / older files came back without them, even though they were
+indexed. Telemetry showed <code>Skipped 5104 file embeddings with stale
+embedding dim</code> — the 0.2.1 warning fired, but the 0.2.2 "⟳
+Embedder upgraded — re-embedding N stale chunks" notice never did,
+because no recovery had been started.</p>
+<p><strong>The fix in 0.2.5:</strong> <code>detect_mismatch</code> now distinguishes
+truly-empty fresh indexes (no fingerprint, no chunks → stamp
+fingerprint, no recovery) from pre-0.2.2 indexes (no fingerprint,
+stale chunks &gt; 0 → trigger recovery). The recovery worker then
+re-embeds in mtime-DESC order as designed in 0.2.2. Four new
+regression tests in <code>tests/test_recovery.py</code> lock in the four
+cases of (fingerprint set / unset) × (chunks at current dim /
+stale dim).</p>
+<p><strong>To recover an existing pre-0.2.5 index after upgrading:</strong> just
+run any <code>skygrep "&lt;query&gt;"</code>. The first query auto-detects the
+mismatch, prints the <code>⟳ Embedder upgraded</code> notice, spawns the
+background worker, and falls back to rg for the current query.
+Semantic queries return progressively as files re-embed; full
+recovery typically completes in 10–30 min on a mid-sized repo.</p>
+<h2>Out-of-scope detection — <code>昨天</code> / <code>今天</code> / <code>last week</code> etc. now caught</h2>
+<p>The 0.2.4 <code>_METADATA_TOKENS</code> keyword list missed day-relative
+recency tokens. The user's <code>我昨天打开过的十个文件</code> query
+slipped through and ran semantic search instead of getting the
+<code>git log</code> suggestion.</p>
+<p><code>0.2.5</code> adds:</p>
+<ul>
+<li>Chinese day-relative: <code>昨天</code>, <code>今天</code>, <code>前天</code>, <code>上周</code>, <code>本周</code>, <code>刚刚</code></li>
+<li>Chinese verbs that imply mtime: <code>打开过</code>, <code>改过</code>, <code>编辑过</code>, <code>修改过</code></li>
+<li>English day-relative: <code>yesterday</code>, <code>today</code>, <code>this morning</code>,
+    <code>last week</code>, <code>this week</code></li>
+</ul>
+<p><strong>This is a stopgap.</strong> The <code>_METADATA_TOKENS</code> enumeration is the
+wrong shape — adding a token every time a user reports a new
+miss is the same engineering pattern that motivated the 0.2.0
+content-agnostic refactor of <code>code_graph.py</code> (and the still-open
+Phase C work to generalise <code>symbol_channel.py</code>). The principled
+fix lives in <strong>0.2.6</strong>: extend <code>llm_router.route_query()</code>'s LLM
+prompt to classify <code>scope: content / recency / size / listing /
+unknown</code> as part of the same call that's already running for
+retrieval-intent classification — no extra latency, language- and
+phrasing-agnostic understanding. The keyword list will be
+demoted to <strong>offline fallback</strong> for when the LLM is unreachable.</p>
+<p>This anti-pattern is now permanently recorded as Principle 1 in
+<a href="principles.html"><code>principles.html</code></a> along with the receipts
+table of past lapses.</p>
+<h2>Hierarchical telemetry footer</h2>
+<p>The 0.2.2–0.2.4 telemetry footer was one long <code>·</code>-separated line:</p>
+<pre><code>[0.722s · path=cosine-cheap · router=fallback-rules · intent=mixed (0.60) · 0 filename + 0 lexical · σ-gap=0.0582 ≥ τ=0.0358 (adaptive) → high-confidence early-exit · index 29s ago · 5107 files · L2 symbols on · graph prior on · quality=BEST]
+</code></pre>
+<p>User feedback was correct — this is a wall of text, hard to scan,
+not hierarchical. <code>0.2.5</code> rewrites it as a multi-line block with
+category labels:</p>
+<pre><code>✓ 0.722s · quality=BEST
+   path     : cosine-cheap (high-confidence early-exit)
+   router   : fallback-rules → intent=mixed (0.60)
+   evidence : σ-gap=0.0582 ≥ τ=0.0358 (adaptive)
+   pool     : 0 filename + 0 lexical · cascade
+   index    : 29s ago · 5107 files · L2 symbols + graph prior
+</code></pre>
+<p>With recovery active:</p>
+<pre><code>⚠ 0.18s · quality=DEGRADED-recovery
+   path     : cosine-cheap
+   recovery : in-progress · chunks=1234/5107 · coverage=24% · ETA=14m
+   index    : 29s ago · 5107 files
+</code></pre>
+<p>The <code>✓</code> / <code>⚠</code> glyph is the at-a-glance scannable signal —
+<code>✓</code> means the result is full-quality semantic, <code>⚠</code> means
+recovery is degrading some files. Set <code>SKYGREP_FOOTER_COMPACT=1</code>
+to opt back into the old single-line format (for tooling that
+parses the footer).</p>
+<h2>Compatibility</h2>
+<ul>
+<li>Python ≥ 3.9 (unchanged)</li>
+<li>Existing 0.2.0–0.2.4 indexes: no migration; recovery worker
+    auto-triggers on first <code>0.2.5</code> search if stale-dim chunks
+    exist.</li>
+<li>Bench numbers unchanged from 0.2.4: 30 / 30 across Django +
+    React + Tokio at ~14.6 s/q aggregate.</li>
+<li>Test suite: 161 / 161 passing (16 subtests). Added 4 recovery
+    regression tests + 6 day-relative recency tests.</li>
+</ul>
+<h2>What's next — 0.2.6</h2>
+<p>The keyword stopgap in this release is explicitly a patch.
+<code>0.2.6</code> does the principled refactor:</p>
+<ul>
+<li>Extend <code>llm_router.route_query()</code>'s LLM prompt (qwen2.5:3b,
+    already running on every query) to classify <code>scope: content /
+    recency / size / listing / unknown</code> alongside the existing
+    intent.</li>
+<li><code>RouterDecision</code> gains <code>out_of_scope_kind</code> and
+    <code>out_of_scope_suggestion</code> fields.</li>
+<li><code>intelligent_cli.detect_out_of_scope</code> reads from
+    <code>RouterDecision</code> first; falls back to <code>_METADATA_TOKENS</code> only
+    when the LLM call is unavailable (offline / Ollama down /
+    model not pulled).</li>
+<li>The keyword list stops being the primary classifier and
+    becomes the offline safety net.</li>
+</ul>
+<p>This is the architecture the user repeatedly flagged as the right
+shape — substrate before scaffolding, understanding over
+enumeration — and is what <code>principles.html</code> Principle 1 calls
+for.</p>
+<h2>Known follow-ups (not in 0.2.5)</h2>
+<ul>
+<li><strong>0.2.6</strong> — LLM-based scope classification (above).</li>
+<li><strong><code>skygrep tour</code></strong> — interactive 5-step walkthrough for
+    first-time users.</li>
+<li><strong>Phase C</strong> — full intelligent-retrieval audit; tracked in
+    <a href="plans/2026-05-05-phase-c-audit.md"><code>docs/plans/2026-05-05-phase-c-audit.md</code></a><ul>
+<li><a href="plans/2026-05-05-phase-c-exploration.md"><code>docs/plans/2026-05-05-phase-c-exploration.md</code></a>.</li>
+</ul>
+</li>
+<li>Re-render <code>docs/assets/{benchmark,schema,hero-dark,og-image}.svg</code>
+    to reflect bge-m3 defaults.</li>
+<li>Re-run the self-test bench on bge-m3 and update
+    <code>token-benchmarking.html</code>.</li>
+<li>Fix the GitHub Actions <code>PYPI_API_TOKEN</code> 403.</li>
+</ul>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep v0.2.9 release notes" />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="v0.2.9 · skylakegrep" />
+ <meta property="og:description" content="skylakegrep v0.2.9 release notes" />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>v0.2.9 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">v0.2.9</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">release notes · v0.2.9</p>
+<h1>skylakegrep 0.2.9 — release notes</h1>
+<p><code>0.2.9</code> is a follow-up to <code>0.2.8</code> that handles the case the user
+hit after the 0.2.8 ship: a Chinese mixed-language query like
+<code>"我有没有跟\"&lt;token&gt;\"有关的文件？"</code> against a cold-start
+directory still didn't trigger the proactive enhancer, because
+the LLM router's rule-based fallback classified the query as
+<code>intent=lexical</code> with <code>primary_token=""</code>. The 0.2.8 gate strictly
+required <code>intent in (filename, mixed)</code>, so it didn't fire.</p>
+<p>The fix adds two more eligibility cases to
+<code>filename_extend_should_fire</code>, both Principle-1-compliant
+(LLM-fed signals or content-shape morphology — never keyword
+enumeration).</p>
+<blockquote>
+<p><strong>License:</strong> PolyForm Noncommercial 1.0.0. Personal / academic /
+research / hobby use is fully permitted. Commercial use requires
+a separate license — contact <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;">&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;</a>.</p>
+</blockquote>
+<h2>What changed</h2>
+<h3><code>filename_extend_should_fire</code> now has three eligibility cases</h3>
+<pre><code class="language-python">if decision is None:
+    return False
+intent = decision.intent
+primary_token = decision.primary_token or &quot;&quot;
+
+# Case 1 (existing): LLM classified intent as filename / mixed.
+if intent in (&quot;filename&quot;, &quot;mixed&quot;):
+    eligible = True
+
+# Case 2 (NEW in 0.2.9): LLM identified a primary_token even
+# when intent is semantic / lexical. The user mentioned a
+# specific identifier — fire so we can look for it as a filename.
+elif primary_token and len(primary_token.strip()) &gt;= 2:
+    eligible = True
+
+# Case 3 (NEW in 0.2.9): cascade returned 0 results AND the query
+# contains a content-shape identifier (digits, dashes, CamelCase).
+# Last-resort path for when the LLM is unreachable / produced
+# low-confidence output but the query still has a clearly-shaped
+# identifier we can filename-match against.
+elif not results:
+    candidate = _filename_token(query, decision)
+    eligible = bool(candidate and _looks_like_identifier(candidate))
+else:
+    eligible = False
+</code></pre>
+<h3><code>_looks_like_identifier(token)</code> helper</h3>
+<p>Token-shape check that asks: does this token plausibly name a
+file? Three signals (any one suffices):</p>
+<ul>
+<li>has digits (<code>&lt;token&gt;</code>, <code>task-001</code>, <code>v6.2</code>)</li>
+<li>has internal punctuation (<code>foo.bar</code>, <code>my-file</code>, <code>snake_case</code>)</li>
+<li>mixed case (<code>CamelCase</code>, <code>PascalCase</code>)</li>
+</ul>
+<p>This is the same family of signals the LLM router prompt uses to
+score candidate <code>primary_token</code> choices ("Prefer tokens with
+digits or unusual capitalisation"). It is <strong>token morphology</strong>,
+not keyword enumeration — consistent with Principle 1.</p>
+<p>The distinction matters: a hand-curated list of trigger phrases
+(<code>"where is" / "在哪" / "找一下" / "我的"</code>) was the 0.2.7 lapse.
+A regex on the <em>shape</em> of the user's tokens is structural, not
+keyword-based.</p>
+<h3>Why this matters: the LLM-down fallback case</h3>
+<p>The user's screenshot showed <code>intent=lexical, primary_token=""</code> —
+the rule-based classifier in <code>llm_router._rule_based_decision</code>.
+This happens when:</p>
+<ul>
+<li>Ollama isn't running</li>
+<li><code>qwen2.5:3b</code> isn't pulled</li>
+<li>The LLM call timed out</li>
+<li>The router cache had a stale entry from before 0.2.6</li>
+</ul>
+<p>In those cases the rule-based classifier produces an <code>intent</code>
+but explicitly leaves <code>primary_token=""</code> (it defers token
+selection to <code>auto_index.filename_shortcut</code> which extracts its
+own). Our 0.2.8 gate rejected this case because <code>intent</code> was
+neither <code>filename</code> nor <code>mixed</code>, leaving the user with the bare
+"No matches yet" notice.</p>
+<p>0.2.9's case 3 catches this: when results are empty AND the
+query has an identifier-shape token, fire anyway. Token-shape
+detection is the same content-agnostic morphology check the
+LLM router prompt uses internally, just lifted into our code.</p>
+<h2>Implementation files</h2>
+<ul>
+<li><code>skylakegrep/src/proactive.py</code> — new <code>_looks_like_identifier</code>
+    helper and rewritten <code>filename_extend_should_fire</code> with
+    three eligibility cases.</li>
+<li><code>tests/test_proactive.py</code> — 4 new tests:<ul>
+<li><code>test_fires_when_llm_set_primary_token_even_on_semantic_intent</code></li>
+<li><code>test_fires_on_zero_results_with_identifier_shape_token</code></li>
+<li><code>test_does_not_fire_on_zero_results_pure_natural_language</code></li>
+<li><code>test_does_not_fire_when_intent_is_lexical_and_no_identifier</code></li>
+</ul>
+</li>
+<li><code>pyproject.toml</code>, <code>README.md</code>, <code>docs/index.html</code> — version
+    bump + What's-new entry.</li>
+</ul>
+<h2>Compatibility</h2>
+<ul>
+<li>Python ≥ 3.9 (unchanged)</li>
+<li>Existing 0.2.0–0.2.8 indexes: no migration.</li>
+<li>Bench numbers unchanged: 30 / 30 across Django + React +
+    Tokio at ~14.6 s/q aggregate.</li>
+<li>Test suite: <strong>193 / 193 passing</strong> (16 subtests). Added 4 new
+    tests for the expanded gate.</li>
+</ul>
+<h2>Verifying the user's exact case</h2>
+<pre><code class="language-bash">$ cd ~/Documents
+$ skygrep 'do I have files related to &lt;token&gt;?'
+[0 main results — cold-start, no semantic index]
+
+💡 Found N match(es) outside the current project root...
+   📄 ~/Downloads/&lt;filename&gt;.pdf  · 2300 KB
+   ...
+
+[0.7s · ripgrep cold-start + 1 proactive · index building in background]
+</code></pre>
+<p>Even when:</p>
+<ul>
+<li>The semantic index isn't built (cold-start)</li>
+<li>The LLM router is unreachable (rule-based fallback runs)</li>
+<li>The classifier returned <code>intent=lexical, primary_token=""</code></li>
+</ul>
+<p>the gate's case 3 catches the identifier-shape token (<code>&lt;token&gt;</code> —
+has digits) and fires <code>filename_extend</code> against <code>~/Downloads</code>,
+<code>~/Desktop</code>, <code>~/Documents</code>.</p>
+<h2>Known follow-ups (not in 0.2.9)</h2>
+<ul>
+<li><strong>Phase C</strong> — full intelligent-retrieval audit; tracked in
+    <a href="plans/2026-05-05-phase-c-audit.md"><code>docs/plans/2026-05-05-phase-c-audit.md</code></a><ul>
+<li><a href="plans/2026-05-05-phase-c-exploration.md"><code>docs/plans/2026-05-05-phase-c-exploration.md</code></a>.</li>
+</ul>
+</li>
+<li>More proactive enhancers (<code>query_refinement</code>,
+    <code>markdown_link_traverse</code>, <code>pdf_section_extract</code>,
+    <code>git_history_related</code>).</li>
+<li>Re-render <code>docs/assets/{benchmark,schema,hero-dark,og-image}.svg</code>
+    to reflect bge-m3 defaults.</li>
+<li>Re-run the self-test bench on bge-m3 and update
+    <code>token-benchmarking.html</code>.</li>
+<li>Improve <code>_rule_based_decision</code> to populate <code>primary_token</code>
+    using the same token-shape scoring (would let case 1 fire
+    via <code>intent=mixed</code> more often when the LLM is unreachable).</li>
+<li>Fix the GitHub Actions <code>PYPI_API_TOKEN</code> 403; manual <code>twine</code>
+    flow continues to work.</li>
+</ul>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

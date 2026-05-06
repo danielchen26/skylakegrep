@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep v0.2.10 release notes" />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="v0.2.10 · skylakegrep" />
+ <meta property="og:description" content="skylakegrep v0.2.10 release notes" />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>v0.2.10 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">v0.2.10</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">release notes · v0.2.10</p>
+<h1>skylakegrep 0.2.10 — release notes</h1>
+<p><code>0.2.10</code> is the third bug-fix release in 24 hours for the proactive
+framework — and the first one that's been <strong>end-to-end verified
+against the user's actual scenario before being shipped</strong>. The
+prior two releases (0.2.7 → 0.2.9) chased symptoms by tightening
+gate logic; this one fixes the underlying mechanism.</p>
+<blockquote>
+<p><strong>License:</strong> PolyForm Noncommercial 1.0.0. Personal / academic /
+research / hobby use is fully permitted. Commercial use requires
+a separate license — contact <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;">&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;</a>.</p>
+</blockquote>
+<h2>What was wrong (root-cause diagnosis)</h2>
+<p>The user reported: <code>skygrep 'do I have files related to &lt;token&gt;?'</code> from
+<code>~/Documents</code> returned "No matches yet" even though the user-reported files
+exist in <code>~/Downloads</code>. Across 0.2.7 / 0.2.8 / 0.2.9 the visible
+behaviour didn't change — the gate fired correctly (we proved that
+in unit tests), but the user still got no proactive output.</p>
+<p>End-to-end timing measurements (the missing piece):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th style="text-align: center;">per-dir budget</th>
+<th style="text-align: center;">actual <code>find</code> time</th>
+<th style="text-align: center;">result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>~/Downloads</code></td>
+<td style="text-align: center;">133 ms</td>
+<td style="text-align: center;"><strong>161 ms</strong></td>
+<td style="text-align: center;">✗ killed before yielding stdout, 0 hits</td>
+</tr>
+<tr>
+<td><code>~/Desktop</code></td>
+<td style="text-align: center;">133 ms</td>
+<td style="text-align: center;">79 ms</td>
+<td style="text-align: center;">✓ 0 hits (nothing matching)</td>
+</tr>
+<tr>
+<td><code>~/Documents</code></td>
+<td style="text-align: center;">133 ms</td>
+<td style="text-align: center;">142 ms</td>
+<td style="text-align: center;">✗ killed before yielding stdout, 0 hits</td>
+</tr>
+</tbody>
+</table>
+<p><code>find</code> was getting cut off by the per-dir timeout literally
+milliseconds before it could return its results. The gate fired,
+the enhancer executed, the subprocesses started, and they all got
+SIGKILLed seconds before they would have surfaced the answer.</p>
+<h2>Root causes (two of them, both shipped together as 0.2.10)</h2>
+<h3>Bug 1 — per-dir timeout was <code>total_budget / N</code> instead of <code>total_budget</code></h3>
+<p>In <code>filename_extend_execute</code>:</p>
+<pre><code class="language-python">per_dir_s = max(0.1, (individual_budget_ms / 1000.0) / max(len(dirs), 1))
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^
+# Wrong: dirs run in parallel, NOT serially. Each thread should
+# get the FULL budget; the wall-clock cap is enforced separately
+# by the as_completed timeout below.
+</code></pre>
+<p>With 3 dirs and a 400 ms budget that became <code>400 / 3 = 133 ms</code> per
+dir — under the actual <code>find</code> time. Each dir's <code>find</code> was killed
+before yielding output. The same bug across 0.2.7 / 0.2.8 / 0.2.9.</p>
+<p><strong>Fix:</strong> <code>per_dir_s = max(0.2, individual_budget_ms / 1000.0)</code>. Each
+parallel thread gets the full budget; total wall clock is bounded
+by the <code>as_completed</code> timeout (<code>individual_budget_ms / 1000 + 0.2</code>).</p>
+<h3>Bug 2 — defaults too tight for real home directories</h3>
+<p>The 0.2.7 defaults (<code>DEFAULT_TOTAL_BUDGET_MS = 500</code>, filename_extend
+<code>individual_budget_ms = 400</code>) were set against simple-shape <code>find</code>
+benchmarks but turned out to be unrealistic for actual depth-4 home
+directory walks. Even after fixing bug 1, a 400 ms per-dir budget
+was a hair under typical <code>~/Downloads</code> speed.</p>
+<p><strong>Fix:</strong> bumped defaults to <code>DEFAULT_TOTAL_BUDGET_MS = 2000</code>,
+filename_extend <code>individual_budget_ms = 1500</code>. End-to-end measured
+wall clock with 0.2.10 defaults: <strong>1093 ms</strong> to surface 4 user files
+across <code>~/Downloads / Desktop / Documents</code>. The user opted into the
+proactive search by issuing a query the cascade couldn't answer; 1
+second of parallel <code>find</code> with the right answer is much better than
+500 ms of "no matches yet" with the wrong answer.</p>
+<p>The should-fire gate continues to protect the common case — normal
+queries with cosine top-1 confident DON'T fire, so latency stays at
+zero for the 95 % path.</p>
+<h2>Gate simplification (also part of 0.2.10)</h2>
+<p>Independent of the bug fix, 0.2.10 also simplifies the should-fire
+gate to drop intent / token-shape filtering — a separate piece of
+user feedback during 0.2.9 review:</p>
+<blockquote>
+<p>"你现在不是有一个intent吗任何的intent如果当前的问题识别不了或者
+在当前的问题下识别不了应该触发这个intelligent proactive的东西"</p>
+</blockquote>
+<p>The gate now does exactly one thing: check whether conventional
+retrieval can answer. It does NOT inspect <code>decision.intent</code>, does
+NOT call <code>_looks_like_identifier</code> (the 0.2.9 token-morphology
+helper), does NOT enumerate trigger phrases (the 0.2.7 lapse).</p>
+<pre><code class="language-python">def filename_extend_should_fire(query, decision, results):
+    if decision is None:
+        return False
+    if not results:
+        return True   # cascade failed, fire unconditionally
+    primary_token = decision.primary_token or &quot;&quot;
+    if not primary_token:
+        return False  # nothing to validate, trust the cascade
+    return not any(
+        primary_token.lower() in Path(r[&quot;path&quot;]).name.lower()
+        for r in results if r.get(&quot;path&quot;)
+    )
+</code></pre>
+<p>Token-shape decisions live one layer deeper, <strong>inside</strong>
+<code>filename_extend_execute</code>: the enhancer extracts a candidate token
+via <code>_filename_token</code> (which uses the same morphology scoring the
+LLM router uses to select <code>primary_token</code>), and returns <code>None</code> if
+no usable token exists — keeping latency at exactly zero for queries
+where filename search would be useless (pure NL with no identifier).</p>
+<p>This is the cleanest split the user articulated:</p>
+<ul>
+<li><strong>Gate (policy):</strong> "did current scope fail?" — pure <code>results</code>
+    check, no auxiliary signals.</li>
+<li><strong>Enhancer (mechanism):</strong> "given a query, can we answer it?" —
+    silent return if no, parallel work if yes.</li>
+</ul>
+<p><code>principles.html</code> Principle 1's receipts table now has FIVE
+rows tracking the long iteration to get this right.</p>
+<h2>Implementation files</h2>
+<ul>
+<li><code>skylakegrep/src/proactive.py</code>:<ul>
+<li><code>_looks_like_identifier</code> removed (dead code after gate
+  simplification; token-shape checks live in <code>_filename_token</code>
+  which already exists).</li>
+<li><code>filename_extend_should_fire</code> simplified — purely
+  results-based.</li>
+<li><code>filename_extend_execute</code> — <code>per_dir_s = max(0.2,
+  individual_budget_ms / 1000.0)</code> (no longer divides by N).</li>
+<li><code>DEFAULT_TOTAL_BUDGET_MS = 2000</code> (was 500).</li>
+<li><code>filename_extend.individual_budget_ms = 1500</code> (was 400).</li>
+</ul>
+</li>
+<li><code>tests/test_proactive.py</code> — 4 tests rewritten / added to lock
+    in the simpler gate (<code>test_gate_fires_on_zero_results_regardless_of_intent</code>,
+    <code>test_does_not_fire_when_results_match_primary_token</code>,
+    <code>test_fires_when_results_present_but_no_primary_token_match</code>,
+    <code>test_does_not_fire_when_results_present_and_no_primary_token</code>).</li>
+</ul>
+<h2>End-to-end verification (the part 0.2.7 / 0.2.8 / 0.2.9 missed)</h2>
+<p>Before tagging 0.2.10, the framework was tested against the user's
+actual home directories with the user's exact query, using the
+production <code>run_enhancers_parallel(...)</code> entry point and the new
+defaults:</p>
+<pre><code>registered enhancers: ['filename_extend']
+wall clock: 1093 ms
+telemetry: {'fired': ['filename_extend'], 'completed': ['filename_extend'],
+            'timed_out': [], 'budget_ms': 2000, 'elapsed_ms': 1093}
+
+💡 Found 4 match(es) outside the current project root...
+   /Users/.../Downloads/&lt;filename-A&gt;.pdf
+   /Users/.../Downloads/&lt;filename-A&gt;.docx
+   /Users/.../Downloads/&lt;filename-B&gt;.pdf
+   /Users/.../Downloads/&lt;filename-C&gt;.pdf
+</code></pre>
+<p>This is what the user should see when they run their query against
+<code>~/Documents</code> after upgrading. The cli code path (<code>cli.py</code>) calls
+<code>run_enhancers_parallel(...)</code> from both the main cascade path
+(0.2.7) and the cold-start path (0.2.8 fix), so this behaviour is
+visible whether or not the index is built.</p>
+<h2>Compatibility</h2>
+<ul>
+<li>Python ≥ 3.9 (unchanged)</li>
+<li>Existing 0.2.0–0.2.9 indexes: no migration.</li>
+<li>Bench numbers unchanged.</li>
+<li>Test suite: <strong>192 / 192 passing</strong> (20 subtests).</li>
+</ul>
+<h2>Lessons (recorded in PRINCIPLES.md and auto-memory)</h2>
+<ol>
+<li>
+<p><strong>End-to-end test before declaring "shipped"</strong> — 0.2.7, 0.2.8,
+   and 0.2.9 each had passing unit tests for <code>filename_extend</code>
+   but none had an end-to-end run against the user's actual
+   home dirs with the production budgets. The user (correctly)
+   pointed out that "测试了没有问题才能告诉我" — test it
+   yourself, don't make the user be the integration test.</p>
+</li>
+<li>
+<p><strong>Gate logic and mechanism logic are different concerns</strong> —
+   the gate is "should we even try" (results-based); the
+   mechanism is "what do we do when we try" (token / regex /
+   subprocess). Mixing them creates the keyword-enumeration
+   anti-pattern the user has flagged 4× now.</p>
+</li>
+<li>
+<p><strong>Latency budgets must reflect measured production</strong> —
+   400 ms / 500 ms looked good in benchmarks but were under the
+   actual <code>find</code> time on a real <code>~/Downloads</code>. Always measure
+   against real data before committing a budget number.</p>
+</li>
+</ol>
+<h2>Known follow-ups (not in 0.2.10)</h2>
+<ul>
+<li><strong>Phase C</strong> — full intelligent-retrieval audit; tracked in
+    <a href="plans/2026-05-05-phase-c-audit.md"><code>docs/plans/2026-05-05-phase-c-audit.md</code></a><ul>
+<li><a href="plans/2026-05-05-phase-c-exploration.md"><code>docs/plans/2026-05-05-phase-c-exploration.md</code></a>.</li>
+</ul>
+</li>
+<li>More proactive enhancers (<code>query_refinement</code>,
+    <code>markdown_link_traverse</code>, <code>pdf_section_extract</code>,
+    <code>git_history_related</code>).</li>
+<li>Re-render <code>docs/assets/{benchmark,schema,hero-dark,og-image}.svg</code>
+    to reflect bge-m3 defaults.</li>
+<li>Re-run the self-test bench on bge-m3 and update
+    <code>token-benchmarking.html</code>.</li>
+<li>Fix the GitHub Actions <code>PYPI_API_TOKEN</code> 403; manual <code>twine</code>
+    flow continues to work.</li>
+</ul>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

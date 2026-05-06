@@ -48,7 +48,7 @@
  <p>Project</p>
  <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
  <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
- <a href="https://github.com/danielchen26/skylakegrep/blob/master/docs/PRINCIPLES.md">Principles</a>
+ <a href="principles.html">Principles</a>
  </div>
  </nav>
  </aside>
@@ -61,7 +61,7 @@
  skylakegrep ships four reproducible benchmarks. Each measures a
  different question; quoting the right number for the right claim
  matters. The repository's
- <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>
+ <a href="parity-benchmarks.html"><code>parity-benchmarks.html</code></a>
  holds the full raw tables, methodology, and per-task data; this
  page is the curated summary.
  </p>
@@ -156,8 +156,8 @@
  conservative four-condition gate that detects exactly these
  queries and short-circuits to <code>rg</code> internally in
  ~50 ms. Methodology and aggregate published in
- <a href="skylakegrep-0.1.0.md">the release notes</a>;
- see <a href="skylakegrep-0.1.0.md">the release notes</a> for the routing fix.
+ <a href="skylakegrep-0.1.0.html">the release notes</a>;
+ see <a href="skylakegrep-0.1.0.html">the release notes</a> for the routing fix.
  </p>
 
  <h3 id="bench-multilang">2. Public OSS recall (Django · React · Tokio)</h3>
@@ -199,7 +199,7 @@
  non-canonical-path filter); the original failure modes on
  <code>react-007</code> and <code>react-010</code> and the
  resolution are documented in
- <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>
+ <a href="parity-benchmarks.html"><code>parity-benchmarks.html</code></a>
  as the engineering record, not erased.
  </p>
 
@@ -327,7 +327,7 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  Numbers will land within ± 5 % of the ones above (variance from
  your Django clone's commit and rg minor-version output formatting).
  Per-task analysis for all 30 queries lives in
- <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>.
+ <a href="parity-benchmarks.html"><code>parity-benchmarks.html</code></a>.
  </p>
 
  <h3 id="bench-self">4. skylakegrep self-test (regression guard)</h3>
@@ -370,7 +370,7 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  <p>
  Vs real ripgrep (not the simulated grep-agent), this same task set
  shows <strong>~17.7× total-token reduction at equal recall</strong>.
- See <a href="token-benchmarking.md">the benchmark protocol</a>
+ See <a href="token-benchmarking.html">the benchmark protocol</a>
  for definitions and limitations.
  </p>
 
@@ -404,7 +404,7 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  <p>
  Don't combine these into a single number; they answer different
  questions. The honest framing is in
- <a href="parity-benchmarks.md"><code>docs/parity-benchmarks.md</code></a>'s
+ <a href="parity-benchmarks.html"><code>parity-benchmarks.html</code></a>'s
  "Strongest claims" section.
  </p>
  </section>

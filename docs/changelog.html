@@ -48,7 +48,7 @@
  <p>Project</p>
  <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
  <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
- <a href="https://github.com/danielchen26/skylakegrep/blob/master/docs/PRINCIPLES.md">Principles</a>
+ <a href="principles.html">Principles</a>
  </div>
  </nav>
  </aside>
@@ -58,13 +58,28 @@
  <p class="eyebrow">Release notes</p>
  <h1>What's new in skylakegrep.</h1>
  <p class="lead">
- Every release is documented in <code>docs/skylakegrep-X.Y.Z.md</code>
- and on the
+ Every release has its own themed page (linked from each card below)
+ and is also published on the
  <a href="https://github.com/danielchen26/skylakegrep/releases">GitHub Releases page</a>
  with attached wheel + sdist artifacts. The most recent shipped
  versions, in chronological order:
  </p>
  <div class="release-grid">
+ <article class="release-card">
+ <div class="release-tag">0.2.19 · themed everywhere</div>
+ <h3>Every clickable link now stays in the themed shell</h3>
+ <p>
+ 25 markdown documents (20 release notes · principles ·
+ parity-benchmarks · token-benchmarking · roadmap · releasing)
+ rendered as themed HTML pages with the same shared chrome.
+ 83 link rewrites across 33 files (changelog "Full notes →",
+ sidebar "Principles" link in every subpage, parity-benchmarks
+ references, README internal links). Clicking any link no longer
+ drops the visitor onto a raw GitHub markdown blob — the
+ slate-blue frosted-glass shell stays consistent end-to-end.
+ </p>
+ <a class="release-link" href="skylakegrep-0.2.19.html">Full notes →</a>
+ </article>
  <article class="release-card">
  <div class="release-tag">0.2.18 · layout fix</div>
  <h3>Homepage now uses full horizontal width — Cody column no longer clipped</h3>
@@ -77,7 +92,7 @@
  a 2-column grid up to 1500px, themed cards now span 100% of the
  content area. No more empty right margin.
  </p>
- <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.18.md">Full notes →</a>
+ <a class="release-link" href="skylakegrep-0.2.18.html">Full notes →</a>
  </article>
  <article class="release-card">
  <div class="release-tag">0.2.17 · lifted theme · cheatsheet · config</div>
@@ -94,7 +109,7 @@
  footer banner; content-agnostic shouldn't sound like the user
  has to customise.
  </p>
- <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.17.md">Full notes →</a>
+ <a class="release-link" href="skylakegrep-0.2.17.html">Full notes →</a>
  </article>
  <article class="release-card">
  <div class="release-tag">0.2.16 · mgrep correction · softer palette</div>
@@ -112,7 +127,7 @@
  <code>content-types.svg</code> (6-tile grid) replace the README's
  ASCII workflow + plain content-type table.
  </p>
- <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.16.md">Full notes →</a>
+ <a class="release-link" href="skylakegrep-0.2.16.html">Full notes →</a>
  </article>
  <article class="release-card">
  <div class="release-tag">0.2.15 · comparison + visual</div>
@@ -127,7 +142,7 @@
  the same frosted-glass aesthetic as the hero. (Note: 0.2.15
  mis-labeled mgrep as a predecessor; corrected in 0.2.16.)
  </p>
- <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.15.md">Full notes →</a>
+ <a class="release-link" href="skylakegrep-0.2.15.html">Full notes →</a>
  </article>
  <article class="release-card">
  <div class="release-tag">0.2.14 · homepage</div>
@@ -140,7 +155,7 @@
  (concepts · architecture · cli · reference · benchmarks ·
  changelog).
  </p>
- <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.14.md">Full notes →</a>
+ <a class="release-link" href="skylakegrep-0.2.14.html">Full notes →</a>
  </article>
  <article class="release-card">
  <div class="release-tag">0.2.13 · privacy</div>
@@ -150,7 +165,7 @@
  and GitHub Pages. No code change. Every public artefact now
  free of user-personal example tokens.
  </p>
- <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.13.md">Full notes →</a>
+ <a class="release-link" href="skylakegrep-0.2.13.html">Full notes →</a>
  </article>
  <article class="release-card">
  <div class="release-tag">0.2.12 · proactive</div>
@@ -161,7 +176,7 @@
  supply <code>primary_token</code>. Filed the conversational
  session-state plan.
  </p>
- <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.12.md">Full notes →</a>
+ <a class="release-link" href="skylakegrep-0.2.12.html">Full notes →</a>
  </article>
  <article class="release-card">
  <div class="release-tag">0.2.11 · proactive</div>
@@ -172,7 +187,7 @@
  Plus <code>ProactiveContext</code> infrastructure for future
  enhancers.
  </p>
- <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.11.md">Full notes →</a>
+ <a class="release-link" href="skylakegrep-0.2.11.html">Full notes →</a>
  </article>
  <article class="release-card">
  <div class="release-tag">0.2.7 - 0.2.10 · proactive</div>
@@ -184,8 +199,8 @@
  the in-project search returned 0 hits. Four bug-fix iterations
  (0.2.8 - 0.2.10) recorded as Principle 1 receipts.
  </p>
- <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.7.md">0.2.7 →</a>
- <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.10.md">0.2.10 →</a>
+ <a class="release-link" href="skylakegrep-0.2.7.html">0.2.7 →</a>
+ <a class="release-link" href="skylakegrep-0.2.10.html">0.2.10 →</a>
  </article>
  <article class="release-card">
  <div class="release-tag">0.2.6 · understanding</div>
@@ -196,7 +211,7 @@
  list. <strong>Principle 1 ✓ shipped</strong> — substrate
  understanding over enumeration.
  </p>
- <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.6.md">Full notes →</a>
+ <a class="release-link" href="skylakegrep-0.2.6.html">Full notes →</a>
  </article>
  <article class="release-card">
  <div class="release-tag">0.2.0 · substrate</div>
@@ -208,7 +223,7 @@
  registry. σ-adaptive cascade. <strong>30 / 30 public-OSS recall</strong>
  (was 28 / 30).
  </p>
- <a class="release-link" href="https://github.com/danielchen26/skylakegrep/blob/master/docs/skylakegrep-0.2.0.md">Full notes →</a>
+ <a class="release-link" href="skylakegrep-0.2.0.html">Full notes →</a>
  </article>
  </div>
  <p style="margin-top:36px;">

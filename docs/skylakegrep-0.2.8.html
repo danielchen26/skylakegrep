@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep v0.2.8 release notes" />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="v0.2.8 · skylakegrep" />
+ <meta property="og:description" content="skylakegrep v0.2.8 release notes" />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>v0.2.8 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">v0.2.8</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">release notes · v0.2.8</p>
+<h1>skylakegrep 0.2.8 — release notes</h1>
+<p><code>0.2.8</code> is a focused bug-fix release for two real regressions
+the user found in <code>0.2.7</code> within hours of shipping:</p>
+<ol>
+<li>
+<p><strong>The proactive framework never fired on cold-start queries.</strong>
+   The cli's index-not-ready branch returned early before the
+   proactive enhancer hook, so users with a fresh / un-indexed
+   directory got "No matches yet" instead of the parallel
+   <code>find</code> over <code>~/Downloads</code> / <code>~/Desktop</code> / <code>~/Documents</code> that
+   <code>0.2.7</code> was supposed to provide. This is the user-reported case
+   exactly — and it didn't work.</p>
+</li>
+<li>
+<p><strong><code>filename_extend_should_fire</code> enumerated keyword phrases</strong>
+   as a fallback when <code>decision.intent</code> wasn't classified as
+   filename. This is the <strong>third</strong> Principle-1 lapse in this
+   project (after <code>code_graph.py</code> regex, <code>mxbai-embed-large</code>,
+   and <code>_METADATA_TOKENS</code> keyword list). The user caught it
+   immediately: "I see you're still using a lot of these keyword
+   phrases. We shouldn't use keywords."</p>
+</li>
+</ol>
+<blockquote>
+<p><strong>License:</strong> PolyForm Noncommercial 1.0.0. Personal / academic /
+research / hobby use is fully permitted. Commercial use requires
+a separate license — contact <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;">&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;</a>.</p>
+</blockquote>
+<h2>What changed</h2>
+<h3>1. Proactive enhancer hook added to the cold-start path</h3>
+<p>The cold-start branch in <code>cli.search_cmd</code> (when the index isn't
+ready and we fall back to <code>rg</code> + filename-shortcut) now calls
+<code>proactive.run_enhancers_parallel(...)</code> before deciding what to
+print. Two outcomes:</p>
+<ul>
+<li><strong>Cascade returned 0 hits AND proactive returned 0 hits</strong>
+    → print the existing "No matches yet — index is building"
+    notice. Same UX as before.</li>
+<li><strong>Cascade returned 0 hits but proactive found something
+    in <code>~/Downloads</code> / <code>~/Desktop</code> / <code>~/Documents</code></strong> → render
+    the proactive output, append a <code>+ N proactive</code> tag to the
+    cold-start footer, return.</li>
+<li><strong>Cascade returned hits AND proactive added more</strong> →
+    render both blocks; the user sees the in-project hits at
+    top and the cross-directory hits as a footnote.</li>
+</ul>
+<p>Previously the cold-start branch had a hard <code>return</code> between the
+"no matches yet" print and the proactive hook in the main
+cascade path, so proactive never ran on the user-reported case the
+framework was specifically built for.</p>
+<h3>2. <code>filename_extend_should_fire</code> is Principle-1-compliant</h3>
+<p><strong>Before (0.2.7):</strong></p>
+<pre><code class="language-python">def filename_extend_should_fire(query, decision, results):
+    if results:
+        return False
+    intent = getattr(decision, &quot;intent&quot;, &quot;&quot;) if decision else &quot;&quot;
+    if intent in (&quot;filename&quot;, &quot;mixed&quot;):
+        return True
+    # Keyword fallback ⇐ THE ANTI-PATTERN
+    q = query.lower()
+    en_phrases = (&quot;where is&quot;, &quot;find me&quot;, &quot;find my&quot;, &quot;locate&quot;,
+                  &quot;show me my&quot;, &quot;open my&quot;)
+    zh_phrases = (&quot;在哪&quot;, &quot;在哪里&quot;, &quot;找一下&quot;, &quot;找到&quot;, &quot;我的&quot;)
+    return (any(p in q for p in en_phrases)
+            or any(p in query for p in zh_phrases))
+</code></pre>
+<p><strong>After (0.2.8):</strong></p>
+<pre><code class="language-python">def filename_extend_should_fire(query, decision, results):
+    if decision is None:
+        return False  # No understanding available, refuse rather than enumerate.
+    intent = getattr(decision, &quot;intent&quot;, &quot;&quot;)
+    if intent not in (&quot;filename&quot;, &quot;mixed&quot;):
+        return False
+    if not results:
+        return True
+    primary_token = _filename_token(query, decision)
+    if not primary_token:
+        return False
+    token_lower = primary_token.lower()
+    return not any(
+        token_lower in Path(r.get(&quot;path&quot;, &quot;&quot;)).name.lower()
+        for r in results
+        if r.get(&quot;path&quot;)
+    )
+</code></pre>
+<p><strong>Why this is the correct fix:</strong></p>
+<ul>
+<li>The LLM router (with rule-based fallback) ALREADY classifies
+    intent on every query. Its output is the source of truth.</li>
+<li>When the LLM is unreachable, the rule-based classifier still
+    produces an <code>intent</code> — that's the offline path, NOT this
+    gate's responsibility.</li>
+<li>The keyword list was a third-time-shame Principle 1 lapse.
+    <code>principles.html</code> receipts table has been updated to mark
+    <code>proactive.filename_extend_should_fire</code> as ✓ shipped in 0.2.8
+    alongside the prior three lapses.</li>
+</ul>
+<h3>3. Added a results-without-token-match firing condition</h3>
+<p>A new behaviour shipped in 0.2.8 (was missing in 0.2.7): even
+when the cascade returned non-empty results, if NONE of them
+have the user's lookup token in their basename, fire proactive
+anyway. This handles the case where the cascade returned
+semantically-related noise (or <code>rg</code> matched random text files)
+but didn't surface the actual file the user asked for.</p>
+<p>Test in <code>test_fires_when_results_lack_token_match</code> locks the
+behaviour in.</p>
+<h2>Implementation files</h2>
+<ul>
+<li><code>skylakegrep/src/proactive.py</code> — <code>filename_extend_should_fire</code>
+    rewritten to trust <code>decision.intent</code> exclusively.</li>
+<li><code>skylakegrep/src/cli.py</code> — cold-start branch now calls the
+    proactive enhancer hook before the early <code>return</code>.</li>
+<li><code>tests/test_proactive.py</code> — keyword-based tests removed
+    (<code>test_fires_on_natural_language_lookup_phrase</code>,
+    <code>test_none_decision_falls_back_to_phrase_check</code>); replaced
+    with Principle-1 contract tests
+    (<code>test_does_not_fire_when_intent_is_semantic</code>,
+    <code>test_does_not_fire_when_intent_is_lexical</code>,
+    <code>test_does_not_fire_with_none_decision</code>,
+    <code>test_fires_when_results_lack_token_match</code>,
+    <code>test_does_not_fire_when_results_have_token_match</code>).</li>
+<li><code>principles.html</code> — receipts table updated.</li>
+</ul>
+<h2>Compatibility</h2>
+<ul>
+<li>Python ≥ 3.9 (unchanged)</li>
+<li>Existing 0.2.0–0.2.7 indexes: no migration.</li>
+<li>Bench numbers unchanged: 30 / 30 across Django + React +
+    Tokio at ~14.6 s/q aggregate.</li>
+<li>Test suite: 190 / 190 passing (was 188 in 0.2.7; net +2 for
+    the new firing-condition tests).</li>
+</ul>
+<h2>Verification (the user-reported case in cold-start)</h2>
+<pre><code class="language-bash"># In a directory whose index hasn't been built yet:
+$ skygrep &quot;Where is my &lt;file&gt;?&quot;
+[main results render — 0 in this case]
+
+💡 Found N match(es) outside the current project root...
+   📄 ~/Downloads/&lt;file&gt;.pdf  · 2300 KB
+   ...
+
+[0.7s · ripgrep cold-start + 1 proactive · intent=filename · 0 filename + 0 content · index building in background]
+</code></pre>
+<p>The "No matches yet — semantic index is building" message no
+longer fires when proactive successfully extended the search.</p>
+<h2>Known follow-ups (not in 0.2.8)</h2>
+<ul>
+<li><strong>Phase C</strong> — full intelligent-retrieval audit; tracked in
+    <a href="plans/2026-05-05-phase-c-audit.md"><code>docs/plans/2026-05-05-phase-c-audit.md</code></a><ul>
+<li><a href="plans/2026-05-05-phase-c-exploration.md"><code>docs/plans/2026-05-05-phase-c-exploration.md</code></a>.</li>
+</ul>
+</li>
+<li>More proactive enhancers (<code>query_refinement</code>,
+    <code>markdown_link_traverse</code>, <code>pdf_section_extract</code>,
+    <code>git_history_related</code>).</li>
+<li>Re-render <code>docs/assets/{benchmark,schema,hero-dark,og-image}.svg</code>
+    to reflect bge-m3 defaults.</li>
+<li>Re-run the self-test bench on bge-m3 and update
+    <code>token-benchmarking.html</code>.</li>
+<li>Fix the GitHub Actions <code>PYPI_API_TOKEN</code> 403; manual <code>twine</code>
+    flow continues to work.</li>
+</ul>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

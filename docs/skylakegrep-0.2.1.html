@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep v0.2.1 release notes" />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="v0.2.1 · skylakegrep" />
+ <meta property="og:description" content="skylakegrep v0.2.1 release notes" />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>v0.2.1 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">v0.2.1</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">release notes · v0.2.1</p>
+<h1>skylakegrep 0.2.1 — release notes</h1>
+<p>A focused positioning + advertise update on top of <code>0.2.0</code>. The
+project's positioning was inherited from the <code>0.1.0</code> rebrand era
+("local semantic code search") and undersold what the <code>0.2.0</code>
+content-agnostic substrate actually does. <code>0.2.1</code> brings the
+description, README, GitHub Pages site, and metadata in line with
+the architecture that already shipped: <strong>fully-offline semantic
+search over your local files — code, markdown, PDFs, Word docs,
+plain text, and any content type you register</strong>.</p>
+<blockquote>
+<p><strong>License:</strong> PolyForm Noncommercial 1.0.0. Personal / academic /
+research / hobby use is fully permitted. Commercial use requires
+a separate license — contact <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;">&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;</a>.</p>
+</blockquote>
+<h2>What changed</h2>
+<p>This is a documentation / metadata release. <strong>No code behavior
+changes.</strong> Indexes built on <code>0.2.0</code> continue working unchanged.</p>
+<h3>Description rewrites (positioning correction)</h3>
+<p>The package description, GitHub repo description, README hero,
+GitHub Pages meta tags, og:image alt text, and Twitter card all
+moved from the <code>0.1.0</code>-era "local semantic <strong>code</strong> search"
+framing to the content-agnostic positioning that matches the
+<code>0.2.0</code> architecture:</p>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Before</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pyproject.toml</code> description</td>
+<td>"Free local semantic code search using Ollama"</td>
+<td>"Fully-offline semantic search over your local files — powered by Ollama"</td>
+</tr>
+<tr>
+<td>GitHub repo description</td>
+<td>empty</td>
+<td>"Fully-offline semantic search over your local files — powered by Ollama"</td>
+</tr>
+<tr>
+<td>README hero alt + intro</td>
+<td>"semantic code-search CLI for ... your codebase"</td>
+<td>"semantic search CLI for your local files — code, markdown, PDFs, Word docs, plain text, anything you index"</td>
+</tr>
+<tr>
+<td><code>docs/index.html</code> <code>&lt;meta description&gt;</code></td>
+<td>"command-line semantic code search tool"</td>
+<td>"fully-offline semantic search over your local files — code, markdown, PDFs, Word docs, plain text"</td>
+</tr>
+<tr>
+<td><code>docs/index.html</code> og + twitter cards</td>
+<td>code-search framing</td>
+<td>content-agnostic + 30 / 30 framing</td>
+</tr>
+<tr>
+<td><code>docs/index.html</code> hero <code>&lt;h1&gt;</code> lead</td>
+<td>"fully-offline semantic code-search CLI for engineers"</td>
+<td>"fully-offline semantic search CLI for your local files — code, markdown, PDFs, Word docs, plain text, anything you index"</td>
+</tr>
+</tbody>
+</table>
+<h3>New advertise sections (explicit catalog of supported content)</h3>
+<p><code>README.md</code> and <code>docs/index.html</code> both gained two new sections that
+make the content-agnostic surface concrete and discoverable:</p>
+<ol>
+<li><strong>What you can index and search</strong> — a six-row catalog covering
+     code (Rust / Python / JS / TS), markdown (with link graph),
+     PDF, <code>.docx</code>, plain text / TOML / YAML / CSV / JSON, and a
+     <strong>Custom</strong> row showing how to register your own content type
+     in one line. Each row names the parser, the reference graph
+     handling (if any), and the version it was introduced in.</li>
+<li><strong>What's new in 0.2.x</strong> — a six-card / six-row advertise of
+     the substrate upgrade (<code>bge-m3</code>), the content-agnostic
+     reference-graph registry, the σ-adaptive cascade gap, the
+     universal aux-path filter, the 30 / 30 public-OSS bench
+     headline, and the latency net (−19 % aggregate, +57 % Tokio
+     as a real trade-off).</li>
+</ol>
+<p>These were missing in <code>0.2.0</code> — the bench numbers and substrate
+were updated in metadata text but not given dedicated advertise
+real estate.</p>
+<h3>Capability matrix updates</h3>
+<p>The "Capability matrix" <code>&lt;details&gt;</code> block in <code>README.md</code> gained
+seven new <code>0.2.0</code> rows for the substrate, the registry, the markdown
+extractor, the σ-cascade, the universal path filter, the symbol
+channel, and the public-OSS bench result.</p>
+<h3>Use-case card refresh</h3>
+<p>The four use-case cards in <code>docs/index.html</code>'s overview hero were
+refreshed:</p>
+<ul>
+<li>"ONBOARDING / New codebase walkthrough" gained the <strong>30 / 30
+    recall</strong> anchor and the explicit Django · React · Tokio
+    citation.</li>
+<li>"PERSONAL FILES / Search your <code>~/Downloads</code>" was renamed to
+    <strong>DOCS · NOTES · PDFs / Search your knowledge base</strong> and now
+    explicitly mentions the markdown link graph
+    (<code>[](link)</code>, <code>[[wiki]]</code>) as a <code>0.2.0</code> retrieval prior — making
+    the docs/notes/PDFs use case a first-class citizen of the
+    overview rather than a footnote.</li>
+<li>The "3 formats / Code + PDF + docx" stat tile became
+    <strong>Any file / Code · markdown · PDFs · docx · text</strong> with a
+    pluggable-registry sub-line.</li>
+</ul>
+<h3>Files changed</h3>
+<pre><code>pyproject.toml          (version + description)
+README.md               (hero alt, intro paragraph, nav, capability matrix,
+                        new &quot;What you can search&quot; section,
+                        new &quot;What's new in 0.2.x&quot; section)
+docs/index.html         (meta + og + twitter + hero h1/lead + stat tiles +
+                        use cases + new &quot;What you can index and search&quot; +
+                        new &quot;What's new in 0.2.x&quot; sections)
+skylakegrep-0.2.1.html   (this file)
+</code></pre>
+<h2>Why now</h2>
+<p><code>0.2.0</code> shipped a substantial substrate upgrade and a
+content-agnostic registry, but the public-facing surface still
+described the project as "code search". A user landing on
+<a href="https://pypi.org/project/skylakegrep/">pypi.org/project/skylakegrep</a>,
+the GitHub repo page, or the GitHub Pages site would not see that
+markdown link graphs, PDFs, and arbitrary registered content
+types are first-class — they would assume code-only and either
+look elsewhere (false negative) or build a code-search-style
+index that ignores their docs (under-utilised).</p>
+<p><code>0.2.1</code> is a small, focused metadata release to close that gap.</p>
+<h2>Reproduce / verify</h2>
+<p>Same protocol as <code>0.2.0</code> — no code changes:</p>
+<pre><code class="language-bash">git clone --depth=1 https://github.com/django/django   /tmp/oss-bench/django
+git clone --depth=1 https://github.com/facebook/react  /tmp/oss-bench/react
+git clone --depth=1 https://github.com/tokio-rs/tokio  /tmp/oss-bench/tokio
+
+ollama pull bge-m3
+.venv/bin/python benchmarks/public_oss_bench.py
+</code></pre>
+<p>See <code>parity-benchmarks.html</code> for the per-task table and
+methodology.</p>
+<h2>Known follow-ups (not in 0.2.1)</h2>
+<ul>
+<li>Re-render <code>docs/assets/{benchmark,schema,hero-dark,og-image}.svg</code>
+  to reflect the new positioning — visual assets, separate cosmetic
+  pass.</li>
+<li>Re-run the self-test bench (<code>benchmarks/agent_context_benchmark.py</code>)
+  on <code>bge-m3</code> and update <code>token-benchmarking.html</code> top-k 5 row.</li>
+<li>Symbol-channel auto-router behind <code>SKYGREP_SYMBOL_CHANNEL=auto|on|off</code>,
+  validated against an expanded symbol-heavy benchmark — slated for 0.3.0.</li>
+</ul>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

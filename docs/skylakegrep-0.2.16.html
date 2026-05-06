@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep v0.2.16 release notes" />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="v0.2.16 · skylakegrep" />
+ <meta property="og:description" content="skylakegrep v0.2.16 release notes" />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>v0.2.16 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">v0.2.16</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">release notes · v0.2.16</p>
+<h1>skylakegrep 0.2.16 — mgrep correction · softer palette · workflow + content-types upgraded</h1>
+<p>This is a <strong>documentation-surface release</strong>, not a code-path release.
+Zero behaviour change, byte-compatible 0.2.15 indexes, same wheel
+surface, same CLI, same JSON contract.</p>
+<p>Three reviewer-flagged gaps from 0.2.15 fixed:</p>
+<h2>1. mgrep correction — it's a paid Mixedbread CLI, not a "predecessor"</h2>
+<p>The 0.2.15 comparison labeled <code>mgrep</code> as a "legacy substrate /
+predecessor" — that was wrong. The real
+<a href="https://www.mgrep.dev/"><code>mgrep</code></a> is by
+<a href="https://www.mixedbread.com/">Mixedbread AI</a> (the team behind
+<code>mxbai-embed-large</code>), a TypeScript / npm CLI that semantic-greps
+local files via a <strong>cloud-backed</strong> Mixedbread store with browser
+authentication and a <strong>paid subscription tier</strong> (free-tier ingest
+is capped at 2,000 tokens). It's actively developed and is the
+closest commercial competitor to skylakegrep, not a predecessor.</p>
+<p>Corrected across the comparison surface:</p>
+<ul>
+<li><strong>Concept search</strong>: ✓ (was "legacy substrate")</li>
+<li><strong>Privacy</strong>: ✗ cloud-backed (was ✓)</li>
+<li><strong>Content</strong>: code · text · PDF · images (multimodal — actually
+    a strength)</li>
+<li><strong>Setup</strong>: npm + Mixedbread account (was <code>pip install</code>)</li>
+<li><strong>Cost</strong>: subscription + usage-based (was $0/mo)</li>
+<li><strong>Multilingual</strong>: cloud embedder (Mixedbread-hosted), not
+    "English-leaning"</li>
+</ul>
+<p>The honest framing now: same query surface as skylakegrep, opposite
+trade-offs — <strong>skylakegrep is fully local; mgrep is hybrid local /
+cloud with a paid tier.</strong> Either could be the right pick depending
+on whether you can ship code to a cloud-hosted store and pay a
+subscription.</p>
+<h2>2. Softer dark frosted-glass palette — less neon, more refined</h2>
+<p>The 0.2.15 palette read as "too dark + too neon-cyan". Adjusted:</p>
+<ul>
+<li><code>--accent-bright</code>: <code>#67e8f9</code> (Tailwind cyan-300, vibrant) →
+    <code>#a5f3fc</code> (Tailwind cyan-200, pastel) — softer text accent.</li>
+<li><code>--accent</code>: <code>#22d3ee</code> (cyan-400, neon) → <code>#38bdf8</code> (sky-400,
+    less neon).</li>
+<li>All <code>rgba(34, 211, 238, *)</code> → <code>rgba(125, 211, 252, *)</code> with
+    opacity reduced ~12 % — sky-blue tones at slightly lower
+    intensity.</li>
+<li><code>.themed-card</code> chrome rebuilt with <strong>multi-stop translucent
+    border</strong> (cyan → violet → mint, same as the hero
+    <code>glass-stroke</code>) plus <code>backdrop-filter: blur(24px) saturate(1.1)</code>
+    so the panel feels like real frosted glass, not a solid card.</li>
+<li>Result-card filename / pill stroke colors throughout the four
+    SVG assets (<code>hero-dark.svg</code>, <code>og-image.svg</code>,
+    <code>comparison-matrix.svg</code>, <code>performance-matrix.svg</code>) all moved
+    to the softened palette — 8 unique tokens replaced in
+    <code>hero-dark.svg</code>, 4 in comparison, 5 in performance, 3 in og.</li>
+</ul>
+<h2>3. Two new themed SVG cards — workflow + content types</h2>
+<p>The README still had two surfaces in the "old / unstyled"
+aesthetic:</p>
+<ul>
+<li>The <strong>how-it-works</strong> section was an ASCII-art box-drawing
+    diagram (<code>┌──┐ → ┌──┐ → ┌──┐</code>).</li>
+<li>The <strong>what-you-can-search</strong> section was a plain markdown
+    table.</li>
+</ul>
+<p>Both replaced with new themed SVG cards:</p>
+<ul>
+<li><code>docs/assets/workflow-diagram.svg</code> — three-stage pipeline
+    rendered as three frosted-glass cards (LLM router · cosine
+    cascade · proactive layer) with cyan / violet / mint per-step
+    halos, soft arrows between stages, and a "Local Ollama · Local
+    SQLite · Zero network · Zero subscription" footer strip. The
+    same design language as <code>hero-dark.svg</code>.</li>
+<li><code>docs/assets/content-types.svg</code> — six content tiles in a 3 × 2
+    grid (Code, Markdown, PDF, Word docs, Plain text family, Your
+    custom type). Each tile color-coded (cyan / violet / mint) by
+    "category".</li>
+</ul>
+<p>Both anchor the README; the plain markdown table stays inside a
+<code>&lt;details&gt;</code> block as fallback.</p>
+<h2>Compatibility</h2>
+<ul>
+<li>Python: unchanged — 3.9+</li>
+<li>Default embedder: unchanged — <code>bge-m3</code></li>
+<li>Default LLM router: unchanged — <code>qwen2.5:3b</code></li>
+<li>Wheel surface: unchanged</li>
+<li>Index format: unchanged — byte-compatible with 0.2.15</li>
+<li>JSON output schema: unchanged</li>
+</ul>
+<h2>Bench numbers</h2>
+<p>Unchanged from 0.2.15 — this release ships zero ranking-path code.
+30 / 30 public-OSS recall holds.</p>
+<h2>Eight-surface checklist</h2>
+<ul>
+<li>[x] <code>pyproject.toml</code> 0.2.15 → 0.2.16</li>
+<li>[x] <code>skylakegrep-0.2.16.html</code> (this file)</li>
+<li>[x] <code>README.md</code> — mgrep wording corrected · ASCII workflow →
+        SVG · content-types table → SVG · v0.2.16 in pill text</li>
+<li>[x] <code>docs/index.html</code> — comparison row corrected · themed-card
+        rebuilt with multi-stop border + backdrop-filter</li>
+<li>[x] <code>docs/styles.css</code> — palette tokens moved to softer sky /
+        pastel range</li>
+<li>[x] <code>docs/assets/workflow-diagram.svg</code> (new)</li>
+<li>[x] <code>docs/assets/content-types.svg</code> (new)</li>
+<li>[x] <code>docs/assets/hero-dark.svg</code> v0.2.15 → v0.2.16, palette
+        softened</li>
+<li>[x] <code>docs/assets/og-image.svg</code> v0.2.15 → v0.2.16, palette
+        softened</li>
+<li>[x] <code>docs/assets/og-image.png</code> re-rasterized</li>
+<li>[x] <code>docs/assets/comparison-matrix.svg</code> mgrep row corrected,
+        v0.2.16, palette softened</li>
+<li>[x] <code>docs/assets/performance-matrix.svg</code> v0.2.16, palette
+        softened</li>
+<li>[ ] GitHub repo description — unchanged</li>
+<li>[x] PyPI upload (manual <code>twine</code>)</li>
+<li>[x] GitHub Release with attached wheel + sdist</li>
+<li>[x] <code>git tag -a v0.2.16</code> + push</li>
+</ul>
+<h2>Acknowledgments</h2>
+<p>This release was driven by direct feedback in three rounds:</p>
+<ol>
+<li>"First, you didn't compare with mgrep" — fixed by adding a
+     named-tool comparison in 0.2.15.</li>
+<li>"You got mgrep wrong — it's a paid product, not legacy" —
+     fixed in this release with the corrected metadata.</li>
+<li>"The colors are too dark and the cyan a bit too neon —
+     can you do a softer dark frosted-glass version?" — fixed by
+     the palette migration above.</li>
+</ol>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

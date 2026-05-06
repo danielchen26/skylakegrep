@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep v0.2.4 release notes" />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="v0.2.4 · skylakegrep" />
+ <meta property="og:description" content="skylakegrep v0.2.4 release notes" />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>v0.2.4 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">v0.2.4</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">release notes · v0.2.4</p>
+<h1>skylakegrep 0.2.4 — release notes</h1>
+<p><code>0.2.4</code> makes the CLI proactively help the user instead of silently
+shrugging. Four new intelligent-assistance behaviours, all
+non-blocking, all silenced by <code>SKYGREP_NO_HINTS=1</code> for users / CI
+that want quiet output.</p>
+<blockquote>
+<p><strong>License:</strong> PolyForm Noncommercial 1.0.0. Personal / academic /
+research / hobby use is fully permitted. Commercial use requires
+a separate license — contact <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;">&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;</a>.</p>
+</blockquote>
+<h2>What changed</h2>
+<h3>1. Out-of-scope query detection</h3>
+<p>Queries like <code>"我最近工作上的十个文件"</code> (recently-modified files)
+or <code>"list the largest 5 files"</code> are <em>metadata</em> queries — they want
+filesystem mtime / size sort, not content search. skygrep can't
+answer those well; the user wants <code>git log --name-only</code> or
+<code>find -mtime</code>. <code>0.2.4</code> detects the pattern up front and prints
+the hint with the right command, then still runs the search so
+the user isn't blocked:</p>
+<pre><code>$ skygrep &quot;我最近工作上的十个文件&quot;
+💡 Heads up: &quot;我最近工作上的十个文件&quot; looks like a metadata query
+   (contains '最近' (recency-by-mtime)). skygrep is a *content*
+   search tool; the answer you probably want is:
+       git log --name-only --pretty=format: HEAD~30..HEAD | sort -u | head -10
+       or: find . -type f -mtime -7 -not -path '*/.*'
+       or: git diff --name-only HEAD~10..HEAD
+   Running semantic search anyway — set SKYGREP_NO_HINTS=1 to suppress.
+</code></pre>
+<p>The detection is conservative: a query has to contain a metadata
+token (recency / size / listing) AND no semantic-intent token
+(<code>how</code>, <code>where</code>, <code>what</code>, <code>function</code>, <code>class</code>, <code>怎么</code>, <code>如何</code>,
+<code>函数</code>, …) AND be ≤ 12 words. This rules out false flags on
+queries like <em>"where is the recent change to auth flow"</em> (mentions
+<code>recent</code> but is asking about a specific behaviour).</p>
+<h3>2. Typo correction for unknown flags</h3>
+<p>When the user types <code>skygrep search --tup 10</code>, click's default
+error is "Error: No such option: --tup" with no suggestion.
+<code>0.2.4</code> catches <code>click.NoSuchOption</code>, runs <code>difflib.get_close_matches</code>
+against every long-form flag registered on every command, and
+suggests the closest match:</p>
+<pre><code>$ skygrep search &quot;auth&quot; --tup 10
+Unknown flag '--tup'. Did you mean '--top'?  Run `skygrep search --help` for the full list.
+</code></pre>
+<p>The cutoff is 0.6 (<code>difflib</code>'s default) — catches one-or-two-character
+edits without firing on completely-different strings (<code>--xyz</code> →
+no suggestion, falls back to click's default).</p>
+<p>Subcommand typos are not currently corrected: the bare-form router
+already routes unknown first-args to <code>search</code>, so <code>skygrep serach
+"auth"</code> is treated as a query rather than a typoed subcommand.
+That's intentional — bare-form magic is the most common usage.</p>
+<h3>3. Low-confidence result hints</h3>
+<p>After every search, the cascade telemetry tells us the top-1
+cosine score and the σ-gap. When both are below the noise floor
+(top-1 &lt; 0.30, σ-gap &lt; 0.005), the result is shaky and the user
+should know about a recovery path:</p>
+<pre><code>[0.93s · path=cosine-cheap · ... · σ-gap=0.0030 &lt; τ=0.0050 (adaptive) → escalated to rerank · quality=BEST]
+⚠ Top-1 score is low (cosine=0.18) and the cascade σ-gap is below the noise floor.
+  Possible recoveries:
+       skygrep &quot;&lt;query&gt;&quot; --agentic       # decompose into subqueries
+       skygrep &quot;&lt;query&gt;&quot; --top 30        # widen the window
+       skygrep &quot;&lt;more specific tokens&gt;&quot;  # rephrase with code identifiers
+</code></pre>
+<p>When the search returns zero results entirely, the hint instead
+points at <code>skygrep doctor</code> / <code>skygrep stats</code> so the user can
+diagnose whether the index is missing the file type they're after.</p>
+<p>The floors are tunable via <code>SKYGREP_LOW_CONF_TOP1_FLOOR</code> and
+<code>SKYGREP_LOW_CONF_SIGMA_FLOOR</code>.</p>
+<h3>4. First-run nudge</h3>
+<p>The first time a user runs <code>skygrep</code> against a project with no
+existing index, the search transparently falls back to rg in &lt; 1 s
+while a background worker indexes — but the user doesn't know that
+and may think the tool is broken or slow. <code>0.2.4</code> adds a one-time
+three-line greeting:</p>
+<pre><code>$ skygrep &quot;where is the cascade tau threshold defined&quot;
+👋 First time in this project — skygrep is auto-indexing in the background.
+   This first query falls back to rg in &lt;1 s; semantic queries follow as the index builds.
+   Try `skygrep doctor` for a health check, or `skygrep setup` to register with your LLM CLI.
+</code></pre>
+<p>Recorded in the <code>metadata</code> table (key <code>first_run_nudge_shown</code>) so
+subsequent queries in the same project don't repeat. Suppressed in
+JSON-output mode so machine consumers don't see chatter on stderr
+that gets merged with stdout in some test harnesses.</p>
+<h2>Disable everything</h2>
+<p>Set <code>SKYGREP_NO_HINTS=1</code> to silence all four hint paths at once.
+Also turns off the recovery worker's user-visible notice line.</p>
+<h2>New module</h2>
+<p><code>skylakegrep.src.intelligent_cli</code> centralises:</p>
+<ul>
+<li><code>detect_out_of_scope(query) -&gt; dict | None</code></li>
+<li><code>render_out_of_scope_hint(hint, query) -&gt; str</code></li>
+<li><code>closest_match(typed, candidates) -&gt; str | None</code></li>
+<li><code>suggest_for_unknown_command(typed, known) -&gt; str | None</code></li>
+<li><code>suggest_for_unknown_option(typed, known) -&gt; str | None</code></li>
+<li><code>assess_result_quality(results, telemetry) -&gt; str | None</code></li>
+<li><code>should_show_first_run_nudge(conn) -&gt; bool</code></li>
+<li><code>mark_first_run_nudge_shown(conn) -&gt; None</code></li>
+<li><code>render_first_run_nudge() -&gt; str</code></li>
+<li><code>hints_disabled() -&gt; bool</code></li>
+</ul>
+<p>All cheap to import (no <code>requests</code>, no embedder). 21 new unit
+tests in <code>tests/test_intelligent_cli.py</code> lock in the trigger
+conditions; the test suite is now 155 / 155 passing.</p>
+<h2>Compatibility</h2>
+<ul>
+<li>Python ≥ 3.9 (unchanged)</li>
+<li>Existing 0.2.0–0.2.3 indexes: no migration; <code>metadata</code> table is
+  shared with the recovery worker</li>
+<li>Bench numbers unchanged from 0.2.3: 30 / 30 across Django + React</li>
+<li>Tokio at ~14.6 s/q aggregate</li>
+</ul>
+<h2>Known follow-ups (not in 0.2.4)</h2>
+<ul>
+<li><code>skygrep tour</code> — interactive 5-step walkthrough for true first-time
+  users. Slated for 0.2.5.</li>
+<li>Subcommand-typo detection for the bare form (currently <code>skygrep
+  serach "..."</code> is treated as a query). Trade-off: would suppress
+  some legitimate queries that happen to start with a near-subcommand
+  word.</li>
+<li>Phase C: tracked in
+  <a href="plans/2026-05-05-phase-c-audit.md"><code>docs/plans/2026-05-05-phase-c-audit.md</code></a></li>
+<li>the subagent's counter-ranking in
+  <a href="plans/2026-05-05-phase-c-exploration.md"><code>docs/plans/2026-05-05-phase-c-exploration.md</code></a>
+  (paths D / E / F surfaced).</li>
+</ul>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

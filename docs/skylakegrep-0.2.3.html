@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="skylakegrep v0.2.3 release notes" />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="v0.2.3 · skylakegrep" />
+ <meta property="og:description" content="skylakegrep v0.2.3 release notes" />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>v0.2.3 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">v0.2.3</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">release notes · v0.2.3</p>
+<h1>skylakegrep 0.2.3 — release notes</h1>
+<p>A focused docs / advertise sync. <strong>No code changes</strong>, no behaviour
+changes, no benchmark deltas. The release exists to fix a
+discipline failure: the 0.2.2 features (intelligent background
+recovery, routing transparency) were shipped to PyPI but never
+surfaced on the public-facing GitHub Pages site or the README.
+A new user landing on either surface had no way to find out the
+features existed.</p>
+<blockquote>
+<p><strong>License:</strong> PolyForm Noncommercial 1.0.0. Personal / academic /
+research / hobby use is fully permitted. Commercial use requires
+a separate license — contact <a href="&#109;&#97;&#105;&#108;&#116;&#111;&#58;&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;">&#99;&#104;&#101;&#110;&#116;&#105;&#97;&#110;&#99;&#104;&#105;&#64;&#103;&#109;&#97;&#105;&#108;&#46;&#99;&#111;&#109;</a>.</p>
+</blockquote>
+<h2>What changed</h2>
+<h3>1. Comprehensive <code>0.2.2</code> advertise on the GitHub Pages site</h3>
+<p><code>docs/index.html</code> gained two new "What's new in 0.2.x" cards
+covering the 0.2.2 changes:</p>
+<ul>
+<li>
+<p><strong><code>RECOVERY · 0.2.2</code> — Intelligent background re-embed.</strong>
+    Embedder upgrades used to require a 10–30 min blocking
+    <code>skygrep index --reset</code>. Now: every search detects the dim
+    mismatch, spawns a daemon-thread worker that re-embeds stale
+    chunks in <strong>mtime-DESC priority</strong> (recently-modified files
+    first — Pareto-distributed user behaviour means semantic
+    coverage of likely queries reaches near-100 % within seconds).
+    The user is never blocked; the existing
+    <code>_filter_to_matching_dim</code> helper hides stale-dim chunks from
+    the cascade. Crash-safe and resumable.</p>
+</li>
+<li>
+<p><strong><code>TRANSPARENCY · 0.2.2</code> — Routing path on every query.</strong>
+    The CLI's per-query telemetry footer leads with
+    <code>path=cosine-cheap</code> / <code>cosine-escalated-rerank</code> / <code>rg-only</code>,
+    the σ-evidence reason
+    (<code>σ-gap=0.03 &lt; τ → escalated to rerank</code>), the recovery state
+    if a worker is active (<code>coverage=23% ETA=14m12s</code>), and a
+    <code>quality=BEST</code> / <code>quality=DEGRADED-recovery</code> tag.</p>
+</li>
+</ul>
+<p>The existing <code>0.2.0</code> cards (substrate / reference graph / cascade
+/ path filter / bench / latency) gained explicit <code>· 0.2.0</code> version
+tags so the timeline is unambiguous. The "Where it pulls ahead of
+<code>rg</code>, cloud RAG, or grep" comparison panel gained two new rows for
+embedder-upgrade UX and routing transparency. The hero version
+eyebrow is now <code>v0.2.3</code>.</p>
+<h3>2. New "Command cheatsheet" section (README + GitHub Pages)</h3>
+<p>A single table that lists every command, when to use it, and one
+example, so a reader can see the entire surface at a glance instead
+of digging through <code>--help</code> text:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>When to use</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>skygrep "&lt;query&gt;"</code> <em>(bare)</em></td>
+<td>Default. Auto-indexes, auto-recovers.</td>
+<td><code>skygrep "where is the auth refresh logic"</code></td>
+</tr>
+<tr>
+<td><code>skygrep search &lt;query&gt;</code></td>
+<td>Explicit form when you need flags.</td>
+<td><code>skygrep search "session token" --top 20 --json</code></td>
+</tr>
+<tr>
+<td><code>skygrep doctor</code></td>
+<td>First-time troubleshooting.</td>
+<td><code>skygrep doctor</code></td>
+</tr>
+<tr>
+<td><code>skygrep setup</code></td>
+<td>Register with LLM CLIs. Run once.</td>
+<td><code>skygrep setup</code></td>
+</tr>
+<tr>
+<td><code>skygrep stats</code></td>
+<td>Print chunk and file counts.</td>
+<td><code>skygrep stats</code></td>
+</tr>
+<tr>
+<td><code>skygrep index [PATH] [--reset]</code></td>
+<td>Rarely needed.</td>
+<td><code>skygrep index . --reset</code></td>
+</tr>
+<tr>
+<td><code>skygrep watch [PATH] -i N</code></td>
+<td>Keep index live.</td>
+<td><code>skygrep watch .</code></td>
+</tr>
+<tr>
+<td><code>skygrep serve --port P</code></td>
+<td>Daemon mode.</td>
+<td><code>skygrep serve --port 7878</code></td>
+</tr>
+<tr>
+<td><code>skygrep enrich</code></td>
+<td>Doc2query enrichment.</td>
+<td><code>skygrep enrich</code></td>
+</tr>
+</tbody>
+</table>
+<p>The table is mirrored on the GitHub Pages "Reference · CLI"
+section (was previously titled "Four commands" and listed only
+four — we have nine). The page also gained a "First-time
+workflow (5 commands, &lt; 2 min)" walkthrough that takes a brand-new
+user from install to first query in five visible steps.</p>
+<h3>3. New "Reading the per-query telemetry footer" guide</h3>
+<p>Both surfaces now explain field-by-field what the new
+<code>path=</code> / <code>σ-gap=</code> / <code>recovery=</code> / <code>quality=</code> fields mean, so
+power users can debug the cascade's decisions without reading
+source.</p>
+<h3>4. New release checklist (<code>releasing.html</code>)</h3>
+<p>The discipline failure that motivated this release happens because
+the per-release update was implicit. <code>releasing.html</code> makes it
+an explicit checklist of every surface that has to be touched
+(pyproject version, README sections, GitHub Pages cards / panels,
+release-notes file, capability matrix, GitHub repo description,
+PyPI upload, GitHub Release with artifacts). Future releases
+should not be able to "ship to PyPI without telling anyone" again.</p>
+<h3>5. Stale defaults swept</h3>
+<ul>
+<li><code>README.md</code> "## In 30 seconds" snippet: <code>ollama pull
+    nomic-embed-text</code> → <code>ollama pull bge-m3</code> (the default since
+    <code>0.2.0</code>); telemetry footer in the example updated to the new
+    <code>0.2.2</code> field set.</li>
+<li><code>README.md</code> "## Configuration" <code>OLLAMA_EMBED_MODEL</code> row:
+    default corrected from <code>nomic-embed-text</code> to <code>bge-m3</code>; the
+    "Switching requires <code>--reset</code>" note rewritten to reflect the
+    <code>0.2.2</code> auto-recovery behaviour.</li>
+<li>Capability matrix gained four new rows (intelligent recovery,
+    routing transparency, command cheatsheet, release checklist).</li>
+</ul>
+<h2>Compatibility</h2>
+<ul>
+<li><strong>Python</strong>: ≥ 3.9 (unchanged)</li>
+<li><strong>Indexes</strong>: no migration; <code>0.2.2</code> and <code>0.2.3</code> are byte-compatible</li>
+<li><strong>No code path changed.</strong> <code>git log</code> shows only doc files in this
+  release's diff, and 134 / 134 tests pass against an unchanged
+  test surface.</li>
+</ul>
+<h2>Bench numbers (unchanged from 0.2.2)</h2>
+<table>
+<thead>
+<tr>
+<th>Repo</th>
+<th style="text-align: center;">Recall</th>
+<th style="text-align: center;">Latency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Django</td>
+<td style="text-align: center;">10 / 10</td>
+<td style="text-align: center;">10.13 s/q</td>
+</tr>
+<tr>
+<td>Tokio</td>
+<td style="text-align: center;">10 / 10</td>
+<td style="text-align: center;">21.91 s/q</td>
+</tr>
+<tr>
+<td>React</td>
+<td style="text-align: center;">10 / 10</td>
+<td style="text-align: center;">11.71 s/q</td>
+</tr>
+<tr>
+<td><strong>Aggregate</strong></td>
+<td style="text-align: center;"><strong>30 / 30 (100 %)</strong></td>
+<td style="text-align: center;"><strong>~14.6 s/q</strong></td>
+</tr>
+</tbody>
+</table>
+<h2>Known follow-ups (not in 0.2.3)</h2>
+<ul>
+<li><strong>0.2.4</strong> — intelligent CLI assistance: typo correction
+  suggestions, out-of-scope query detection (e.g. "我最近 10 个文件"
+  is a metadata query, not a content search; the system should
+  notice and suggest <code>git log --name-only</code>), low-confidence
+  empty-result hints, first-run nudge with the three canonical
+  commands.</li>
+<li><strong>Phase C</strong> — intelligent retrieval: tracked in
+  <a href="plans/2026-05-05-phase-c-audit.md"><code>docs/plans/2026-05-05-phase-c-audit.md</code></a>
+  with three candidate paths (A: code-specific symbol channel; B:
+  content-agnostic structural-channel registry; C: smarter
+  cascade-internal scheduler) and a corresponding exploration
+  audit at
+  <a href="plans/2026-05-05-phase-c-exploration.md"><code>docs/plans/2026-05-05-phase-c-exploration.md</code></a>
+  that challenges the original ranking and surfaces three additional
+  paths (D, E, F).</li>
+<li>Re-render <code>docs/assets/{benchmark,schema,hero-dark,og-image}.svg</code>
+  to reflect the <code>bge-m3</code> defaults — visual assets, separate
+  cosmetic pass.</li>
+<li>Re-run the self-test bench
+  (<code>benchmarks/agent_context_benchmark.py</code>) on <code>bge-m3</code> and update
+  <code>token-benchmarking.html</code> top-k 5 row.</li>
+<li>Fix the GitHub Actions <code>PYPI_API_TOKEN</code> secret (currently 403).</li>
+</ul>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>

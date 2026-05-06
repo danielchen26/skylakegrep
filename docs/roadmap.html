@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="What&#x27;s planned for upcoming skylakegrep releases." />
+ <meta name="theme-color" content="#13192a" />
+ <meta property="og:type" content="article" />
+ <meta property="og:title" content="Roadmap · skylakegrep" />
+ <meta property="og:description" content="What&#x27;s planned for upcoming skylakegrep releases." />
+ <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
+ <title>Roadmap · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+   /* Subpage layout: 2-column shell, full-width content */
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   /* Markdown body styling — mirrors the homepage typography */
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body a:hover { border-bottom-color: rgba(165,243,252,0.7); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+   .md-back { display: inline-block; margin-bottom: 18px; padding: 6px 14px;
+               border: 1px solid var(--rule); border-radius: 6px; color: var(--muted);
+               font-size: 13px; font-family: var(--mono); }
+   .md-back:hover { color: var(--accent-bright); border-color: var(--accent); }
+   .md-eyebrow { font-size: 11px; letter-spacing: 0.18em; color: rgba(165,243,252,0.65);
+                  font-family: var(--mono); margin-bottom: 8px; text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+ <a class="brand" href="index.html" aria-label="skylakegrep documentation">
+ <span class="brand-mark" aria-hidden="true">
+ <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg>
+ </span>
+ <span class="brand-text">skylakegrep</span>
+ <span class="version">Roadmap</span>
+ </a>
+ <nav class="topnav" aria-label="External links">
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a class="topnav-cta" href="index.html#install">Install</a>
+ </nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation">
+ <div class="sidebar-title">skylakegrep</div>
+ <nav>
+ <div class="nav-section">
+ <p>Pages</p>
+ <a href="index.html">Home</a>
+ <a href="concepts.html">Concepts</a>
+ <a href="architecture.html">Architecture</a>
+ <a href="cli.html">CLI reference</a>
+ <a href="reference.html">JSON schema</a>
+ <a href="benchmarks.html">Benchmarks</a>
+ <a href="changelog.html" class="active">Release notes</a>
+ </div>
+ <div class="nav-section">
+ <p>Project</p>
+ <a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+ <a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+ <a href="principles.html">Principles</a>
+ </div>
+ </nav>
+ </aside>
+ <main class="content subpage-content">
+ <article class="md-body">
+ <p class="md-eyebrow">skylakegrep roadmap</p>
+<h1>skylakegrep roadmap</h1>
+<p>The current capabilities are documented in
+<a href="skylakegrep-0.1.0.html"><code>skylakegrep-0.1.0.md</code></a>. This file describes
+what is planned beyond v0.1.0.</p>
+<h2>Planned</h2>
+<h3>Native MCP server</h3>
+<p><code>skygrep setup</code> writes a markdown snippet into agent rules files
+telling the agent to prefer <code>skygrep</code> over <code>rg</code>. A native MCP
+server (Model Context Protocol) would let agents call <code>skygrep</code> as
+a structured tool instead of a shell command — better schema,
+fewer parsing failures, cleaner error surfaces.</p>
+<h3>Multi-vector / late-interaction retrieval (ColBERT-style)</h3>
+<p>The current cascade uses single-vector cosine + cross-encoder
+rerank. Token-level late interaction (ColBERT-style) over a larger
+candidate pool is the most promising lever for the residual ~5 %
+miss rate on hand-labelled multi-language benchmarks. Costs ~10×
+index size; needs hardware-aware tuning.</p>
+<h3>Larger benchmark task sets</h3>
+<p>Current published numbers are based on 20 single-turn + 1 multi-
+turn agent task. Push n into the 100+ range to move statistical
+significance from "directional" to "tight". Real-user query
+corpora are the goal.</p>
+<h3>Packaged benchmark fixtures</h3>
+<p>Third parties should be able to reproduce every published number
+without copying internal scripts. Needs a <code>benchmarks/</code> CLI plus
+fixture repos pinned to specific commits.</p>
+<h3>Expanded language coverage</h3>
+<p>Tree-sitter grammars and chunk heuristics for Go, Java, Kotlin,
+Swift, Rust (currently relies on generic chunking for Rust). Plus
+richer <code>.gitignore</code> / <code>.skygrepignore</code> precedence rules.</p>
+<h3>Daemon mode hardening</h3>
+<p><code>skygrep serve</code> exists but does not pool embedder/reranker model
+instances optimally for concurrent requests. A production-grade
+daemon would amortise model warm-load across all queries on the
+host.</p>
+<h2>Not on the roadmap</h2>
+<ul>
+<li><strong>Cloud-hosted index.</strong> This project is local-first by design.</li>
+<li><strong>Removing the Ollama dependency.</strong> <code>skygrep</code> is intentionally
+  built on top of Ollama for local LLM access. Other backends
+  (e.g. llama.cpp direct) are possible but not prioritised.</li>
+<li><strong>MIT relicensing.</strong> This project is PolyForm Noncommercial
+  1.0.0 and stays that way. Commercial users should contact for
+  a commercial license.</li>
+</ul>
+ </article>
+ </main>
+ </div>
+ </body>
+</html>
