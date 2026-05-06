@@ -7,7 +7,7 @@ Two threads in one ship:
    every surface in `docs/RELEASING.md` into sync.
 
 2. **Streaming cold-start UX (small code change).** Reported by the
-   user mid-bench: `skygrep '我有没有跟"eb1b"有关的文件？'`
+   user mid-bench: `skygrep '我有没有跟"tax-2024"有关的文件？'`
    sat silent for ≥ 30 s on a never-indexed dir before any output
    appeared. The fix is described in detail below — the cold-start
    path now prints (a) an immediate `🔍 scanning…` line, (b) the
@@ -82,7 +82,7 @@ The 0.5.3 ship MISSED — fixed in 0.5.4:
 Before 0.5.4 (what the user saw):
 
 ```
-$ skygrep '我有没有跟"eb1b"有关的文件？'
+$ skygrep '我有没有跟"tax-2024"有关的文件？'
                                               ← silent for 5–30 s
                                               ← prompt looks frozen
 ... (eventually all output appears at once) ...
@@ -91,7 +91,7 @@ $ skygrep '我有没有跟"eb1b"有关的文件？'
 After 0.5.4:
 
 ```
-$ skygrep '我有没有跟"eb1b"有关的文件？'
+$ skygrep '我有没有跟"tax-2024"有关的文件？'
 🔍 ripgrep cold-start · scanning project keywords…       ← t = 0
 ▾ preliminary keyword matches (lazy semantic refinement starting…):
 ╭─ <path>:<lines> ────────────  1.000                     ← t ≈ 1 s

@@ -845,6 +845,127 @@ def search_cmd(
         if rg_hits:
             rg_results = rg_hits
 
+    # 0.5.6 warm-path streaming UX: print filename + ripgrep
+    # preliminary matches *before* dispatching the cascade. The
+    # cascade can spend tens of seconds on a low-σ-gap escalation
+    # to cross-encoder rerank — sitting silent for that long after
+    # the user hit Enter is unacceptable. With this block, the
+    # user sees their first answer in ≤1 s for any query that has
+    # ANY filename or lexical match, even on the warm path. The
+    # cascade's semantic refinement still runs and prints below;
+    # already-printed paths are deduped against
+    # ``early_warm_paths``.
+    early_warm_paths: set = set()
+    if (not json_output and not answer and not agentic
+            and (fn_results or rg_results)):
+        warm_preliminary: list = []
+        seen_p: set = set()
+        for source in (fn_results, rg_results):
+            for r in source:
+                p = r.get("path", "")
+                if not p or p in seen_p:
+                    continue
+                seen_p.add(p)
+                warm_preliminary.append(r)
+                if len(warm_preliminary) >= top:
+                    break
+            if len(warm_preliminary) >= top:
+                break
+        if warm_preliminary:
+            click.echo(
+                "▾ preliminary keyword + filename matches "
+                "(semantic cascade refining…):",
+                err=True,
+            )
+            for r in warm_preliminary:
+                click.echo(
+                    render_terminal_result(
+                        r,
+                        content=content,
+                        project_root=str(project_root),
+                        detail=detail,
+                        ocr=ocr,
+                    )
+                )
+                early_warm_paths.add(r.get("path", ""))
+            click.echo("", err=True)
+
+    # 0.5.6 PROACTIVE UMBRELLA — kick off proactive enhancers
+    # (filename_extend etc.) in a BACKGROUND thread NOW, in parallel
+    # with cascade. The historical post-cascade call (line 1300+)
+    # gated firing on "results are weak", which on warm path meant
+    # waiting for the full cascade (potentially 60 s+ on rerank-
+    # escalated queries) before filename_extend could even start
+    # looking in ``~/Downloads``. The user's eb1b query receipt:
+    # filename_extend can answer in ~100 ms but was hidden behind
+    # 99.7 s of cascade rerank — total wall time 12:50.
+    #
+    # Conceptual model in `docs/proactive-umbrella-framework.md`:
+    # cascade and proactive umbrella subprocesses are SIBLING tiers
+    # at t = 0; whichever returns first streams first.
+    #
+    # We always pass empty `results` here so filename_extend's
+    # `should_fire` predicate ("weak results → fire") triggers
+    # unconditionally. Already-found paths are deduped against
+    # ``early_warm_paths`` and the eventual cascade output before
+    # render.
+    _proactive_pool = None
+    _proactive_fut = None
+    _early_proactive_results: list = []
+    if not json_output and not agentic:
+        try:
+            from concurrent.futures import ThreadPoolExecutor as _PTPE
+            from . import proactive as _proactive_early
+            _proactive_pool = _PTPE(max_workers=1)
+            _proactive_fut = _proactive_pool.submit(
+                _proactive_early.run_enhancers_parallel,
+                query, decision, [],  # empty results → enhancers fire
+                top_k=top,
+                ctx=_proactive_early.ProactiveContext(
+                    conn=conn, project_root=project_root,
+                ),
+            )
+        except Exception:
+            logger.exception(
+                "early proactive launch failed; falling back to "
+                "post-cascade behaviour"
+            )
+
+    # 0.5.6: drain the proactive future BEFORE cascade dispatch.
+    # filename_extend is a fast (~100 ms-1 s) `find -iname` call —
+    # waiting up to 2 s here means the user sees the proactive
+    # answer (e.g. EB1B PDFs in ~/Downloads) BEFORE cascade even
+    # starts, and we know whether to bother showing cascade-only
+    # framing if proactive already nailed the answer.
+    if _proactive_fut is not None:
+        from concurrent.futures import TimeoutError as _PFuturesTimeout
+        try:
+            _early_proactive_results, _ = _proactive_fut.result(timeout=2.5)
+        except _PFuturesTimeout:
+            _early_proactive_results = []
+            click.echo(
+                "↻ proactive umbrella · still searching home dirs "
+                "(filename_extend running)…",
+                err=True,
+            )
+        if _early_proactive_results:
+            try:
+                from . import proactive as _proactive_early2
+                rendered = _proactive_early2.render_proactive_output(
+                    _early_proactive_results
+                )
+                if rendered:
+                    click.echo(
+                        "▾ proactive umbrella · home-dir filename matches "
+                        "(filename_extend, ~100 ms-1 s; pure filename glob, no "
+                        "semantic understanding):",
+                        err=True,
+                    )
+                    click.echo(rendered)
+                    click.echo("", err=True)
+            except Exception:
+                logger.exception("early proactive render failed")
+
     # v0.15.0 LLM-router can authorise skipping the cascade entirely
     # when it is highly confident the query is a pure filename lookup.
     # The decision is gated by MIN_CONFIDENCE_TO_SKIP_CASCADE — never
@@ -920,19 +1041,75 @@ def search_cmd(
             if cascade:
                 if answerer is None:
                     answerer = get_answerer()
-                cascade_results, cascade_telemetry = cascade_search(
-                    conn,
-                    query_embedding,
-                    query_text=item,
-                    embedder=embedder,
-                    answerer=answerer,
-                    top_k=max(top, top * 2),
-                    candidate_paths=candidate_paths,
-                    tau=cascade_tau,
-                    languages=tuple(language),
-                    include_patterns=tuple(include_patterns),
-                    exclude_patterns=tuple(exclude_patterns),
+                # 0.5.6: hard 30 s wall-clock timeout on cascade.
+                # On vocabulary-mismatch queries (the "eb1b" / personal
+                # term in a code repo case) the σ-adaptive gate flips to
+                # cross-encoder rerank which can run 60–100 s. The user
+                # has already seen the proactive umbrella's answer (e.g.
+                # filename_extend hits in ~/Downloads) at ≤ 2 s — there
+                # is no UX benefit to forcing the user to wait 60+ s for
+                # a cascade that already failed σ-validation. After the
+                # timeout we proceed with whatever cascade had on the
+                # cheap path (often empty) and the script exits.
+                from concurrent.futures import (
+                    ThreadPoolExecutor as _CTPE,
+                    TimeoutError as _CFT,
                 )
+                # The cascade runs in a worker thread so we can apply
+                # a 30 s wall-clock timeout. SQLite forbids reusing a
+                # connection across threads, so we open the
+                # connection INSIDE the worker function — the conn
+                # is local to the worker thread. SQLite serialises
+                # concurrent readers transparently, so the main
+                # thread's existing ``conn`` is unaffected.
+                def _cascade_in_worker(_db_path=db_path):
+                    _wconn = init_db(_db_path)
+                    try:
+                        return cascade_search(
+                            _wconn,
+                            query_embedding,
+                            query_text=item,
+                            embedder=embedder,
+                            answerer=answerer,
+                            top_k=max(top, top * 2),
+                            candidate_paths=candidate_paths,
+                            tau=cascade_tau,
+                            languages=tuple(language),
+                            include_patterns=tuple(include_patterns),
+                            exclude_patterns=tuple(exclude_patterns),
+                        )
+                    finally:
+                        try:
+                            _wconn.close()
+                        except Exception:
+                            pass
+
+                with _CTPE(max_workers=1) as _cpool:
+                    _cfut = _cpool.submit(_cascade_in_worker)
+                    try:
+                        cascade_results, cascade_telemetry = _cfut.result(
+                            timeout=30.0
+                        )
+                    except _CFT:
+                        cascade_results = []
+                        cascade_telemetry = {
+                            "path": "cascade-timeout",
+                            "timed_out": True,
+                            "gap": 0.0,
+                            "tau": 0.0,
+                        }
+                        if not json_output:
+                            click.echo(
+                                "↻ cascade timed out at 30 s — top-K above "
+                                "(filename_extend / preliminary cascade / "
+                                "cross-folder) is the answer; cascade was "
+                                "in σ-low rerank, unlikely to add value",
+                                err=True,
+                            )
+                    except Exception as _cexc:  # noqa: BLE001
+                        logger.warning("cascade error in thread: %s", _cexc)
+                        cascade_results = []
+                        cascade_telemetry = None
                 result_groups.append(cascade_results)
                 continue
             result_groups.append(
@@ -957,43 +1134,28 @@ def search_cmd(
         results = merge_results(result_groups, top)
         elapsed = time.time() - start
 
-    # 0.5.3 warm-path low-confidence augmentation: when the cascade
-    # ran and reports a small ``top1 - top2`` gap (its own σ-adaptive
-    # confidence signal), the answer may not live in cwd. Fire
-    # ``lazy_explore_cross_folder`` against the SKYGREP_PROACTIVE_DIRS
-    # roots and include those hits as augmentation. Cascade remains
-    # primary; cross-folder is appended after merge_tiers below.
-    # Skipped when --no-lazy, agentic mode, JSON output, or no
-    # cascade telemetry available.
+    # 0.5.3 warm-path low-confidence augmentation criterion:
+    # when the cascade ran and reports a small ``top1 - top2`` gap
+    # (its own σ-adaptive confidence signal), the answer may not
+    # live in cwd. Fire ``lazy_explore_cross_folder`` against the
+    # SKYGREP_PROACTIVE_DIRS roots and include those hits as
+    # augmentation. Cascade remains primary; cross-folder is
+    # appended after we've already shown the user the preliminary
+    # cascade matches (0.5.6 streaming).
+    will_fire_warm_cross = (
+        lazy and cascade and len(queries) == 1
+        and 'cascade_telemetry' in dir() and cascade_telemetry is not None
+        and not agentic
+        and (cascade_telemetry.get("gap") is not None)
+        and (cascade_telemetry.get("tau") is not None)
+        and (cascade_telemetry.get("gap") < cascade_telemetry.get("tau"))
+    )
     warm_cross_results: list = []
     warm_cross_tele: dict = {}
     warm_cross_elapsed = 0.0
-    if (lazy and cascade and len(queries) == 1
-            and 'cascade_telemetry' in dir() and cascade_telemetry is not None
-            and not agentic):
-        _gap = cascade_telemetry.get("gap")
-        _tau = cascade_telemetry.get("tau")
-        if (_gap is not None and _tau is not None and _gap < _tau):
-            try:
-                from . import lazy_indexer as _LZ
-                _cross_embedder = get_embedder(role="query")
-                _t_cross = time.time()
-                warm_cross_results, warm_cross_tele = (
-                    _LZ.lazy_explore_cross_folder(
-                        conn, query, embedder=_cross_embedder,
-                        top_k=top,
-                        progress=None if json_output else _LZ._stderr_progress,
-                    )
-                )
-                warm_cross_elapsed = time.time() - _t_cross
-                elapsed += warm_cross_elapsed
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("warm cross-folder lazy failed: %s", exc)
 
-    # v0.14.0 hierarchical merge across tiers: cascade (semantic) +
-    # lexical-shortcut hits + filename-lookup hits, deduplicated by
-    # path, ranked by the v0.15.0 router-supplied intent so the right
-    # tier wins for the user's query phrasing.
+    # v0.14.0 hierarchical merge — preliminary version (cascade
+    # semantic + filename + lexical, no cross-folder yet).
     intent = decision.intent
     results = merge_tiers(
         filename=fn_results,
@@ -1002,11 +1164,88 @@ def search_cmd(
         intent=intent,
         top_k=top,
     )
-    # 0.5.3: append warm-path cross-folder augmentation if cascade was
-    # uncertain. Cross-folder is appended after merge_tiers (cascade
-    # primary; sibling-folder hits added as long as room remains in
-    # top-K), deduped by path so a result already returned by cascade
-    # isn't double-printed.
+
+    # 0.5.6 streaming UX: when warm cross-folder is about to fire
+    # (cascade was uncertain, sibling-folder search incoming), also
+    # print the cascade's best-guess top-K *now* (in addition to
+    # the earlier fn / rg preliminary block) so the user sees the
+    # full pre-cross-folder picture before the 8 s sibling-folder
+    # window. ``early_warm_paths`` was already populated by the
+    # earlier fn/rg block; we extend it with cascade hits that
+    # weren't already shown so the cross-folder augmentation
+    # block below dedupes correctly.
+    if will_fire_warm_cross and not json_output and not answer:
+        cascade_only = [
+            r for r in results
+            if r.get("path", "") and r.get("path", "") not in early_warm_paths
+        ]
+        if cascade_only:
+            click.echo(
+                "▾ preliminary cascade matches "
+                "(low confidence — also searching sibling folders…):",
+                err=True,
+            )
+            for r in cascade_only:
+                click.echo(
+                    render_terminal_result(
+                        r,
+                        content=content,
+                        project_root=str(project_root),
+                        detail=detail,
+                        ocr=ocr,
+                    )
+                )
+                early_warm_paths.add(r.get("path", ""))
+            click.echo("", err=True)
+
+    # Now actually fire the cross-folder pass — wrapped in a hard
+    # 8 s wall-clock deadline so a slow ``~/Documents`` walk can't
+    # block the full search behind the user's 3-5 s "first answer"
+    # expectation. The preliminary cascade matches are already on
+    # screen by this point; if cross-folder doesn't finish in 8 s we
+    # just print "(timed out)" and call it done.
+    if will_fire_warm_cross:
+        from concurrent.futures import (
+            ThreadPoolExecutor as _TPE,
+            TimeoutError as _FuturesTimeout,
+        )
+        from . import lazy_indexer as _LZ
+        _cross_embedder = get_embedder(role="query")
+        _t_cross = time.time()
+        try:
+            with _TPE(max_workers=1) as _xpool:
+                _fut = _xpool.submit(
+                    _LZ.lazy_explore_cross_folder,
+                    conn, query,
+                    embedder=_cross_embedder,
+                    top_k=top,
+                    progress=None if json_output else _LZ._stderr_progress,
+                )
+                try:
+                    warm_cross_results, warm_cross_tele = _fut.result(
+                        timeout=8.0
+                    )
+                except _FuturesTimeout:
+                    warm_cross_tele = {
+                        "path": "lazy-cross-folder",
+                        "timed_out": True,
+                    }
+                    if not json_output:
+                        click.echo(
+                            "↻ sibling-folder search timed out at 8 s — "
+                            "skipping (cascade matches above are the answer)",
+                            err=True,
+                        )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("warm cross-folder lazy failed: %s", exc)
+        warm_cross_elapsed = time.time() - _t_cross
+        elapsed += warm_cross_elapsed
+
+    # 0.5.3: append warm-path cross-folder augmentation if cascade
+    # was uncertain. Cross-folder is appended after merge_tiers
+    # (cascade primary; sibling-folder hits added as long as room
+    # remains in top-K), deduped by path so a result already
+    # returned by cascade isn't double-printed.
     if warm_cross_results:
         _seen_paths = {r.get("path", "") for r in results}
         for r in warm_cross_results:
@@ -1030,16 +1269,48 @@ def search_cmd(
             click.echo(render_compact_source(result))
         click.echo(f"\n[Answer completed in {elapsed:.3f}s]")
         return
-    for r in results:
-        click.echo(
-            render_terminal_result(
-                r,
-                content=content,
-                project_root=str(project_root),
-                detail=detail,
-                ocr=ocr,
+    # 0.5.6 streaming UX: if the warm-path streaming block already
+    # printed the preliminary cascade matches, only echo NEW results
+    # added by the cross-folder pass (deduped against
+    # ``early_warm_paths``). Otherwise (rg-strong / no cross-folder
+    # / json) render the full ranked top-K.
+    if early_warm_paths:
+        new_warm = [
+            r for r in results
+            if r.get("path", "") and r.get("path", "") not in early_warm_paths
+        ]
+        if new_warm:
+            click.echo(
+                "▾ refined matches from sibling-folder semantic search:",
+                err=True,
             )
-        )
+            for r in new_warm:
+                click.echo(
+                    render_terminal_result(
+                        r,
+                        content=content,
+                        project_root=str(project_root),
+                        detail=detail,
+                        ocr=ocr,
+                    )
+                )
+        else:
+            click.echo(
+                "▾ sibling-folder search added no new matches "
+                "(top-K above is the final answer).",
+                err=True,
+            )
+    else:
+        for r in results:
+            click.echo(
+                render_terminal_result(
+                    r,
+                    content=content,
+                    project_root=str(project_root),
+                    detail=detail,
+                    ocr=ocr,
+                )
+            )
 
     # ``path=`` is the headline routing decision the user actually cares
     # about: which retrieval strategy answered this specific query.
@@ -1161,7 +1432,17 @@ def search_cmd(
     # ("Proactive over Passive") for the contract every enhancer
     # must honour.
     proactive_results: list = []
-    if not json_output:
+    # 0.5.6: if the early parallel proactive launch (before cascade)
+    # already produced results, reuse them — don't double-fire.
+    # ``_early_proactive_results`` was filled with whatever
+    # filename_extend / etc. found within the 2.5 s pre-cascade
+    # drain. Otherwise (timed out before cascade dispatch, or
+    # early launch was disabled), do the historical post-cascade
+    # call so behaviour is preserved for the json / agentic /
+    # answer paths.
+    if _early_proactive_results:
+        proactive_results = _early_proactive_results
+    elif not json_output:
         try:
             from . import proactive as _proactive
 
@@ -1179,6 +1460,8 @@ def search_cmd(
                     click.echo(rendered)
         except Exception:
             logger.exception("proactive enhancer runner failed; ignoring")
+    if _proactive_pool is not None:
+        _proactive_pool.shutdown(wait=False)
 
     # Intelligent CLI hint — low-confidence result quality (0.2.4+).
     # When top-1 cosine and σ-gap are both below floor, the result is

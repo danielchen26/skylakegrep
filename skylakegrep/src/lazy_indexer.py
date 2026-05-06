@@ -887,20 +887,21 @@ def lazy_explore_cross_folder(
         f"🌐 cross-folder explore · {len(candidate_roots)} candidate roots…"
     )
 
-    # Aggregate token-shortcut seeds across candidate roots. Per-root
-    # cap is generous (30000) — SKYGREP_PROACTIVE_DIRS is a
-    # user-curated list, not an arbitrary slice of the filesystem, so
-    # the boundary is the user's choice rather than an internal
-    # heuristic. This avoids the case where a root like
-    # ``/data/projects`` containing several cloned repos is truncated
-    # before the alphabetically-later repo (Django, in our bench)
-    # gets walked at all.
+    # 0.5.6: cap each candidate root at 5000 files. Earlier 0.5.3
+    # used 30000/root which on a default ``SKYGREP_PROACTIVE_DIRS``
+    # of ``~/Downloads:~/Desktop:~/Documents:~/Pictures:~/Code:~/Projects``
+    # — i.e. the entire macOS user home tree with iCloud sync — meant
+    # the walk alone could take over a minute *before any embed
+    # happened*. The user-reported "skygrep silent for 2:37" came
+    # from this. 5000/root is enough to cover any reasonably-sized
+    # OSS repo while keeping the wall-clock walk under ~5 s on a
+    # cold filesystem cache.
     all_files: list[str] = []
     for root in candidate_roots:
         if not root.is_dir():
             continue
         try:
-            files, _ = crawl_tree(root, max_files=30000)
+            files, _ = crawl_tree(root, max_files=5000)
             all_files.extend(files)
         except Exception:
             continue

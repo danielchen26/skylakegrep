@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.6 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.6 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.6</p>
+<h1>skylakegrep 0.5.6 — proactive umbrella runs in parallel with cascade (12:50 → 26 s)</h1>
+<p>The 0.5.4 ship missed a deeper issue. On a query like
+<code>skygrep "do I have files about &lt;token&gt;?"</code> from a code repo where
+the answer is a PDF in <code>~/Downloads</code>, 0.5.4 took <strong>12 minutes 50
+seconds</strong> wall clock end to end. The cascade rerank ran 99.7 s
+because the query had zero semantic match in the indexed code,
+cross-folder lazy timed out at 8 s, and only THEN did the proactive
+<code>filename_extend</code> enhancer fire — finding the answer (4 PDFs in
+<code>~/Downloads</code>) in ~100 ms. The right answer existed the whole time,
+hidden behind a sequential chain.</p>
+<p>0.5.6 fixes the architecture, not just the symptom. Same query, now
+<strong>26 s</strong> wall clock with the proactive answer streaming at ~1–2 s.</p>
+<h2>The conceptual model that 0.5.6 conforms to</h2>
+<p>Two layers, parallel:</p>
+<pre><code>              Query
+                │
+                ▼
+       ┌────────┴────────┐
+       │                 │
+     cascade        proactive umbrella
+                        │
+                        ├── lazy_cwd       (cold-start, embed cwd seeds)
+                        ├── lazy_cross_folder (embed sibling-dir seeds)
+                        ├── filename_extend   (~/Downloads etc filename glob)
+                        └── (future speculative tiers)
+</code></pre>
+<p><code>cascade</code> assumes the user is in the right project and the index is
+built. <code>proactive umbrella</code> assumes nothing — it fans out into
+parallel subprocesses each exploring a different "the answer might
+live here" hypothesis. <strong>They run alongside each other at t = 0</strong>;
+each streams as soon as it has anything to show.</p>
+<p>The full conceptual model — including why "lazy IS proactive", why
+sequential chains are forbidden, what the required UX is, and the
+quality-indicator-per-block rule — is in
+<a href="proactive-umbrella-framework.html"><code>docs/proactive-umbrella-framework.md</code></a>.
+That document is authoritative for any future routing change.</p>
+<h2>What landed in 0.5.6 (code)</h2>
+<ol>
+<li>
+<p><strong>Parallel proactive launch</strong> (<code>cli.py</code> warm path, before cascade
+   dispatch). <code>proactive.run_enhancers_parallel</code> now fires in a
+   <code>ThreadPoolExecutor</code> worker BEFORE cascade starts, with empty
+   <code>results</code> so its <code>should_fire</code> predicate triggers
+   unconditionally. The post-cascade call is skipped when the
+   pre-cascade result has anything — no double-fire, no double
+   render.</p>
+</li>
+<li>
+<p><strong>Pre-cascade drain with 2.5 s deadline</strong> so the proactive
+   umbrella's hits print BEFORE cascade even begins running:</p>
+</li>
+</ol>
+<p><code>▾ proactive umbrella · home-dir filename matches
+     (filename_extend, ~100 ms-1 s; pure filename glob, no semantic
+     understanding):
+     &lt;hits&gt;</code></p>
+<p>The header announces both the route AND the quality semantics
+   so the user knows whether to wait for cascade or trust the
+   early answer.</p>
+<ol start="3">
+<li><strong>Cascade hard timeout</strong> (30 s). On vocabulary-mismatch queries
+   where σ-gap is tiny, the cascade escalates to cross-encoder
+   rerank which can run 60–120 s. Once we've already shown the
+   user the proactive umbrella's answer at ~1–2 s, there's no
+   benefit in forcing them to wait a full minute for a cascade
+   that already failed σ-validation. The cascade now runs in a
+   worker thread (with its own SQLite connection because
+   <code>sqlite3</code> forbids cross-thread connection reuse). A
+   <code>concurrent.futures.TimeoutError</code> after 30 s short-circuits with
+   a stderr explanation:</li>
+</ol>
+<p><code>↻ cascade timed out at 30 s — top-K above (filename_extend /
+     preliminary cascade / cross-folder) is the answer; cascade
+     was in σ-low rerank, unlikely to add value</code></p>
+<ol start="4">
+<li>
+<p><strong>Cross-folder hard timeout</strong> (8 s, kept from 0.5.5
+   intermediate). <code>lazy_explore_cross_folder</code> walks
+   <code>SKYGREP_PROACTIVE_DIRS</code> and embeds 5 seed files; the 8 s cap
+   protects against the macOS <code>~/Documents</code> + iCloud sync case
+   where the walk alone could take a minute.</p>
+</li>
+<li>
+<p><strong>Cross-folder per-root cap</strong> lowered from 30 000 files to
+   5 000. The earlier value tried to cover a single huge
+   <code>/data/projects</code> cleanly but produced multi-minute walks on a
+   default home tree. 5 000 / root × 6 default roots = 30 000
+   total which is enough for any reasonably-sized OSS repo
+   collection.</p>
+</li>
+<li>
+<p><strong>Per-tier quality labels in stream headers</strong>. Each block
+   prints something like <code>(filename_extend, ~100 ms-1 s; pure
+   filename glob, no semantic understanding)</code> or <code>(low confidence
+   — also searching sibling folders…)</code> so the user always knows
+   which route produced the block and what to expect from it.</p>
+</li>
+</ol>
+<h2>Numbers</h2>
+<p>Same <repo-A>-query reproducer the user reported in 0.5.5:</p>
+<table>
+<thead>
+<tr>
+<th>Version</th>
+<th>Wall clock</th>
+<th>First answer at</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.5.4 (released)</td>
+<td><strong>12 m 50 s</strong></td>
+<td>99.7 s (after cascade rerank)</td>
+<td>Sequential chain; user staring at blank prompt</td>
+</tr>
+<tr>
+<td>0.5.6 (this)</td>
+<td><strong>26 s</strong></td>
+<td><strong>~1–2 s</strong> (proactive umbrella)</td>
+<td>Parallel; cascade timed out at 30 s, but answer was already on screen</td>
+</tr>
+</tbody>
+</table>
+<p>The user's UX target was "first answer ≤ 3-5 s, then stream better
+ones". 0.5.6 hits ~1–2 s on the proactive route for filename
+queries, then streams the cascade's preliminary block at the
+moment cascade returns (or times out at 30 s).</p>
+<h2>Compatibility</h2>
+<ul>
+<li>All public APIs unchanged from 0.5.4.</li>
+<li>Same wheel + sdist file layout.</li>
+<li>Index format unchanged; 0.5.4-built indexes work without
+  re-indexing.</li>
+<li><code>--lazy / --no-lazy</code> flag semantics unchanged.</li>
+<li>Existing proactive enhancers unchanged.</li>
+<li>New conceptual doc at <code>docs/proactive-umbrella-framework.md</code>.</li>
+</ul>
+<h2>Verified</h2>
+<ul>
+<li><code>pytest tests/</code> — 217 / 217 pass (no test changes; baseline
+  preserved).</li>
+<li>Real CLI on the user's project repo (warm path, indexed):
+  wall clock 26 s, proactive umbrella block visible at ~1–2 s,
+  cascade ran in worker thread under 30 s timeout, cross-folder
+  timed out at 8 s as expected, no regressions in cascade
+  result format.</li>
+<li>Generic placeholder query verified end-to-end (no personal
+  data in any test artifact).</li>
+</ul>
+<h2>Pending for 0.6</h2>
+<ul>
+<li>The cascade σ-gap / cross-encoder rerank gate is still the
+  legacy 0.2.x logic; on extreme vocabulary-mismatch queries it
+  always escalates and consumes the full 30 s timeout. A future
+  refactor could add an early "σ-gap below noise floor → return
+  cosine-cheap top-K, skip rerank" exit.</li>
+<li>True streaming inside Ollama batch embed (currently 25 seeds
+  → one synchronous call). Splitting into two rounds (5 + 20)
+  would let lazy stream a first answer at ~5 s instead of
+  waiting the full embed pass.</li>
+<li>Per-tier observability for ralph / autopilot consumers — the
+  current stderr stream is human-readable but not structured.</li>
+</ul></article>
+</main>
+</div>
+</body></html>

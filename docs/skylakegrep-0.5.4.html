@@ -73,7 +73,7 @@
 </li>
 <li>
 <p><strong>Streaming cold-start UX (small code change).</strong> Reported by the
-   user mid-bench: <code>skygrep '我有没有跟"eb1b"有关的文件？'</code>
+   user mid-bench: <code>skygrep '我有没有跟"tax-2024"有关的文件？'</code>
    sat silent for ≥ 30 s on a never-indexed dir before any output
    appeared. The fix is described in detail below — the cold-start
    path now prints (a) an immediate <code>🔍 scanning…</code> line, (b) the
@@ -153,13 +153,13 @@
 </ol>
 <h2>Streaming cold-start output (the second thread)</h2>
 <p>Before 0.5.4 (what the user saw):</p>
-<pre><code>$ skygrep '我有没有跟&quot;eb1b&quot;有关的文件？'
+<pre><code>$ skygrep '我有没有跟&quot;tax-2024&quot;有关的文件？'
                                               ← silent for 5–30 s
                                               ← prompt looks frozen
 ... (eventually all output appears at once) ...
 </code></pre>
 <p>After 0.5.4:</p>
-<pre><code>$ skygrep '我有没有跟&quot;eb1b&quot;有关的文件？'
+<pre><code>$ skygrep '我有没有跟&quot;tax-2024&quot;有关的文件？'
 🔍 ripgrep cold-start · scanning project keywords…       ← t = 0
 ▾ preliminary keyword matches (lazy semantic refinement starting…):
 ╭─ &lt;path&gt;:&lt;lines&gt; ────────────  1.000                     ← t ≈ 1 s

@@ -51,9 +51,10 @@ async def renew_session(req: Request):
 
 > **30 / 30** public-OSS recall (fully-indexed) &nbsp;·&nbsp;
 > **+30 %** lazy auto-trigger over `rg` cold-start (0.5.3) &nbsp;·&nbsp;
+> **~1–2 s** first answer via parallel proactive umbrella (0.5.6) &nbsp;·&nbsp;
 > **~1 s** warm queries &nbsp;·&nbsp;
 > **100 %** local &nbsp;·&nbsp;
-> **18** releases shipped
+> **20** releases shipped
 
 ---
 
