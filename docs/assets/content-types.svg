@@ -1,120 +1,136 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 540" role="img" aria-labelledby="ct-title ct-desc" font-family="Inter, ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 580" role="img" aria-labelledby="ct-title ct-desc" font-family="Inter, ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
   <title id="ct-title">skylakegrep — what you can search</title>
-  <desc id="ct-desc">Six content types skylakegrep searches via the same content-agnostic substrate: code (tree-sitter), markdown (link-aware), PDF (text + opt-in OCR), Word docs, plain text/TOML/YAML/CSV/JSON, and your own custom content type via extractor registration.</desc>
+  <desc id="ct-desc">Five built-in content types skylakegrep searches via the same content-agnostic substrate (Code, Markdown, PDF, Word docs, Plain text family) plus an extensibility banner explaining that any other format plugs in via register_extractor().</desc>
 
   <defs>
     <linearGradient id="ct-bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="#0c1018"/>
-      <stop offset="100%" stop-color="#0e1320"/>
+      <stop offset="0%"   stop-color="#13192a"/>
+      <stop offset="100%" stop-color="#181f33"/>
     </linearGradient>
     <linearGradient id="ct-card" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="rgba(255,255,255,0.055)"/>
-      <stop offset="55%"  stop-color="rgba(255,255,255,0.022)"/>
-      <stop offset="100%" stop-color="rgba(255,255,255,0.012)"/>
+      <stop offset="0%"   stop-color="rgba(255,255,255,0.085)"/>
+      <stop offset="55%"  stop-color="rgba(255,255,255,0.040)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.025)"/>
     </linearGradient>
     <linearGradient id="ct-stroke" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%"   stop-color="rgba(125,211,252,0.32)"/>
-      <stop offset="55%"  stop-color="rgba(167,139,250,0.20)"/>
-      <stop offset="100%" stop-color="rgba(94,234,212,0.20)"/>
+      <stop offset="0%"   stop-color="rgba(125,211,252,0.34)"/>
+      <stop offset="55%"  stop-color="rgba(167,139,250,0.22)"/>
+      <stop offset="100%" stop-color="rgba(94,234,212,0.22)"/>
+    </linearGradient>
+    <linearGradient id="ct-tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="rgba(255,255,255,0.07)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.025)"/>
+    </linearGradient>
+    <linearGradient id="ct-banner" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="rgba(125,211,252,0.14)"/>
+      <stop offset="50%"  stop-color="rgba(167,139,250,0.12)"/>
+      <stop offset="100%" stop-color="rgba(94,234,212,0.14)"/>
     </linearGradient>
     <linearGradient id="ct-gleam" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="rgba(255,255,255,0.13)"/>
+      <stop offset="0%"   stop-color="rgba(255,255,255,0.14)"/>
       <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
     </linearGradient>
     <filter id="ct-blur" x="-25%" y="-25%" width="150%" height="150%">
-      <feGaussianBlur stdDeviation="55"/>
+      <feGaussianBlur stdDeviation="60"/>
     </filter>
   </defs>
 
-  <rect width="1200" height="540" fill="url(#ct-bg)"/>
-  <g filter="url(#ct-blur)" opacity="0.5">
-    <circle cx="180"  cy="80"  r="200" fill="rgba(125,211,252,0.16)"/>
-    <circle cx="1020" cy="460" r="220" fill="rgba(94,234,212,0.14)"/>
+  <rect width="1200" height="580" fill="url(#ct-bg)"/>
+  <g filter="url(#ct-blur)" opacity="0.55">
+    <circle cx="180"  cy="100" r="220" fill="rgba(125,211,252,0.18)"/>
+    <circle cx="1020" cy="500" r="240" fill="rgba(94,234,212,0.16)"/>
+    <circle cx="600"  cy="320" r="200" fill="rgba(167,139,250,0.10)"/>
   </g>
 
   <!-- Outer card -->
   <g transform="translate(40 40)">
-    <rect width="1120" height="460" rx="18" fill="url(#ct-card)" stroke="url(#ct-stroke)" stroke-width="1.2"/>
-    <rect width="1120" height="36" rx="18" fill="url(#ct-gleam)"/>
-    <line x1="0" y1="36" x2="1120" y2="36" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
-    <g transform="translate(16 18)">
+    <rect width="1120" height="500" rx="20" fill="url(#ct-card)" stroke="url(#ct-stroke)" stroke-width="1.2"/>
+    <rect width="1120" height="40" rx="20" fill="url(#ct-gleam)"/>
+    <line x1="0" y1="40" x2="1120" y2="40" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+    <g transform="translate(20 20)">
       <circle cx="0"  cy="0" r="5" fill="#ff5f57" opacity="0.85"/>
-      <circle cx="16" cy="0" r="5" fill="#ffbd2e" opacity="0.85"/>
-      <circle cx="32" cy="0" r="5" fill="#28ca42" opacity="0.85"/>
+      <circle cx="20" cy="0" r="5" fill="#ffbd2e" opacity="0.85"/>
+      <circle cx="40" cy="0" r="5" fill="#28ca42" opacity="0.85"/>
     </g>
-    <text x="560" y="22" text-anchor="middle" font-size="11" fill="rgba(165,243,252,0.55)" font-family="ui-monospace, Menlo, Consolas, monospace">what you can search · content-agnostic substrate</text>
+    <text x="560" y="25" text-anchor="middle" font-size="11" fill="rgba(165,243,252,0.55)" font-family="ui-monospace, Menlo, Consolas, monospace">what you can search · content-agnostic substrate</text>
 
     <!-- Section header -->
-    <text x="40" y="80" font-size="11" letter-spacing="0.18em" fill="rgba(165,243,252,0.6)" font-family="ui-monospace, Menlo, Consolas, monospace">CONTENT TYPES</text>
-    <text x="40" y="105" font-size="20" fill="#e8edf2" font-weight="600" letter-spacing="-0.01em">One query across everything you store.</text>
+    <text x="40" y="80" font-size="11" letter-spacing="0.18em" fill="rgba(165,243,252,0.6)" font-family="ui-monospace, Menlo, Consolas, monospace">CONTENT TYPES · 5 BUILT IN</text>
+    <text x="40" y="106" font-size="20" fill="#e8edf2" font-weight="600" letter-spacing="-0.01em">One query across everything you store.</text>
 
-    <!-- Six content-type tiles in a 3×2 grid -->
-    <!-- ROW 1 -->
+    <!-- Row 1: 3 tiles · 340 wide each, 20 gap -->
     <g transform="translate(40 138)">
       <!-- Tile 1: Code -->
       <g>
-        <rect width="340" height="140" rx="12" fill="rgba(125,211,252,0.05)" stroke="rgba(125,211,252,0.20)"/>
-        <text x="20" y="32" font-size="22" fill="#7dd3fc">⟨/⟩</text>
-        <text x="56" y="32" font-size="16" fill="#e8edf2" font-weight="600">Code</text>
-        <text x="20" y="58" font-size="11" fill="rgba(165,243,252,0.65)" font-family="ui-monospace, Menlo, Consolas, monospace">Rust · Python · JS · TS</text>
-        <text x="20" y="86" font-size="13" fill="#c8d0d8">tree-sitter symbol-aware</text>
-        <text x="20" y="104" font-size="13" fill="#c8d0d8">chunking + line-window fallback</text>
-        <text x="20" y="124" font-size="11" fill="rgba(167,243,208,0.7)" font-family="ui-monospace, Menlo, Consolas, monospace">imports / use / require → graph</text>
+        <rect width="340" height="138" rx="14" fill="url(#ct-tile)" stroke="rgba(125,211,252,0.22)"/>
+        <g transform="translate(20 22)">
+          <rect width="40" height="28" rx="8" fill="rgba(125,211,252,0.14)" stroke="rgba(125,211,252,0.36)"/>
+          <text x="20" y="20" text-anchor="middle" font-size="14" fill="#7dd3fc" font-family="ui-monospace, Menlo, Consolas, monospace">{ }</text>
+        </g>
+        <text x="76" y="44" font-size="17" fill="#e8edf2" font-weight="600">Code</text>
+        <text x="20" y="78" font-size="11" fill="rgba(165,243,252,0.65)" font-family="ui-monospace, Menlo, Consolas, monospace">Rust · Python · JS · TS</text>
+        <text x="20" y="100" font-size="13" fill="#c8d0d8">tree-sitter symbol-aware</text>
+        <text x="20" y="118" font-size="13" fill="#c8d0d8">chunking + import graph</text>
       </g>
       <!-- Tile 2: Markdown -->
       <g transform="translate(360 0)">
-        <rect width="340" height="140" rx="12" fill="rgba(125,211,252,0.05)" stroke="rgba(125,211,252,0.20)"/>
-        <text x="20" y="32" font-size="22" fill="#7dd3fc">M↓</text>
-        <text x="56" y="32" font-size="16" fill="#e8edf2" font-weight="600">Markdown</text>
-        <text x="20" y="58" font-size="11" fill="rgba(165,243,252,0.65)" font-family="ui-monospace, Menlo, Consolas, monospace">.md · Obsidian · README</text>
-        <text x="20" y="86" font-size="13" fill="#c8d0d8">line-window chunks +</text>
-        <text x="20" y="104" font-size="13" fill="#c8d0d8">link-graph extraction</text>
-        <text x="20" y="124" font-size="11" fill="rgba(167,243,208,0.7)" font-family="ui-monospace, Menlo, Consolas, monospace">[](rel) ![]() [[wiki]]</text>
+        <rect width="340" height="138" rx="14" fill="url(#ct-tile)" stroke="rgba(125,211,252,0.22)"/>
+        <g transform="translate(20 22)">
+          <rect width="40" height="28" rx="8" fill="rgba(125,211,252,0.14)" stroke="rgba(125,211,252,0.36)"/>
+          <text x="20" y="20" text-anchor="middle" font-size="13" fill="#7dd3fc" font-family="ui-monospace, Menlo, Consolas, monospace">M↓</text>
+        </g>
+        <text x="76" y="44" font-size="17" fill="#e8edf2" font-weight="600">Markdown</text>
+        <text x="20" y="78" font-size="11" fill="rgba(165,243,252,0.65)" font-family="ui-monospace, Menlo, Consolas, monospace">.md · README · Obsidian</text>
+        <text x="20" y="100" font-size="13" fill="#c8d0d8">line-window chunks +</text>
+        <text x="20" y="118" font-size="13" fill="#c8d0d8">link graph (rel · ![] · [[]])</text>
       </g>
       <!-- Tile 3: PDF -->
       <g transform="translate(720 0)">
-        <rect width="320" height="140" rx="12" fill="rgba(125,211,252,0.05)" stroke="rgba(125,211,252,0.20)"/>
-        <text x="20" y="32" font-size="22" fill="#7dd3fc">PDF</text>
-        <text x="76" y="32" font-size="16" fill="#e8edf2" font-weight="600">Documents</text>
-        <text x="20" y="58" font-size="11" fill="rgba(165,243,252,0.65)" font-family="ui-monospace, Menlo, Consolas, monospace">papers · designs · manuals</text>
-        <text x="20" y="86" font-size="13" fill="#c8d0d8">pypdf text extraction;</text>
-        <text x="20" y="104" font-size="13" fill="#c8d0d8">opt-in OCR for scans</text>
-        <text x="20" y="124" font-size="11" fill="rgba(167,243,208,0.7)" font-family="ui-monospace, Menlo, Consolas, monospace">since 0.1.0</text>
+        <rect width="340" height="138" rx="14" fill="url(#ct-tile)" stroke="rgba(125,211,252,0.22)"/>
+        <g transform="translate(20 22)">
+          <rect width="46" height="28" rx="8" fill="rgba(125,211,252,0.14)" stroke="rgba(125,211,252,0.36)"/>
+          <text x="23" y="20" text-anchor="middle" font-size="12" fill="#7dd3fc" font-family="ui-monospace, Menlo, Consolas, monospace">PDF</text>
+        </g>
+        <text x="82" y="44" font-size="17" fill="#e8edf2" font-weight="600">PDF documents</text>
+        <text x="20" y="78" font-size="11" fill="rgba(165,243,252,0.65)" font-family="ui-monospace, Menlo, Consolas, monospace">papers · designs · manuals</text>
+        <text x="20" y="100" font-size="13" fill="#c8d0d8">pypdf text extraction;</text>
+        <text x="20" y="118" font-size="13" fill="#c8d0d8">opt-in OCR for scans</text>
       </g>
     </g>
 
-    <!-- ROW 2 -->
-    <g transform="translate(40 294)">
+    <!-- Row 2: 2 wider tiles, centered horizontally · 520 wide each, 20 gap -->
+    <g transform="translate(40 296)">
       <!-- Tile 4: Word docs -->
       <g>
-        <rect width="340" height="140" rx="12" fill="rgba(167,139,250,0.05)" stroke="rgba(167,139,250,0.20)"/>
-        <text x="20" y="32" font-size="22" fill="#c4b5fd">.docx</text>
-        <text x="98" y="32" font-size="16" fill="#e8edf2" font-weight="600">Word docs</text>
-        <text x="20" y="58" font-size="11" fill="rgba(216,180,254,0.65)" font-family="ui-monospace, Menlo, Consolas, monospace">specs · meeting notes</text>
-        <text x="20" y="86" font-size="13" fill="#c8d0d8">python-docx</text>
-        <text x="20" y="104" font-size="13" fill="#c8d0d8">paragraph extraction</text>
-        <text x="20" y="124" font-size="11" fill="rgba(167,243,208,0.7)" font-family="ui-monospace, Menlo, Consolas, monospace">since 0.1.0</text>
+        <rect width="520" height="138" rx="14" fill="url(#ct-tile)" stroke="rgba(167,139,250,0.22)"/>
+        <g transform="translate(20 22)">
+          <rect width="56" height="28" rx="8" fill="rgba(167,139,250,0.14)" stroke="rgba(167,139,250,0.36)"/>
+          <text x="28" y="20" text-anchor="middle" font-size="11" fill="#c4b5fd" font-family="ui-monospace, Menlo, Consolas, monospace">.docx</text>
+        </g>
+        <text x="92" y="44" font-size="17" fill="#e8edf2" font-weight="600">Word documents</text>
+        <text x="20" y="78" font-size="11" fill="rgba(216,180,254,0.65)" font-family="ui-monospace, Menlo, Consolas, monospace">specs · meeting notes · proposals</text>
+        <text x="20" y="100" font-size="13" fill="#c8d0d8">python-docx paragraph extraction</text>
+        <text x="20" y="118" font-size="13" fill="#c8d0d8">→ same cosine cascade as code</text>
       </g>
       <!-- Tile 5: Plain text family -->
-      <g transform="translate(360 0)">
-        <rect width="340" height="140" rx="12" fill="rgba(167,139,250,0.05)" stroke="rgba(167,139,250,0.20)"/>
-        <text x="20" y="32" font-size="22" fill="#c4b5fd">{ }</text>
-        <text x="76" y="32" font-size="16" fill="#e8edf2" font-weight="600">Plain text family</text>
-        <text x="20" y="58" font-size="11" fill="rgba(216,180,254,0.65)" font-family="ui-monospace, Menlo, Consolas, monospace">.txt · .toml · .yml · .csv · .json</text>
-        <text x="20" y="86" font-size="13" fill="#c8d0d8">line-window chunking via</text>
-        <text x="20" y="104" font-size="13" fill="#c8d0d8">the default text path</text>
-        <text x="20" y="124" font-size="11" fill="rgba(167,243,208,0.7)" font-family="ui-monospace, Menlo, Consolas, monospace">since 0.1.0</text>
+      <g transform="translate(540 0)">
+        <rect width="520" height="138" rx="14" fill="url(#ct-tile)" stroke="rgba(167,139,250,0.22)"/>
+        <g transform="translate(20 22)">
+          <rect width="100" height="28" rx="8" fill="rgba(167,139,250,0.14)" stroke="rgba(167,139,250,0.36)"/>
+          <text x="50" y="20" text-anchor="middle" font-size="11" fill="#c4b5fd" font-family="ui-monospace, Menlo, Consolas, monospace">.txt .yml .json</text>
+        </g>
+        <text x="136" y="44" font-size="17" fill="#e8edf2" font-weight="600">Plain text family</text>
+        <text x="20" y="78" font-size="11" fill="rgba(216,180,254,0.65)" font-family="ui-monospace, Menlo, Consolas, monospace">.txt · .toml · .yml · .csv · .json · .ini · .log · …</text>
+        <text x="20" y="100" font-size="13" fill="#c8d0d8">line-window chunking via</text>
+        <text x="20" y="118" font-size="13" fill="#c8d0d8">the default text path</text>
       </g>
-      <!-- Tile 6: Custom -->
-      <g transform="translate(720 0)">
-        <rect width="320" height="140" rx="12" fill="rgba(94,234,212,0.05)" stroke="rgba(94,234,212,0.20)"/>
-        <text x="20" y="32" font-size="22" fill="#5eead4">+</text>
-        <text x="46" y="32" font-size="16" fill="#e8edf2" font-weight="600">Your custom type</text>
-        <text x="20" y="58" font-size="11" fill="rgba(167,243,208,0.65)" font-family="ui-monospace, Menlo, Consolas, monospace">register an extractor</text>
-        <text x="20" y="86" font-size="13" fill="#c8d0d8">reference_graph.</text>
-        <text x="20" y="104" font-size="13" fill="#c8d0d8">register_extractor(...)</text>
-        <text x="20" y="124" font-size="11" fill="rgba(167,243,208,0.7)" font-family="ui-monospace, Menlo, Consolas, monospace">since 0.2.0</text>
-      </g>
+    </g>
+
+    <!-- Extensibility banner — full width, mint accent -->
+    <g transform="translate(40 454)">
+      <rect width="1040" height="32" rx="8" fill="url(#ct-banner)" stroke="rgba(94,234,212,0.30)"/>
+      <text x="20" y="21" font-size="12" fill="#5eead4" font-family="ui-monospace, Menlo, Consolas, monospace">+</text>
+      <text x="40" y="21" font-size="12.5" fill="#c8d0d8">Other formats? <tspan fill="#5eead4" font-family="ui-monospace, Menlo, Consolas, monospace">register_extractor()</tspan> plugs any new content type into the same pipeline — that's what content-agnostic means.</text>
     </g>
   </g>
 </svg>

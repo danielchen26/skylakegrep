@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="cli-title cli-desc" font-family="Inter, ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
+  <title id="cli-title">skylakegrep — CLI cheatsheet</title>
+  <desc id="cli-desc">Command cheatsheet rendered as a frosted-glass card. The bare form (skygrep "<query>") is featured large because it covers ~95% of real use; eight secondary commands are shown as smaller tiles below: search, doctor, setup, stats, index, watch, serve, enrich.</desc>
+
+  <defs>
+    <linearGradient id="cli-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#13192a"/>
+      <stop offset="100%" stop-color="#181f33"/>
+    </linearGradient>
+    <linearGradient id="cli-card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="rgba(255,255,255,0.085)"/>
+      <stop offset="55%"  stop-color="rgba(255,255,255,0.040)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.025)"/>
+    </linearGradient>
+    <linearGradient id="cli-stroke" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="rgba(125,211,252,0.34)"/>
+      <stop offset="55%"  stop-color="rgba(167,139,250,0.22)"/>
+      <stop offset="100%" stop-color="rgba(94,234,212,0.22)"/>
+    </linearGradient>
+    <linearGradient id="cli-hero-tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="rgba(125,211,252,0.16)"/>
+      <stop offset="100%" stop-color="rgba(125,211,252,0.04)"/>
+    </linearGradient>
+    <linearGradient id="cli-tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="rgba(255,255,255,0.06)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.022)"/>
+    </linearGradient>
+    <linearGradient id="cli-gleam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="rgba(255,255,255,0.14)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+    <filter id="cli-blur" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="60"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="720" fill="url(#cli-bg)"/>
+  <g filter="url(#cli-blur)" opacity="0.55">
+    <circle cx="180"  cy="100" r="220" fill="rgba(125,211,252,0.18)"/>
+    <circle cx="1020" cy="600" r="240" fill="rgba(167,139,250,0.14)"/>
+  </g>
+
+  <g transform="translate(40 40)">
+    <rect width="1120" height="640" rx="20" fill="url(#cli-card)" stroke="url(#cli-stroke)" stroke-width="1.2"/>
+    <rect width="1120" height="40" rx="20" fill="url(#cli-gleam)"/>
+    <line x1="0" y1="40" x2="1120" y2="40" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+    <g transform="translate(20 20)">
+      <circle cx="0"  cy="0" r="5" fill="#ff5f57" opacity="0.85"/>
+      <circle cx="20" cy="0" r="5" fill="#ffbd2e" opacity="0.85"/>
+      <circle cx="40" cy="0" r="5" fill="#28ca42" opacity="0.85"/>
+    </g>
+    <text x="560" y="25" text-anchor="middle" font-size="11" fill="rgba(165,243,252,0.55)" font-family="ui-monospace, Menlo, Consolas, monospace">CLI cheatsheet · v0.2.17</text>
+
+    <!-- Section header -->
+    <text x="40" y="80" font-size="11" letter-spacing="0.18em" fill="rgba(165,243,252,0.6)" font-family="ui-monospace, Menlo, Consolas, monospace">COMMAND CHEATSHEET</text>
+    <text x="40" y="106" font-size="20" fill="#e8edf2" font-weight="600" letter-spacing="-0.01em">The bare form covers 95% of real use.</text>
+
+    <!-- Hero command tile -->
+    <g transform="translate(40 138)">
+      <rect width="1040" height="98" rx="14" fill="url(#cli-hero-tile)" stroke="rgba(125,211,252,0.36)"/>
+      <text x="20" y="32" font-size="11" letter-spacing="0.12em" fill="rgba(165,243,252,0.7)" font-family="ui-monospace, Menlo, Consolas, monospace">DEFAULT FORM · 95% OF USE</text>
+      <text x="20" y="66" font-size="22" fill="#a5f3fc" font-weight="700" font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace">skygrep "&lt;your question&gt;"</text>
+      <text x="20" y="86" font-size="13" fill="#c8d0d8">No subcommand, no flags. Auto-routes (LLM router → find / rg / semantic cascade), auto-indexes, auto-recovers.</text>
+    </g>
+
+    <!-- Section divider for secondary commands -->
+    <text x="40" y="270" font-size="11" letter-spacing="0.12em" fill="rgba(165,243,252,0.5)" font-family="ui-monospace, Menlo, Consolas, monospace">EXPLICIT FORMS · WHEN YOU NEED FLAGS, INTROSPECTION, OR DAEMON MODE</text>
+
+    <!-- 8 secondary command tiles · 4×2 grid · each 250 wide -->
+    <g transform="translate(40 290)" font-family="ui-monospace, Menlo, Consolas, monospace">
+      <!-- Row 1 -->
+      <!-- search -->
+      <g>
+        <rect width="250" height="124" rx="12" fill="url(#cli-tile)" stroke="rgba(125,211,252,0.18)"/>
+        <text x="16" y="32" font-size="14" fill="#a5f3fc" font-weight="700">skygrep search</text>
+        <text x="16" y="60" font-size="11" fill="rgba(165,243,252,0.55)">explicit form</text>
+        <text x="16" y="86" font-size="12" fill="#c8d0d8" font-family="Inter, sans-serif">When you need flags:</text>
+        <text x="16" y="106" font-size="11.5" fill="#94a0aa">--top, --json, --rerank</text>
+      </g>
+      <!-- doctor -->
+      <g transform="translate(266 0)">
+        <rect width="250" height="124" rx="12" fill="url(#cli-tile)" stroke="rgba(125,211,252,0.18)"/>
+        <text x="16" y="32" font-size="14" fill="#a5f3fc" font-weight="700">skygrep doctor</text>
+        <text x="16" y="60" font-size="11" fill="rgba(165,243,252,0.55)">first-time troubleshoot</text>
+        <text x="16" y="86" font-size="12" fill="#c8d0d8" font-family="Inter, sans-serif">Probes Ollama, lists models,</text>
+        <text x="16" y="106" font-size="12" fill="#c8d0d8" font-family="Inter, sans-serif">summarises index health.</text>
+      </g>
+      <!-- setup -->
+      <g transform="translate(532 0)">
+        <rect width="250" height="124" rx="12" fill="url(#cli-tile)" stroke="rgba(125,211,252,0.18)"/>
+        <text x="16" y="32" font-size="14" fill="#a5f3fc" font-weight="700">skygrep setup</text>
+        <text x="16" y="60" font-size="11" fill="rgba(165,243,252,0.55)">run once</text>
+        <text x="16" y="86" font-size="12" fill="#c8d0d8" font-family="Inter, sans-serif">Register skygrep with detected</text>
+        <text x="16" y="106" font-size="12" fill="#c8d0d8" font-family="Inter, sans-serif">LLM CLIs (Claude, Codex, …).</text>
+      </g>
+      <!-- stats -->
+      <g transform="translate(798 0)">
+        <rect width="250" height="124" rx="12" fill="url(#cli-tile)" stroke="rgba(125,211,252,0.18)"/>
+        <text x="16" y="32" font-size="14" fill="#a5f3fc" font-weight="700">skygrep stats</text>
+        <text x="16" y="60" font-size="11" fill="rgba(165,243,252,0.55)">quick check</text>
+        <text x="16" y="86" font-size="12" fill="#c8d0d8" font-family="Inter, sans-serif">Print chunk count and file</text>
+        <text x="16" y="106" font-size="12" fill="#c8d0d8" font-family="Inter, sans-serif">count for the current project.</text>
+      </g>
+    </g>
+
+    <!-- Row 2 -->
+    <g transform="translate(40 430)" font-family="ui-monospace, Menlo, Consolas, monospace">
+      <!-- index -->
+      <g>
+        <rect width="250" height="124" rx="12" fill="url(#cli-tile)" stroke="rgba(167,139,250,0.18)"/>
+        <text x="16" y="32" font-size="14" fill="#c4b5fd" font-weight="700">skygrep index</text>
+        <text x="16" y="60" font-size="11" fill="rgba(216,180,254,0.55)">rarely needed</text>
+        <text x="16" y="86" font-size="12" fill="#c8d0d8" font-family="Inter, sans-serif">Manual rebuild. Auto-recovery</text>
+        <text x="16" y="106" font-size="12" fill="#c8d0d8" font-family="Inter, sans-serif">handles upgrades since 0.2.2.</text>
+      </g>
+      <!-- watch -->
+      <g transform="translate(266 0)">
+        <rect width="250" height="124" rx="12" fill="url(#cli-tile)" stroke="rgba(167,139,250,0.18)"/>
+        <text x="16" y="32" font-size="14" fill="#c4b5fd" font-weight="700">skygrep watch</text>
+        <text x="16" y="60" font-size="11" fill="rgba(216,180,254,0.55)">live re-index</text>
+        <text x="16" y="86" font-size="12" fill="#c8d0d8" font-family="Inter, sans-serif">Keep index live in the bg.</text>
+        <text x="16" y="106" font-size="12" fill="#c8d0d8" font-family="Inter, sans-serif">Polls every -i N seconds.</text>
+      </g>
+      <!-- serve -->
+      <g transform="translate(532 0)">
+        <rect width="250" height="124" rx="12" fill="url(#cli-tile)" stroke="rgba(94,234,212,0.20)"/>
+        <text x="16" y="32" font-size="14" fill="#5eead4" font-weight="700">skygrep serve</text>
+        <text x="16" y="60" font-size="11" fill="rgba(167,243,208,0.55)">daemon · 0.5–2s warm</text>
+        <text x="16" y="86" font-size="12" fill="#c8d0d8" font-family="Inter, sans-serif">Keeps cross-encoder + Ollama</text>
+        <text x="16" y="106" font-size="12" fill="#c8d0d8" font-family="Inter, sans-serif">warm. --port P.</text>
+      </g>
+      <!-- enrich -->
+      <g transform="translate(798 0)">
+        <rect width="250" height="124" rx="12" fill="url(#cli-tile)" stroke="rgba(94,234,212,0.20)"/>
+        <text x="16" y="32" font-size="14" fill="#5eead4" font-weight="700">skygrep enrich</text>
+        <text x="16" y="60" font-size="11" fill="rgba(167,243,208,0.55)">advanced</text>
+        <text x="16" y="86" font-size="12" fill="#c8d0d8" font-family="Inter, sans-serif">doc2query-style descriptions</text>
+        <text x="16" y="106" font-size="12" fill="#c8d0d8" font-family="Inter, sans-serif">for vocab-mismatch queries.</text>
+      </g>
+    </g>
+
+    <!-- Footer -->
+    <text x="40" y="600" font-size="11.5" fill="rgba(200,208,216,0.7)">Every search prints a one-line telemetry footer:  path · router intent · σ-gap · index age · quality.</text>
+  </g>
+</svg>

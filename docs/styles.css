@@ -6,12 +6,12 @@
 
 :root {
   /* Surface */
-  --bg:             #0a0d12;
-  --bg-2:           #0f131a;
-  --panel:          rgba(255, 255, 255, 0.025);
-  --panel-2:        rgba(255, 255, 255, 0.04);
-  --panel-strong:   rgba(255, 255, 255, 0.06);
-  --panel-deep:     #06080c;
+  --bg:             #13192a;
+  --bg-2:           #181f33;
+  --panel:          rgba(255, 255, 255, 0.045);
+  --panel-2:        rgba(255, 255, 255, 0.065);
+  --panel-strong:   rgba(255, 255, 255, 0.085);
+  --panel-deep:     #0e1320;
 
   /* Rules */
   --rule:           rgba(255, 255, 255, 0.07);

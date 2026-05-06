@@ -118,7 +118,7 @@ Sized against **four named alternatives**, not generic categories.
 <details>
 <summary>Same data as a plain markdown table</summary>
 
-|                                              | **skylakegrep** v0.2.16 | `ripgrep` (lexical) | mgrep (Mixedbread · paid) | autodev-codebase | Sourcegraph Cody (cloud) |
+|                                              | **skylakegrep** v0.2.17 | `ripgrep` (lexical) | mgrep (Mixedbread · paid) | autodev-codebase | Sourcegraph Cody (cloud) |
 |----------------------------------------------|:-----------------------:|:-------------------:|:-------------------:|:----------------:|:------------------------:|
 | Find by **concept**, not just token          |           ✓             |          ✗          |          ✓          |        ✓         |             ✓            |
 | **Privacy** — no data egress                  |           ✓             |          ✓          | ✗ (cloud-backed)    |        ✓         |   ✗ (cloud-side index)   |
@@ -262,11 +262,17 @@ register_extractor("yaml", [".yaml", ".yml"], yaml_anchor_extractor)
 
 ## Command cheatsheet
 
-The **bare form** covers ~95 % of real-world use:
-`skygrep "<your question>"`. No subcommand, no flags. The system
-auto-routes (LLM router → `find` / `rg` / semantic cascade),
-auto-indexes on first query, and auto-recovers when the embedder
-is upgraded.
+The **bare form** — `skygrep "<your question>"` — covers ~95 % of
+real-world use. No subcommand, no flags. The system auto-routes
+(LLM router → `find` / `rg` / semantic cascade), auto-indexes on
+first query, and auto-recovers when the embedder is upgraded.
+
+<p align="center">
+  <img alt="skylakegrep — CLI cheatsheet (bare form featured, 8 secondary commands as tiles)" src="docs/assets/cli-cheatsheet.svg" width="100%">
+</p>
+
+<details>
+<summary>Same data as a plain markdown table</summary>
 
 | Command                                  | When to use                                                                                                  | Example                                                       |
 |------------------------------------------|--------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------|
@@ -279,6 +285,8 @@ is upgraded.
 | `skygrep watch [PATH] -i N`              | Keep index live in the background. Polls every `N` seconds.                                                  | `skygrep watch .`                                             |
 | `skygrep serve --port P`                 | Daemon mode. Keeps cross-encoder + Ollama warm for 0.5 – 2 s warm queries.                                   | `skygrep serve --port 7878`                                   |
 | `skygrep enrich`                         | Advanced. Generate doc2query-style descriptions for vocab-mismatch queries.                                  | `skygrep enrich`                                              |
+
+</details>
 
 ### Reading the per-query telemetry footer (0.2.2+)
 
@@ -312,8 +320,16 @@ Field guide:
 
 ## Configuration
 
-Set via environment variables. Defaults assume a local Ollama
-server on the default port.
+Set via environment variables. Defaults work — tune only when you
+need to. Grouped into three panels: Ollama setup, Indexing & rerank,
+Behavior toggles.
+
+<p align="center">
+  <img alt="skylakegrep — environment variable configuration grouped into Ollama setup, Indexing &amp; rerank, and Behavior toggles" src="docs/assets/configuration.svg" width="100%">
+</p>
+
+<details>
+<summary>Same data as a plain markdown table</summary>
 
 | Variable                              | Default                          | Effect                                                                                |
 |---------------------------------------|----------------------------------|---------------------------------------------------------------------------------------|
@@ -331,6 +347,8 @@ server on the default port.
 | `SKYGREP_NO_PROACTIVE`                | unset                            | Set `1` to disable the proactive enhancement framework.                              |
 | `SKYGREP_PROACTIVE_BUDGET_MS`         | `2000`                           | Total wall-clock cap on proactive enhancers per query.                               |
 | `SKYGREP_FOOTER_COMPACT`              | unset                            | Set `1` for the legacy single-line telemetry footer.                                 |
+
+</details>
 
 ---
 

@@ -6,8 +6,8 @@
     <!-- Frosted-glass tile fill (lighter top, darker bottom) -->
     <linearGradient id="glass-tile" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%"   stop-color="rgba(255,255,255,0.08)"/>
-      <stop offset="55%"  stop-color="rgba(255,255,255,0.030)"/>
-      <stop offset="100%" stop-color="rgba(255,255,255,0.014)"/>
+      <stop offset="55%"  stop-color="rgba(255,255,255,0.045)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.025)"/>
     </linearGradient>
 
     <!-- Multi-stop translucent stroke -->
@@ -41,7 +41,7 @@
   </defs>
 
   <!-- =================== Background =================== -->
-  <rect width="1200" height="630" fill="#070910"/>
+  <rect width="1200" height="630" fill="#0e1320"/>
 
   <!-- Ambient blurred orbs -->
   <g filter="url(#orb-blur)">
@@ -99,6 +99,6 @@
 
   <!-- =================== Bottom row: install line + version =================== -->
   <g font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" font-size="16" fill="#71717a" text-anchor="middle">
-    <text x="600" y="582"><tspan fill="#a5f3fc">pip install skylakegrep</tspan>  ·  <tspan fill="#a5f3fc">v0.2.16</tspan>  ·  Python 3.9+  ·  powered by Ollama</text>
+    <text x="600" y="582"><tspan fill="#a5f3fc">pip install skylakegrep</tspan>  ·  <tspan fill="#a5f3fc">v0.2.17</tspan>  ·  Python 3.9+  ·  powered by Ollama</text>
   </g>
 </svg>
