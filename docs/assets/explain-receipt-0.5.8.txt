@@ -1,0 +1,77 @@
+# skylakegrep 0.5.8 --explain — live receipt
+# generated 2026-05-07T15:46:27-04:00 on Darwin 25.5.0 arm64
+# Ollama: 
+# router model: qwen2.5:3b   embed: bge-m3
+
+============================================================
+$ skygrep -x "find pyproject.toml in this repo"
+============================================================
+🧭 router: filename · primary_token="pyproject.toml" · conf=0.95 · source=llm
+   reason: "user is looking for a specific file by name in the repo"
+↻ refreshed 1 file(s).
+▾ preliminary keyword + filename matches (semantic cascade refining…):
+
+╭─ pyproject.toml ───────────────────────────────────────────────────────────────────── [toml]  1.000
+│ via: filename-lookup · token "pyproject.toml" · score=1.000
+│ 
+│ size:     1.0 KB    modified: 2026-05-07 14:01    type: toml
+╰───────────────────────────────────────────────────────────────────────────────────────────────────
+
+▾ proactive umbrella · home-dir filename matches (filename_extend, ~100 ms-1 s; pure filename glob, no semantic understanding):
+
+💡 Found 6 match(es) outside the current project root while the cascade was running:
+
+============================================================
+$ skygrep -x "where do we cap the cross-folder search at 8 seconds"
+============================================================
+🧭 router: semantic · conf=0.75 · source=llm
+   reason: "user is asking about a specific behavior or limit in code or system"
+▾ preliminary cascade matches (low confidence — also searching sibling folders…):
+
+╭─ skylakegrep/src/cli.py:1404-1423 ───────────────────────────────────────────────── [python]  0.596
+│ via: cosine cascade · score=0.596
+│ 
+│ try:
+│             with _TPE(max_workers=1) as _xpool:
+│                 _fut = _xpool.submit(_warm_cross_in_worker)
+│                 try:
+│                     warm_cross_results, warm_cross_tele = _fut.result(
+│                         timeout=8.0
+│                     )
+
+============================================================
+$ skygrep -x "where does the parallel umbrella fan out to subprocesses"
+============================================================
+🧭 router: semantic · conf=0.80 · source=llm
+   reason: "descriptive question about code behavior and concurrency"
+🛤  cascade lane: cosine-cheap (gap=0.025, tau=0.014)
+
+╭─ /Users/tianchichen/Downloads/claude code leak/claude-code-main/src/utils/permissions/classifierDecision.ts:1-39 ── [ts]  0.429
+│ via: cosine cascade · score=0.429
+│ 
+│ import { feature } from 'bun:bundle'
+│ import { ASK_USER_QUESTION_TOOL_NAME } from '../../tools/AskUserQuestionTool/prompt.js'
+│ import { ENTER_PLAN_MODE_TOOL_NAME } from '../../tools/EnterPlanModeTool/constants.js'
+│ import { EXIT_PLAN_MODE_TOOL_NAME } from '../../tools/ExitPlanModeTool/constants.js'
+│ import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
+│ import { GLOB_TOOL_NAME } from '../../tools/GlobTool/prompt.js'
+│ import { GREP_TOOL_NAME } from '../../tools/GrepTool/prompt.js'
+
+============================================================
+$ skygrep -x "render_terminal_result"
+============================================================
+🧭 router: mixed · conf=0.70 · source=llm
+   reason: "user query is ambiguous between filesystem and semantic content search"
+🛤  cascade lane: cosine-cheap (gap=0.030, tau=0.018)
+
+╭─ skylakegrep/src/render.py:1-21 ─────────────────────────────────────────────────── [python]  0.672
+│ symbol: names
+│ via: cosine cascade · score=0.672
+│ 
+│ """Terminal result rendering — neat, hero-aligned, framed cards.
+│ 
+│ v0.13.0 redesigned this to match the website hero more closely:
+│ 
+│   - Each result is wrapped in a proper rounded card frame
+│     ``╭─...─╮ │ body │ ╰─...─╯`` (left-bar variant, see below).
+

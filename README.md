@@ -179,14 +179,14 @@ $ skygrep "the design doc on rate limiter rewrite"
 
 ---
 
-### 🔍 Why this matched (`--explain` / `-x`, 0.5.8+)
+### 🔍 Why this matched · `skygrep -x`  *(new in 0.5.8)*
 
-Every retrieved chunk carries the full provenance of how it got there.
-Pass `--explain` (or `-x`) and skygrep prints a one-line **router
-rationale** at the top, a **per-result `via:` line** under each header
-showing which channel(s) contributed, and a **cascade-lane summary**
-showing the σ-adaptive evidence at the bottom. No new model calls, no
-extra retrieval — every signal was already in the pipeline.
+Every retrieved chunk now carries the full provenance of how it got
+there. Pass **`--explain`** (or **`-x`**) and skygrep prints a one-line
+**router rationale** at the top, a **per-result `via:` line** under
+each header showing which channel(s) contributed, and a **cascade-lane
+summary** showing the σ-adaptive evidence at the bottom. No new model
+calls, no extra retrieval — every signal was already in the pipeline.
 
 ```console
 $ skygrep -x "find pyproject.toml in this repo"

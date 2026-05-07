@@ -551,10 +551,22 @@ def route_query(
     if not query or not query.strip():
         return _all_runs()
 
+    cached: RouterDecision | None = None
     if conn is not None:
         cached = _cache_get(conn, query)
         if cached is not None:
-            return cached
+            # 0.5.8.1: stale-cache invalidation. If a previous version cached
+            # a ``fallback-*`` decision (rule-based or all-runs), 0.5.7's
+            # silent HTTP 400 / aggressive timeout meant essentially every
+            # uncached query would land here and be cached as fallback —
+            # 0.5.8 fixed both bugs but cached entries from 0.5.7 still
+            # poison the cache. When ``use_llm=True``, treat ``fallback-*``
+            # cache hits as a miss and let the LLM call run; the cache
+            # entry is rewritten below if the LLM succeeds, otherwise the
+            # original fallback is returned at the end.
+            cached_src = (cached.source or "")
+            if not (use_llm and cached_src.startswith("fallback")):
+                return cached
 
     if use_llm:
         try:
@@ -566,6 +578,12 @@ def route_query(
             if conn is not None:
                 _cache_set(conn, query, decision)
             return decision
+
+    # If we passed through a stale ``fallback-*`` cache hit and the LLM
+    # call failed, return the cached fallback rather than re-running the
+    # rule-based classifier (we already have the answer).
+    if cached is not None:
+        return cached
 
     decision = _rule_based_decision(query)
     if conn is not None:
