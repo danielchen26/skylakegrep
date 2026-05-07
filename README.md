@@ -128,7 +128,7 @@ Sized against **four named alternatives**, not generic categories.
 ## How it works
 
 <p align="center">
-  <img alt="skylakegrep — three-stage local pipeline: LLM router → cosine cascade → proactive layer" src="docs/assets/workflow-diagram.svg" width="100%">
+  <img alt="skylakegrep — router + two parallel retrieval lanes (cosine cascade ‖ proactive umbrella with filename_extend, lazy_cwd, lazy_cross_folder, streaming dispatcher)" src="docs/assets/workflow-diagram.svg" width="100%">
 </p>
 
 **Local Ollama + SQLite. Zero network calls. Zero subscription.**

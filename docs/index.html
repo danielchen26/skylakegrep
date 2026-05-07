@@ -436,17 +436,18 @@
   position: absolute;
   inset: 0;
   opacity: 0;
-  animation: term-cycle 18s infinite cubic-bezier(0.4, 0, 0.2, 1);
+  animation: term-cycle 24s infinite cubic-bezier(0.4, 0, 0.2, 1);
 }
 .term-frame-1 { animation-delay: 0s; }
 .term-frame-2 { animation-delay: 6s; }
 .term-frame-3 { animation-delay: 12s; }
+.term-frame-4 { animation-delay: 18s; }
 @keyframes term-cycle {
-  0%   { opacity: 0; transform: translateY(10px); }
-  3%   { opacity: 1; transform: translateY(0); }
-  31%  { opacity: 1; transform: translateY(0); }
-  34%  { opacity: 0; transform: translateY(-10px); }
-  100% { opacity: 0; transform: translateY(-10px); }
+  0%    { opacity: 0; transform: translateY(10px); }
+  2.5%  { opacity: 1; transform: translateY(0); }
+  23%   { opacity: 1; transform: translateY(0); }
+  25.5% { opacity: 0; transform: translateY(-10px); }
+  100%  { opacity: 0; transform: translateY(-10px); }
 }
 .term-prompt { color: var(--accent-bright); font-weight: 600; margin-right: 8px; }
 .term-query  { color: var(--ink); }
@@ -481,7 +482,7 @@
 /* Reduced-motion fallback: show only first frame, statically */
 @media (prefers-reduced-motion: reduce) {
   .term-frame { animation: none; opacity: 1; position: relative; }
-  .term-frame-2, .term-frame-3 { display: none; }
+  .term-frame-2, .term-frame-3, .term-frame-4 { display: none; }
 }
 
 .hero-cta-row { margin-top: 36px; gap: 12px; }
@@ -593,8 +594,8 @@
  the working directory isn't the right project</strong>.
  </p>
 
- <!-- Animated terminal demo: 3 query frames cycling on an 18s loop -->
- <div class="term-demo" role="img" aria-label="Animated demonstration of skygrep searching code, documents, and multilingual queries">
+ <!-- Animated terminal demo: 4 query frames cycling on a 24s loop -->
+ <div class="term-demo" role="img" aria-label="Animated demonstration of skygrep: searching code by concept, across mixed content (markdown + PDF), in 100+ languages, and answering wrong-folder queries via the parallel proactive umbrella">
  <div class="term-demo-body">
  <!-- Frame 1: Code by concept (vocab-mismatch) -->
  <div class="term-frame term-frame-1">
@@ -626,6 +627,17 @@ Throughput projections under sustained 5k QPS load...</pre>
     tau_eff = max(CASCADE_TAU_FLOOR,
                   CASCADE_K_SIGMA * sigma_topK)</pre>
  <div class="term-footer">[0.6s · multilingual via bge-m3 · zero network · <span class="term-glyph">✓</span> never left your laptop]</div>
+ </div>
+ <!-- Frame 4: Wrong-folder cwd · lazy auto-trigger via parallel proactive umbrella (NEW in 0.5.7) -->
+ <div class="term-frame term-frame-4">
+ <span class="term-prompt">$</span><span class="term-query">cd /tmp/scratch &amp;&amp; skygrep "where does the parallel umbrella dispatch?"</span>
+ <div class="term-result-head">═══ ~/code/skylakegrep/src/cli.py:912-928<span class="term-score">score 0.86 · python · home-dir lazy hit</span></div>
+<pre class="term-result-code"><span class="tk-kw">with</span> ThreadPoolExecutor(max_workers=4) <span class="tk-kw">as</span> ex:
+    <span class="tk-cmt"># cascade ‖ filename_extend ‖ lazy_cwd ‖ lazy_cross_folder</span>
+    cascade_fut   = ex.submit(_run_cascade, query, db_path)
+    proactive_fut = ex.submit(_run_proactive, query, db_path)
+    <span class="tk-kw">return</span> _stream_first_confident(cascade_fut, proactive_fut)</pre>
+ <div class="term-footer">[1.1s · cwd=/tmp/scratch (wrong project) · router → lane B (proactive umbrella) · lazy_cross_folder · <span class="term-glyph">✓</span> answered before cascade rerank · 0.5.7]</div>
  </div>
  </div>
  </div>
