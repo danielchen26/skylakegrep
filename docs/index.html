@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta property="og:description" content="The most intelligent fully-offline semantic search over your local files. v0.5.7 stacks an LLM router, a σ-adaptive embedding cascade, a tree-sitter symbol channel, hybrid lexical RRF fusion, doc2query enrichment, a reference-graph PageRank tiebreak, and a parallel proactive umbrella (cascade ‖ filename_extend ‖ cross-folder lazy ‖ lazy_cwd) — first answer in ~1.1 s on wrong-path queries (real-CLI verified). 30/30 (100%) recall fully-indexed on Django + React + Tokio at 60×–770× less context than ripgrep; 0.5.3 lazy auto-trigger lifts vocabulary-mismatch hit-rate 0/10 → 4/10 with no upfront `skygrep index .` required. Content-agnostic retrieval, PolyForm Noncommercial 1.0.0, powered by Ollama." />
+ <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.7 returns a first answer in about a second even when the working directory is the wrong project (parallel proactive umbrella, real-CLI verified at ~1.1 s). 30/30 (100%) recall fully-indexed on Django + React + Tokio at 60×–770× less context than ripgrep; 0.5.3 lazy auto-trigger lifts vocabulary-mismatch hit-rate 0/10 → 4/10 with no upfront `skygrep index .` required. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta name="twitter:description" content="The most intelligent fully-offline semantic search. v0.5.7 layers LLM router + σ-adaptive cascade + tree-sitter symbol channel + RRF lexical fusion + reference-graph PageRank + parallel proactive umbrella — first answer ~1.1 s on wrong-path queries (real-CLI verified). 30/30 fully-indexed on Django+React+Tokio at 60×–770× less context vs ripgrep." />
+ <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.7 returns a first answer in ~1 s even from the wrong folder (parallel proactive umbrella, real-CLI verified at ~1.1 s). 30/30 fully-indexed on Django+React+Tokio at 60×–770× less context vs ripgrep. 100% local, 100+ languages." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -583,22 +583,14 @@
 }
 </style>
 <section id="overview" class="hero hero-redesigned">
- <p class="eyebrow">v0.5.7 · The most intelligent fully-offline semantic search · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.5.7 · 100% local · PolyForm Noncommercial 1.0.0</p>
  <h1>Find <span class="hero-accent">anything</span> on your machine.</h1>
  <p class="lead">
  Semantic search for code, PDFs, notes, and docs.
  <strong>Fully offline.</strong> No cloud. No telemetry. No subscription.
  Ask in plain English — or any of 100+ languages — get back the
- right file and line range in under a second.
- </p>
- <p class="lead intelligence-stack">
- <strong>What makes it the most intelligent local search.</strong>
- An LLM router, a σ-adaptive embedding cascade, a tree-sitter symbol
- channel, hybrid lexical RRF fusion, doc2query enrichment, a
- reference-graph PageRank tiebreak, and a parallel proactive umbrella
- (cascade ‖ filename_extend ‖ cross-folder lazy ‖ lazy_cwd) all run
- together at <em>t = 0</em> and stream a first answer in ~1 s — even
- when the working directory is the wrong project.
+ right file and line range in about a second, <strong>even when
+ the working directory isn't the right project</strong>.
  </p>
 
  <!-- Animated terminal demo: 3 query frames cycling on an 18s loop -->
@@ -806,10 +798,14 @@ Throughput projections under sustained 5k QPS load...</pre>
 <!-- ============== How it works ============== -->
 <section id="how-it-works" class="doc-section how-section">
  <p class="eyebrow">How it works</p>
- <h2 class="overview-h2">Three local stages. Zero network.</h2>
+ <h2 class="overview-h2">Router → two retrieval lanes race in parallel.</h2>
  <p class="lead">
- Every query takes the same path: classify, retrieve, rank.
- All against your local Ollama + SQLite.
+ After the router classifies your intent, a σ-adaptive cosine
+ cascade and a parallel proactive umbrella search at the same
+ time — not one after the other. The first confident answer
+ streams to your terminal; ranked refinements arrive as later
+ lanes finish. All against your local Ollama + SQLite. Zero
+ network.
  </p>
  <div class="how-flow">
  <div class="how-step">
@@ -838,13 +834,17 @@ Throughput projections under sustained 5k QPS load...</pre>
  <div class="how-arrow">→</div>
  <div class="how-step">
  <div class="how-step-num">3</div>
- <div class="how-step-title">Proactive layer</div>
- <div class="how-step-tech">filename_extend · recovery_progress_hint</div>
+ <div class="how-step-title">Proactive umbrella</div>
+ <div class="how-step-tech">filename_extend · lazy_cwd · lazy_cross_folder · streaming dispatcher</div>
  <div class="how-step-body">
- When the cascade can't answer, runs bounded extra work in
- parallel. Searches sibling home dirs for filename queries;
- surfaces live re-embed progress on content queries during
- partial index. Hard 2 s budget cap.
+ Runs <strong>concurrent with the cascade</strong>, not after.
+ Four tiers race at the same time: <code>filename_extend</code>
+ for fast filename matching, <code>lazy_cwd</code> for
+ auto-indexing the current folder, <code>lazy_cross_folder</code>
+ for sibling roots in <code>SKYGREP_PROACTIVE_DIRS</code>, and a
+ streaming dispatcher that posts the first confident answer.
+ Hard caps: 30 s cascade, 8 s cross-folder. Wrong-path queries
+ answer in ~1 s.
  </div>
  </div>
  </div>

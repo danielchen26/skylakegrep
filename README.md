@@ -28,13 +28,10 @@
 
 # Find anything on your machine.
 
-> **The most intelligent fully-offline semantic search.** An LLM
-> router, a σ-adaptive embedding cascade, a tree-sitter symbol
-> channel, hybrid lexical RRF fusion, doc2query enrichment, a
-> reference-graph PageRank tiebreak, and a parallel proactive
-> umbrella (cascade ‖ filename_extend ‖ cross-folder lazy ‖
-> lazy_cwd) all run together at *t = 0* and stream a first answer
-> in ~1 s — even when the working directory is the wrong project.
+> **Smart semantic search, fast enough to feel instant.** Ask in
+> plain English — or any of 100+ languages — and get back the
+> right file and line range in about a second, even when the
+> working directory isn't the right project. Fully offline.
 
 **Semantic search for code, PDFs, notes, and docs.** Fully offline.
 No cloud. No telemetry. No subscription. Ask in plain English (or
@@ -136,13 +133,29 @@ Sized against **four named alternatives**, not generic categories.
 
 **Local Ollama + SQLite. Zero network calls. Zero subscription.**
 The same architecture handles every content type — code · PDFs ·
-notes · markdown · any file you register an extractor for. The
-LLM router classifies *intent + scope + primary token* on every
-query; the cosine cascade uses bge-m3 (multilingual, 1024-d,
-symmetric XLM-RoBERTa) with σ-adaptive early-exit. **Two proactive
-enhancers** kick in when the cascade can't answer: `filename_extend`
-extends the search to common home directories; `recovery_progress_hint`
-surfaces live re-embed progress when the index is being rebuilt.
+notes · markdown · any file you register an extractor for.
+
+The LLM router classifies *intent + scope + primary token* on every
+query. Two retrieval lanes then **race in parallel** — not in
+series:
+
+  - **σ-adaptive cosine cascade** — when the working directory is
+    indexed and right, `bge-m3` (multilingual, 1024-d, symmetric
+    XLM-RoBERTa) ranks files; high-confidence queries early-exit
+    on cheap cosine, uncertain ones escalate to a cross-encoder
+    rerank. A tree-sitter symbol channel and hybrid lexical RRF
+    fusion fold in alongside, with a reference-graph PageRank
+    tiebreak.
+  - **Proactive umbrella** — four tiers run concurrent with the
+    cascade (not after it): `filename_extend` for fast filename
+    matching, `lazy_cwd` for auto-indexing the current folder,
+    `lazy_cross_folder` for sibling roots in
+    `SKYGREP_PROACTIVE_DIRS`, and a streaming dispatcher that
+    posts each answer as it lands.
+
+The first confident answer streams to your terminal — refinements
+arrive as later lanes finish. ~1 s typical, even when the working
+directory is the wrong project (0.5.7, real-CLI verified).
 
 [Architecture deep-dive →](https://danielchen26.github.io/skylakegrep/)
 
@@ -281,29 +294,33 @@ Behavior toggles.
 
 ## What's new
 
-**Recent releases** (2026-05-05, in chronological ship order):
+**Recent releases** (in chronological ship order):
 
-  - **`0.2.13`** — Privacy-only sweep: removed user-personal
-    references from public release notes / docs / README. No
-    code change.
-  - **`0.2.12`** — `filename_extend` morphology fallback when
-    LLM is unreachable. Plus the
-    [conversational session state plan](docs/plans/2026-05-05-conversational-session-state.md).
-  - **`0.2.11`** — Second built-in proactive enhancer:
-    `recovery_progress_hint`. Plus `ProactiveContext`
-    infrastructure for future enhancers.
-  - **`0.2.10`** — Critical fix: the per-dir `find` budget bug
-    that silenced proactive on the user's actual scenarios.
-    End-to-end verified before tagging.
-  - **`0.2.9` ← `0.2.7`** — Three iterations on the proactive
-    framework's gate logic, recorded in the
-    [Principle 1 receipts table](docs/principles.html). Each was a
-    Principle-1 lapse the user caught.
-  - **`0.2.6`** — LLM-driven scope classification replaces the
-    keyword `_METADATA_TOKENS` list. Principle 1 ✓ shipped.
-  - **`0.2.0`** — `bge-m3` substrate · content-agnostic reference
-    graph registry · σ-adaptive cascade · 30 / 30 public-OSS
-    recall (was 28 / 30).
+  - **`0.5.7`** — Hot-fix for the cross-folder lazy worker:
+    a SQLite cross-thread error was silently disabling the
+    proactive lazy lane on wrong-path queries. Real-CLI receipt:
+    first answer at ~1.1 s on a wrong-cwd query.
+  - **`0.5.6`** — **Parallel proactive umbrella.** Cascade and
+    `filename_extend` / `lazy_cwd` / `lazy_cross_folder` now all
+    run at *t = 0* and stream the first confident answer to your
+    terminal. Wrong-path queries that previously waited 99 s on a
+    cascade rerank now answer in ~1 s.
+  - **`0.5.3`** — **Cold-start lazy auto-trigger.** Vocabulary-
+    mismatch hit-rate 0/10 → 4/10 over plain `rg` cold-start on
+    the Django oracle bench, with no upfront `skygrep index .`
+    ever run. Adds deterministic dir-token picker, numeric-prefix
+    penalty, and import diffusion.
+  - **`0.5.1`** — Lazy semantic auto-trigger on by default. The
+    first query in any folder works without `skygrep index .`.
+  - **`0.4.x → 0.5.0`** — Holistic graph-aware retrieval, then a
+    rolled-back synthetic-only-bench misstep; 0.5.0 reset to
+    real-CLI discipline as the only acceptable proof.
+  - **`0.3.x`** — σ-adaptive cascade with Bayesian-evidence
+    framing. Settled on `bge-m3` + cross-encoder rerank.
+  - **`0.2.x`** — Multilingual `bge-m3` substrate, content-
+    agnostic reference graph registry, 30 / 30 public-OSS recall
+    (was 28 / 30).
+  - **`0.1.0`** — Initial public release.
 
 [Full release notes →](https://github.com/danielchen26/skylakegrep/releases)
 
