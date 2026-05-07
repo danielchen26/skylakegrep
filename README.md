@@ -61,7 +61,7 @@ async def renew_session(req: Request):
 > **~1.1 s** first answer on wrong-path queries via parallel proactive umbrella (0.5.7, real-CLI verified) &nbsp;·&nbsp;
 > **~1 s** warm queries &nbsp;·&nbsp;
 > **100 %** local &nbsp;·&nbsp;
-> **36** releases shipped
+> **38** releases shipped
 
 ---
 

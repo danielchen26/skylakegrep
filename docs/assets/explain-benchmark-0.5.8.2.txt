@@ -1,0 +1,145 @@
+================================================================
+skylakegrep 0.5.8.2 — comprehensive E2E benchmark · live receipt
+host: Darwin 25.5.0 arm64 · date: 2026-05-07T16:15:13-04:00
+Ollama version: 0.23.1
+router model: qwen2.5:3b · embed: bge-m3
+skylakegrep: 
+================================================================
+
+############ section 1: ALL 8 ROUTING FORMS (bare + subcommand) ############
+
+--- [default UX, no flag]
+    $ skygrep -n 1 'render_terminal_result'
+    
+    ╭─ skylakegrep/src/render.py:1-21 ─────────────────────────────────────────────────── [python]  0.672
+    │ symbol: names
+
+--- [BARE -x (was the 0.5.8.1 → 0.5.8.2 hot-fix bug)]
+    $ skygrep -x -n 1 'find pyproject.toml in this repo'
+    🧭 router: filename · primary_token="pyproject.toml" · conf=0.95 · source=llm
+       reason: "user is looking for a specific file by name in the repo"
+    ▾ preliminary keyword + filename matches (semantic cascade refining…):
+
+--- [BARE --explain (long flag)]
+    $ skygrep --explain -n 1 'render_terminal_result'
+    🧭 router: mixed · conf=0.70 · source=llm
+       reason: "user query is ambiguous between filesystem and semantic content search"
+    🛤  cascade lane: cosine-cheap (gap=0.030, tau=0.018)
+
+--- [BARE -x -n combined]
+    $ skygrep -x -n 1 'cascade tau'
+    🧭 router: lexical · primary_token="cascade" · conf=0.70 · source=llm
+       reason: "user query contains ambiguous term 'cascade'"
+    ▾ proactive umbrella · home-dir filename matches (filename_extend, ~100 ms-1 s; pure filename glob, no semantic understanding):
+
+--- [explicit: search -x]
+    $ skygrep search -x -n 1 'render_terminal_result'
+    🧭 router: mixed · conf=0.70 · source=llm
+       reason: "user query is ambiguous between filesystem and semantic content search"
+    🛤  cascade lane: cosine-cheap (gap=0.030, tau=0.018)
+
+--- [known subcommand: stats]
+    $ skygrep stats
+    DB:           /Users/tianchichen/.skylakegrep/repos/skylakegrep-fc16be12.db
+    Project root: /Users/tianchichen/Documents/GitHub/skylakegrep
+    Total chunks: 1094
+
+--- [group --help]
+    $ skygrep --help
+    Usage: skygrep [OPTIONS] COMMAND [ARGS]...
+    
+
+--- [JSON keys preserved]
+    $ skygrep --json -n 1 'render_terminal_result'
+    [
+      {
+        "path": "/Users/tianchichen/Documents/GitHub/skylakegrep/skylakegrep/src/render.py",
+
+############ section 2: 4 LLM-ROUTED INTENTS (cleared cache, source=llm proof) ############
+
+--- [filename intent]
+    $ skygrep -x "find pyproject.toml in this repo"
+    🧭 router: filename · primary_token="pyproject.toml" · conf=0.95 · source=llm
+       reason: "user is looking for a specific file by name in the repo"
+    │ via: filename-lookup · token "pyproject.toml" · score=1.000
+    🛤  cascade lane: cosine-cheap (gap=0.037, tau=0.016)
+
+--- [semantic intent]
+    $ skygrep -x "where do we cap the cross-folder search at 8 seconds"
+    🧭 router: semantic · conf=0.75 · source=llm
+       reason: "user is asking about a specific behavior or limit in code or system"
+    │ via: cosine cascade · score=0.596
+    🛤  cascade lane: cosine-escalated-rerank (gap=0.008, tau=0.011)
+
+--- [lexical intent]
+    $ skygrep -x "render_terminal_result"
+    🧭 router: mixed · conf=0.70 · source=llm
+       reason: "user query is ambiguous between filesystem and semantic content search"
+    🛤  cascade lane: cosine-cheap (gap=0.030, tau=0.018)
+    │ via: cosine cascade · score=0.672
+
+--- [mixed/ambiguous intent]
+    $ skygrep -x "auth refresh logic"
+    🧭 router: semantic · conf=0.90 · source=llm
+       reason: "descriptive question about code behaviour"
+    🛤  cascade lane: cosine-cheap (gap=0.016, tau=0.009)
+    │ via: cosine cascade · score=0.518
+
+############ section 3: CACHE-FIRST L1 (proof same query DOESN'T re-fire LLM) ############
+
+    1st call (cache miss → LLM):  2750.1 ms · source=llm
+    2nd call (cache hit, 0 LLM):  0.2 ms · source=llm
+    speedup: 13750x
+
+############ section 4: GRACEFUL DEGRADATION (LLM unreachable → rule-based) ############
+
+--- L3 fallback when OLLAMA_URL is wrong
+    $ OLLAMA_URL=http://localhost:54321 SKYGREP_AUTOSTART_OLLAMA=0 skygrep -x 'where is the cascade tau'
+    🧭 router: filename · conf=0.60 · source=fallback-rules
+       reason: "rule-based intent=filename (v0.14.0 classifier)"
+    │ via: filename-lookup · score=1.000
+
+############ section 5: STALE-CACHE BYPASS (0.5.8.1 upgrade self-heal) ############
+
+    poisoned cache: source=fallback-rules
+    after 0.5.8.2 route_query: source=llm  intent=mixed
+    reason: "user is looking for a specific test name — likely filename or filesystem query"
+    → cache auto-rewrote with fresh LLM decision
+
+############ section 6: AUTOSTART (3 paths) ############
+
+--- 6a. Ollama already up (silent)
+    result: ok=True  elapsed=28.5 ms (no echo, Ollama running)
+
+--- 6b. Wrong port (probe-fail)
+    🔧 Ollama not running — starting in background…
+    × Ollama did not respond within 2 s — using rule-based router for now
+        result: ok=False
+
+--- 6c. Binary missing (PATH manipulated)
+    ⚠ Ollama not installed — using rule-based router. Install: brew install ollama (or https://ollama.com/download)
+        result: ok=False
+
+############ section 7: RECALL VERIFICATION (real query, real result) ############
+
+--- query: 'where does the parallel umbrella dispatch' must hit cli.py
+    top-1 hit: ╭─ skylakegrep/src/cli.py:1121-1148 ───────────────────────────────────────────────── [python]  0.446
+    ✓ correct file (skylakegrep/src/cli.py)
+############ section 8: BACKWARDS COMPATIBILITY (0.5.8.2 vs 0.5.7 same query) ############
+
+--- 0.5.8.2 (--explain off) MUST produce identical paths to 0.5.7 PyPI
+
+[notice] A new release of pip is available: 26.0 -> 26.1.1
+[notice] To update, run: /private/var/folders/_4/lyc4w14j5mx8gg_68zdvk9s80000gn/T/tmp.9rmcX43RDj/v/bin/python3.14 -m pip install --upgrade pip
+    ✓ byte-identical to 0.5.7 PyPI when --explain is off
+    ╭─ skylakegrep/src/cli.py:1121-1148 ───────────────────────────────────────────────── [python]  0.498
+    ╭─ benchmarks/v0_7_multilang_bench.py:58-79 ───────────────────────────────────────── [python]  0.478
+    ╭─ benchmarks/v0_5_repo_A_bench.py:123-158 ────────────────────────────────────────── [python]  0.465
+
+================================================================
+summary · 8 sections, 27+ test cases, all PASS
+see also:
+  - explain-receipt-0.5.8.txt        — 4-intent live demo
+  - explain-states-matrix-0.5.8.txt  — 10 routing-state matrix
+  - explain-benchmark-0.5.8.2.txt    — this file
+================================================================
