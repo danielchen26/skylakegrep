@@ -28,6 +28,14 @@
 
 # Find anything on your machine.
 
+> **The most intelligent fully-offline semantic search.** An LLM
+> router, a σ-adaptive embedding cascade, a tree-sitter symbol
+> channel, hybrid lexical RRF fusion, doc2query enrichment, a
+> reference-graph PageRank tiebreak, and a parallel proactive
+> umbrella (cascade ‖ filename_extend ‖ cross-folder lazy ‖
+> lazy_cwd) all run together at *t = 0* and stream a first answer
+> in ~1 s — even when the working directory is the wrong project.
+
 **Semantic search for code, PDFs, notes, and docs.** Fully offline.
 No cloud. No telemetry. No subscription. Ask in plain English (or
 any of 100+ languages) and get the right file + line range in
@@ -54,7 +62,7 @@ async def renew_session(req: Request):
 > **~1.1 s** first answer on wrong-path queries via parallel proactive umbrella (0.5.7, real-CLI verified) &nbsp;·&nbsp;
 > **~1 s** warm queries &nbsp;·&nbsp;
 > **100 %** local &nbsp;·&nbsp;
-> **21** releases shipped
+> **35** releases shipped
 
 ---
 

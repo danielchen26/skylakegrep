@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta property="og:description" content="Fully-offline semantic search over your local files — code, markdown, PDFs, Word docs, plain text. 30/30 (100%) recall fully-indexed on Django + React + Tokio at 60×–770× less context than ripgrep. 0.5.6+ adds parallel proactive umbrella (cascade ‖ filename_extend ‖ cross-folder lazy ‖ lazy_cwd) so wrong-path queries get a first answer in ~1–2 s with streaming refinement; 0.5.3 lazy auto-trigger lifts vocabulary-mismatch hit-rate 0/10 → 4/10 with no upfront `skygrep index .` required. Content-agnostic retrieval, PolyForm Noncommercial 1.0.0, powered by Ollama." />
+ <meta property="og:description" content="The most intelligent fully-offline semantic search over your local files. v0.5.7 stacks an LLM router, a σ-adaptive embedding cascade, a tree-sitter symbol channel, hybrid lexical RRF fusion, doc2query enrichment, a reference-graph PageRank tiebreak, and a parallel proactive umbrella (cascade ‖ filename_extend ‖ cross-folder lazy ‖ lazy_cwd) — first answer in ~1.1 s on wrong-path queries (real-CLI verified). 30/30 (100%) recall fully-indexed on Django + React + Tokio at 60×–770× less context than ripgrep; 0.5.3 lazy auto-trigger lifts vocabulary-mismatch hit-rate 0/10 → 4/10 with no upfront `skygrep index .` required. Content-agnostic retrieval, PolyForm Noncommercial 1.0.0, powered by Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta name="twitter:description" content="Fully-offline semantic search over your local files. 30/30 fully-indexed on Django+React+Tokio with 60×–770× less context vs ripgrep. 0.5.7 parallel proactive umbrella streams a first answer in ~1–2 s on wrong-path queries; 0.5.3 lazy auto-trigger lifts vocab-mismatch hit-rate 0/10→4/10 cold-start." />
+ <meta name="twitter:description" content="The most intelligent fully-offline semantic search. v0.5.7 layers LLM router + σ-adaptive cascade + tree-sitter symbol channel + RRF lexical fusion + reference-graph PageRank + parallel proactive umbrella — first answer ~1.1 s on wrong-path queries (real-CLI verified). 30/30 fully-indexed on Django+React+Tokio at 60×–770× less context vs ripgrep." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -583,13 +583,22 @@
 }
 </style>
 <section id="overview" class="hero hero-redesigned">
- <p class="eyebrow">v0.5.7 · 100% local · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.5.7 · The most intelligent fully-offline semantic search · PolyForm Noncommercial 1.0.0</p>
  <h1>Find <span class="hero-accent">anything</span> on your machine.</h1>
  <p class="lead">
  Semantic search for code, PDFs, notes, and docs.
  <strong>Fully offline.</strong> No cloud. No telemetry. No subscription.
  Ask in plain English — or any of 100+ languages — get back the
  right file and line range in under a second.
+ </p>
+ <p class="lead intelligence-stack">
+ <strong>What makes it the most intelligent local search.</strong>
+ An LLM router, a σ-adaptive embedding cascade, a tree-sitter symbol
+ channel, hybrid lexical RRF fusion, doc2query enrichment, a
+ reference-graph PageRank tiebreak, and a parallel proactive umbrella
+ (cascade ‖ filename_extend ‖ cross-folder lazy ‖ lazy_cwd) all run
+ together at <em>t = 0</em> and stream a first answer in ~1 s — even
+ when the working directory is the wrong project.
  </p>
 
  <!-- Animated terminal demo: 3 query frames cycling on an 18s loop -->
@@ -638,11 +647,13 @@ Throughput projections under sustained 5k QPS load...</pre>
  <p class="trust-strip">
  <strong>30 / 30</strong> public-OSS recall
  <span class="dot">·</span>
+ <strong>~1.1 s</strong> wrong-path first answer
+ <span class="dot">·</span>
  <strong>~1 s</strong> warm queries
  <span class="dot">·</span>
  <strong>100 %</strong> local
  <span class="dot">·</span>
- <strong>14</strong> releases shipped
+ <strong>35</strong> releases shipped
  </p>
 </section>
 
