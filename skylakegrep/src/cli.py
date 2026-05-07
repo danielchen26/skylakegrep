@@ -233,11 +233,27 @@ class MgrepCLI(click.Group):
     """
 
     def parse_args(self, ctx, args):  # type: ignore[override]
-        # If first non-flag token is not a known subcommand, treat the whole
-        # arg list as the search query.
-        if args and not args[0].startswith("-") and args[0] not in _SUBCOMMANDS:
-            return super().parse_args(ctx, ["search", *args])
-        return super().parse_args(ctx, args)
+        # Three routing cases:
+        #   1. First arg is a known subcommand → parse normally.
+        #   2. First arg is a top-level concern (`--help` / `-h` / `--version`
+        #      with no positional after it) → parse normally so Click can
+        #      render group-level help / version output.
+        #   3. Everything else (bare query, OR a search-level flag like
+        #      ``-x`` / ``-n`` / ``--json`` followed by a query) → treat the
+        #      whole arg vector as a search invocation by prepending
+        #      ``search`` so search-command flags resolve correctly.
+        # 0.5.8.2: case 3 used to require ``args[0]`` to NOT start with ``-``,
+        # which broke ``skygrep -x "<query>"`` — Click parsed ``-x`` at the
+        # group level and reported "No such option: -x". The fix below routes
+        # any non-subcommand-headed invocation through ``search``.
+        if not args:
+            return super().parse_args(ctx, args)
+        first = args[0]
+        if first in _SUBCOMMANDS:
+            return super().parse_args(ctx, args)
+        if first in ("--help", "-h", "--version"):
+            return super().parse_args(ctx, args)
+        return super().parse_args(ctx, ["search", *args])
 
 
 @click.group(cls=MgrepCLI, invoke_without_command=True)
