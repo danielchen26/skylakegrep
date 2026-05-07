@@ -1,0 +1,62 @@
+================================================================
+skylakegrep 0.5.8.1 — comprehensive state matrix · live receipt
+host: Darwin 25.5.0 arm64 · date: 2026-05-07T15:54:23-04:00
+Ollama: 0.23.1
+router model: qwen2.5:3b · embed: bge-m3
+================================================================
+
+[A] L1 cache-first  (same query twice — second must be ~0 ms, no LLM call)
+    --------------------------------------------------------------------
+    1st call: 1948.6 ms · source=llm
+    2nd call: 0.1 ms · source=llm
+    speedup: 19486x faster
+
+[B] L2 LLM router · semantic intent  (vocab-mismatch 'where' question)
+    --------------------------------------------------------------------
+🧭 router: semantic · conf=0.75 · source=llm
+   reason: "user is asking about a specific behavior or limit in code or system"
+
+[C] L2 LLM router · filename intent  (LLM extracts primary_token)
+    --------------------------------------------------------------------
+🧭 router: filename · primary_token="pyproject.toml" · conf=0.95 · source=llm
+   reason: "user is looking for a specific file by name in the repo"
+
+[D] L2 LLM router · lexical intent  (exact symbol token)
+    --------------------------------------------------------------------
+🧭 router: mixed · conf=0.70 · source=llm
+   reason: "user query is ambiguous between filesystem and semantic content search"
+
+[E] L2 LLM router · mixed intent  (ambiguous filename + semantic query)
+    --------------------------------------------------------------------
+🧭 router: semantic · conf=0.90 · source=llm
+   reason: "descriptive question about code behaviour"
+
+[F] L3 rule-based fallback  (LLM unreachable: wrong OLLAMA_URL)
+    --------------------------------------------------------------------
+🧭 router: filename · conf=0.60 · source=fallback-rules
+   reason: "rule-based intent=filename (v0.14.0 classifier)"
+
+[G] Stale-cache bypass (0.5.8.1)  (poisoned fallback-rules → auto-bypass → LLM)
+    --------------------------------------------------------------------
+    cache poisoned with: source=fallback-rules
+    after route_query: source=llm intent=mixed
+    reason: "user asks about a specific test query — could be filesystem or semantic content search"
+
+[H] Autostart · already-running  (no echo, ~0 ms)
+    --------------------------------------------------------------------
+    result: ok=True  elapsed=15.6 ms  (silent — Ollama already up)
+
+[I] Autostart · probe-fail path  (wrong port to simulate Ollama down)
+    --------------------------------------------------------------------
+🔧 Ollama not running — starting in background…
+× Ollama did not respond within 2 s — using rule-based router for now
+    result: ok=False  (echoed two stderr lines above)
+
+[J] Autostart · binary-missing  (manipulate PATH to hide ollama)
+    --------------------------------------------------------------------
+⚠ Ollama not installed — using rule-based router. Install: brew install ollama (or https://ollama.com/download)
+    result: ok=False  (echoed install hint above)
+
+================================================================
+summary · all 10 states exercised
+================================================================
