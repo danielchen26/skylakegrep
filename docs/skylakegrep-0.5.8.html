@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.8 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.8 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.8</p>
+<h1>skylakegrep 0.5.8 — <code>--explain</code>: every result tells you why it matched</h1>
+<p>The single biggest UX gap in 0.5.7 was that skygrep could surface a
+result with a 0.522 cosine score and a <code>cosine-escalated-rerank</code>
+cascade lane and a <code>qwen2.5:3b</code> LLM router decision, and the user
+only saw the score. The signal that <em>would</em> explain the rest was
+already in the pipeline; we just threw it away at render time.</p>
+<p>0.5.8 stops throwing it away.</p>
+
+<h2>What's new</h2>
+<h3><code>--explain</code> / <code>-x</code> — three layers of "why"</h3>
+<p>Pass <code>--explain</code> (or <code>-x</code>) and skygrep prints:</p>
+<ol>
+<li><strong>Router rationale</strong> at the top of the output:
+<code>🧭 router: &lt;intent&gt; · primary_token=&lt;token&gt; · conf=&lt;c&gt; · source=&lt;llm|fallback-rules|fallback-mixed&gt;</code>
+plus a one-sentence reason from the LLM router itself.</li>
+<li><strong>Per-result <code>via:</code> line</strong> under each result header
+showing which channel(s) contributed:
+<code>cosine cascade · score=…</code> /
+<code>filename-lookup · token "…" · score=…</code> /
+<code>cosine #1 ⊕ symbol #2 (RRF)</code> /
+<code>ripgrep · lex=…</code>
+plus matched symbol terms when the symbol channel hit.</li>
+<li><strong><code>🛤  cascade lane:</code> summary</strong> at the bottom showing
+which retrieval lane answered with σ-adaptive evidence
+(<code>gap=… , tau=…</code>).</li>
+</ol>
+
+<pre><code>$ skygrep -x "find pyproject.toml in this repo"
+
+🧭 router: filename · primary_token="pyproject.toml" · conf=0.95 · source=llm
+   reason: "user is looking for a specific file by name in the repo"
+
+╭─ pyproject.toml ────────────────────────────────── [toml]  1.000
+│ via: filename-lookup · token "pyproject.toml" · score=1.000
+│
+│ size:  1.0 KB    modified: 2026-05-06 16:51    type: toml
+╰──────────────────────────────────────────────────────────────────
+
+🛤  cascade lane: cosine-cheap (gap=0.037, tau=0.016)</code></pre>
+
+<p>Off by default — existing UX is byte-identical to 0.5.7. No new
+model calls, no extra retrieval, no new hyperparameters. Every signal
+the renderer emits was already on the result dict (<code>cosine_rank</code>,
+<code>symbol_rank</code>, <code>symbol_channel_terms</code>,
+<code>fallback</code>, <code>score</code>, <code>fused_score</code>,
+<code>decision.intent</code>, <code>decision.primary_token</code>,
+<code>decision.reason</code>, <code>cascade_telemetry.path / .gap / .tau</code>).</p>
+
+<h3>Bonus: Ollama autostart</h3>
+<p>If <code>ollama serve</code> is not running but the <code>ollama</code>
+binary is on PATH, skygrep now autostarts it in the background, polls
+until it's reachable (5 s budget, env-tunable), and prints exactly one
+status line so the user knows what happened:</p>
+<pre><code>🔧 Ollama not running — starting in background…
+✓ Ollama up after 1.4 s</code></pre>
+<p>Idempotent within a process (won't double-spawn). Disable via
+<code>SKYGREP_AUTOSTART_OLLAMA=0</code>. Override budget via
+<code>SKYGREP_OLLAMA_AUTOSTART_TIMEOUT</code>.</p>
+
+<h2>Two latent LLM-router bugs fixed along the way</h2>
+<p>While building <code>--explain</code> we discovered that on this same
+machine the <code>🧭 router:</code> line was always reporting
+<code>source=fallback-rules</code> even with Ollama running and
+<code>qwen2.5:3b</code> loaded. Investigation turned up two pre-existing
+defects:</p>
+<ol>
+<li><strong><code>keep_alive</code> was sent as the string
+<code>"-1"</code>.</strong> Recent Ollama versions parse that field as a
+duration string and reject bare-number strings with
+<code>time: missing unit in duration "-1"</code> (HTTP 400). The fix
+routes through the existing <code>_coerce_keep_alive()</code> helper
+(already used by <code>embeddings.py</code>) which converts numeric
+strings to integers. Same defect was already worked around in the HyDE
+LLM call — now consistent across all router LLM call sites.</li>
+<li><strong><code>LLM_TIMEOUT_SECONDS</code> defaulted to
+<code>0.5</code>.</strong> Cold qwen2.5:3b needs ~3 s to respond with
+<code>format=json + num_predict=256</code>; warm with
+<code>keep_alive=-1</code> (now actually working) is ~50–100 ms.
+The 0.5 s default timed out 100 % of cold calls before the model could
+answer. Bumped to 8 s.</li>
+</ol>
+<p>Both bugs were silently masking the LLM router; from a user's
+perspective, intent classification was always degrading to the rule-
+based v0.14.0 fallback. With these fixes the LLM router actually
+fires, and <code>--explain</code> prints <code>source=llm</code> with a
+real LLM-authored reason instead of <code>source=fallback-rules</code>.</p>
+
+<h2>ES comparison section on README + Pages</h2>
+<p>We added a dedicated <strong>"How skylakegrep differs from
+Elasticsearch"</strong> section to both the README (collapsed
+<code>&lt;details&gt;</code> block) and the docs/index.html homepage
+(<code>#vs-elasticsearch</code> section, in the left-rail nav).
+13-row capability matrix; honest about where ES wins (scale,
+multi-tenant, aggregations) and where skylakegrep wins (zero-ops,
+semantic by default, intent understanding, code AST, cold-start,
+why-this-matched).</p>
+
+<h2>Verified</h2>
+<ul>
+<li><strong>207/207 unit tests pass</strong> (full pytest suite,
+excluding the slow OSS bench fixture).</li>
+<li><strong>Real CLI tests</strong> across all paths: default UX,
+<code>--json</code>, <code>--no-llm-router</code>,
+<code>--no-cascade</code>, <code>--no-rerank</code>, wrong-folder
+<code>lazy_cross_folder</code>, <code>--hyde</code>.</li>
+<li><strong>Head-to-head vs 0.5.7 PyPI</strong> on identical query:
+same paths, same scores. Zero regression when <code>--explain</code> is
+off.</li>
+<li><strong>Autostart logic</strong> verified via fake-port unit test
+(echoes the four expected status branches: not-installed / spawning /
+up / timed-out).</li>
+</ul>
+
+<h2>Compatibility</h2>
+<ul>
+<li>Public API unchanged. <code>--explain</code> is opt-in.</li>
+<li>JSON output (<code>--json</code>) keys unchanged: <code>path</code>,
+<code>start_line</code>, <code>end_line</code>, <code>language</code>,
+<code>score</code>, <code>snippet</code>. The <code>explain</code>
+field is internal-only, attached to the in-memory result dict and
+rendered by the terminal renderer, not serialised to JSON.</li>
+<li>0.5.7-built indexes work without re-indexing.</li>
+<li><code>LLM_TIMEOUT_SECONDS</code> default change (0.5 s → 8 s) is a
+behaviour change for one path only: the LLM router HTTP call. Override
+via <code>SKYGREP_LLM_ROUTER_TIMEOUT_SECONDS</code>.</li>
+</ul>
+
+<h2>RED LINE checklist</h2>
+<p>Per <code>docs/EXISTING-INTELLIGENCE-LAYERS.md</code>:</p>
+<ol>
+<li><strong>Layer</strong>: render layer
+(<code>render.py:render_terminal_result</code>) + CLI orchestration
+(<code>cli.py:_build_explain_string</code> /
+<code>_attach_explain</code> / <code>_format_router_explain</code> /
+<code>_format_lane_explain</code>). Plus
+<code>bootstrap.py:try_autostart_ollama</code>. Plus router LLM-call
+payload coercion.</li>
+<li><strong>Interactions</strong>: read-only on signals already
+populated by the cosine cascade, symbol_channel RRF fusion,
+filename_shortcut, lexical_shortcut, and llm_router. No new reads, no
+new writes.</li>
+<li><strong>Action</strong>: ADD (rendering surface) + FIX (latent
+router bugs). No retrieval logic touched.</li>
+<li><strong>Promote/demote history</strong>: N/A.</li>
+<li><strong>New hyperparameters</strong>: 0 user-facing. The
+<code>LLM_TIMEOUT_SECONDS</code> default change is restoring a working
+timeout, not introducing a new tuning knob.</li>
+<li><strong>Bench through real CLI</strong>: ✓.</li>
+<li><strong>Telemetry footer</strong>: unchanged.</li>
+<li><strong>Hard timeout</strong>: cross-folder 8 s, cascade 30 s —
+both preserved. New: Ollama autostart 5 s deadline.</li>
+<li><strong>Personal-data risk</strong>: none — generic example queries
+(<code>pyproject.toml</code> etc.) in code + docs.</li>
+<li><strong>Bench receipts</strong>: byte-identical to 0.5.7 with
+<code>--explain</code> off; 207/207 unit tests pass; full E2E test
+plan executed.</li>
+</ol>
+
+<h2>Pending for 0.6</h2>
+<p>Unchanged from 0.5.7:</p>
+<ul>
+<li>σ-noise-band → structural-fallback chain (symbol_channel +
+filename_shortcut + lexical_shortcut RRF instead of cross-encoder
+rerank when σ-gap is in the noise band).</li>
+<li>True streaming inside Ollama batch embed (split 25 → 5 + 20).</li>
+<li>Structured per-tier observability for ralph / autopilot.</li>
+<li>Optional: expose <code>explain</code> field in <code>--json</code>
+output for programmatic consumers.</li>
+</ul>
+</article>
+</main>
+</div>
+</body></html>

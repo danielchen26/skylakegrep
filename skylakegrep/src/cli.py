@@ -96,6 +96,114 @@ def merge_results(result_groups: list[list[dict]], top: int) -> list[dict]:
     return sorted(merged.values(), key=lambda item: item["score"], reverse=True)[:top]
 
 
+def _build_explain_string(r: dict, decision: "RouterDecision | None") -> str:
+    """Build a one-line 'why this hit' string from signals already on
+    the result dict. Read-only — no extra retrieval, no model calls.
+
+    Channels considered (in priority order):
+      - filename-lookup        (r["fallback"] == "filename-lookup")
+      - rg-shortcut / ripgrep  (lexical fast path)
+      - cosine + symbol RRF    (cosine_rank + symbol_rank both set)
+      - cosine cascade         (cosine_rank only)
+      - symbol channel only    (symbol_rank only)
+
+    Adds, when present: matched symbol terms (with exact/fuzzy marker),
+    the LLM router's primary_token (for filename hits), and the cosine
+    score / RRF fused score.
+    """
+    parts: list[str] = []
+    fb = (r.get("fallback") or "").strip()
+
+    if fb == "filename-lookup":
+        parts.append("filename-lookup")
+        if decision is not None and decision.primary_token:
+            parts.append(f'token "{decision.primary_token}"')
+    elif fb in ("ripgrep", "rg-shortcut"):
+        parts.append(fb)
+        ls = r.get("lexical_score")
+        if ls is not None:
+            try:
+                parts.append(f"lex={float(ls):.2f}")
+            except (TypeError, ValueError):
+                pass
+    else:
+        cosine_rank = r.get("cosine_rank")
+        symbol_rank = r.get("symbol_rank")
+        if cosine_rank and symbol_rank:
+            parts.append(f"cosine #{cosine_rank} ⊕ symbol #{symbol_rank} (RRF)")
+        elif cosine_rank:
+            parts.append(f"cosine #{cosine_rank}")
+        elif symbol_rank:
+            parts.append(f"symbol #{symbol_rank}")
+        else:
+            parts.append("cosine cascade")
+        if r.get("symbol_channel"):
+            terms = r.get("symbol_channel_terms") or []
+            if isinstance(terms, list) and terms:
+                marker = "exact" if r.get("symbol_channel_exact") else "fuzzy"
+                parts.append(f"symbol[{','.join(str(t) for t in terms[:3])}] {marker}")
+
+    score = r.get("score")
+    if score is not None:
+        try:
+            parts.append(f"score={float(score):.3f}")
+        except (TypeError, ValueError):
+            pass
+    fused = r.get("fused_score")
+    if fused is not None:
+        try:
+            parts.append(f"rrf={float(fused):.3f}")
+        except (TypeError, ValueError):
+            pass
+
+    return " · ".join(parts)
+
+
+def _format_router_explain(decision: "RouterDecision | None") -> str:
+    """One-line router rationale for the top of --explain output."""
+    if decision is None:
+        return ""
+    intent = decision.intent or "?"
+    head = f"🧭 router: {intent}"
+    if decision.primary_token:
+        head += f' · primary_token="{decision.primary_token}"'
+    try:
+        head += f" · conf={float(decision.confidence or 0.0):.2f}"
+    except (TypeError, ValueError):
+        pass
+    if decision.source:
+        head += f" · source={decision.source}"
+    reason = (decision.reason or "").strip()
+    if reason:
+        head += f'\n   reason: "{reason}"'
+    return head
+
+
+def _format_lane_explain(cascade_telemetry: dict | None) -> str:
+    """One-line cascade-lane summary for the top of --explain output."""
+    if not cascade_telemetry:
+        return ""
+    path = cascade_telemetry.get("path") or "?"
+    out = f"🛤  cascade lane: {path}"
+    gap = cascade_telemetry.get("gap")
+    tau = cascade_telemetry.get("tau")
+    try:
+        if gap is not None and tau is not None:
+            out += f" (gap={float(gap):.3f}, tau={float(tau):.3f})"
+    except (TypeError, ValueError):
+        pass
+    return out
+
+
+def _attach_explain(results: list[dict], decision: "RouterDecision | None") -> None:
+    """Mutate each result in place, populating r['explain']."""
+    if not results:
+        return
+    for r in results:
+        if not r.get("explain"):
+            r["explain"] = _build_explain_string(r, decision)
+
+
 def render_json_results(results: list[dict]) -> str:
     payload = [
         {
@@ -250,6 +358,7 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--detail", default="standard", type=click.Choice(["brief", "standard", "full", "summary"]), help="Output verbosity. `brief` = path + score one-liner. `standard` = +10 lines body (default). `full` = +full extracted PDF/docx content for filename matches. `summary` = +1-line truncated preview (first non-empty line, ≤160 chars; no LLM call).")
 @click.option("--ocr", is_flag=True, help="Run tesseract OCR on scanned PDFs (slow, ~5-30s/page). Opt-in only; requires tesseract + pdftoppm on PATH.")
 @click.option("--lazy/--no-lazy", default=True, help="0.5.1+ auto-trigger: on cold-start (no index yet), if ripgrep alone returns a weak result (few hits or no path/token overlap with the query) the cold-start path also fires the lazy LLM-routed semantic tier (~5 s) and merges. When ripgrep already returns a strong keyword answer, lazy is skipped — user gets the instant rg result. Default on so the user never has to know which tier they need; pass --no-lazy to force pure rg cold-start (benchmarking).")
+@click.option("--explain", "-x", is_flag=True, help="0.5.8+ explainability: print one-line 'why this hit' rationale per result (which channel, score, matched symbol) plus a top-of-output router decision and cascade lane. Uses signals already in the pipeline — no extra retrieval, no model calls. Default off (existing UX is unchanged).")
 def search_cmd(
     query: str,
     top: int,
@@ -282,6 +391,7 @@ def search_cmd(
     detail: str,
     ocr: bool,
     lazy: bool,
+    explain: bool,
 ):
     """Run a search. Aliased as the bare form: ``skygrep "<query>"``."""
 
@@ -330,9 +440,12 @@ def search_cmd(
             if json_output:
                 click.echo(render_json_results(results))
                 return
+            if explain:
+                _attach_explain(results, None)
             for r in results:
                 click.echo(render_terminal_result(
                     r, content=content, detail=detail, ocr=ocr,
+                    explain=explain,
                 ))
             click.echo(
                 f"\n[Daemon search completed in {elapsed:.3f}s; "
@@ -362,6 +475,17 @@ def search_cmd(
     # single SQLite shared across projects is sound — same query
     # never pays the LLM cost twice within or across sessions. Drop
     # ~/.skylakegrep/router_cache.db to force re-classification.
+    # 0.5.8: if Ollama isn't running but is installed, autostart it in the
+    # background so the LLM router (and embedder for non-cached queries)
+    # don't silently fall back to rule-based mode. This is best-effort:
+    # the function returns False fast on a missing binary or 5 s timeout,
+    # and downstream code already has a clean rule-based fallback.
+    if llm_router:
+        try:
+            bootstrap.try_autostart_ollama()
+        except Exception as exc:  # noqa: BLE001 — never block search on startup
+            logger.debug("ollama autostart skipped: %s", exc)
+
     router_start = time.time()
     _router_cache_db = None
     try:
@@ -380,6 +504,13 @@ def search_cmd(
         except sqlite3.Error:
             pass
     router_elapsed = time.time() - router_start
+
+    # 0.5.8: surface the router decision to the user when --explain is on.
+    # Printed to stderr so it never pollutes JSON / piped output.
+    if explain and not json_output:
+        _hdr = _format_router_explain(decision)
+        if _hdr:
+            click.echo(_hdr, err=True)
 
     # Intelligent CLI hint — out-of-scope query detection (0.2.6+).
     # Now driven by the LLM router's ``out_of_scope`` field
@@ -406,6 +537,8 @@ def search_cmd(
         fn_elapsed = time.time() - fn_start
         if fn_hits:
             fn_results = fn_hits
+            if explain:
+                _attach_explain(fn_results, decision)
 
     # Routing decision: ready → cascade; building or absent → rg fallback.
     # 0.5.1: when the cold-start path is taken (no index yet) and rg
@@ -551,6 +684,7 @@ def search_cmd(
                             project_root=str(project_root),
                             detail=detail,
                             ocr=ocr,
+                            explain=explain,
                         )
                     )
                     early_printed_paths.add(r.get("path", ""))
@@ -680,6 +814,8 @@ def search_cmd(
                 intent=intent,
                 top_k=top,
             )
+        if explain:
+            _attach_explain(results, decision)
         if json_output:
             click.echo(render_json_results(results))
             return
@@ -737,6 +873,7 @@ def search_cmd(
                             project_root=str(project_root),
                             detail=detail,
                             ocr=ocr,
+                            explain=explain,
                         )
                     )
             else:
@@ -757,6 +894,7 @@ def search_cmd(
                         project_root=str(project_root),
                         detail=detail,
                         ocr=ocr,
+                        explain=explain,
                     )
                 )
         if cold_proactive_results:
@@ -868,6 +1006,8 @@ def search_cmd(
         rg_elapsed = time.time() - rg_start
         if rg_hits:
             rg_results = rg_hits
+            if explain:
+                _attach_explain(rg_results, decision)
 
     # 0.5.6 warm-path streaming UX: print filename + ripgrep
     # preliminary matches *before* dispatching the cascade. The
@@ -909,6 +1049,7 @@ def search_cmd(
                         project_root=str(project_root),
                         detail=detail,
                         ocr=ocr,
+                        explain=explain,
                     )
                 )
                 early_warm_paths.add(r.get("path", ""))
@@ -1188,6 +1329,8 @@ def search_cmd(
         intent=intent,
         top_k=top,
     )
+    if explain:
+        _attach_explain(results, decision)
 
     # 0.5.6 streaming UX: when warm cross-folder is about to fire
     # (cascade was uncertain, sibling-folder search incoming), also
@@ -1217,6 +1360,7 @@ def search_cmd(
                         project_root=str(project_root),
                         detail=detail,
                         ocr=ocr,
+                        explain=explain,
                     )
                 )
                 early_warm_paths.add(r.get("path", ""))
@@ -1295,6 +1439,18 @@ def search_cmd(
                 continue
             results.append(r)
             _seen_paths.add(p)
+        if explain:
+            _attach_explain(results, decision)
+    # 0.5.8 explainability: print the cascade-lane summary right before
+    # the final render block. The router header was printed earlier
+    # (right after the routing decision); this is the second half of
+    # the explanation — which retrieval lane actually answered.
+    if explain and not json_output and not answer:
+        _lane = _format_lane_explain(
+            cascade_telemetry if 'cascade_telemetry' in dir() else None
+        )
+        if _lane:
+            click.echo(_lane, err=True)
     if json_output:
         click.echo(render_json_results(results))
         return
@@ -1331,6 +1487,7 @@ def search_cmd(
                         project_root=str(project_root),
                         detail=detail,
                         ocr=ocr,
+                        explain=explain,
                     )
                 )
         else:
@@ -1348,6 +1505,7 @@ def search_cmd(
                     project_root=str(project_root),
                     detail=detail,
                     ocr=ocr,
+                    explain=explain,
                 )
             )
 

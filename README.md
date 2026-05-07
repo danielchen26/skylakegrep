@@ -61,7 +61,7 @@ async def renew_session(req: Request):
 > **~1.1 s** first answer on wrong-path queries via parallel proactive umbrella (0.5.7, real-CLI verified) &nbsp;·&nbsp;
 > **~1 s** warm queries &nbsp;·&nbsp;
 > **100 %** local &nbsp;·&nbsp;
-> **35** releases shipped
+> **36** releases shipped
 
 ---
 
@@ -118,7 +118,7 @@ $ skygrep "我昨天写的 cascade 调度代码"
 
 ## New in 0.5.x
 
-Three qualitative leaps since 0.4 — the through-line is **less
+Four qualitative leaps since 0.4 — the through-line is **less
 ceremony from you, more intelligence from the tool.**
 
 ### 🚀 Just ask — no `skygrep index .`
@@ -179,6 +179,39 @@ $ skygrep "the design doc on rate limiter rewrite"
 
 ---
 
+### 🔍 Why this matched (`--explain` / `-x`, 0.5.8+)
+
+Every retrieved chunk carries the full provenance of how it got there.
+Pass `--explain` (or `-x`) and skygrep prints a one-line **router
+rationale** at the top, a **per-result `via:` line** under each header
+showing which channel(s) contributed, and a **cascade-lane summary**
+showing the σ-adaptive evidence at the bottom. No new model calls, no
+extra retrieval — every signal was already in the pipeline.
+
+```console
+$ skygrep -x "find pyproject.toml in this repo"
+
+🧭 router: filename · primary_token="pyproject.toml" · conf=0.95 · source=llm
+   reason: "user is looking for a specific file by name in the repo"
+
+╭─ pyproject.toml ────────────────────────────────── [toml]  1.000
+│ via: filename-lookup · token "pyproject.toml" · score=1.000
+│
+│ size:  1.0 KB    modified: 2026-05-06 16:51    type: toml
+╰──────────────────────────────────────────────────────────────────
+
+🛤  cascade lane: cosine-cheap (gap=0.037, tau=0.016)
+```
+
+> Three layers answer three different "why" questions:
+> **what intent** the LLM router inferred, **which channel** retrieved
+> this chunk (cosine cascade · symbol RRF · filename-lookup · ripgrep
+> shortcut), and **which lane** answered. Bonus 0.5.8: if Ollama isn't
+> running, skygrep starts it in the background and tells you — no more
+> silent rule-based fallbacks.
+
+---
+
 ## Why skylakegrep?
 
 Sized against **four named alternatives**, not generic categories.
@@ -223,6 +256,49 @@ arrive as later lanes finish. ~1 s typical, even when the working
 directory is the wrong project (0.5.7, real-CLI verified).
 
 [Architecture deep-dive →](https://danielchen26.github.io/skylakegrep/)
+
+---
+
+## How skylakegrep differs from Elasticsearch
+
+<details>
+<summary><b>For people asking "why not just use ES?"</b></summary>
+
+**Different niche, different design.** Elasticsearch is a multi-tenant,
+TB-scale, distributed search engine for data centers. skylakegrep is
+a single-user, single-machine, zero-ops CLI for a developer asking
+their own laptop a question. Both can be called "search engines";
+they answer different problems.
+
+| | skylakegrep 0.5.x | Elasticsearch |
+|---|---|---|
+| **Setup** | `pip install skylakegrep`; cold-start lazy auto-trigger | JVM, cluster, mappings, ingest pipeline, dense-vector plugin, reindex |
+| **Semantic retrieval** | bge-m3 (1024-d, 100+ languages) via local Ollama, out of the box | Manual: pick embedder, pipeline, dimension, reindex |
+| **Intent understanding** | qwen2.5:3b LLM router classifies intent / scope / primary token per query | None natively; you write query DSL by hand |
+| **Code AST awareness** | tree-sitter symbol channel, RRF-fused with cosine | None; code is plain text |
+| **Cold-start / wrong-folder** | `lazy_cwd` + `lazy_cross_folder` 4-lane parallel umbrella, ~1.1 s | Empty index = 0 results |
+| **Why-this-matched explainability** | `--explain` shows router rationale + channel breakdown + lane evidence | BM25 highlight only |
+| **Cross-file context** | reference-graph PageRank tiebreak | None |
+| **Privacy / offline** | 100 % local by design | Index can be local, but most embeddings are external API calls |
+| **Latency p95 (single repo, 50k files)** | 0.3 – 1.1 s including LLM router | ms-level *after* you've paid the operational cost |
+| **Scale** | single-machine, single-repo sweet spot | billions of docs, multi-shard, distributed |
+| **Multi-tenant / ACL** | not designed for this | first-class |
+| **Aggregations / facets / time-series** | not designed for this | first-class |
+| **Operational cost** | zero (no daemon, no GC tuning, no shard rebalance) | non-trivial (GC, heap, shard rebalance, monitoring) |
+
+**Where skylakegrep wins:** "I just opened my terminal and want to find
+something on my own machine." Easier, more semantic, more code-aware,
+more private — and now (0.5.8) it can also tell you *why* it picked
+each result.
+
+**Where Elasticsearch wins:** anything that needs scale, multi-tenant
+isolation, faceted aggregations, or production-grade replication.
+We don't try to compete in those rooms.
+
+> ES is the search engine of the data center. skylakegrep is the
+> search engine of your developer terminal.
+
+</details>
 
 ---
 
@@ -361,6 +437,25 @@ Behavior toggles.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.5.8`** — **`--explain` / `-x`: why this matched.** Every
+    retrieved chunk now carries the full retrieval provenance.
+    Pass `--explain` and skygrep prints (a) a router rationale at
+    the top — `🧭 router: <intent> · primary_token=… · conf=… ·
+    source=…` plus a one-sentence reason; (b) a per-result `via:`
+    line — which channel(s) contributed (cosine cascade · symbol
+    RRF · filename-lookup · ripgrep), what symbol terms matched,
+    the score; and (c) a `🛤 cascade lane:` summary at the bottom
+    with σ-adaptive evidence (`gap=… , tau=…`). Off by default —
+    existing UX is byte-identical to 0.5.7. **Bonus:** if Ollama
+    isn't running but is installed, skygrep autostarts it in the
+    background and tells you. Two latent LLM-router bugs were also
+    fixed (`keep_alive` coercion + `LLM_TIMEOUT_SECONDS` default
+    bumped 0.5 s → 8 s) that had been silently forcing rule-based
+    fallback on most queries. README + Pages now include a
+    dedicated **"How skylakegrep differs from Elasticsearch"**
+    section. 207 / 207 unit tests pass; head-to-head vs 0.5.7 PyPI
+    on the same query produces byte-identical paths and scores
+    when `--explain` is off.
   - **`0.5.7`** — Hot-fix for the cross-folder lazy worker:
     a SQLite cross-thread error was silently disabling the
     proactive lazy lane on wrong-path queries. Real-CLI receipt:

@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.7 returns a first answer in about a second even when the working directory is the wrong project (parallel proactive umbrella, real-CLI verified at ~1.1 s). 30/30 (100%) recall fully-indexed on Django + React + Tokio at 60×–770× less context than ripgrep; 0.5.3 lazy auto-trigger lifts vocabulary-mismatch hit-rate 0/10 → 4/10 with no upfront `skygrep index .` required. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
+ <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.8 adds --explain: every result tells you why it matched (router rationale + per-result channel breakdown + cascade-lane evidence). Returns a first answer in about a second even when the working directory is the wrong project (parallel proactive umbrella, real-CLI verified at ~1.1 s). 30/30 (100%) recall fully-indexed on Django + React + Tokio at 60×–770× less context than ripgrep. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.7 returns a first answer in ~1 s even from the wrong folder (parallel proactive umbrella, real-CLI verified at ~1.1 s). 30/30 fully-indexed on Django+React+Tokio at 60×–770× less context vs ripgrep. 100% local, 100+ languages." />
+ <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.8 adds --explain so every result tells you why it matched. ~1 s answer even from the wrong folder. 30/30 fully-indexed on Django+React+Tokio at 60×–770× less context vs ripgrep. 100% local, 100+ languages." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -98,6 +98,43 @@
   letter-spacing: 0.01em;
 }
 .themed-card-body { padding: 28px 26px 24px; position: relative; z-index: 1; }
+
+/* 0.5.8: vs Elasticsearch comparison table */
+.vs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--soft);
+}
+.vs-table th, .vs-table td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+  vertical-align: top;
+}
+.vs-table thead th {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent, #6db8a8);
+  border-bottom: 1px solid var(--border-strong, rgba(255,255,255,0.14));
+}
+.vs-table tbody tr:hover {
+  background: rgba(255,255,255,0.02);
+}
+.vs-table td:first-child {
+  width: 26%;
+  color: var(--text, inherit);
+}
+.vs-table td:nth-child(2) {
+  color: var(--text, inherit);
+}
+@media (max-width: 720px) {
+  .vs-table { font-size: 12px; }
+  .vs-table th, .vs-table td { padding: 10px 8px; }
+  .vs-table td:first-child { width: 30%; }
+}
 
 /* Comparison grid — 5 columns of tools + 1 capability column */
 .why-grid-5 {
@@ -343,6 +380,7 @@
  <a href="#scenarios">Scenarios</a>
  <a href="#new-in-05x">New in 0.5.x</a>
  <a href="#why-skylakegrep">Why skylakegrep?</a>
+ <a href="#vs-elasticsearch">vs Elasticsearch</a>
  <a href="#how-it-works">How it works</a>
  <a href="#install">Install</a>
  <a href="#quickstart">Quickstart</a>
@@ -585,7 +623,7 @@
 }
 </style>
 <section id="overview" class="hero hero-redesigned">
- <p class="eyebrow">v0.5.7 · 100% local · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.5.8 · 100% local · PolyForm Noncommercial 1.0.0</p>
  <h1>Find <span class="hero-accent">anything</span> on your machine.</h1>
  <p class="lead">
  Semantic search for code, PDFs, notes, and docs.
@@ -658,7 +696,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <span class="dot">·</span>
  <strong>100 %</strong> local
  <span class="dot">·</span>
- <strong>35</strong> releases shipped
+ <strong>36</strong> releases shipped
  </p>
 </section>
 
@@ -728,7 +766,7 @@ Throughput projections under sustained 5k QPS load...</pre>
 <!-- ============== New in 0.5.x ============== -->
 <section id="new-in-05x" class="doc-section scenarios-section">
  <p class="eyebrow">New in 0.5.x</p>
- <h2 class="overview-h2">Three qualitative leaps since 0.4.</h2>
+ <h2 class="overview-h2">Four qualitative leaps since 0.4.</h2>
  <p class="lead">
  The through-line: <strong>less ceremony from you, more
  intelligence from the tool.</strong> No `skygrep index .` to
@@ -791,6 +829,32 @@ Throughput projections under sustained 5k QPS load...</pre>
  <div class="sd-takeaway">Confidence-streaming: results stream as they're ready, with the route they came from. Each answer's provenance is auditable.</div>
  </div>
  </article>
+
+ <!-- Card 4: Why this matched (--explain, 0.5.8+) -->
+ <article class="scenario-card">
+ <div class="scenario-tag">🔍 WHY THIS MATCHED · 0.5.8+</div>
+ <h3>Pass <code>--explain</code> and skygrep tells you why each result was returned.</h3>
+ <p>
+ Three layers answer three different "why" questions: a
+ <strong>router rationale</strong> at the top
+ (<code>🧭 router: filename · primary_token=… · conf=… · source=llm</code> +
+ a one-sentence reason), a per-result <strong><code>via:</code> line</strong>
+ showing which channel(s) contributed (cosine cascade · symbol
+ RRF · filename-lookup · ripgrep) and the score, and a
+ <strong>cascade-lane summary</strong> at the bottom with the
+ σ-adaptive evidence (<code>gap=…, tau=…</code>). No new model
+ calls, no extra retrieval — every signal was already in the
+ pipeline.
+ </p>
+ <div class="scenario-demo">
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep -x "find pyproject.toml in this repo"</div>
+ <div class="sd-result">🧭 router: <strong>filename</strong> · primary_token=<code>"pyproject.toml"</code> · conf=0.95 · source=llm</div>
+ <div class="sd-result">&nbsp;&nbsp;&nbsp;reason: "user is looking for a specific file by name in the repo"</div>
+ <div class="sd-result">═══ <code>pyproject.toml</code> · <code>via: filename-lookup · token "pyproject.toml" · score=1.000</code></div>
+ <div class="sd-result">🛤 cascade lane: <code>cosine-cheap (gap=0.037, tau=0.016)</code></div>
+ <div class="sd-takeaway"><strong>Bonus 0.5.8:</strong> if Ollama isn't running but is installed, skygrep autostarts it in the background and tells you — no more silent rule-based fallbacks.</div>
+ </div>
+ </article>
  </div>
 </section>
 
@@ -814,7 +878,7 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap"></div>
      <div class="why-cell why-self">
        <strong>skylakegrep</strong>
-       <span class="why-sub">v0.5.7</span>
+       <span class="why-sub">v0.5.8</span>
      </div>
      <div class="why-cell"><code>ripgrep</code><span class="why-sub">lexical baseline</span></div>
      <div class="why-cell"><a href="https://www.mgrep.dev/" target="_blank" rel="noopener">mgrep</a><span class="why-sub">Mixedbread · paid</span></div>
@@ -941,6 +1005,57 @@ Throughput projections under sustained 5k QPS load...</pre>
  <a class="button secondary" href="concepts.html">Concepts: indexing · ranking · output →</a>
  </div>
 </section>
+
+
+<!-- ============== vs Elasticsearch ============== -->
+<section id="vs-elasticsearch" class="doc-section why-section">
+ <p class="eyebrow">vs Elasticsearch</p>
+ <h2 class="overview-h2">Different niche, different design.</h2>
+ <p class="lead">
+ Elasticsearch is a multi-tenant, TB-scale, distributed search engine
+ for data centers. skylakegrep is a single-user, single-machine,
+ zero-ops CLI for a developer asking their own laptop a question.
+ Both can be called "search engines"; they answer different problems.
+ </p>
+ <div class="themed-card why-card">
+ <div class="themed-card-chrome">
+ <span class="tl"></span><span class="tl tl-y"></span><span class="tl tl-g"></span>
+ <span class="themed-card-title">capability matrix · skylakegrep 0.5.x vs Elasticsearch 8.x</span>
+ </div>
+ <div class="themed-card-body">
+ <table class="vs-table">
+ <thead>
+ <tr><th></th><th>skylakegrep 0.5.x</th><th>Elasticsearch</th></tr>
+ </thead>
+ <tbody>
+ <tr><td><strong>Setup</strong></td><td><code>pip install skylakegrep</code>; cold-start lazy auto-trigger</td><td>JVM, cluster, mappings, ingest pipeline, dense-vector plugin, reindex</td></tr>
+ <tr><td><strong>Semantic retrieval</strong></td><td>bge-m3 (1024-d, 100+ languages) via local Ollama, out of the box</td><td>Manual: pick embedder, pipeline, dimension, reindex</td></tr>
+ <tr><td><strong>Intent understanding</strong></td><td>qwen2.5:3b LLM router classifies intent / scope / primary_token per query</td><td>None natively; you write query DSL by hand</td></tr>
+ <tr><td><strong>Code AST awareness</strong></td><td>tree-sitter symbol channel, RRF-fused with cosine</td><td>None; code is plain text</td></tr>
+ <tr><td><strong>Cold-start / wrong-folder</strong></td><td>lazy_cwd + lazy_cross_folder 4-lane parallel umbrella, ~1.1 s</td><td>Empty index = 0 results</td></tr>
+ <tr><td><strong>Why-this-matched explainability</strong></td><td><code>--explain</code> shows router rationale + channel breakdown + lane evidence</td><td>BM25 highlight only</td></tr>
+ <tr><td><strong>Cross-file context</strong></td><td>reference-graph PageRank tiebreak</td><td>None</td></tr>
+ <tr><td><strong>Privacy / offline</strong></td><td>100 % local by design</td><td>Index can be local, but most embeddings are external API calls</td></tr>
+ <tr><td><strong>Latency p95</strong> (50k-file repo)</td><td>0.3 – 1.1 s including LLM router</td><td>ms-level <em>after</em> you've paid the operational cost</td></tr>
+ <tr><td><strong>Scale</strong></td><td>single-machine, single-repo sweet spot</td><td>billions of docs, multi-shard, distributed</td></tr>
+ <tr><td><strong>Multi-tenant / ACL</strong></td><td>not designed for this</td><td>first-class</td></tr>
+ <tr><td><strong>Aggregations / facets</strong></td><td>not designed for this</td><td>first-class</td></tr>
+ <tr><td><strong>Operational cost</strong></td><td>zero (no daemon, no GC, no shard rebalance)</td><td>non-trivial (GC, heap, shard rebalance, monitoring)</td></tr>
+ </tbody>
+ </table>
+ </div>
+ </div>
+ <p class="how-footer">
+ <strong>Where skylakegrep wins:</strong> "I just opened my terminal
+ and want to find something on my own machine." Easier, more semantic,
+ more code-aware, more private — and now (0.5.8) it can also tell you
+ <em>why</em> it picked each result.<br>
+ <strong>Where Elasticsearch wins:</strong> anything that needs scale,
+ multi-tenant isolation, faceted aggregations, or production-grade
+ replication. We don't try to compete in those rooms.
+ </p>
+</section>
+
 
  <!-- ============== Installation ============== -->
  <section id="install" class="doc-section">

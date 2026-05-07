@@ -221,6 +221,7 @@ def render_terminal_result(
     project_root: str | None = None,
     detail: str = "standard",
     ocr: bool = False,
+    explain: bool = False,
 ) -> str:
     """Render one result card. Returns a string ready for ``click.echo``.
 
@@ -302,6 +303,8 @@ def render_terminal_result(
 
     # ----- Body -----
     body_lines: list[str] = []
+    explain_line = (r.get("explain") or "").strip() if explain else ""
+    has_meta = bool(symbol or explain_line)
     if symbol and detail != "summary":
         if use_color:
             body_lines.append(
@@ -309,6 +312,19 @@ def render_terminal_result(
             )
         else:
             body_lines.append(f"symbol: {symbol}")
+
+    # 0.5.8 explainability: when --explain is on and the caller has
+    # populated r["explain"] (built upstream in cli._build_explain_string
+    # from signals already on the result dict — cosine_rank, symbol_rank,
+    # symbol_channel_terms, fallback, score), render a one-line "via:"
+    # under the symbol so the user sees WHY this chunk was returned.
+    if explain_line and detail != "summary":
+        if use_color:
+            body_lines.append(f"{_DIM}via:{_RESET} {_DIM}{explain_line}{_RESET}")
+        else:
+            body_lines.append(f"via: {explain_line}")
+
+    if has_meta and detail != "summary":
         body_lines.append("")
 
     # Lazy binary-content extraction for filename-lookup results in

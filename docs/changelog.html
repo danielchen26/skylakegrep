@@ -66,6 +66,39 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.8 · why-this-matched (<code>--explain</code>) · Ollama autostart · ES comparison</div>
+ <h3>Every result now carries the full retrieval provenance — pass <code>--explain</code> and skygrep tells you why</h3>
+ <p>
+ Three layers of "why" answer three different questions: (a) a
+ <strong>router rationale</strong> at the top — <code>🧭 router:
+ &lt;intent&gt; · primary_token=… · conf=… · source=…</code> plus
+ a one-sentence reason from the LLM router; (b) a per-result
+ <strong><code>via:</code> line</strong> — which channel(s)
+ contributed (cosine cascade · symbol RRF · filename-lookup ·
+ ripgrep), what symbol terms matched, the score; and (c) a
+ <strong><code>🛤  cascade lane:</code> summary</strong> at the
+ bottom with the σ-adaptive evidence (<code>gap=…, tau=…</code>).
+ No new model calls, no extra retrieval — every signal was already
+ in the pipeline; we just stopped throwing it away at render time.
+ Off by default: existing UX is byte-identical to 0.5.7.
+ <strong>Bonus:</strong> if Ollama isn't running but is installed,
+ skygrep autostarts <code>ollama serve</code> in the background
+ (5 s budget, env-tunable) and tells you. Two latent LLM-router
+ bugs were also fixed along the way:
+ <code>keep_alive</code> was being sent as the string
+ <code>"-1"</code> which recent Ollama rejects with HTTP 400, and
+ <code>LLM_TIMEOUT_SECONDS</code> defaulted to 0.5 s which timed
+ out 100 % of cold qwen2.5:3b calls — both had been silently
+ forcing the rule-based fallback on most queries. README + Pages
+ now ship a dedicated <strong>"How skylakegrep differs from
+ Elasticsearch"</strong> section answering the most common
+ second-question. 207/207 unit tests pass; head-to-head vs 0.5.7
+ PyPI on the same query produces byte-identical paths and scores
+ when <code>--explain</code> is off.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.8.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.7 · hot-fix · cross-folder lazy SQLite cross-thread error</div>
  <h3>Re-applies the 0.5.6 worker-thread SQLite-conn pattern to all three lazy worker call sites</h3>
  <p>

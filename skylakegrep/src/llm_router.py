@@ -57,7 +57,7 @@ logger = logging.getLogger(__name__)
 # and using the rule-based fallback. 0.5 s is generous for a warm
 # 3 B model under keep_alive=-1.
 LLM_TIMEOUT_SECONDS = float(
-    os.environ.get("SKYGREP_LLM_ROUTER_TIMEOUT_SECONDS", "0.5")
+    os.environ.get("SKYGREP_LLM_ROUTER_TIMEOUT_SECONDS", "8.0")
 )
 
 # Below this confidence the LLM's "skip_cascade" decision is ignored
@@ -221,15 +221,21 @@ def _llm_decision(query: str) -> RouterDecision | None:
         "SKYGREP_LLM_ROUTER_MODEL", cfg.get("hyde_model") or cfg["llm_model"]
     )
     prompt = _ROUTER_PROMPT.format(query=query.replace('"', "'"))
-    keep_alive = cfg.get("keep_alive", -1)
+    # Coerce ``keep_alive`` to the JSON shape Ollama accepts. The project
+    # default ``"-1"`` (string from env) raises HTTP 400 on recent Ollama
+    # versions ("time: missing unit in duration -1"); ``_coerce_keep_alive``
+    # converts pure-numeric strings to int so the API accepts them.
+    from .answerer import _coerce_keep_alive
+    keep_alive = _coerce_keep_alive(cfg.get("keep_alive", -1))
     payload = {
         "model": model,
         "prompt": prompt,
         "stream": False,
         "format": "json",
         "options": {"temperature": 0.0, "num_predict": 256},
-        "keep_alive": keep_alive,
     }
+    if keep_alive is not None:
+        payload["keep_alive"] = keep_alive
     try:
         r = requests.post(url, json=payload, timeout=LLM_TIMEOUT_SECONDS)
         r.raise_for_status()

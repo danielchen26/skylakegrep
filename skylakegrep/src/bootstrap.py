@@ -26,8 +26,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
+import time
 from typing import Iterable
 
 import requests
@@ -35,6 +37,10 @@ import requests
 from .config import get_config
 
 logger = logging.getLogger(__name__)
+
+# 0.5.8: only attempt `ollama serve` autostart once per process. Subsequent
+# calls just re-probe — they don't try to spawn another server.
+_AUTOSTART_ATTEMPTED = False
 
 OLLAMA_INSTALL_HINT = (
     "Ollama is required for local embeddings. Install on macOS:\n"
@@ -56,6 +62,121 @@ def _probe_ollama(base_url: str, timeout: float = 2.0) -> tuple[bool, str]:
         return True, ""
     except requests.RequestException as exc:
         return False, str(exc)
+
+
+def _has_ollama_binary() -> bool:
+    """True iff an `ollama` executable is on PATH."""
+    return shutil.which("ollama") is not None
+
+
+def try_autostart_ollama(
+    base_url: str | None = None,
+    *,
+    wait_seconds: float = 5.0,
+    poll_interval: float = 0.25,
+    echo: bool = True,
+) -> bool:
+    """If Ollama is not reachable, spawn ``ollama serve`` detached in the
+    background and poll the HTTP API until it answers, with a deadline.
+
+    Returns True iff Ollama is reachable when the function exits.
+
+    Idempotent within a process: only attempts ``ollama serve`` once per
+    process (guarded by ``_AUTOSTART_ATTEMPTED``); on the second call, if
+    the server still isn't up, we don't try to spawn another one.
+
+    Echoes a short status line to stderr (``echo=True`` by default) so
+    the user understands the brief startup pause:
+
+      ``🔧 Ollama not running — starting in background…``
+      ``✓ Ollama up after 1.4 s``        (success)
+      ``× Ollama did not respond within 5 s — using rule-based router``
+
+    Disabled via ``SKYGREP_AUTOSTART_OLLAMA=0``. Override the budget via
+    ``SKYGREP_OLLAMA_AUTOSTART_TIMEOUT``.
+    """
+    global _AUTOSTART_ATTEMPTED
+
+    if os.environ.get("SKYGREP_AUTOSTART_OLLAMA", "1") in ("0", "no", "false"):
+        return False
+    try:
+        wait_seconds = float(
+            os.environ.get("SKYGREP_OLLAMA_AUTOSTART_TIMEOUT", wait_seconds)
+        )
+    except (TypeError, ValueError):
+        pass
+
+    cfg = get_config()
+    url = (base_url or cfg["ollama_url"]).rstrip("/")
+
+    ok, _ = _probe_ollama(url, timeout=0.5)
+    if ok:
+        return True
+
+    if _AUTOSTART_ATTEMPTED:
+        # Already tried and the server still isn't up. Don't spam spawns.
+        return False
+    _AUTOSTART_ATTEMPTED = True
+
+    if not _has_ollama_binary():
+        if echo:
+            print(
+                "⚠ Ollama not installed — using rule-based router. "
+                "Install: brew install ollama (or https://ollama.com/download)",
+                file=sys.stderr,
+                flush=True,
+            )
+        return False
+
+    if echo:
+        print(
+            "🔧 Ollama not running — starting in background…",
+            file=sys.stderr,
+            flush=True,
+        )
+
+    try:
+        subprocess.Popen(
+            ["ollama", "serve"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except (FileNotFoundError, OSError) as exc:
+        logger.debug("ollama serve spawn failed: %s", exc)
+        if echo:
+            print(
+                f"× Could not spawn `ollama serve`: {exc} — "
+                "using rule-based router",
+                file=sys.stderr,
+                flush=True,
+            )
+        return False
+
+    deadline = time.monotonic() + wait_seconds
+    started_at = time.monotonic()
+    while time.monotonic() < deadline:
+        ok, _ = _probe_ollama(url, timeout=0.3)
+        if ok:
+            elapsed = time.monotonic() - started_at
+            if echo:
+                print(
+                    f"✓ Ollama up after {elapsed:.1f} s",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            return True
+        time.sleep(poll_interval)
+
+    if echo:
+        print(
+            f"× Ollama did not respond within {wait_seconds:.0f} s — "
+            "using rule-based router for now",
+            file=sys.stderr,
+            flush=True,
+        )
+    return False
 
 
 def list_local_models(base_url: str, timeout: float = 5.0) -> list[str]:
