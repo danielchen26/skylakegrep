@@ -15,6 +15,8 @@
   &nbsp;·&nbsp;
   <a href="#three-ways-people-use-it"><b>Scenarios</b></a>
   &nbsp;·&nbsp;
+  <a href="#new-in-05x"><b>New in 0.5.x</b></a>
+  &nbsp;·&nbsp;
   <a href="#why-skylakegrep"><b>Why?</b></a>
   &nbsp;·&nbsp;
   <a href="#how-it-works"><b>How it works</b></a>
@@ -111,6 +113,69 @@ $ skygrep "我昨天写的 cascade 调度代码"
 ```
 
 > Mixed Chinese / English query. Zero network. Audit-friendly.
+
+---
+
+## New in 0.5.x
+
+Three qualitative leaps since 0.4 — the through-line is **less
+ceremony from you, more intelligence from the tool.**
+
+### 🚀 Just ask — no `skygrep index .`
+
+The first query in a fresh repo works. A background process builds
+the semantic index while a `rg` fallback handles your first turn;
+from the second query on, the full cascade is online.
+
+```console
+$ cd /path/to/brand-new-project
+$ skygrep "how does auth handle expired tokens?"
+
+→ src/auth/token.py:140  ·  refresh_or_redirect()
+```
+
+> Cold-start vocabulary-mismatch: **0/10 → 4/10** over plain `rg`
+> on the Django oracle bench (0.5.3, real-CLI verified).
+
+---
+
+### 🧭 Smart from the wrong folder
+
+Run skygrep from `/tmp` and ask about a real project. The router
+dispatches **two retrieval lanes in parallel**; a proactive umbrella
+that searches sibling roots in `SKYGREP_PROACTIVE_DIRS` can answer
+before the cascade has time to run its first rerank.
+
+```console
+$ cd /tmp/scratch
+$ skygrep "where does the parallel umbrella dispatch?"
+
+→ ~/code/skylakegrep/src/cli.py:912  ·  cascade ‖ proactive umbrella
+```
+
+> **~1.1 s wall** on a wrong cwd, real-CLI verified (0.5.6 / 0.5.7).
+
+---
+
+### 🧠 Streaming intelligent routing
+
+Each query is classified by a local LLM router (`qwen2.5:3b`) for
+intent / scope / primary token, then dispatched to multiple lanes
+in parallel. Each result lands tagged with the route it came from
+and the still-searching status of the others — never silent, always
+honest about what's pending.
+
+```console
+$ skygrep "the design doc on rate limiter rewrite"
+
+▾ proactive umbrella · filename glob          [‖ cascade still searching]
+═══ docs/rate-limiter-redesign.md:1
+
+[0.4 s · router → mixed intent · 2 lanes dispatched]
+```
+
+> Confidence-streaming: results stream as they're ready, tagged with
+> the route they came from. Each answer's provenance is auditable.
 
 ---
 
@@ -292,9 +357,9 @@ Behavior toggles.
 
 ---
 
-## What's new
+## Release history
 
-**Recent releases** (in chronological ship order):
+**Recent releases** (in reverse chronological order):
 
   - **`0.5.7`** — Hot-fix for the cross-folder lazy worker:
     a SQLite cross-thread error was silently disabling the

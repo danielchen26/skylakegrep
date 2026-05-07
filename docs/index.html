@@ -341,6 +341,7 @@
  <p>Get started</p>
  <a href="#overview" class="active">Overview</a>
  <a href="#scenarios">Scenarios</a>
+ <a href="#new-in-05x">New in 0.5.x</a>
  <a href="#why-skylakegrep">Why skylakegrep?</a>
  <a href="#how-it-works">How it works</a>
  <a href="#install">Install</a>
@@ -718,6 +719,76 @@ Throughput projections under sustained 5k QPS load...</pre>
  <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "我昨天写的 cascade 调度代码"</div>
  <div class="sd-result">→ <code>src/storage.py:847</code> · <code>cascade_search()</code></div>
  <div class="sd-takeaway">Mixed Chinese / English query. Zero network. Audit-friendly.</div>
+ </div>
+ </article>
+ </div>
+</section>
+
+
+<!-- ============== New in 0.5.x ============== -->
+<section id="new-in-05x" class="doc-section scenarios-section">
+ <p class="eyebrow">New in 0.5.x</p>
+ <h2 class="overview-h2">Three qualitative leaps since 0.4.</h2>
+ <p class="lead">
+ The through-line: <strong>less ceremony from you, more
+ intelligence from the tool.</strong> No `skygrep index .` to
+ run, no need to be in the right folder, no silent stalls.
+ </p>
+
+ <div class="scenario-grid">
+ <!-- Card 1: No setup needed -->
+ <article class="scenario-card">
+ <div class="scenario-tag">🚀 NO SETUP NEEDED</div>
+ <h3>Just ask — no <code>skygrep index .</code>.</h3>
+ <p>
+ The first query in any fresh repo works. A background process
+ builds the semantic index while a <code>rg</code> fallback
+ handles your first turn; from the second query on, the full
+ cascade is online.
+ </p>
+ <div class="scenario-demo">
+ <div class="sd-prompt"><span class="term-prompt">$</span>cd /path/to/brand-new-project</div>
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "how does auth handle expired tokens?"</div>
+ <div class="sd-result">→ <code>src/auth/token.py:140</code> · <code>refresh_or_redirect()</code></div>
+ <div class="sd-takeaway">Cold-start vocabulary-mismatch hit-rate <strong>0/10 → 4/10</strong> over plain <code>rg</code> on the Django oracle bench (0.5.3, real-CLI verified).</div>
+ </div>
+ </article>
+
+ <!-- Card 2: Smart from the wrong folder -->
+ <article class="scenario-card">
+ <div class="scenario-tag">🧭 WRONG FOLDER · NO PROBLEM</div>
+ <h3>Smart from the wrong folder.</h3>
+ <p>
+ Run skygrep from <code>/tmp</code> and ask about a real
+ project. The router dispatches <strong>two retrieval lanes
+ in parallel</strong>; a proactive umbrella that searches
+ sibling roots in <code>SKYGREP_PROACTIVE_DIRS</code> can answer
+ before the cascade has time to run its first rerank.
+ </p>
+ <div class="scenario-demo">
+ <div class="sd-prompt"><span class="term-prompt">$</span>cd /tmp/scratch</div>
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "where does the parallel umbrella dispatch?"</div>
+ <div class="sd-result">→ <code>~/code/skylakegrep/src/cli.py:912</code> · cascade ‖ proactive umbrella</div>
+ <div class="sd-takeaway"><strong>~1.1 s wall</strong> on a wrong cwd, real-CLI verified (0.5.6 / 0.5.7).</div>
+ </div>
+ </article>
+
+ <!-- Card 3: Streaming intelligent routing -->
+ <article class="scenario-card">
+ <div class="scenario-tag">🧠 STREAMING ROUTING</div>
+ <h3>Honest about what's pending.</h3>
+ <p>
+ Each query is classified by a local LLM router
+ (<code>qwen2.5:3b</code>) for intent / scope / primary token,
+ then dispatched to multiple lanes in parallel. Results land
+ tagged with the route they came from and the still-searching
+ status of the others — never silent.
+ </p>
+ <div class="scenario-demo">
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "the design doc on rate limiter rewrite"</div>
+ <div class="sd-result">▾ proactive umbrella · filename glob &nbsp;[‖ cascade still searching]</div>
+ <div class="sd-result">═══ <code>docs/rate-limiter-redesign.md:1</code></div>
+ <div class="sd-takeaway">Confidence-streaming: results stream as they're ready, with the route they came from. Each answer's provenance is auditable.</div>
  </div>
  </article>
  </div>
