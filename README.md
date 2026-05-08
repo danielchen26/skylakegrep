@@ -437,6 +437,14 @@ Behavior toggles.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.5.8.3`** — Hot-fix for high-confidence filename lookups
+    that skipped the semantic cascade: the cascade branch initialised
+    `queries`, but the cascade-skipped path did not, and the later
+    warm cross-folder gate still read `len(queries)`. Queries like
+    `skygrep -x "where is my eb1b file"` could show proactive
+    outside-project filename matches and then crash with
+    `UnboundLocalError`. `queries` is now initialised before the
+    branch; regression coverage locks the filename skip path.
   - **`0.5.8`** — **`--explain` / `-x`: why this matched.** Every
     retrieved chunk now carries the full retrieval provenance.
     Pass `--explain` and skygrep prints (a) a router rationale at

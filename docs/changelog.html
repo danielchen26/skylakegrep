@@ -66,6 +66,21 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.8.3 · hot-fix · filename skip-cascade UnboundLocalError</div>
+ <h3>High-confidence filename lookups can skip cascade without crashing later in the warm cross-folder gate</h3>
+ <p>
+ The LLM router correctly skips semantic cascade for pure filename
+ lookups such as <code>skygrep -x "where is my eb1b file"</code>.
+ In 0.5.8.2 the cascade branch initialised <code>queries</code>,
+ but the cascade-skipped path did not; a later warm cross-folder
+ condition still read <code>len(queries)</code>. 0.5.8.3 initialises
+ <code>queries = [query]</code> before that branch and adds regression
+ coverage for the high-confidence filename skip path. No schema
+ change, no index rebuild, public CLI and JSON shape unchanged.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.8.3.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.8 · why-this-matched (<code>--explain</code>) · Ollama autostart · ES comparison</div>
  <h3>Every result now carries the full retrieval provenance — pass <code>--explain</code> and skygrep tells you why</h3>
  <p>

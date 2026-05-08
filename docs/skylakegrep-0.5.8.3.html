@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.8.3 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.8.3 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body ul { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.8.3</p>
+<h1>skylakegrep 0.5.8.3 — hot-fix: filename skip-cascade crashed after proactive output</h1>
+<p>0.5.8.2 let the LLM router authorise a pure filename lookup and skip
+the semantic cascade when confidence was high. That was the right
+routing decision for queries like:</p>
+<pre><code>skygrep -x "where is my eb1b file"</code></pre>
+<p>The bug was in the CLI orchestration after that decision. The normal
+cascade branch initialised <code>queries = [query]</code>, but the skip-cascade
+branch did not. A later warm cross-folder gate still read
+<code>len(queries)</code>, so a high-confidence filename query could surface
+the proactive home-directory matches and then crash with:</p>
+<pre><code>UnboundLocalError: cannot access local variable 'queries' where it is not associated with a value</code></pre>
+<p>0.5.8.3 initialises <code>queries</code> before the skip-cascade branch, so both
+the cascade and cascade-skipped paths share the same downstream state.</p>
+<h2>What changed</h2>
+<ul>
+<li>Fixed <code>search_cmd</code> so <code>queries = [query]</code> exists before the
+<code>decision.skip_cascade</code> branch.</li>
+<li>Added a regression test for a high-confidence filename router
+decision (<code>intent=filename</code>, <code>skip_cascade=True</code>) through the JSON
+CLI path.</li>
+<li>Bumped package/runtime/docs version labels to <code>0.5.8.3</code>.</li>
+</ul>
+<h2>Verified</h2>
+<ul>
+<li>Targeted regression:
+<code>pytest tests/test_v0_4_ux.py::SearchRoutingRegressionTests::test_high_confidence_filename_skip_cascade_keeps_json_path_alive -q</code>
+→ <code>1 passed</code>.</li>
+<li>Nearby routing/proactive suite:
+<code>pytest tests/test_filename_shortcut.py tests/test_proactive.py -q</code>
+→ <code>49 passed, 4 subtests passed</code>.</li>
+<li>Real CLI replay with the reported query exited 0 and surfaced the
+expected outside-project filename matches instead of crashing.</li>
+</ul>
+<h2>Compatibility</h2>
+<ul>
+<li>No schema change.</li>
+<li>No index rebuild required.</li>
+<li>Public CLI flags and JSON result shape unchanged.</li>
+<li>Existing 0.5.8 indexes are byte-compatible.</li>
+</ul>
+<h2>Known follow-ups</h2>
+<ul>
+<li>The release checklist still requires the normal publish steps
+(<code>build</code>, <code>twine check</code>, tag, PyPI upload, GitHub Release) when this
+patch is actually shipped. This notes file documents the code fix;
+it does not imply a tag or upload has already happened.</li>
+</ul>
+</article>
+</main>
+</div>
+</body></html>

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -106,6 +108,111 @@ class AutoIndexPolicyTests(unittest.TestCase):
         with patch.dict(os.environ, env, clear=True):
             path = config_module.resolve_db_path()
             self.assertIn(".skylakegrep/repos", str(path))
+
+
+class SearchRoutingRegressionTests(unittest.TestCase):
+    def test_high_confidence_filename_skip_cascade_keeps_json_path_alive(self):
+        """Regression for the filename skip path: ``queries`` used to be
+        initialised only inside the cascade branch, but the warm cross-folder
+        gate read it after an LLM-authorised skip."""
+
+        from skylakegrep.src.storage import init_db, store_chunks_batch
+
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "project"
+            root.mkdir()
+            indexed_file = root / "dummy.py"
+            indexed_file.write_text("print('indexed')\n")
+            db_path = Path(temp_dir) / "index.db"
+            conn = init_db(db_path)
+            try:
+                store_chunks_batch(
+                    conn,
+                    [{
+                        "file": str(indexed_file),
+                        "chunk": "print('indexed')",
+                        "language": "python",
+                        "chunk_index": 0,
+                        "file_mtime": indexed_file.stat().st_mtime,
+                        "start_line": 1,
+                        "end_line": 1,
+                        "start_byte": 0,
+                        "end_byte": len("print('indexed')\n"),
+                        "embedding": [1.0, 0.0],
+                    }],
+                )
+                now = str(time.time())
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS meta "
+                    "(key TEXT PRIMARY KEY, value TEXT)"
+                )
+                conn.execute(
+                    "INSERT INTO meta(key, value) VALUES(?, ?)",
+                    ("last_full_index_at", now),
+                )
+                conn.execute(
+                    "INSERT INTO meta(key, value) VALUES(?, ?)",
+                    ("last_refresh_at", now),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+            filename_result = {
+                "path": str(root / "EB1B_Denial_Analysis.pdf"),
+                "file": str(root / "EB1B_Denial_Analysis.pdf"),
+                "chunk": "size: 1.0 KB    modified: now    type: pdf",
+                "snippet": "size: 1.0 KB    modified: now    type: pdf",
+                "language": "pdf",
+                "start_line": None,
+                "end_line": None,
+                "score": 1.0,
+                "fallback": "filename-lookup",
+            }
+            decision = cli_module.RouterDecision(
+                intent="filename",
+                primary_token="eb1b",
+                skip_cascade=True,
+                skip_filename=False,
+                skip_lexical=True,
+                confidence=0.95,
+                source="llm",
+                reason="user asks for a specific file by name",
+                out_of_scope="none",
+            )
+
+            with patch.dict(
+                os.environ,
+                {"SKYGREP_DB_PATH": str(db_path), "SKYGREP_NO_HINTS": "1"},
+                clear=False,
+            ), patch.object(
+                cli_module.bootstrap, "preheat_models", return_value=None
+            ), patch.object(
+                cli_module.bootstrap, "try_autostart_ollama", return_value=False
+            ), patch.object(
+                cli_module, "route_query", return_value=decision
+            ), patch.object(
+                cli_module.cfg_mod, "project_root", return_value=root
+            ), patch.object(
+                cli_module.auto_index,
+                "filename_shortcut",
+                return_value=[filename_result],
+            ), patch.object(
+                cli_module, "_symbols_table_populated", return_value=True
+            ), patch.object(
+                cli_module.code_graph, "populate_graph_table", return_value=0
+            ):
+                result = runner.invoke(
+                    cli_module.cli,
+                    ["search", "where is my eb1b file", "--json"],
+                )
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIsNone(result.exception)
+        payload = json.loads(result.output)
+        self.assertEqual(payload[0]["path"], filename_result["path"])
+        self.assertEqual(payload[0]["language"], "pdf")
 
 
 if __name__ == "__main__":

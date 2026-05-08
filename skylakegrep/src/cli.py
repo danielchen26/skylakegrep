@@ -1154,6 +1154,7 @@ def search_cmd(
     answerer = None
     cascade_telemetry: dict | None = None
     recovery_state: dict | None = None
+    queries = [query]
     if decision.skip_cascade and not agentic and not answer:
         results: list[dict] = []
         elapsed = 0.0
@@ -1194,7 +1195,6 @@ def search_cmd(
                 err=True,
             )
         start = time.time()
-        queries = [query]
         if agentic:
             answerer = get_answerer()
             subqueries = answerer.decompose(query, max_queries=max_subqueries)
