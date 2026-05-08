@@ -97,6 +97,7 @@ class OutOfScopeDetectionTests(unittest.TestCase):
         # but is asking about a specific behaviour — semantic.
         for q in [
             "where is the recent change to auth flow",
+            "show me where my project brief that I recently created in PROJECT folder",
             "how does the latest implementation handle errors",
             "what function handles the largest payload",
             "explain how all the routes connect",

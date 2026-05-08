@@ -52,29 +52,33 @@ class Bench:
     db_path: Path  # explicit DB path (per-project for new benches, legacy for Rust workspace)
 
 
+RUST_REPO = Path(os.environ.get("SKYGREP_BENCH_RUST_REPO", "/path/to/Rust workspace"))
+PYTHON_REPO = Path(os.environ.get("SKYGREP_BENCH_PYTHON_REPO", "/path/to/Python codebase"))
+TYPESCRIPT_REPO = Path(
+    os.environ.get("SKYGREP_BENCH_TYPESCRIPT_REPO", "/path/to/TypeScript codebase")
+)
+
 # Repo-A keeps its legacy /tmp index built under nomic-embed-text in earlier
-# P-phases. Python codebase and Repo-C use the standard per-project DB derived from
-# ``project_db_path``.
+# P-phases. Python and TypeScript benches use the standard per-project DB
+# derived from ``project_db_path``.
 BENCHES: list[Bench] = [
     Bench(
         name="Rust workspace (Rust)",
         tasks_path=REPO_ROOT / "benchmarks/cross_repo/rust-workspace.json",
-        repo_path=Path("/path/to/Rust workspace"),
+        repo_path=RUST_REPO,
         db_path=Path("/tmp/<repo-D>_idx_p1.db"),
     ),
     Bench(
         name="Python codebase (Python)",
         tasks_path=REPO_ROOT / "benchmarks/cross_repo/python-codebase.json",
-        repo_path=Path("/Users/tianchichen/Documents/GitHub/Python codebase"),
-        db_path=project_db_path(Path("/Users/tianchichen/Documents/GitHub/Python codebase")),
+        repo_path=PYTHON_REPO,
+        db_path=project_db_path(PYTHON_REPO),
     ),
     Bench(
         name="TypeScript codebase (TypeScript)",
         tasks_path=REPO_ROOT / "benchmarks/cross_repo/typescript-codebase.json",
-        repo_path=Path("/Users/tianchichen/Documents/GitHub/TypeScript codebase"),
-        db_path=project_db_path(
-            Path("/Users/tianchichen/Documents/GitHub/TypeScript codebase")
-        ),
+        repo_path=TYPESCRIPT_REPO,
+        db_path=project_db_path(TYPESCRIPT_REPO),
     ),
 ]
 

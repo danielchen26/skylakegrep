@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.8.6 keeps path-depth answers fast while semantic questions continue past filename anchors in the same invocation. Router lanes are visible by default; --explain adds per-result provenance and cascade evidence. 30/30 (100%) recall fully-indexed on Django + React + Tokio at 60×–770× less context than ripgrep. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
+ <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.8.7 adds adaptive query-plan routing: metadata stays a fast path when it is the whole answer, and becomes a modifier when the query still needs filename or semantic depth. Router lanes are visible by default; --explain adds per-result provenance and cascade evidence. 30/30 (100%) recall fully-indexed on Django + React + Tokio at 60×–770× less context than ripgrep. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.8.6 keeps path-depth answers fast while semantic questions continue past filename anchors, with visible router lanes and progressive refinement. 30/30 fully-indexed on Django+React+Tokio at 60×–770× less context vs ripgrep. 100% local, 100+ languages." />
+ <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.8.7 adds adaptive query-plan routing: metadata can be terminal or a modifier while semantic depth stays intact. 30/30 fully-indexed on Django+React+Tokio at 60×–770× less context vs ripgrep. 100% local, 100+ languages." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -623,7 +623,7 @@
 }
 </style>
 <section id="overview" class="hero hero-redesigned">
- <p class="eyebrow">v0.5.8.6 · 100% local · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.5.8.7 · 100% local · PolyForm Noncommercial 1.0.0</p>
  <h1>Find <span class="hero-accent">anything</span> on your machine.</h1>
  <p class="lead">
  Semantic search for code, PDFs, notes, and docs.
@@ -696,7 +696,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <span class="dot">·</span>
  <strong>100 %</strong> local
  <span class="dot">·</span>
- <strong>41</strong> releases shipped
+ <strong>42</strong> releases shipped
  </p>
 </section>
 
@@ -852,7 +852,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <div class="sd-result">▾ preliminary filename anchors + keyword matches (lazy semantic refinement starting…)</div>
  <div class="sd-result">═══ <code>CASE42_Project_Report.txt</code> · bounded content preview</div>
  <div class="sd-result">⚡ lazy refinement continues in the same invocation</div>
- <div class="sd-takeaway"><strong>0.5.8.6:</strong> filename matches are final only for path-depth questions; semantic questions keep the file as an anchor and continue deeper search.</div>
+ <div class="sd-takeaway"><strong>0.5.8.7:</strong> routing now treats metadata as terminal only when it fully answers the query; otherwise it becomes a modifier and deeper search continues.</div>
  </div>
  </article>
  </div>
@@ -878,7 +878,7 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap"></div>
      <div class="why-cell why-self">
        <strong>skylakegrep</strong>
-       <span class="why-sub">v0.5.8.6</span>
+       <span class="why-sub">v0.5.8.7</span>
      </div>
      <div class="why-cell"><code>ripgrep</code><span class="why-sub">lexical baseline</span></div>
      <div class="why-cell"><a href="https://www.mgrep.dev/" target="_blank" rel="noopener">mgrep</a><span class="why-sub">Mixedbread · paid</span></div>

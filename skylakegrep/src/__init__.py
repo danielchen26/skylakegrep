@@ -1,3 +1,3 @@
 """skylakegrep - Free local semantic code search."""
 
-__version__ = "0.5.8.6"
+__version__ = "0.5.8.7"

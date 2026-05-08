@@ -1,6 +1,6 @@
 [project]
 name = "skylakegrep"
-version = "0.5.8.6"
+version = "0.5.8.7"
 description = "Fully-offline semantic search over your local files — powered by Ollama"
 readme = "README.md"
 requires-python = ">=3.9"

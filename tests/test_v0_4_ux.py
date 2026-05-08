@@ -220,6 +220,56 @@ class SearchRoutingRegressionTests(unittest.TestCase):
         self.assertEqual(len(merged), 1)
         self.assertEqual(merged[0]["snippet"], lazy["snippet"])
 
+    def test_semantic_filename_anchor_scopes_warm_results(self):
+        path = "/tmp/CASE42_Project_Report.txt"
+        filename = {
+            "path": path,
+            "snippet": "size: 0.1 KB    modified: ?    type: txt",
+            "chunk": "size: 0.1 KB    modified: ?    type: txt",
+            "language": "txt",
+            "score": 1.0,
+            "fallback": "filename-lookup",
+        }
+        same_file_depth = {
+            "path": path,
+            "snippet": "retry policy uses exponential backoff",
+            "chunk": "retry policy uses exponential backoff",
+            "language": "txt",
+            "score": 0.42,
+        }
+        unrelated_semantic = {
+            "path": "/tmp/unrelated.py",
+            "snippet": "retry token appears in unrelated code",
+            "chunk": "retry token appears in unrelated code",
+            "language": "python",
+            "score": 0.99,
+        }
+        decision = cli_module.RouterDecision(
+            intent="semantic",
+            primary_token="CASE42_Project_Report",
+            skip_cascade=False,
+            skip_filename=False,
+            skip_lexical=False,
+            confidence=0.9,
+            source="fast-intent",
+            reason="semantic query with a concrete filename anchor",
+            out_of_scope="none",
+        )
+
+        self.assertTrue(
+            cli_module._semantic_filename_anchor_should_lead(
+                decision, [filename]
+            )
+        )
+        merged = cli_module._merge_sources_preferring_depth(
+            ([filename], [unrelated_semantic, same_file_depth], []),
+            top=2,
+        )
+
+        self.assertEqual(merged[0]["path"], path)
+        self.assertEqual(merged[0]["snippet"], same_file_depth["snippet"])
+        self.assertEqual(merged[1]["path"], unrelated_semantic["path"])
+
     def test_semantic_depth_query_vetoes_filename_finality(self):
         decision = cli_module.RouterDecision(
             intent="filename",
@@ -311,7 +361,7 @@ class SearchRoutingRegressionTests(unittest.TestCase):
                 cli_module.auto_index, "filename_shortcut", return_value=None
             ), patch.object(
                 cli_module.auto_index, "rg_fallback_results", return_value=[]
-            ), patch.object(
+            ) as rg_mock, patch.object(
                 proactive_module,
                 "run_enhancers_parallel",
                 return_value=([proactive_result], {}),
@@ -326,6 +376,8 @@ class SearchRoutingRegressionTests(unittest.TestCase):
                 )
 
         self.assertEqual(result.exit_code, 0, result.output)
+        rg_mock.assert_not_called()
+        self.assertIn("proactive filename searching configured roots", result.output)
         self.assertIn("proactive-filename", result.output)
         self.assertIn("lazy-skipped", result.output)
         self.assertIn("CASE42_Project_Report.pdf", result.output)

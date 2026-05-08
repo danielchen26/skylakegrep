@@ -83,6 +83,24 @@
  <dt>snippet</dt>
  <dd>Verbatim source text of the chunk.</dd>
  </dl>
+ <h3>Optional evidence fields</h3>
+ <p>
+ Semantic-depth filename anchors can include extra evidence fields when
+ the matched file has extractable text. These fields are additive and
+ may be absent; scripts should treat them as optional:
+ </p>
+ <dl class="def-list">
+ <dt>fallback, filename_token</dt>
+ <dd>Retrieval provenance for filename-anchor results.</dd>
+ <dt>query_excerpts</dt>
+ <dd>List of query-focused passages extracted from the anchored text/PDF/DOCX file.</dd>
+ <dt>content_excerpt</dt>
+ <dd>Joined query-focused passages, suitable for agent context.</dd>
+ <dt>content_preview, content_preview_truncated</dt>
+ <dd>Bounded full-text preview and whether it was clipped.</dd>
+ <dt>extracted_text_source, extraction_note</dt>
+ <dd>Extractor backend metadata, for example text passthrough, PDF text layer, DOCX parser, OCR note, or friendly extraction failure hint.</dd>
+ </dl>
  </section>
 
  </main>

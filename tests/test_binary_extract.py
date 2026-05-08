@@ -22,8 +22,10 @@ from skylakegrep.src.binary_extract import (
     extract_docx,
     extract_pdf,
     extract_text,
+    query_focused_passages,
     truncate,
 )
+from skylakegrep.src.render import render_terminal_result
 
 
 # ---- helpers --------------------------------------------------------
@@ -105,6 +107,117 @@ def test_truncate_long_text_clipped():
     assert out.endswith(" …")
     assert was_truncated is True
     assert len(out) <= 12
+
+
+def test_query_focused_passages_selects_relevant_original_text():
+    text = (
+        "CASE42 Project Report\n\n"
+        "Deployment notes describe owners and timeline.\n\n"
+        "Retry policy: use exponential backoff, cap attempts at three, "
+        "and log the final failure reason.\n\n"
+        "Audit notes describe unrelated approvals."
+    )
+    passages = query_focused_passages(
+        text,
+        "what does CASE42 say about retry policy",
+        anchor="CASE42",
+        max_passages=1,
+    )
+    assert passages
+    assert "Retry policy" in passages[0]
+    assert "exponential backoff" in passages[0]
+
+
+def test_semantic_depth_summary_extracts_query_focused_filename_content(tmp_path):
+    p = tmp_path / "CASE42_Project_Report.txt"
+    p.write_text(
+        "CASE42 Project Report\n\n"
+        "Retry policy: use exponential backoff and cap attempts at three.\n\n"
+        "Unrelated appendix text.\n",
+        encoding="utf-8",
+    )
+    result = {
+        "path": str(p),
+        "file": str(p),
+        "query": "what does CASE42_Project_Report say about retry policy",
+        "chunk": "size: 0.1 KB    modified: now    type: txt",
+        "snippet": "size: 0.1 KB    modified: now    type: txt",
+        "language": "txt",
+        "score": 1.0,
+        "fallback": "filename-lookup",
+        "filename_token": "CASE42_Project_Report",
+        "_skygrep_semantic_depth": True,
+    }
+    out = render_terminal_result(result, detail="summary", color=False)
+    assert "Retry policy" in out
+    assert "exponential backoff" in out
+
+
+def test_path_depth_summary_does_not_extract_filename_content(tmp_path):
+    p = tmp_path / "CASE42_Project_Report.txt"
+    p.write_text("Retry policy should stay hidden in path-depth summary.\n", encoding="utf-8")
+    result = {
+        "path": str(p),
+        "file": str(p),
+        "query": "where is CASE42_Project_Report file",
+        "chunk": "size: 0.1 KB    modified: now    type: txt",
+        "snippet": "size: 0.1 KB    modified: now    type: txt",
+        "language": "txt",
+        "score": 1.0,
+        "fallback": "filename-lookup",
+        "filename_token": "CASE42_Project_Report",
+    }
+    out = render_terminal_result(result, detail="summary", color=False)
+    assert "size: 0.1 KB" in out
+    assert "Retry policy should stay hidden" not in out
+
+
+def test_semantic_filename_json_gets_query_focused_excerpt(tmp_path):
+    from skylakegrep.src import cli as cli_module
+
+    p = tmp_path / "CASE42_Project_Report.txt"
+    p.write_text(
+        "CASE42 Project Report\n\n"
+        "Overview: release owners and timeline.\n\n"
+        "Retry policy: use exponential backoff, cap attempts at three, "
+        "and record the final failure reason.\n",
+        encoding="utf-8",
+    )
+    result = {
+        "path": str(p),
+        "file": str(p),
+        "query": "what does CASE42_Project_Report say about retry policy",
+        "chunk": "size: 0.1 KB    modified: now    type: txt",
+        "snippet": "size: 0.1 KB    modified: now    type: txt",
+        "language": "txt",
+        "score": 1.0,
+        "fallback": "filename-lookup",
+        "filename_token": "CASE42_Project_Report",
+    }
+    decision = cli_module.RouterDecision(
+        intent="semantic",
+        primary_token="CASE42_Project_Report",
+        skip_cascade=False,
+        skip_filename=False,
+        skip_lexical=False,
+        confidence=0.9,
+        source="fast-intent",
+        reason="semantic query with a concrete filename anchor",
+        out_of_scope="none",
+    )
+
+    results = [result]
+    cli_module._augment_filename_content_for_machine(
+        results,
+        "what does CASE42_Project_Report say about retry policy",
+        decision,
+        detail="summary",
+        ocr=False,
+    )
+
+    assert results[0]["extracted_text_source"] == "text-passthrough"
+    assert "Retry policy" in results[0]["content_excerpt"]
+    assert "exponential backoff" in results[0]["query_excerpts"][0]
 
 
 # ---- extract_text dispatcher ---------------------------------------

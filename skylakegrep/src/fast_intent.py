@@ -79,6 +79,15 @@ _PROTOTYPES: dict[str, tuple[str, ...]] = {
         "今天编辑过的文档",
         "archivos modificados recientemente",
     ),
+    "metadata_created": (
+        "show recently created local files",
+        "list newest files by creation time",
+        "which document did I create today",
+        "files I recently made or wrote",
+        "最近创建的文件",
+        "今天新建的文档",
+        "archivos creados recientemente",
+    ),
     "metadata_size": (
         "show largest files by size",
         "list biggest or smallest local files",
@@ -94,6 +103,7 @@ _MIN_SCORE = {
     "semantic": 0.080,
     "metadata_opened": 0.050,
     "metadata_modified": 0.050,
+    "metadata_created": 0.050,
     "metadata_size": 0.050,
 }
 _MIN_MARGIN = {
@@ -101,6 +111,7 @@ _MIN_MARGIN = {
     "semantic": 0.050,
     "metadata_opened": 0.050,
     "metadata_modified": 0.050,
+    "metadata_created": 0.040,
     "metadata_size": 0.050,
 }
 
@@ -289,7 +300,8 @@ def classify_fast_intent(query: str) -> FastIntent | None:
         margin = score - best_non_metadata
     if intent not in {
         "filename", "semantic",
-        "metadata_opened", "metadata_modified", "metadata_size",
+        "metadata_opened", "metadata_modified", "metadata_created",
+        "metadata_size",
     }:
         return None
     if score < _MIN_SCORE[intent] or margin < _MIN_MARGIN[intent]:

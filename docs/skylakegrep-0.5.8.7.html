@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.8.7 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.8.7 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.8.7</p>
+<h1>skylakegrep 0.5.8.7 — adaptive query-plan routing</h1>
+<p>0.5.8.7 turns the routing fix from a patch into a principle: filesystem
+metadata is no longer treated as a mutually exclusive search intent.
+It is now a query-plan facet.</p>
+<p>That distinction matters for both human CLI use and agent wrappers. A
+query such as "show recently created files" can be answered entirely from
+filesystem metadata and should return immediately. A query such as "show
+me where my project brief that I recently created in PROJECT folder"
+contains a recency constraint, but the answer still depends on locating a
+specific target. In that second case, metadata can influence ranking, but
+it is not allowed to skip filename, lexical, or semantic retrieval.</p>
+<h2>What changed</h2>
+<ul>
+<li>Added a structured metadata facet to the router:</li>
+</ul>
+<p><code>metadata_kind = opened | modified | created | size
+  metadata_terminal = true | false</code></p>
+<p>Terminal metadata queries still use the fast filesystem lane. Composite
+  queries keep searching and use metadata only as a cheap reranking signal
+  inside already-relevant results.</p>
+<ul>
+<li>Added a <code>created</code> metadata dimension alongside <code>opened</code>, <code>modified</code>,
+  and <code>size</code>.</li>
+<li>Added an identifier-collision guard so code tokens such as <code>created_at</code>
+  are not misread as filesystem creation-time requests.</li>
+<li>Added CJK terminal/modifier separation for queries such as:</li>
+</ul>
+<p><code>最近打开过的文件        -&gt; metadata terminal
+  我最近打开过的合同在哪  -&gt; metadata modifier, continue search</code></p>
+<ul>
+<li>Router decisions now carry metadata-facet provenance internally, and
+  human output can show <code>metadata=&lt;kind&gt;:terminal</code> or
+  <code>metadata=&lt;kind&gt;:modifier</code> in the router lane.</li>
+<li>JSON / agent paths keep the stable required schema while filename
+  anchors for semantic-depth queries can include optional evidence fields:
+  <code>query_excerpts</code>, <code>content_excerpt</code>, <code>content_preview</code>,
+  <code>extracted_text_source</code>, and <code>extraction_note</code>.</li>
+<li>The release privacy gate now scans <code>benchmarks/</code> as well as package,
+  docs, tests, and GitHub workflow surfaces. Historical local absolute
+  paths in benchmark probes were replaced with env-driven placeholders.</li>
+</ul>
+<h2>Verified routing receipts</h2>
+<p>All examples below use fictional placeholder names.</p>
+<pre><code>show recently created files
+  intent=mixed source=fast-metadata oos=recency metadata=created:True
+</code></pre>
+<p>This stays a zero-semantic fast path.</p>
+<pre><code>show me where my project brief that I recently created in PROJECT folder
+  intent=filename source=fallback-rules oos=None metadata=created:False
+</code></pre>
+<p>The recency phrase is treated as a modifier, not the whole answer.</p>
+<pre><code>最近打开过的文件
+  intent=mixed source=fast-metadata oos=recency metadata=opened:True
+</code></pre>
+<p>This remains a fast metadata answer.</p>
+<pre><code>我最近打开过的合同在哪
+  intent=mixed source=fallback-rules oos=None metadata=opened:False
+</code></pre>
+<p>The target term keeps deeper search enabled.</p>
+<pre><code>how does created_at field work
+  intent=semantic source=fallback-rules oos=None metadata=None:False
+</code></pre>
+<p>Identifier-like code tokens are not hijacked by metadata routing.</p>
+<h2>Verification</h2>
+<ul>
+<li>Full test suite: <code>270 passed, 2 warnings</code>.</li>
+<li>Targeted routing suite: metadata terminal/modifier separation,
+  CJK terminal/modifier separation, code-identifier collision guard,
+  LLM <code>out_of_scope</code> override for composite queries, and metadata
+  reranking of already-relevant candidates.</li>
+<li>Source privacy scan: <code>privacy release scan clean</code>.</li>
+<li>Package privacy scan after wheel/sdist build: required before upload.</li>
+<li><code>git diff --check</code>: clean.</li>
+</ul>
+<h2>Compatibility</h2>
+<ul>
+<li>No index schema change.</li>
+<li>No required index rebuild.</li>
+<li>Public CLI flags are unchanged.</li>
+<li>Required JSON fields are unchanged. New evidence fields are optional
+  and appear only when a semantic-depth filename anchor has extractable
+  document/text content.</li>
+<li>Router cache version is bumped so stale cached decisions from earlier
+  releases cannot preserve the old metadata-as-intent behavior.</li>
+</ul>
+<h2>Follow-ups</h2>
+<ul>
+<li>Promote the structured query plan into the public <code>--json</code>/agent
+  contract once the agent schema stabilizes.</li>
+<li>Add explicit user-facing depth controls for <code>path</code>, <code>summary</code>,
+  <code>evidence</code>, and <code>answer</code> modes while preserving the adaptive default.</li>
+</ul></article>
+</main>
+</div>
+</body></html>

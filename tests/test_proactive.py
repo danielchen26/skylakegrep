@@ -455,6 +455,39 @@ class FilenameExtendExecuteTests(unittest.TestCase):
         self.assertIn("size:", first["snippet"])
         self.assertIn("modified:", first["snippet"])
 
+    def test_returns_after_first_directory_hit_without_waiting_for_slow_sibling(self):
+        fast_dir = Path(self.tmp) / "fast"
+        slow_dir = Path(self.tmp) / "slow"
+        fast_dir.mkdir()
+        slow_dir.mkdir()
+        hit = fast_dir / "task-001-fast.md"
+        hit.write_text("x", encoding="utf-8")
+
+        def fake_find_one_dir(d: Path, token: str, timeout_s: float):
+            if d == fast_dir:
+                return [str(hit)]
+            time.sleep(1.2)
+            return []
+
+        d = _MockDecision(primary_token="task-001")
+        start = time.monotonic()
+        with patch.object(p, "_find_one_dir", side_effect=fake_find_one_dir):
+            result = filename_extend_execute(
+                "where is task-001?",
+                d,
+                top_k=10,
+                individual_budget_ms=2000,
+                search_dirs=[fast_dir, slow_dir],
+            )
+        elapsed = time.monotonic() - start
+
+        self.assertIsNotNone(result)
+        self.assertLess(elapsed, 0.75)
+        self.assertEqual(
+            {Path(h["path"]).name for h in result.extra_hits},
+            {"task-001-fast.md"},
+        )
+
     def test_returns_none_with_unfindable_token(self):
         d = _MockDecision(primary_token="zzznotapresenthere")
         result = filename_extend_execute(

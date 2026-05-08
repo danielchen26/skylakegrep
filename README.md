@@ -61,7 +61,7 @@ async def renew_session(req: Request):
 > **~1.1 s** first answer on wrong-path queries via parallel proactive umbrella (0.5.7, real-CLI verified) &nbsp;·&nbsp;
 > **~1 s** warm queries &nbsp;·&nbsp;
 > **100 %** local &nbsp;·&nbsp;
-> **38** releases shipped
+> **42** releases shipped
 
 ---
 
@@ -484,6 +484,16 @@ Behavior toggles.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.5.8.7`** — Adaptive query-plan routing. Filesystem
+    metadata is now a `metadata_kind` / `metadata_terminal` facet
+    instead of a mutually exclusive intent: pure metadata queries
+    still return immediately, while composite queries use metadata
+    only as a modifier/reranker and continue through filename,
+    lexical, and semantic retrieval. Adds `created` metadata,
+    CJK terminal/modifier separation, a code-identifier collision
+    guard for tokens such as `created_at`, optional document
+    evidence fields for JSON/agent paths, and expands the privacy
+    release scan to benchmark files.
   - **`0.5.8.6`** — Fast path answers without sacrificing semantic
     depth. Human output now shows the active router lane by default,
     filename hits are final only for path-depth questions, and semantic
@@ -598,7 +608,7 @@ source .venv/bin/activate
 pip install -e .[rerank]
 
 # Verify
-.venv/bin/python -m pytest -q tests/        # 201 / 201 should pass
+.venv/bin/python -m pytest -q tests/        # 270 / 270 should pass
 ```
 
 The release protocol is documented in

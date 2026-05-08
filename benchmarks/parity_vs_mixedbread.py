@@ -43,7 +43,7 @@ USAGE
     .venv/bin/python benchmarks/parity_vs_mixedbread.py \
         --root /path/to/repo \
         --tasks benchmarks/cross_repo/rust-workspace.json \
-        --mixedbread-bin /Users/me/.local/share/mixedbread-skygrep/node_modules/.bin/skygrep \
+        --mixedbread-bin /path/to/mixedbread-skygrep/node_modules/.bin/skygrep \
         --top-k 10
 
 LIMITATIONS

@@ -30,8 +30,8 @@ import time
 from collections import defaultdict
 from pathlib import Path
 
-REPO = Path("/Users/tianchichen/Documents/github/skylakegrep")
-WARP = Path("/path/to/Rust workspace")
+REPO = Path(__file__).resolve().parents[1]
+WARP = Path(os.environ.get("SKYGREP_BENCH_RUST_REPO", "/path/to/Rust workspace"))
 sys.path.insert(0, str(REPO))
 
 os.environ.setdefault("OLLAMA_EMBED_MODEL", "nomic-embed-text")

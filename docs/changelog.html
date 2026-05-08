@@ -66,6 +66,23 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.8.7 · adaptive query-plan routing · metadata terminal/modifier facets</div>
+ <h3>Metadata is now a routing facet: fast when it fully answers, deeper when it only constrains</h3>
+ <p>
+ This release turns filesystem metadata into a structured query-plan
+ facet instead of a mutually exclusive intent. Pure metadata queries
+ such as recently opened or recently created files still return from
+ the fast filesystem lane, while composite queries keep searching and
+ use metadata only as a cheap reranking signal inside already-relevant
+ candidates. It adds created-time metadata, CJK terminal/modifier
+ separation, a code-identifier collision guard for tokens such as
+ <code>created_at</code>, optional document evidence fields for JSON
+ and agent paths, and expands the privacy release gate to benchmark
+ files.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.8.7.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.8.6 · answer-depth routing · progressive semantic refinement</div>
  <h3>Fast path answers stay fast, while semantic questions continue past filename anchors</h3>
  <p>

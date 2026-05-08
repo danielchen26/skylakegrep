@@ -34,6 +34,7 @@ DEFAULT_TARGETS = [
     "AGENTS.md",
     "CLAUDE.md",
     ".github",
+    "benchmarks",
     "docs",
     "skylakegrep",
     "tests",

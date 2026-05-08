@@ -97,6 +97,56 @@
 <a href="skylakegrep-0.1.0.html"><code>skylakegrep-0.1.0.md</code></a>. This file describes
 what is planned beyond v0.1.0.</p>
 <h2>Planned</h2>
+<h3>Agent search substrate hardening</h3>
+<p>The next architecture track is making <code>skygrep</code> a stronger
+intermediate search tool for GPT, Claude Code, Codex, OpenCode, and
+other LLM agents. The release benchmark now includes a synthetic
+code + DOCX + PDF + metadata fixture so these changes can be tested
+without any private files or machine-local examples.</p>
+<ol>
+<li><p><strong>Explicit search-depth contract.</strong> Add a first-class depth model:
+   <code>path</code>, <code>anchor</code>, <code>excerpt</code>, <code>evidence</code>, <code>answer</code>, and <code>auto</code>.
+   Path-depth queries can stop at file location; semantic and agent
+   queries must continue until they have query-relevant evidence or a
+   clear limitation. This keeps fast cases fast without returning an
+   anchor when the caller needs content.</p></li>
+<li><p><strong>Agent-first JSON schema.</strong> Extend <code>--json</code> with structured routing
+   and quality fields: <code>intent</code>, <code>depth_used</code>, <code>routing_path</code>,
+   <code>index_state</code>, <code>confidence</code>, <code>is_anchor_only</code>,
+   <code>semantic_depth_satisfied</code>, <code>evidence[]</code>, <code>limitations[]</code>, and
+   <code>next_suggested_query</code>. Agents should not need to parse human
+   terminal text to decide whether they have enough information.</p></li>
+<li><p><strong>Metadata reliability.</strong> Strengthen "latest / opened / modified /
+   largest" queries by separating filesystem fallbacks from platform
+   signals. On macOS, explore Spotlight / recent-document metadata as an
+   optional source; always expose <code>metadata_source</code> and confidence so
+   atime-based answers are not overstated.</p></li>
+<li><p><strong>PDF / DOCX evidence hardening.</strong> Cache extracted text, attach page
+   or paragraph provenance when available, detect scanned PDFs, and keep
+   OCR opt-in with explicit budgets. Agent JSON should include raw
+   query-focused excerpts plus enough source metadata to cite them.</p></li>
+<li><p><strong>Progress / streaming for long searches.</strong> Add a machine-readable
+   progress mode such as <code>--trace-jsonl</code>: router decision, preliminary
+   filename/rg hits, semantic cheap pass, lazy/cross-folder progress,
+   timeout, and final quality state. Human CLI should never sit silent;
+   agent callers should be able to stream status without scraping stderr.</p></li>
+<li><p><strong>Scoped cross-folder control.</strong> Add explicit scope controls:
+   <code>--scope cwd|project|configured|home</code>, <code>--no-cross-folder</code>, and
+   <code>--cross-folder-budget-ms</code>. Cross-folder expansion remains useful for
+   wrong-directory recovery, but agent benchmarks and automation need
+   deterministic search boundaries.</p></li>
+<li><p><strong>Release-gated agent benchmark.</strong> Promote the synthetic benchmark to
+   a checked-in release gate covering exact-symbol code, vocabulary
+   mismatch code, filename path lookup, semantic file anchors, DOCX
+   excerpts, PDF excerpts, metadata, answer handoff, cold index, stale
+   index, and partial index recovery. Every release must publish the
+   pass/fail table and timings.</p></li>
+<li><p><strong>Quality scoring and sufficiency.</strong> Each result should state whether
+   it is only an anchor, whether raw excerpts were found, how strong the
+   evidence is, and whether deeper search is recommended. This is the
+   guardrail that prevents agents from treating a plausible path as a
+   complete answer.</p></li>
+</ol>
 <h3>Native MCP server</h3>
 <p><code>skygrep setup</code> writes a markdown snippet into agent rules files
 telling the agent to prefer <code>skygrep</code> over <code>rg</code>. A native MCP

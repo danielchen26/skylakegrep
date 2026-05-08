@@ -580,21 +580,29 @@ def filename_extend_execute(
     for token in tokens:
         if not token or len(token) < 2:
             continue
-        with ThreadPoolExecutor(max_workers=min(len(dirs), 4)) as pool:
+        pool = ThreadPoolExecutor(max_workers=min(len(dirs), 4))
+        try:
             fut_to_dir = {
                 pool.submit(_find_one_dir, d, token, per_dir_s): d
                 for d in dirs
             }
-            for fut in as_completed(
-                fut_to_dir, timeout=individual_budget_ms / 1000.0 + 0.2
-            ):
-                try:
-                    hits = fut.result(timeout=0.001)
-                except Exception:
-                    continue
-                d = fut_to_dir[fut]
-                for h in hits[:5]:
-                    all_hits.append((h, str(d)))
+            try:
+                for fut in as_completed(
+                    fut_to_dir, timeout=individual_budget_ms / 1000.0 + 0.2
+                ):
+                    try:
+                        hits = fut.result(timeout=0.001)
+                    except Exception:
+                        continue
+                    d = fut_to_dir[fut]
+                    for h in hits[:5]:
+                        all_hits.append((h, str(d)))
+                    if all_hits:
+                        break
+            except TimeoutError:
+                pass
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
         if all_hits:
             break
 
@@ -613,7 +621,7 @@ def filename_extend_execute(
 
     token = tokens[0] if tokens else ""
     extra_hits = [
-        _filename_lookup_hit(h, search_dir=d, token=token)
+        _filename_lookup_hit(h, search_dir=d, token=token, query=query)
         for h, d in deduped
     ]
     if not extra_hits:
@@ -631,7 +639,13 @@ def filename_extend_execute(
     )
 
 
-def _filename_lookup_hit(path: str, *, search_dir: str, token: str) -> dict:
+def _filename_lookup_hit(
+    path: str,
+    *,
+    search_dir: str,
+    token: str,
+    query: str = "",
+) -> dict:
     """Normalize proactive filename hits to the same schema as the
     in-scope ``auto_index.filename_shortcut`` lane.
 
@@ -661,6 +675,7 @@ def _filename_lookup_hit(path: str, *, search_dir: str, token: str) -> dict:
     return {
         "path": path,
         "file": path,
+        "query": query,
         "chunk": snippet,
         "snippet": snippet,
         "language": suffix,

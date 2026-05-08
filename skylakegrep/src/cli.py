@@ -38,7 +38,7 @@ from .embeddings import get_embedder
 from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
 from .intent import classify_intent, merge_results as merge_tiers
 from .llm_router import RouterDecision, route_query
-from .metadata_search import metadata_results
+from .metadata_search import metadata_results, rank_results_by_metadata
 from .intelligent_cli import (
     assess_result_quality,
     detect_out_of_scope,
@@ -152,6 +152,46 @@ def _merge_sources_preferring_depth(
     return ordered[:top]
 
 
+def _semantic_filename_anchor_should_lead(
+    decision: "RouterDecision | None",
+    fn_results: list[dict],
+) -> bool:
+    """Whether concrete filename anchors should scope a semantic query.
+
+    A semantic query with a real basename hit is different from a broad
+    semantic query. The user is asking *about that artifact*, so the
+    filename anchor must remain the first evidence tier and later semantic
+    chunks may upgrade it. This prevents unrelated high-scoring cascade hits
+    from pushing a requested PDF/DOCX/code file out of top-K.
+    """
+
+    return bool(
+        fn_results
+        and decision is not None
+        and getattr(decision, "intent", "") == "semantic"
+    )
+
+
+def _apply_adaptive_metadata_ranking(
+    results: list[dict],
+    decision: "RouterDecision | None",
+) -> list[dict]:
+    """Use metadata facets as cheap rerankers for composite searches.
+
+    A non-terminal metadata facet means the query contains a timestamp/size
+    constraint plus a real target/content ask. Retrieval still supplies the
+    candidate set; the metadata facet only breaks ties inside that relevant
+    set, so accuracy improves without adding a filesystem scan.
+    """
+
+    if not results or decision is None:
+        return results
+    kind = getattr(decision, "metadata_kind", None)
+    if not kind or getattr(decision, "metadata_terminal", False):
+        return results
+    return rank_results_by_metadata(results, kind)
+
+
 _QUERY_EDGE_QUOTES = "\"'“”‘’"
 
 
@@ -226,8 +266,85 @@ def _render_detail_for_result(
         and getattr(decision, "intent", "") == "semantic"
         and _is_filename_lookup_result(result)
     ):
+        result["_skygrep_semantic_depth"] = True
         return "full"
+    if (
+        decision is not None
+        and getattr(decision, "intent", "") == "semantic"
+        and _is_filename_lookup_result(result)
+    ):
+        result["_skygrep_semantic_depth"] = True
     return default_detail
+
+
+def _augment_filename_content_for_machine(
+    results: list[dict],
+    query: str,
+    decision: "RouterDecision | None",
+    *,
+    detail: str,
+    ocr: bool,
+    for_answer: bool = False,
+) -> None:
+    """Attach structured PDF/DOCX/TXT excerpts for machine consumers.
+
+    Human rendering can lazily extract document text inside
+    ``render_terminal_result``. JSON and ``--answer`` do not go through that
+    renderer, so they need the same evidence attached directly to the result
+    dict. This only fires for filename anchors when the query depth is
+    semantic/answer/full-detail; pure path lookups keep the lightweight
+    metadata-only shape.
+    """
+
+    semantic_depth = (
+        decision is not None
+        and getattr(decision, "intent", "") == "semantic"
+    )
+    should_extract = semantic_depth or for_answer or detail == "full"
+    if not should_extract:
+        return
+    try:
+        from . import binary_extract
+    except Exception:
+        return
+
+    for result in results:
+        if not _is_filename_lookup_result(result):
+            continue
+        raw_path = result.get("path") or result.get("file")
+        if not raw_path:
+            continue
+        try:
+            extracted = binary_extract.extract_text(Path(raw_path), ocr=ocr)
+        except Exception:
+            continue
+        result["extracted_text_source"] = extracted.source
+        if extracted.note:
+            result["extraction_note"] = extracted.note
+        anchor = str(result.get("filename_token") or Path(raw_path).stem)
+        excerpts = binary_extract.query_focused_passages(
+            extracted.text,
+            query,
+            anchor=anchor,
+            max_passages=1 if detail == "summary" else 2,
+            max_chars=220 if detail == "summary" else 900,
+        )
+        if excerpts:
+            result["query_excerpts"] = excerpts
+            result["content_excerpt"] = "\n\n".join(excerpts)
+        if detail == "full":
+            preview, was_truncated = binary_extract.truncate(
+                extracted.text, 1200,
+            )
+            if preview:
+                result["content_preview"] = preview
+                result["content_preview_truncated"] = was_truncated
+        if for_answer and excerpts:
+            metadata = result.get("snippet") or result.get("chunk") or ""
+            result["snippet"] = (
+                f"{metadata}\n\nRelevant excerpts:\n"
+                + "\n\n".join(excerpts)
+            ).strip()
 
 
 def _build_explain_string(r: dict, decision: "RouterDecision | None") -> str:
@@ -319,6 +436,10 @@ def _format_router_explain(
         pass
     if decision.source:
         head += f" · source={decision.source}"
+    meta = getattr(decision, "metadata_kind", None)
+    if meta:
+        mode = "terminal" if getattr(decision, "metadata_terminal", False) else "modifier"
+        head += f" · metadata={meta}:{mode}"
     reason = (decision.reason or "").strip()
     if include_reason and reason:
         head += f'\n   reason: "{reason}"'
@@ -351,8 +472,20 @@ def _attach_explain(results: list[dict], decision: "RouterDecision | None") -> N
 
 
 def render_json_results(results: list[dict]) -> str:
-    payload = [
-        {
+    payload = []
+    optional_keys = (
+        "fallback",
+        "filename_token",
+        "source",
+        "query_excerpts",
+        "content_excerpt",
+        "content_preview",
+        "content_preview_truncated",
+        "extracted_text_source",
+        "extraction_note",
+    )
+    for r in results:
+        item = {
             "path": r["path"],
             "start_line": r["start_line"],
             "end_line": r["end_line"],
@@ -360,8 +493,10 @@ def render_json_results(results: list[dict]) -> str:
             "score": float(r["score"]),
             "snippet": r["snippet"],
         }
-        for r in results
-    ]
+        for key in optional_keys:
+            if key in r:
+                item[key] = r[key]
+        payload.append(item)
     return json.dumps(payload, indent=2)
 
 
@@ -736,7 +871,7 @@ def search_cmd(
     # un-indexed directories (~/Downloads etc.).
     fn_results: list[dict] = []
     fn_elapsed = 0.0
-    if filename_shortcut and not decision.skip_filename and not agentic and not answer:
+    if filename_shortcut and not decision.skip_filename and not agentic:
         fn_start = time.time()
         fn_hits = ai.filename_shortcut(
             query, project_root, top_k=top, decision=decision
@@ -813,6 +948,7 @@ def search_cmd(
     # branch. This stays AUTO so the user never has to know which tier
     # to ask for; the `--lazy / --no-lazy` flag only opts out.
     conn = init_db(db_path)
+    answerer = None
 
     # Intelligent CLI hint — first-run nudge (0.2.4+). Once-per-project
     # greeting that explains the auto-index + rg-fallback flow so a
@@ -841,6 +977,100 @@ def search_cmd(
         except Exception as exc:
             logger.warning("background index spawn failed: %s", exc)
 
+        cold_filename_path_depth = (
+            decision.intent == "filename"
+            and not fn_results
+            and _filename_evidence_satisfies_depth(
+                query,
+                decision,
+                detail=detail,
+                answer=answer,
+                agentic=agentic,
+            )
+        )
+
+        # A path-depth filename query does not need a broad content grep
+        # before the out-of-scope filename lane. When the current scope is
+        # a large home tree, rg can take tens of seconds, hiding the fast
+        # answer behind the wrong tier. Try the bounded proactive filename
+        # search first; if it gives concrete paths, return immediately and
+        # let the background indexer continue independently.
+        pre_rg_proactive_results: list = []
+        pre_rg_proactive_elapsed = 0.0
+        pre_rg_proactive_ran = False
+        if cold_filename_path_depth:
+            pre_rg_proactive_ran = True
+            if not json_output:
+                click.echo(
+                    "▾ no local filename hit yet — proactive filename "
+                    "searching configured roots before broad keyword scan…",
+                    err=True,
+                )
+            try:
+                proactive_start = time.time()
+                from . import proactive as _proactive_cold_pre_rg
+                pre_rg_proactive_results, pre_rg_tele = (
+                    _proactive_cold_pre_rg.run_enhancers_parallel(
+                        query,
+                        decision,
+                        [],
+                        top_k=top,
+                        ctx=_proactive_cold_pre_rg.ProactiveContext(
+                            conn=conn, project_root=project_root,
+                        ),
+                    )
+                )
+                pre_rg_proactive_elapsed = time.time() - proactive_start
+                if (
+                    not json_output
+                    and pre_rg_tele.get("timed_out")
+                    and not pre_rg_proactive_results
+                ):
+                    click.echo(
+                        "↻ proactive filename search still running past "
+                        "the foreground budget; falling back to project "
+                        "keywords…",
+                        err=True,
+                    )
+            except Exception:
+                logger.exception(
+                    "pre-rg cold-start proactive filename search failed; "
+                    "falling through to rg/lazy"
+                )
+                pre_rg_proactive_results = []
+                pre_rg_proactive_elapsed = 0.0
+            if pre_rg_proactive_results:
+                rendered = _proactive_cold_pre_rg.render_proactive_output(
+                    pre_rg_proactive_results,
+                    content=content,
+                    project_root=str(project_root),
+                    detail=detail,
+                    ocr=ocr,
+                    explain=explain,
+                )
+                elapsed = router_elapsed + fn_elapsed + pre_rg_proactive_elapsed
+                if json_output:
+                    payload = []
+                    for pr in pre_rg_proactive_results:
+                        payload.extend(pr.extra_hits)
+                    click.echo(render_json_results(payload))
+                    return
+                if rendered:
+                    click.echo(rendered)
+                click.echo(f"\n✓ {elapsed:.3f}s · quality=BEST")
+                click.echo("   path   : proactive-filename")
+                click.echo(
+                    f"   router : {decision.source} → intent={decision.intent} "
+                    f"({decision.confidence:.2f})"
+                )
+                click.echo(
+                    f"   pool   : 0 filename + 0 rg + "
+                    f"{len(pre_rg_proactive_results)} proactive · "
+                    "rg/lazy-skipped"
+                )
+                click.echo("   index  : building in background")
+                return
+
         # 0.5.4 streaming UX: tell the user immediately that something
         # is happening. Otherwise the cold-start path stays silent for
         # the duration of the rg call (typically 100 ms but seconds on
@@ -852,6 +1082,12 @@ def search_cmd(
                 "🔍 ripgrep cold-start · scanning project keywords…",
                 err=True,
             )
+            if pre_rg_proactive_ran:
+                click.echo(
+                    "   proactive filename lane found no foreground answer; "
+                    "continuing with rg/lazy depth…",
+                    err=True,
+                )
 
         # Fall back to a pure-rg result for this query, merged with any
         # filename-lookup hits collected above so the cold-start path
@@ -868,6 +1104,7 @@ def search_cmd(
         if (
             decision.intent == "filename"
             and not fn_results
+            and not pre_rg_proactive_ran
             and _filename_evidence_satisfies_depth(
                 query,
                 decision,
@@ -990,7 +1227,7 @@ def search_cmd(
         early_printed_paths: set = set()
         early_printed_results: dict[str, dict] = {}
         will_fire_lazy = lazy and not rg_strong
-        if will_fire_lazy and not json_output:
+        if will_fire_lazy and not json_output and not answer:
             preliminary: list = []
             seen_p: set = set()
             for source in (fn_results, rg_cold):
@@ -1140,6 +1377,11 @@ def search_cmd(
                 (fn_results, lazy_results, cross_results, rg_cold),
                 top=top,
             )
+        elif _semantic_filename_anchor_should_lead(decision, fn_results):
+            results = _merge_sources_preferring_depth(
+                (fn_results, rg_cold),
+                top=top,
+            )
         else:
             results = merge_tiers(
                 filename=fn_results,
@@ -1148,9 +1390,13 @@ def search_cmd(
                 intent=intent,
                 top_k=top,
             )
+        results = _apply_adaptive_metadata_ranking(results, decision)
         if explain:
             _attach_explain(results, decision)
         if json_output:
+            _augment_filename_content_for_machine(
+                results, query, decision, detail=detail, ocr=ocr,
+            )
             click.echo(render_json_results(results))
             return
         # 0.2.8: try proactive enhancers in the cold-start path too.
@@ -1183,6 +1429,23 @@ def search_cmd(
                 "see progress.",
                 err=True,
             )
+            return
+        if answer:
+            answer_results = list(results)
+            for pr in cold_proactive_results:
+                answer_results.extend(pr.extra_hits)
+            _augment_filename_content_for_machine(
+                answer_results, query, decision, detail=detail, ocr=ocr,
+                for_answer=True,
+            )
+            if answerer is None:
+                answerer = get_answerer()
+            synthesized = answerer.answer(query, answer_results)
+            click.echo(synthesized)
+            click.echo("\nSources:")
+            for result in answer_results:
+                click.echo(render_compact_source(result))
+            click.echo(f"\n[Answer completed in {elapsed:.3f}s]")
             return
         # 0.5.4 streaming UX — STAGE 2: if STAGE 1 already printed
         # preliminary keyword hits, only echo NEW results found by the
@@ -1688,13 +1951,20 @@ def search_cmd(
     # v0.14.0 hierarchical merge — preliminary version (cascade
     # semantic + filename + lexical, no cross-folder yet).
     intent = decision.intent
-    results = merge_tiers(
-        filename=fn_results,
-        lexical=rg_results,
-        semantic=results,
-        intent=intent,
-        top_k=top,
-    )
+    if _semantic_filename_anchor_should_lead(decision, fn_results):
+        results = _merge_sources_preferring_depth(
+            (fn_results, results, rg_results),
+            top=top,
+        )
+    else:
+        results = merge_tiers(
+            filename=fn_results,
+            lexical=rg_results,
+            semantic=results,
+            intent=intent,
+            top_k=top,
+        )
+    results = _apply_adaptive_metadata_ranking(results, decision)
     if explain:
         _attach_explain(results, decision)
 
@@ -1805,6 +2075,7 @@ def search_cmd(
                 continue
             results.append(r)
             _seen_paths.add(p)
+        results = _apply_adaptive_metadata_ranking(results, decision)
         if explain:
             _attach_explain(results, decision)
     # 0.5.8 explainability: print the cascade-lane summary right before
@@ -1818,9 +2089,16 @@ def search_cmd(
         if _lane:
             click.echo(_lane, err=True)
     if json_output:
+        _augment_filename_content_for_machine(
+            results, query, decision, detail=detail, ocr=ocr,
+        )
         click.echo(render_json_results(results))
         return
     if answer:
+        _augment_filename_content_for_machine(
+            results, query, decision, detail=detail, ocr=ocr,
+            for_answer=True,
+        )
         if answerer is None:
             answerer = get_answerer()
         synthesized = answerer.answer(query, results)

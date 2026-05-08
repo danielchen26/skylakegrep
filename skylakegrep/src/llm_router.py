@@ -51,7 +51,7 @@ import requests
 from . import intent as intent_mod
 from .config import get_config
 from .fast_intent import best_filename_token, classify_fast_intent
-from .metadata_search import classify_metadata_query
+from .metadata_search import MetadataFacet, analyze_metadata_query
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ LLM_TIMEOUT_SECONDS = float(
     os.environ.get("SKYGREP_LLM_ROUTER_TIMEOUT_SECONDS", "8.0")
 )
 
-ROUTER_CACHE_VERSION = 3
+ROUTER_CACHE_VERSION = 4
 
 # Below this confidence the LLM's "skip_cascade" decision is ignored
 # — accuracy is the gold standard, never trust an unsure model.
@@ -105,6 +105,11 @@ class RouterDecision:
     # The keyword list in ``intelligent_cli`` remains as a deterministic
     # offline fallback, but is consulted only when this field is None.
     out_of_scope: str | None = None
+    # Metadata is a facet, not an intent. ``metadata_terminal`` means the
+    # query can be answered entirely from filesystem metadata; otherwise the
+    # facet is only a ranking/filter signal and semantic depth must continue.
+    metadata_kind: str | None = None
+    metadata_terminal: bool = False
 
 
 def _all_runs() -> RouterDecision:
@@ -115,6 +120,33 @@ def _all_runs() -> RouterDecision:
         source="fallback-mixed",
         reason="LLM unavailable and rule-based classifier did not produce a confident answer",
     )
+
+
+def _attach_metadata_facet(
+    decision: RouterDecision,
+    facet: MetadataFacet | None,
+) -> RouterDecision:
+    """Attach filesystem metadata as a plan facet, never as an intent."""
+
+    if facet is None:
+        return decision
+    decision.metadata_kind = facet.kind
+    decision.metadata_terminal = facet.terminal
+    if not facet.terminal and decision.out_of_scope in {"recency", "size", "listing"}:
+        decision.out_of_scope = "none"
+    if facet.terminal:
+        decision.out_of_scope = "size" if facet.kind == "size" else "recency"
+    raw = dict(decision.raw or {})
+    raw["metadata_facet"] = {
+        "kind": facet.kind,
+        "terminal": facet.terminal,
+        "descriptor_count": len(facet.target_descriptors),
+    }
+    decision.raw = raw
+    if not facet.terminal and "metadata facet" not in (decision.reason or ""):
+        suffix = f"metadata facet={facet.kind} used as modifier, not terminal"
+        decision.reason = (f"{decision.reason}; {suffix}" if decision.reason else suffix)[:200]
+    return decision
 
 
 # ---- Rule-based fallback (compatibility with v0.14.0) -------------
@@ -182,6 +214,11 @@ Given the user's query, decide:
     - "none"     ⇐ semantic / lexical / filename content search
                   (the common case — default to this when uncertain)
 
+Important: recency / size words are metadata constraints, not always the
+whole answer. If the query asks for a particular target or content ("the report
+I recently created", "latest python file that handles auth"), keep
+out_of_scope="none" and keep semantic / filename search enabled.
+
 Output ONLY a JSON object with these exact keys, no prose, no markdown.
 
 Examples:
@@ -203,6 +240,9 @@ Query: "auth login"
 
 Query: "我昨天打开过的十个文件"
 {{"intent": "mixed", "primary_token": "", "skip_cascade": false, "skip_filename": false, "extract_content": false, "confidence": 0.9, "reason": "user wants files modified yesterday — filesystem mtime query", "out_of_scope": "recency"}}
+
+Query: "where is the report I recently created in PROJECT"
+{{"intent": "filename", "primary_token": "", "skip_cascade": false, "skip_filename": false, "extract_content": true, "confidence": 0.75, "reason": "recency constrains a specific artifact search rather than answering alone", "out_of_scope": "none"}}
 
 Query: "list all the largest python files"
 {{"intent": "mixed", "primary_token": "", "skip_cascade": false, "skip_filename": false, "extract_content": false, "confidence": 0.85, "reason": "user wants flat listing of files sorted by size — filesystem query", "out_of_scope": "listing"}}
@@ -346,7 +386,8 @@ def _cache_get(conn: sqlite3.Connection, query: str) -> RouterDecision | None:
     known = {
         "intent", "primary_token", "skip_cascade", "skip_filename",
         "skip_lexical", "extract_content", "confidence", "source",
-        "reason", "raw", "out_of_scope",
+        "reason", "raw", "out_of_scope", "metadata_kind",
+        "metadata_terminal",
     }
     cleaned = {k: v for k, v in d.items() if k in known}
     return RouterDecision(**cleaned)
@@ -371,6 +412,8 @@ def _cache_set(conn: sqlite3.Connection, query: str, decision: RouterDecision) -
             "reason": decision.reason,
             "raw": decision.raw,
             "out_of_scope": decision.out_of_scope,
+            "metadata_kind": decision.metadata_kind,
+            "metadata_terminal": decision.metadata_terminal,
         })
         conn.execute(
             "INSERT OR REPLACE INTO router_cache (query, decision) "
@@ -585,9 +628,9 @@ def route_query(
     if not query or not query.strip():
         return _all_runs()
 
-    metadata = classify_metadata_query(query)
-    if metadata is not None:
-        oos = "size" if metadata.kind == "size" else "recency"
+    metadata_facet = analyze_metadata_query(query)
+    if metadata_facet is not None and metadata_facet.terminal:
+        oos = "size" if metadata_facet.kind == "size" else "recency"
         return RouterDecision(
             intent="mixed",
             primary_token="",
@@ -597,12 +640,19 @@ def route_query(
             extract_content=False,
             confidence=0.95,
             source="fast-metadata",
-            reason=metadata.reason,
+            reason=metadata_facet.reason,
             out_of_scope=oos,
+            metadata_kind=metadata_facet.kind,
+            metadata_terminal=True,
         )
 
     fast = classify_fast_intent(query)
-    if fast is not None:
+    # Metadata is a terminal fast lane only when classify_metadata_query()
+    # accepted the whole query above. If fast-intent sees recency/size words
+    # inside a query with residual target constraints, those words are search
+    # modifiers, not the answer. Fall through to LLM / safe routing so content
+    # depth is still decided by the full query.
+    if fast is not None and fast.intent != "metadata":
         anchor_token = best_filename_token(query)
         primary_token = fast.primary_token
         skip_filename = fast.intent == "semantic"
@@ -624,6 +674,7 @@ def route_query(
             reason=fast.reason,
             out_of_scope="none",
         )
+        cheap = _attach_metadata_facet(cheap, metadata_facet)
         if conn is not None:
             _cache_set(conn, query, cheap)
         return cheap
@@ -652,6 +703,7 @@ def route_query(
             logger.debug("LLM router unexpected error: %s", exc)
             decision = None
         if decision is not None:
+            decision = _attach_metadata_facet(decision, metadata_facet)
             if conn is not None:
                 _cache_set(conn, query, decision)
             return decision
@@ -660,9 +712,10 @@ def route_query(
     # call failed, return the cached fallback rather than re-running the
     # rule-based classifier (we already have the answer).
     if cached is not None:
-        return cached
+        return _attach_metadata_facet(cached, metadata_facet)
 
     decision = _rule_based_decision(query)
+    decision = _attach_metadata_facet(decision, metadata_facet)
     if conn is not None:
         _cache_set(conn, query, decision)
     return decision

@@ -701,6 +701,7 @@ def filename_shortcut(
         results.append({
             "path": p,
             "file": p,
+            "query": query,
             "chunk": snippet,
             "snippet": snippet,
             "language": suffix,

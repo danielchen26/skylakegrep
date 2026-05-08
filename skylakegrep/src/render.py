@@ -327,21 +327,63 @@ def render_terminal_result(
     if has_meta and detail != "summary":
         body_lines.append("")
 
-    # Lazy binary-content extraction for filename-lookup results in
-    # `--detail=full` mode. PDFs and docx are not in the chunk index,
-    # so the only way to surface their content is to extract on demand.
+    # Lazy binary-content extraction for filename-lookup results.
+    # PDFs and docx are not in the chunk index, so query-depth document
+    # evidence must be extracted on demand. For semantic-depth queries,
+    # show query-focused raw passages first; for pure path lookups,
+    # keep extraction opt-in via `--detail=full`.
     extracted_preview = ""
-    if detail == "full" and fallback == "filename-lookup":
+    semantic_depth = bool(r.get("_skygrep_semantic_depth"))
+    query_text = str(r.get("query") or "").strip()
+    should_extract_binary = (
+        fallback == "filename-lookup"
+        and (
+            detail == "full"
+            or (semantic_depth and detail in {"summary", "standard"})
+        )
+    )
+    if should_extract_binary:
         from . import binary_extract
         from pathlib import Path as _P
         try:
             ex = binary_extract.extract_text(_P(raw_path), ocr=ocr)
-            preview, was_truncated = binary_extract.truncate(ex.text, 1200)
-            if preview:
+            anchor = str(r.get("filename_token") or _P(raw_path).stem)
+            focused: list[str] = []
+            if query_text:
+                focused = binary_extract.query_focused_passages(
+                    ex.text,
+                    query_text,
+                    anchor=anchor,
+                    max_passages=1 if detail == "summary" else 2,
+                    max_chars=220 if detail == "summary" else 900,
+                )
+            preview = ""
+            was_truncated = False
+            if detail == "full":
+                preview, was_truncated = binary_extract.truncate(ex.text, 1200)
+            elif not focused:
+                preview, was_truncated = binary_extract.truncate(ex.text, 220)
+            if focused:
+                label = f"{ex.source} · query excerpts"
                 extracted_preview = (
-                    f"{_DIM}[{ex.source}{' · truncated' if was_truncated else ''}]{_RESET}\n"
-                    if use_color
-                    else f"[{ex.source}{' · truncated' if was_truncated else ''}]\n"
+                    f"{_DIM}[{label}]{_RESET}\n"
+                    if use_color else f"[{label}]\n"
+                )
+                extracted_preview += "\n\n".join(focused)
+                if detail == "full" and preview:
+                    extracted_preview += (
+                        f"\n\n{_DIM}[{ex.source} · full preview"
+                        f"{' · truncated' if was_truncated else ''}]{_RESET}\n"
+                        if use_color
+                        else f"\n\n[{ex.source} · full preview"
+                        f"{' · truncated' if was_truncated else ''}]\n"
+                    )
+                    extracted_preview += preview
+            elif preview:
+                label = f"{ex.source}{' · truncated' if was_truncated else ''}"
+                extracted_preview = (
+                    f"{_DIM}[{label}]{_RESET}\n"
+                    if use_color else f"[{label}]\n"
                 )
                 extracted_preview += preview
             elif ex.note:

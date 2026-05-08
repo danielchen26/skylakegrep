@@ -197,6 +197,59 @@ def test_fast_metadata_handles_opened_files_without_llm():
     assert d.source == "fast-metadata"
     assert d.out_of_scope == "recency"
     assert d.skip_cascade is False
+    assert d.metadata_kind == "opened"
+    assert d.metadata_terminal is True
+
+
+def test_fast_metadata_handles_created_files_without_llm():
+    with patch(
+        "skylakegrep.src.llm_router.requests.post",
+        side_effect=AssertionError("LLM should not be called"),
+    ):
+        d = route_query("show recently created files")
+    assert d.intent == "mixed"
+    assert d.source == "fast-metadata"
+    assert d.out_of_scope == "recency"
+    assert d.metadata_kind == "created"
+    assert d.metadata_terminal is True
+
+
+def test_composite_metadata_query_does_not_become_router_metadata():
+    with patch(
+        "skylakegrep.src.llm_router.requests.post",
+        side_effect=AssertionError("LLM should not be called"),
+    ):
+        d = route_query(
+            "show me where my project brief that I recently created "
+            "in PROJECT folder",
+            use_llm=False,
+        )
+    assert d.intent in {"filename", "semantic", "mixed"}
+    assert d.intent != "metadata"
+    assert d.source == "fallback-rules"
+    assert d.out_of_scope is None
+    assert d.metadata_kind == "created"
+    assert d.metadata_terminal is False
+
+
+def test_metadata_modifier_overrides_llm_out_of_scope_for_composite_query():
+    fake = RouterDecision(
+        intent="mixed",
+        source="llm",
+        confidence=0.9,
+        out_of_scope="recency",
+        reason="model treated recency as the whole query",
+    )
+    with patch.object(router, "_llm_decision", return_value=fake):
+        d = route_query(
+            "show me where my project brief that I recently created "
+            "in PROJECT folder",
+            use_llm=True,
+        )
+    assert d.source == "llm"
+    assert d.out_of_scope == "none"
+    assert d.metadata_kind == "created"
+    assert d.metadata_terminal is False
 
 
 def test_fast_intent_handles_multilingual_identifier_lookup():

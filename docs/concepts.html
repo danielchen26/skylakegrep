@@ -147,6 +147,15 @@
  <code>skylakegrep/src/storage.py</code>. They are not exposed
  through CLI flags in this release.
  </p>
+ <h3>Metadata as a facet, not an intent</h3>
+ <p>
+ Filesystem metadata such as opened time, modified time, created time,
+ and size is treated as a query-plan facet. If metadata fully answers
+ the question, skygrep uses a fast filesystem lane and skips semantic
+ work. If the query still contains a target or content constraint,
+ metadata becomes a modifier: retrieval still finds relevant files, and
+ metadata only reranks those already-relevant candidates.
+ </p>
  </section>
 
  <!-- ============== Concepts: Output ============== -->
