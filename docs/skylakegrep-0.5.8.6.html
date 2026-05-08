@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.8.6 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.8.6 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.8.6</p>
+<h1>skylakegrep 0.5.8.6 — fast path answers without sacrificing semantic depth</h1>
+<p>0.5.8.6 tightens the routing contract for both direct CLI use and agent
+wrappers such as Claude Code, Codex, and OpenCode. Filename evidence is
+now treated as an answer only for path-depth questions. When the query
+asks about content, behavior, or explanation, the filename match stays
+as an anchor and the same invocation continues through lazy semantic
+refinement.</p>
+<p>The goal is simple: fast when the answer is a path, deeper when the
+question needs understanding.</p>
+<h2>What changed</h2>
+<ul>
+<li>Human output now shows the active routing lane by default:</li>
+</ul>
+<p><code>🧭 router: semantic · primary_token="CASE42_Project_Report" · conf=0.81 · source=fast-intent</code></p>
+<p><code>--explain</code> still adds the detailed reason, per-result <code>via:</code> lines,
+  and cascade-lane evidence.</p>
+<ul>
+<li>Filename finality is now answer-depth gated. A concrete filename hit
+  can finish a path-depth query, but it cannot terminate semantic or
+  synthesized-answer queries.</li>
+<li>Semantic queries that include a filename-like clue keep the filename
+  tier enabled. The file is used as an anchor while semantic/cascade
+  retrieval remains active.</li>
+<li>Cold-start semantic queries now stream a better first stage: if the
+  filename tier finds an anchor, standard output shows a bounded content
+  preview from that file before lazy refinement continues.</li>
+<li>Lazy refinement can upgrade a preliminary filename card to a deeper
+  semantic/content result for the same path instead of losing the deeper
+  result to path-only de-duplication.</li>
+<li>Cross-folder lazy expansion is no longer triggered when the current
+  scope already found a filename anchor. This avoids slow, noisy home-root
+  diffusion for semantic questions that already have a local file to
+  inspect.</li>
+<li>Metadata questions such as "latest files I opened" use a fast
+  filesystem metadata lane before Ollama/router/index work.</li>
+<li>Installation docs now use <code>python3 -m pip install --user</code>, list Ollama
+  model pulls one per command, and include a clean uninstall/reinstall
+  path for users with multiple Python installs.</li>
+</ul>
+<h2>Verified examples</h2>
+<p>All examples below use fictional placeholder names and temporary test
+directories.</p>
+<h3>Path-depth</h3>
+<pre><code>skygrep &quot;where is CASE42 file&quot;
+</code></pre>
+<p>Verified output shape:</p>
+<pre><code>🧭 router: filename · primary_token=&quot;CASE42&quot; · conf=0.95 · source=fast-intent
+✓ 0.031s · quality=BEST
+   path   : proactive-filename
+   pool   : 0 filename + 0 rg + 1 proactive · lazy-skipped
+   index  : building in background
+</code></pre>
+<p>Wall time in the release verification run: <code>0.40s</code>.</p>
+<h3>Semantic-depth with a filename anchor</h3>
+<pre><code>skygrep &quot;what does CASE42_Project_Report say about retries&quot;
+</code></pre>
+<p>Verified behavior:</p>
+<pre><code>🧭 router: semantic · primary_token=&quot;CASE42_Project_Report&quot; · conf=0.81 · source=fast-intent
+▾ preliminary filename anchors + keyword matches (lazy semantic refinement starting…):
+│ CASE42 retry policy uses exponential backoff after transient failures.
+🔍 lazy auto-trigger · scanning project structure…
+⚡ embedding 1 files (1 Ollama call)…
+▾ lazy semantic search added no new matches (top-K above is the final answer).
+</code></pre>
+<p>Wall time in the release verification run: <code>2.44s</code>.</p>
+<h3>Metadata lane</h3>
+<pre><code>skygrep &quot;what is the latest 2 files i opened&quot;
+</code></pre>
+<p>Verified output shape:</p>
+<pre><code>✓ 0.001s · quality=BEST
+   path   : metadata-opened
+   pool   : 2 files · semantic-skipped
+</code></pre>
+<p>Wall time in the release verification run: <code>0.22s</code>.</p>
+<h2>Verification</h2>
+<ul>
+<li>Full test suite:
+  <code>253 passed, 2 warnings</code>.</li>
+<li>Source privacy scan:
+  <code>privacy release scan clean</code>.</li>
+<li>Routing-depth checks:</li>
+<li><code>where is CASE42 file</code> -&gt; <code>intent=filename</code>, <code>filename_final=True</code>.</li>
+<li><code>what does CASE42 file say about retries</code> -&gt; <code>intent=semantic</code>,
+    <code>skip_cascade=False</code>, <code>filename_final=False</code>.</li>
+<li><code>explain CASE42_Project_Report logic</code> -&gt; <code>intent=semantic</code>,
+    <code>primary_token=CASE42_Project_Report</code>, <code>skip_filename=False</code>,
+    <code>filename_final=False</code>.</li>
+<li><code>how does cloud code call skygrep for routing</code> -&gt; <code>intent=semantic</code>,
+    <code>skip_cascade=False</code>, <code>filename_final=False</code>.</li>
+</ul>
+<h2>Compatibility</h2>
+<ul>
+<li>No index schema change.</li>
+<li>No required index rebuild.</li>
+<li>Public CLI flags are unchanged.</li>
+<li>JSON output shape is unchanged.</li>
+<li>Human output now includes the concise router lane by default; use
+  <code>--json</code> for machine-readable output without human status lines.</li>
+</ul></article>
+</main>
+</div>
+</body></html>

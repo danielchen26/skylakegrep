@@ -413,7 +413,7 @@ def _default_search_dirs() -> list[Path]:
 def _filename_token(query: str, decision: Any) -> str:
     """Pick the most filename-identifier-like token from the
     query, preferring a non-empty ``decision.primary_token`` when
-    the LLM router has already done the work for us."""
+    the fast-intent or LLM router has already done the work for us."""
 
     try:
         from .auto_index import _filename_candidate_tokens
@@ -433,33 +433,29 @@ def _filename_tokens(query: str, decision: Any) -> list[str]:
 
 
 def _looks_like_identifier(token: str) -> bool:
-    """Token-shape classifier (content morphology, NOT keyword
-    enumeration): is this token specific enough to be worth
-    filename-matching against?
+    """Content-shape classifier: is this token specific enough to glob?
 
-    Three signals (any one suffices):
+    Signals (any one suffices):
       - has digits  (``v6.2``, ``task-001``, ``inv-2024``)
       - has internal punctuation  (``foo.bar``, ``my-file``)
       - mixed case  (``CamelCase``, ``PascalCase``)
+      - compact CJK span produced by generic script n-gramming
 
-    Used in the gate's morphology-fallback path (when LLM didn't
-    supply ``primary_token``) to decide whether the candidate token
-    is identifier-quality. Without this filter, queries like
-    ``"how does cascade work"`` would treat ``cascade`` as a
-    filename candidate, surfacing false positives. With it, only
-    structurally-distinctive tokens trigger filename-extend.
-
-    The LLM router prompt uses the same family of signals to score
-    candidate ``primary_token`` choices, so we share the criterion
-    at the code level.
+    This is used only after upstream intent is already ``filename``.
+    It avoids language-specific wrapper stripping while still allowing
+    non-Latin filename clues.
     """
 
     if not token or len(token) < 3:
+        # Two-character CJK nouns are common filename clues.
+        if len(token) >= 2 and all("\u3400" <= c <= "\u9fff" for c in token):
+            return True
         return False
     return (
         any(c.isdigit() for c in token)
         or any(c in "._-" for c in token)
         or (token != token.lower() and token != token.upper())
+        or all("\u3400" <= c <= "\u9fff" for c in token)
     )
 
 
@@ -478,12 +474,13 @@ def filename_extend_should_fire(
     Two cases (the only two):
 
       - ``results`` empty → conventional retrieval failed; fire.
-      - ``results`` non-empty → fire only if the LLM-provided
-        ``primary_token`` does NOT appear in any result's basename
+      - ``results`` non-empty → fire only if the router-provided
+        ``primary_token`` or generic candidate clues do NOT appear in
+        any result's basename
         (cascade returned semantically-related noise but not the
-        actual file the user asked for). When the LLM didn't
-        provide a token, trust that the cascade answered and don't
-        fire — there's nothing to validate against.
+        actual file the user asked for). When there is no safe token,
+        trust that the cascade answered and don't fire — there's
+        nothing to validate against.
 
     Token-shape decisions still live inside ``filename_extend_execute``:
     the gate decides whether filename extension is relevant, and execute
@@ -503,16 +500,11 @@ def filename_extend_should_fire(
     # files like UUIDs in Julia ``Project.toml`` / ``Manifest.toml``)
     # — we should still extend the search.
     #
-    # Token source priority: (1) LLM-supplied ``primary_token`` if
-    # present (Principle 1: trust the LLM). (2) ``_filename_token``
-    # morphology fallback when LLM was unreachable / didn't fill the
-    # field. The 0.2.10 gate gave up at step (1) without (2), which
-    # silenced proactive on every cold-start where the rule-based
-    # router runs (no Ollama available, network down, etc.). This
-    # is a content-shape fallback, not keyword enumeration —
-    # ``_filename_token`` runs the same regex + identifier-shape
-    # scoring the LLM router uses internally to score
-    # ``primary_token`` candidates.
+    # Token source priority: (1) router-supplied ``primary_token`` if
+    # present, from either fast intent or LLM. (2) generic candidate
+    # extraction when the router did not fill the field. Candidate
+    # extraction uses content shape and script n-grams, then the actual
+    # basename match below decides whether it is evidence.
     raw_primary = (getattr(decision, "primary_token", "") or "").strip()
     candidates = _filename_tokens(query, decision)
     if raw_primary:
@@ -523,8 +515,8 @@ def filename_extend_should_fire(
         # this check, queries like ``"how does cascade work"`` would
         # treat ``cascade`` as a filename candidate and fire on
         # any non-cascade result, surfacing irrelevant matches from
-        # ``~/Downloads``. The LLM-supplied ``primary_token`` path
-        # above is already an understanding-layer decision.
+        # ``~/Downloads``. A router-supplied ``primary_token`` above is
+        # already an understanding-layer decision.
         token_lowers = [
             t.lower() for t in candidates if _looks_like_identifier(t)
         ]
@@ -619,14 +611,9 @@ def filename_extend_execute(
             deduped.append((h, d))
     deduped = deduped[:10]
 
+    token = tokens[0] if tokens else ""
     extra_hits = [
-        {
-            "path": h,
-            "score": 0.0,
-            "language": Path(h).suffix.lstrip(".") or "file",
-            "search_dir": d,
-            "source": "proactive:filename_extend",
-        }
+        _filename_lookup_hit(h, search_dir=d, token=token)
         for h, d in deduped
     ]
     if not extra_hits:
@@ -642,6 +629,53 @@ def filename_extend_execute(
         ),
         commands=[f'cd {first_dir} && skygrep "{query}"'],
     )
+
+
+def _filename_lookup_hit(path: str, *, search_dir: str, token: str) -> dict:
+    """Normalize proactive filename hits to the same schema as the
+    in-scope ``auto_index.filename_shortcut`` lane.
+
+    That shared schema is the answer-depth contract: default rendering
+    can show the path + metadata immediately, while ``--detail=full`` can
+    lazily extract text from the concrete file without waiting for a
+    semantic index. The proactive enhancer stays a generic path-finding
+    layer; content extraction remains opt-in at render time.
+    """
+
+    path_obj = Path(path)
+    try:
+        st = path_obj.stat()
+        size_kb = st.st_size / 1024.0
+        mtime_str = time.strftime(
+            "%Y-%m-%d %H:%M", time.localtime(st.st_mtime)
+        )
+    except OSError:
+        size_kb = 0.0
+        mtime_str = "?"
+    suffix = path_obj.suffix.lstrip(".") or "file"
+    snippet = (
+        f"size: {size_kb:>7.1f} KB    "
+        f"modified: {mtime_str}    "
+        f"type: {suffix}"
+    )
+    return {
+        "path": path,
+        "file": path,
+        "chunk": snippet,
+        "snippet": snippet,
+        "language": suffix,
+        "start_line": None,
+        "end_line": None,
+        "start_byte": None,
+        "end_byte": None,
+        "score": 1.0,
+        "semantic_score": 0.0,
+        "lexical_score": 1.0,
+        "fallback": "filename-lookup",
+        "filename_token": token,
+        "search_dir": search_dir,
+        "source": "proactive:filename_extend",
+    }
 
 
 def _find_one_dir(d: Path, token: str, timeout_s: float) -> list[str]:
@@ -806,7 +840,15 @@ register_enhancer(
 # ---------------------------------------------------------------------------
 
 
-def render_proactive_output(results: list[ProactiveResult]) -> str:
+def render_proactive_output(
+    results: list[ProactiveResult],
+    *,
+    content: bool = True,
+    project_root: str | None = None,
+    detail: str = "standard",
+    ocr: bool = False,
+    explain: bool = False,
+) -> str:
     """Format proactive results as a footer-block string the CLI
     can echo after the main results. ``""`` when nothing fired."""
 
@@ -817,13 +859,26 @@ def render_proactive_output(results: list[ProactiveResult]) -> str:
         lines.append("")
         lines.append(f"💡 {pr.note}")
         for hit in pr.extra_hits:
-            sz_kb = ""
-            try:
-                sz = Path(hit["path"]).stat().st_size
-                sz_kb = f" · {sz // 1024} KB" if sz else ""
-            except Exception:
-                pass
-            lines.append(f"   📄 {hit['path']}{sz_kb}")
+            if detail == "full":
+                from .render import render_terminal_result
+                lines.append(
+                    render_terminal_result(
+                        hit,
+                        content=content,
+                        project_root=project_root,
+                        detail=detail,
+                        ocr=ocr,
+                        explain=explain,
+                    )
+                )
+            else:
+                sz_kb = ""
+                try:
+                    sz = Path(hit["path"]).stat().st_size
+                    sz_kb = f" · {sz // 1024} KB" if sz else ""
+                except Exception:
+                    pass
+                lines.append(f"   📄 {hit['path']}{sz_kb}")
         for cmd in pr.commands:
             lines.append(f"   → next: {cmd}")
     return "\n".join(lines)

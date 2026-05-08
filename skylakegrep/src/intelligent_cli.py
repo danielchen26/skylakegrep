@@ -48,6 +48,8 @@ import re
 import sqlite3
 from typing import Any, Iterable, Optional
 
+from .metadata_search import classify_metadata_query
+
 
 # ---------------------------------------------------------------------------
 # Out-of-scope query detection
@@ -168,6 +170,14 @@ def detect_out_of_scope(
     Returns a dict with ``reason`` and ``suggested_command`` when
     the query is flagged.
     """
+
+    explicit_metadata = classify_metadata_query(query)
+    if explicit_metadata is not None:
+        hint_kind = "size" if explicit_metadata.kind == "size" else "recency"
+        return _hint_for_kind(
+            hint_kind,
+            reason=explicit_metadata.reason,
+        )
 
     # ---- Primary path: LLM-driven classification (0.2.6+) ----
     if decision is not None:

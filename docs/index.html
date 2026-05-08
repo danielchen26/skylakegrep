@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.8 adds --explain: every result tells you why it matched (router rationale + per-result channel breakdown + cascade-lane evidence). Returns a first answer in about a second even when the working directory is the wrong project (parallel proactive umbrella, real-CLI verified at ~1.1 s). 30/30 (100%) recall fully-indexed on Django + React + Tokio at 60×–770× less context than ripgrep. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
+ <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.8.6 keeps path-depth answers fast while semantic questions continue past filename anchors in the same invocation. Router lanes are visible by default; --explain adds per-result provenance and cascade evidence. 30/30 (100%) recall fully-indexed on Django + React + Tokio at 60×–770× less context than ripgrep. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.8 adds --explain so every result tells you why it matched. ~1 s answer even from the wrong folder. 30/30 fully-indexed on Django+React+Tokio at 60×–770× less context vs ripgrep. 100% local, 100+ languages." />
+ <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.8.6 keeps path-depth answers fast while semantic questions continue past filename anchors, with visible router lanes and progressive refinement. 30/30 fully-indexed on Django+React+Tokio at 60×–770× less context vs ripgrep. 100% local, 100+ languages." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -623,7 +623,7 @@
 }
 </style>
 <section id="overview" class="hero hero-redesigned">
- <p class="eyebrow">v0.5.8.5 · 100% local · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.5.8.6 · 100% local · PolyForm Noncommercial 1.0.0</p>
  <h1>Find <span class="hero-accent">anything</span> on your machine.</h1>
  <p class="lead">
  Semantic search for code, PDFs, notes, and docs.
@@ -696,7 +696,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <span class="dot">·</span>
  <strong>100 %</strong> local
  <span class="dot">·</span>
- <strong>38</strong> releases shipped
+ <strong>41</strong> releases shipped
  </p>
 </section>
 
@@ -830,15 +830,15 @@ Throughput projections under sustained 5k QPS load...</pre>
  </div>
  </article>
 
- <!-- Card 4: Why this matched (--explain, 0.5.8+) -->
+ <!-- Card 4: Routing transparency + why this matched (0.5.8+) -->
  <article class="scenario-card">
- <div class="scenario-tag">🔍 WHY THIS MATCHED · 0.5.8+</div>
- <h3>Pass <code>--explain</code> and skygrep tells you why each result was returned.</h3>
+ <div class="scenario-tag">🔍 ROUTING TRANSPARENCY · 0.5.8+</div>
+ <h3>The active router lane is visible by default; <code>--explain</code> adds the deeper why.</h3>
  <p>
- Three layers answer three different "why" questions: a
- <strong>router rationale</strong> at the top
- (<code>🧭 router: filename · primary_token=… · conf=… · source=llm</code> +
- a one-sentence reason), a per-result <strong><code>via:</code> line</strong>
+ The first human-output line now shows the active router lane
+ (<code>🧭 router: semantic · primary_token=… · conf=… · source=…</code>).
+ Pass <code>--explain</code> when you need the deeper audit trail:
+ a one-sentence reason, per-result <strong><code>via:</code> lines</strong>
  showing which channel(s) contributed (cosine cascade · symbol
  RRF · filename-lookup · ripgrep) and the score, and a
  <strong>cascade-lane summary</strong> at the bottom with the
@@ -847,12 +847,12 @@ Throughput projections under sustained 5k QPS load...</pre>
  pipeline.
  </p>
  <div class="scenario-demo">
- <div class="sd-prompt"><span class="term-prompt">$</span>skygrep -x "find pyproject.toml in this repo"</div>
- <div class="sd-result">🧭 router: <strong>filename</strong> · primary_token=<code>"pyproject.toml"</code> · conf=0.95 · source=llm</div>
- <div class="sd-result">&nbsp;&nbsp;&nbsp;reason: "user is looking for a specific file by name in the repo"</div>
- <div class="sd-result">═══ <code>pyproject.toml</code> · <code>via: filename-lookup · token "pyproject.toml" · score=1.000</code></div>
- <div class="sd-result">🛤 cascade lane: <code>cosine-cheap (gap=0.037, tau=0.016)</code></div>
- <div class="sd-takeaway"><strong>Bonus 0.5.8:</strong> if Ollama isn't running but is installed, skygrep autostarts it in the background and tells you — no more silent rule-based fallbacks.</div>
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "what does CASE42_Project_Report say about retries"</div>
+ <div class="sd-result">🧭 router: <strong>semantic</strong> · primary_token=<code>"CASE42_Project_Report"</code> · conf=0.81 · source=fast-intent</div>
+ <div class="sd-result">▾ preliminary filename anchors + keyword matches (lazy semantic refinement starting…)</div>
+ <div class="sd-result">═══ <code>CASE42_Project_Report.txt</code> · bounded content preview</div>
+ <div class="sd-result">⚡ lazy refinement continues in the same invocation</div>
+ <div class="sd-takeaway"><strong>0.5.8.6:</strong> filename matches are final only for path-depth questions; semantic questions keep the file as an anchor and continue deeper search.</div>
  </div>
  </article>
  </div>
@@ -878,7 +878,7 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap"></div>
      <div class="why-cell why-self">
        <strong>skylakegrep</strong>
-       <span class="why-sub">v0.5.8.5</span>
+       <span class="why-sub">v0.5.8.6</span>
      </div>
      <div class="why-cell"><code>ripgrep</code><span class="why-sub">lexical baseline</span></div>
      <div class="why-cell"><a href="https://www.mgrep.dev/" target="_blank" rel="noopener">mgrep</a><span class="why-sub">Mixedbread · paid</span></div>
@@ -1028,7 +1028,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <tr><th></th><th>skylakegrep 0.5.x</th><th>Elasticsearch</th></tr>
  </thead>
  <tbody>
- <tr><td><strong>Setup</strong></td><td><code>pip install skylakegrep</code>; cold-start lazy auto-trigger</td><td>JVM, cluster, mappings, ingest pipeline, dense-vector plugin, reindex</td></tr>
+ <tr><td><strong>Setup</strong></td><td><code>python3 -m pip install --user skylakegrep</code>; cold-start lazy auto-trigger</td><td>JVM, cluster, mappings, ingest pipeline, dense-vector plugin, reindex</td></tr>
  <tr><td><strong>Semantic retrieval</strong></td><td>bge-m3 (1024-d, 100+ languages) via local Ollama, out of the box</td><td>Manual: pick embedder, pipeline, dimension, reindex</td></tr>
  <tr><td><strong>Intent understanding</strong></td><td>qwen2.5:3b LLM router classifies intent / scope / primary_token per query</td><td>None natively; you write query DSL by hand</td></tr>
  <tr><td><strong>Code AST awareness</strong></td><td>tree-sitter symbol channel, RRF-fused with cosine</td><td>None; code is plain text</td></tr>
@@ -1063,7 +1063,17 @@ Throughput projections under sustained 5k QPS load...</pre>
  <h2>Install the CLI and a local embedding model.</h2>
 
  <h3>Package install</h3>
- <pre><code>pip install skylakegrep</code></pre>
+<pre><code>python3 --version
+python3 -m pip install --user skylakegrep
+skygrep doctor</code></pre>
+ <p>
+ macOS often ships without a <code>python</code> command. Use
+ <code>python3 -m pip</code> so the package, script, and diagnostics all
+ refer to the same Python installation. If <code>skygrep</code> is not
+ on <code>PATH</code> after install, inspect <code>python3 -m site --user-base</code>,
+ <code>which -a skygrep</code>, and <code>python3 -m pip show skylakegrep</code>.
+ </p>
+<pre><code>export PATH="$(python3 -m site --user-base)/bin:$PATH"</code></pre>
 
  <h3>From source</h3>
 <pre><code>git clone https://github.com/danielchen26/skylakegrep.git
@@ -1083,10 +1093,21 @@ pip install -e .</code></pre>
 ollama pull mxbai-embed-large # 1024-dim, English/code only
 ollama pull nomic-embed-text # 768-dim, smaller</code></pre>
  <p>
- Pull a generation model only if <code>--answer</code> or <code>--agentic</code>
- will be used:
+ Pull the default generation/router model separately. Ollama expects one
+ model per <code>ollama pull</code> command:
  </p>
 <pre><code>ollama pull qwen2.5:3b</code></pre>
+
+ <h3>Clean reinstall</h3>
+<pre><code>skygrep setup --uninstall || true
+python3 -m pip uninstall -y skylakegrep
+rm -rf ~/.skylakegrep        # optional: deletes only skygrep indexes/config
+ollama rm bge-m3             # optional
+ollama rm qwen2.5:3b         # optional
+python3 -m pip install --user --no-cache-dir skylakegrep
+ollama pull bge-m3
+ollama pull qwen2.5:3b
+skygrep doctor</code></pre>
  </section>
 
  <!-- ============== Quickstart ============== -->

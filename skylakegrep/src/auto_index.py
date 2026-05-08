@@ -34,6 +34,11 @@ import click
 
 from . import config, storage
 from .embeddings import get_embedder
+from .fast_intent import (
+    classify_fast_intent,
+    filename_candidates,
+    is_pathlike_candidate,
+)
 from .hybrid import extract_query_terms, lexical_candidate_paths
 from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
 
@@ -551,102 +556,21 @@ def lexical_shortcut(
 # returns the wrong files because the query token may not appear
 # inside any text. The right tool is `find -iname '*token*'`.
 #
-# We add a third routing tier that fires BEFORE the lexical content
-# shortcut. Conservative four-condition gate (same philosophy as
-# v0.12.0): only fires when the query clearly looks like a filename
-# lookup AND find returns a small, well-defined match set.
-
-_FN_LOOKUP_INTENT = (
-    "find ", "where is", "where's", "locate ", "show me",
-    "look for", "search for", "open ",
-)
-_FN_TOKEN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._\-]{2,40}")
-_FN_CJK_RUN_RE = re.compile(r"[\u3400-\u9fff]{2,32}")
-_FN_QUESTION_WORDS = frozenset({
-    "is", "are", "the", "a", "an", "of", "for", "me", "my", "to",
-    "in", "on", "at", "by", "from", "with", "where", "find",
-    "locate", "show", "look", "search", "open", "list", "get",
-    "file", "files", "folder", "directory", "dir",
-    "any", "some", "all", "this", "that", "these", "those",
-    "and", "or", "but", "not",
-})
-_FN_CJK_WRAPPERS = (
-    "请问", "請問", "帮我", "幫我", "我的", "这个", "這個", "那个", "那個",
-    "文件", "档案", "檔案", "在哪", "哪里", "哪裡", "一下", "找", "打开",
-    "開啟",
-)
-
-
-def _filename_cjk_candidates(text: str) -> list[str]:
-    out: list[str] = []
-    seen: set[str] = set()
-    for run in _FN_CJK_RUN_RE.findall(text):
-        cand = run
-        for wrapper in _FN_CJK_WRAPPERS:
-            cand = cand.replace(wrapper, "")
-        cand = cand.strip()
-        if len(cand) < 2:
-            continue
-        if cand in seen:
-            continue
-        seen.add(cand)
-        out.append(cand)
-    return out
+# We add a third retrieval tier that fires BEFORE the lexical content
+# shortcut. The policy decision comes from the fast intent substrate or
+# the LLM router; this module only validates concrete basename evidence.
 
 
 def _filename_candidate_tokens(query: str, decision=None) -> list[str]:
     """Return filename-match candidates, strongest first.
 
-    The LLM router may return a descriptive primary token such as
-    ``"我的 CASE42 文件"``. Use that understanding as the source of truth
-    for intent, but keep the matching mechanism pragmatic: try the full
-    primary token first, then identifier-shaped sub-tokens extracted from
-    the primary token and the query. This keeps Chinese / mixed-language
-    filename lookups from falling through to semantic cascade just because
-    the model included surrounding words in ``primary_token``.
+    Candidate generation is delegated to ``fast_intent.filename_candidates``:
+    primary-token, quoted-span, identifier-token, and script n-gram
+    candidates. It intentionally avoids language-specific wrapper lists.
+    The ``find`` validation below decides which candidate is real.
     """
-
-    raw_candidates: list[str] = []
     primary = (getattr(decision, "primary_token", "") or "").strip()
-    if primary:
-        raw_candidates.append(primary)
-        raw_candidates.extend(_FN_TOKEN_RE.findall(primary))
-        raw_candidates.extend(_filename_cjk_candidates(primary))
-    raw_candidates.extend(_FN_TOKEN_RE.findall(query))
-    raw_candidates.extend(_filename_cjk_candidates(query))
-
-    def _is_identifier_like(t: str) -> int:
-        """Higher score = more filename-identifier-like."""
-        score = 0
-        if any(c.isdigit() for c in t):
-            score += 100  # task-001, v6, task001
-        if any(c in "._-" for c in t):
-            score += 50   # foo.py, my-file, snake_case
-        if t != t.lower() and t != t.upper():
-            score += 20   # CamelCase / PascalCase
-        return score
-
-    deduped: list[str] = []
-    seen: set[str] = set()
-    for token in raw_candidates:
-        token = token.strip()
-        if len(token) < 2:
-            continue
-        if token.lower() in _FN_QUESTION_WORDS:
-            continue
-        key = token.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        deduped.append(token)
-
-    # Keep a full LLM primary phrase first if present, because exact
-    # phrase matches are the most precise. Rank all extracted tokens by
-    # filename-likeness, then length.
-    prefix = [primary] if primary and deduped and deduped[0] == primary else []
-    rest = deduped[1:] if prefix else deduped
-    rest = sorted(rest, key=lambda t: (-_is_identifier_like(t), -len(t)))
-    return (prefix + rest)[:8]
+    return filename_candidates(query, primary_token=primary)
 
 
 def filename_shortcut(
@@ -665,35 +589,31 @@ def filename_shortcut(
     through to the lexical content shortcut and then the cascade.
 
     Conditions (ALL required):
-      1. Query lowercased contains an explicit lookup-intent phrase
-         (``find / where is / locate / show me / open ...``) **or**
-         the standalone word ``file`` / ``files``.
-      2. After stripping stop-words, at least one ``name-like`` token
-         remains (length 3-40, alphanumeric with optional ``._-``).
+      1. The fast intent substrate or LLM router says this is filename
+         intent.
+      2. Generic candidate extraction produces at least one possible
+         basename clue.
       3. ``find -iname '*<token>*'`` returns >= 1 and <= ``max_files``
          actual files (not dirs, not dotfiles).
       4. The longest matching path's basename literally contains the
          token (case-insensitive). Guards against fluke substring
          matches deep in the tree.
     """
-    q_lower = query.lower()
-
-    # Condition 1: explicit lookup intent. Trust the LLM router when
-    # available; it handles multilingual lookup phrasings such as
-    # ``我的 CASE42 文件在哪`` that should not require English keyword lists.
-    has_intent = any(phrase in q_lower for phrase in _FN_LOOKUP_INTENT)
-    llm_filename_intent = getattr(decision, "intent", None) == "filename"
-    if not has_intent and not llm_filename_intent:
-        # Allow standalone "file" / "files" as a softer trigger
-        if not re.search(r"\bfiles?\b", q_lower):
-            return None
-
-    # Condition 2: extract usable name tokens, ordered by how
-    # "filename-like" they look. v0.14.1 fixes a bug where the
-    # plain longest token won (e.g. picking "evidence" over "task-001"
-    # for the query "where is task-001 support letter evidence in all
-    # files?", which then matched the wrong CSV).
+    # Condition 1: filename intent. Trust the upstream router when present.
+    # Direct callers without a router get the same generic fast substrate,
+    # not a language-specific phrase list.
+    filename_intent = getattr(decision, "intent", None) == "filename"
+    if not filename_intent:
+        fast = classify_fast_intent(query)
+        filename_intent = fast is not None and fast.intent == "filename"
     candidates = _filename_candidate_tokens(query, decision)
+    if not filename_intent and any(is_pathlike_candidate(c) for c in candidates):
+        filename_intent = True
+    if not filename_intent:
+        return None
+
+    # Condition 2: extract usable basename candidates. The downstream
+    # basename check is the precision gate.
     if not candidates:
         return None
 

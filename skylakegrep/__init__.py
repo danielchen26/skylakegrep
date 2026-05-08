@@ -1,3 +1,3 @@
 """Local skygrep package."""
 
-__version__ = "0.5.8.5"
+__version__ = "0.5.8.6"

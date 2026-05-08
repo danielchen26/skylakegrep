@@ -51,6 +51,43 @@ class BareFormRoutingTests(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         self.assertIn("Common usage", result.output)
 
+    def test_version_flag_does_not_route_to_search(self):
+        runner = CliRunner()
+        result = runner.invoke(cli_module.cli, ["--version"])
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn(cli_module.__version__, result.output)
+
+    def test_metadata_query_returns_before_ollama_preheat(self):
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            old = root / "old.txt"
+            new = root / "new.txt"
+            old.write_text("old\n")
+            new.write_text("new\n")
+            now = time.time()
+            os.utime(old, (now - 100, now - 100))
+            os.utime(new, (now, now - 50))
+
+            with patch.object(
+                cli_module, "get_config", return_value={"db_path": root / "x.db"}
+            ), patch.object(
+                cli_module.cfg_mod, "project_root", return_value=root
+            ), patch.object(
+                cli_module.bootstrap,
+                "preheat_models",
+                side_effect=AssertionError("metadata lane should not preheat"),
+            ):
+                result = runner.invoke(
+                    cli_module.cli,
+                    ["search", "what is the latest 2 files i opened"],
+                )
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("metadata-opened", result.output)
+        self.assertIn("new.txt", result.output)
+        self.assertIn("old.txt", result.output)
+
     def test_search_accepts_query_split_by_smart_quotes(self):
         runner = CliRunner()
         with patch.object(
@@ -157,6 +194,234 @@ class AutoIndexPolicyTests(unittest.TestCase):
 
 
 class SearchRoutingRegressionTests(unittest.TestCase):
+    def test_cold_merge_upgrades_filename_anchor_to_lazy_content(self):
+        path = "/tmp/CASE42_Project_Report.txt"
+        filename = {
+            "path": path,
+            "snippet": "size: 0.1 KB    modified: ?    type: txt",
+            "chunk": "size: 0.1 KB    modified: ?    type: txt",
+            "language": "txt",
+            "score": 1.0,
+            "fallback": "filename-lookup",
+        }
+        lazy = {
+            "path": path,
+            "snippet": "retry policy uses exponential backoff",
+            "chunk": "retry policy uses exponential backoff",
+            "language": "txt",
+            "score": 0.42,
+        }
+
+        merged = cli_module._merge_sources_preferring_depth(
+            ([filename], [lazy], [], []),
+            top=5,
+        )
+
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(merged[0]["snippet"], lazy["snippet"])
+
+    def test_semantic_depth_query_vetoes_filename_finality(self):
+        decision = cli_module.RouterDecision(
+            intent="filename",
+            primary_token="CASE42",
+            skip_cascade=True,
+            skip_filename=False,
+            skip_lexical=False,
+            confidence=0.95,
+            source="llm",
+            reason="misclassified as filename",
+            out_of_scope="none",
+        )
+
+        self.assertFalse(
+            cli_module._filename_evidence_satisfies_depth(
+                "what does CASE42 file say about retries",
+                decision,
+                detail="standard",
+                answer=False,
+                agentic=False,
+            )
+        )
+        self.assertTrue(
+            cli_module._filename_evidence_satisfies_depth(
+                "where is CASE42 file",
+                decision,
+                detail="standard",
+                answer=False,
+                agentic=False,
+            )
+        )
+
+    def test_cold_filename_proactive_runs_before_lazy_semantic(self):
+        """Wrong-folder filename queries should not wait for lazy embedding."""
+
+        from skylakegrep.src import proactive as proactive_module
+
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "project"
+            root.mkdir()
+            db_path = Path(temp_dir) / "index.db"
+            outside = Path(temp_dir) / "Downloads" / "CASE42_Project_Report.pdf"
+            outside.parent.mkdir()
+            outside.write_text("placeholder\n")
+            decision = cli_module.RouterDecision(
+                intent="filename",
+                primary_token="CASE42",
+                skip_cascade=False,
+                skip_filename=False,
+                skip_lexical=False,
+                confidence=0.95,
+                source="fast-intent",
+                reason="filename lookup",
+                out_of_scope="none",
+            )
+            proactive_result = proactive_module.ProactiveResult(
+                enhancer_name="filename_extend",
+                extra_hits=[
+                    {
+                        "path": str(outside),
+                        "score": 0.0,
+                        "language": "pdf",
+                        "search_dir": str(outside.parent),
+                        "source": "proactive:filename_extend",
+                    }
+                ],
+                note="Found 1 match outside cwd:",
+                commands=[],
+            )
+
+            with patch.dict(
+                os.environ,
+                {"SKYGREP_DB_PATH": str(db_path)},
+                clear=False,
+            ), patch.object(
+                cli_module, "route_query", return_value=decision
+            ), patch.object(
+                cli_module.cfg_mod, "project_root", return_value=root
+            ), patch.object(
+                cli_module.bootstrap, "preheat_models", return_value=None
+            ), patch.object(
+                cli_module.bootstrap, "try_autostart_ollama", return_value=False
+            ), patch.object(
+                cli_module.auto_index, "is_index_ready", return_value=False
+            ), patch.object(
+                cli_module.auto_index, "spawn_background_index", return_value=None
+            ), patch.object(
+                cli_module.auto_index, "filename_shortcut", return_value=None
+            ), patch.object(
+                cli_module.auto_index, "rg_fallback_results", return_value=[]
+            ), patch.object(
+                proactive_module,
+                "run_enhancers_parallel",
+                return_value=([proactive_result], {}),
+            ), patch.object(
+                cli_module,
+                "get_embedder",
+                side_effect=AssertionError("lazy semantic should not run"),
+            ):
+                result = runner.invoke(
+                    cli_module.cli,
+                    ["search", "where is CASE42 file", "--auto-index"],
+                )
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("proactive-filename", result.output)
+        self.assertIn("lazy-skipped", result.output)
+        self.assertIn("CASE42_Project_Report.pdf", result.output)
+
+    def test_cold_filename_proactive_full_detail_extracts_content(self):
+        """Full-detail filename hits should show body text without lazy
+        semantic indexing."""
+
+        from skylakegrep.src import proactive as proactive_module
+
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "project"
+            root.mkdir()
+            db_path = Path(temp_dir) / "index.db"
+            outside = Path(temp_dir) / "Downloads" / "CASE42_Project_Report.txt"
+            outside.parent.mkdir()
+            outside.write_text("generic report body marker\n", encoding="utf-8")
+            decision = cli_module.RouterDecision(
+                intent="filename",
+                primary_token="CASE42",
+                skip_cascade=False,
+                skip_filename=False,
+                skip_lexical=False,
+                confidence=0.95,
+                source="fast-intent",
+                reason="filename lookup",
+                out_of_scope="none",
+            )
+            proactive_result = proactive_module.ProactiveResult(
+                enhancer_name="filename_extend",
+                extra_hits=[
+                    {
+                        "path": str(outside),
+                        "file": str(outside),
+                        "chunk": "size: 0.0 KB    modified: ?    type: txt",
+                        "snippet": "size: 0.0 KB    modified: ?    type: txt",
+                        "language": "txt",
+                        "start_line": None,
+                        "end_line": None,
+                        "score": 1.0,
+                        "fallback": "filename-lookup",
+                        "filename_token": "CASE42",
+                        "search_dir": str(outside.parent),
+                        "source": "proactive:filename_extend",
+                    }
+                ],
+                note="Found 1 match outside cwd:",
+                commands=[],
+            )
+
+            with patch.dict(
+                os.environ,
+                {"SKYGREP_DB_PATH": str(db_path)},
+                clear=False,
+            ), patch.object(
+                cli_module, "route_query", return_value=decision
+            ), patch.object(
+                cli_module.cfg_mod, "project_root", return_value=root
+            ), patch.object(
+                cli_module.bootstrap, "preheat_models", return_value=None
+            ), patch.object(
+                cli_module.bootstrap, "try_autostart_ollama", return_value=False
+            ), patch.object(
+                cli_module.auto_index, "is_index_ready", return_value=False
+            ), patch.object(
+                cli_module.auto_index, "spawn_background_index", return_value=None
+            ), patch.object(
+                cli_module.auto_index, "filename_shortcut", return_value=None
+            ), patch.object(
+                cli_module.auto_index, "rg_fallback_results", return_value=[]
+            ), patch.object(
+                proactive_module,
+                "run_enhancers_parallel",
+                return_value=([proactive_result], {}),
+            ), patch.object(
+                cli_module,
+                "get_embedder",
+                side_effect=AssertionError("lazy semantic should not run"),
+            ):
+                result = runner.invoke(
+                    cli_module.cli,
+                    [
+                        "search",
+                        "where is CASE42 file",
+                        "--auto-index",
+                        "--detail",
+                        "full",
+                    ],
+                )
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("proactive-filename", result.output)
+        self.assertIn("lazy-skipped", result.output)
+        self.assertIn("generic report body marker", result.output)
+
     def test_high_confidence_filename_skip_cascade_keeps_json_path_alive(self):
         """Regression for the filename skip path: ``queries`` used to be
         initialised only inside the cascade branch, but the warm cross-folder
@@ -259,6 +524,130 @@ class SearchRoutingRegressionTests(unittest.TestCase):
         payload = json.loads(result.output)
         self.assertEqual(payload[0]["path"], filename_result["path"])
         self.assertEqual(payload[0]["language"], "pdf")
+
+    def test_filename_skip_request_without_evidence_still_runs_cascade(self):
+        """A filename-like route is not enough to suppress semantic recall."""
+
+        from skylakegrep.src.storage import init_db, store_chunks_batch
+
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "project"
+            root.mkdir()
+            indexed_file = root / "src" / "semantic_answer.py"
+            indexed_file.parent.mkdir(parents=True)
+            indexed_file.write_text("def semantic_answer(): pass\n")
+            db_path = Path(temp_dir) / "index.db"
+            conn = init_db(db_path)
+            try:
+                store_chunks_batch(
+                    conn,
+                    [{
+                        "file": str(indexed_file),
+                        "chunk": "def semantic_answer(): pass",
+                        "language": "python",
+                        "chunk_index": 0,
+                        "file_mtime": indexed_file.stat().st_mtime,
+                        "start_line": 1,
+                        "end_line": 1,
+                        "start_byte": 0,
+                        "end_byte": len("def semantic_answer(): pass\n"),
+                        "embedding": [1.0, 0.0],
+                    }],
+                )
+                now = str(time.time())
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS meta "
+                    "(key TEXT PRIMARY KEY, value TEXT)"
+                )
+                conn.execute(
+                    "INSERT INTO meta(key, value) VALUES(?, ?)",
+                    ("last_full_index_at", now),
+                )
+                conn.execute(
+                    "INSERT INTO meta(key, value) VALUES(?, ?)",
+                    ("last_refresh_at", now),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+            decision = cli_module.RouterDecision(
+                intent="filename",
+                primary_token="case42",
+                skip_cascade=True,
+                skip_filename=False,
+                skip_lexical=True,
+                confidence=0.95,
+                source="llm",
+                reason="user asks for a specific file by name",
+                out_of_scope="none",
+            )
+            semantic_result = {
+                "path": str(indexed_file),
+                "file": str(indexed_file),
+                "chunk": "def semantic_answer(): pass",
+                "snippet": "def semantic_answer(): pass",
+                "language": "python",
+                "start_line": 1,
+                "end_line": 1,
+                "score": 0.8,
+            }
+
+            class _FakeEmbedder:
+                def embed(self, text):
+                    return [1.0, 0.0]
+
+            with patch.dict(
+                os.environ,
+                {"SKYGREP_DB_PATH": str(db_path), "SKYGREP_NO_HINTS": "1"},
+                clear=False,
+            ), patch.object(
+                cli_module.bootstrap, "preheat_models", return_value=None
+            ), patch.object(
+                cli_module.bootstrap, "try_autostart_ollama", return_value=False
+            ), patch.object(
+                cli_module, "route_query", return_value=decision
+            ), patch.object(
+                cli_module.cfg_mod, "project_root", return_value=root
+            ), patch.object(
+                cli_module.auto_index, "incremental_refresh", return_value=0
+            ), patch.object(
+                cli_module.auto_index, "filename_shortcut", return_value=None
+            ), patch.object(
+                cli_module.auto_index, "lexical_shortcut", return_value=None
+            ), patch.object(
+                cli_module, "_symbols_table_populated", return_value=True
+            ), patch.object(
+                cli_module.code_graph, "populate_graph_table", return_value=0
+            ), patch.object(
+                cli_module, "get_embedder", return_value=_FakeEmbedder()
+            ) as get_embedder_mock, patch.object(
+                cli_module, "get_answerer", return_value=object()
+            ), patch.object(
+                cli_module, "maybe_start_recovery", return_value=None
+            ), patch.object(
+                cli_module,
+                "cascade_search",
+                return_value=(
+                    [semantic_result],
+                    {
+                        "path": "cosine-cheap",
+                        "early_exit": True,
+                        "gap": 1.0,
+                        "tau": 0.1,
+                    },
+                ),
+            ):
+                result = runner.invoke(
+                    cli_module.cli,
+                    ["search", "where is my case42 file", "--json"],
+                )
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertTrue(get_embedder_mock.called, "cascade should still run")
+        payload = json.loads(result.output)
+        self.assertEqual(payload[0]["path"], str(indexed_file))
 
     def test_rg_shortcut_does_not_skip_cascade(self):
         """rg shortcut may preview/rank, but semantic cascade still runs."""

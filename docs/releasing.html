@@ -137,6 +137,9 @@ subset:</p>
 <li>Built wheel/sdist scanned for private material before upload.</li>
 <li>Local editable install refreshed with <code>pip install -e .</code>, and the
      local <code>skygrep</code> wrapper confirmed to run the same source/version.</li>
+<li>A formal post-release report sent to the user with every public
+     link, the exact verification commands/results, and a clear statement
+     that the privacy redline passed.</li>
 </ol>
 <h2>Public surfaces, every release</h2>
 <ol>
@@ -241,7 +244,37 @@ state from being visible to anyone:</p>
 12. refresh local editable install:
         .venv/bin/python -m pip install -e .
         skygrep --help
+13. send the formal post-release report:
+        version and commit/tag
+        PyPI project URL + exact X.Y.Z JSON/simple-index verification
+        GitHub commit/tag/release URLs
+        GitHub Pages homepage/changelog/versioned release-notes URLs
+        README URL
+        wheel/sdist artifact status
+        fresh-install result and local editable-install result
+        full test result, benchmark/CLI receipts, and privacy scan result
 </code></pre>
+<h2>Post-release report contract</h2>
+<p>After every end-to-end release, the final message to the user must be a
+formal release summary, not a casual "done". It must include:</p>
+<ul>
+<li><strong>Version / commit / tag</strong> — exact version, commit SHA, and tag.</li>
+<li><strong>Public links</strong> — PyPI project, PyPI version if available, GitHub
+    Release, tag, commit, README, GitHub Pages homepage, changelog, and
+    versioned release-notes page.</li>
+<li><strong>Package proof</strong> — build result, <code>twine check</code>, PyPI JSON/simple
+    index verification, fresh-venv install, and local editable install.</li>
+<li><strong>Quality proof</strong> — full test result plus the targeted regression
+    and end-to-end CLI cases that justify the release.</li>
+<li><strong>Performance / accuracy statement</strong> — what was measured, compared
+    to the previous behavior where applicable, and whether speed,
+    accuracy, routing intelligence, and comprehensive recall were
+    preserved or improved.</li>
+<li><strong>Privacy proof</strong> — explicit statement that source/dist/public
+    surfaces passed the privacy scan; no real user prompts, local paths,
+    filenames, screenshots, document categories, names, or emails were
+    published.</li>
+</ul>
 <h2>What "release" does NOT mean</h2>
 <ul>
 <li><strong>A code-only commit is not a release.</strong> Code reaches users

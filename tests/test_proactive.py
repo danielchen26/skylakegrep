@@ -449,6 +449,11 @@ class FilenameExtendExecuteTests(unittest.TestCase):
         self.assertIn("task-001-spec.md", names)
         self.assertIn("task-001-notes.txt", names)
         self.assertNotIn("unrelated.md", names)
+        first = result.extra_hits[0]
+        self.assertEqual(first["fallback"], "filename-lookup")
+        self.assertEqual(first["file"], first["path"])
+        self.assertIn("size:", first["snippet"])
+        self.assertIn("modified:", first["snippet"])
 
     def test_returns_none_with_unfindable_token(self):
         d = _MockDecision(primary_token="zzznotapresenthere")
@@ -516,6 +521,27 @@ class RenderTests(unittest.TestCase):
         self.assertIn("Found 1 match", rendered)
         self.assertIn("/tmp/foo.txt", rendered)
         self.assertIn("→ next:", rendered)
+
+    def test_full_detail_renders_filename_content(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            hit_path = Path(temp_dir) / "CASE42_Project_Report.txt"
+            hit_path.write_text("generic content marker\n", encoding="utf-8")
+            pr = filename_extend_execute(
+                "where is CASE42 file",
+                _MockDecision(intent="filename", primary_token="CASE42"),
+                top_k=10,
+                individual_budget_ms=2000,
+                search_dirs=[Path(temp_dir)],
+            )
+            self.assertIsNotNone(pr)
+            rendered = render_proactive_output(
+                [pr],
+                project_root=temp_dir,
+                detail="full",
+                content=True,
+            )
+        self.assertIn("CASE42_Project_Report.txt", rendered)
+        self.assertIn("generic content marker", rendered)
 
 
 # ---------------------------------------------------------------------------

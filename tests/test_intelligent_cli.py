@@ -73,6 +73,11 @@ class OutOfScopeDetectionTests(unittest.TestCase):
             with self.subTest(query=q):
                 self.assertIsNotNone(detect_out_of_scope(q))
 
+    def test_latest_opened_files_query_is_flagged_by_intent_substrate(self):
+        hint = detect_out_of_scope("show the 4 most recently opened files")
+        self.assertIsNotNone(hint)
+        self.assertIn("opened", hint["reason"])
+
     def test_english_recency_query_is_flagged(self):
         hint = detect_out_of_scope("recent files I changed")
         self.assertIsNotNone(hint)

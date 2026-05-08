@@ -272,7 +272,7 @@ they answer different problems.
 
 | | skylakegrep 0.5.x | Elasticsearch |
 |---|---|---|
-| **Setup** | `pip install skylakegrep`; cold-start lazy auto-trigger | JVM, cluster, mappings, ingest pipeline, dense-vector plugin, reindex |
+| **Setup** | `python3 -m pip install --user skylakegrep`; cold-start lazy auto-trigger | JVM, cluster, mappings, ingest pipeline, dense-vector plugin, reindex |
 | **Semantic retrieval** | bge-m3 (1024-d, 100+ languages) via local Ollama, out of the box | Manual: pick embedder, pipeline, dimension, reindex |
 | **Intent understanding** | qwen2.5:3b LLM router classifies intent / scope / primary token per query | None natively; you write query DSL by hand |
 | **Code AST awareness** | tree-sitter symbol channel, RRF-fused with cosine | None; code is plain text |
@@ -305,17 +305,64 @@ We don't try to compete in those rooms.
 ## Install
 
 ```bash
-# 1. install (Python 3.9+)
-pip install skylakegrep
+# 0. confirm Python 3.9+ is available
+python3 --version
 
-# 2. pull the local models (~3 GB, one time)
-ollama pull bge-m3 qwen2.5:1.5b qwen2.5:3b
+# 1. install with the same Python that will own the CLI
+python3 -m pip install --user skylakegrep
 
-# 3. (one time) register skygrep with your LLM CLI of choice
+# 2. pull the local models, one command per model
+ollama pull bge-m3
+ollama pull qwen2.5:3b
+
+# 3. verify runtime, models, install path, and index state
+skygrep doctor
+
+# 4. (one time) register skygrep with your LLM CLI of choice
 skygrep setup     # Claude Code · Codex · OpenCode · Gemini CLI · Cursor
 
-# 4. ask anything, anywhere
+# 5. ask anything, anywhere
 skygrep "your question here"
+```
+
+On macOS, `python` may not exist; use `python3`. If `skygrep` installs but
+the shell cannot find it, inspect:
+
+```bash
+python3 -m site --user-base
+which -a skygrep
+python3 -m pip show skylakegrep
+```
+
+The user-site script commonly lives under
+`~/Library/Python/3.x/bin/skygrep`; add that `bin` directory to `PATH`
+or use a virtual environment.
+
+```bash
+export PATH="$(python3 -m site --user-base)/bin:$PATH"
+```
+
+If setup gets tangled across multiple Python installs, reset cleanly:
+
+```bash
+# Remove LLM-CLI snippets written by `skygrep setup`.
+skygrep setup --uninstall || true
+
+# Remove the Python package from the Python that installed it.
+python3 -m pip uninstall -y skylakegrep
+
+# Optional: delete local indexes/config. This does not delete your files.
+rm -rf ~/.skylakegrep
+
+# Optional: remove downloaded Ollama models.
+ollama rm bge-m3
+ollama rm qwen2.5:3b
+
+# Reinstall from a clean state.
+python3 -m pip install --user --no-cache-dir skylakegrep
+ollama pull bge-m3
+ollama pull qwen2.5:3b
+skygrep doctor
 ```
 
 That's it. The first query in a fresh project completes in under
@@ -437,6 +484,15 @@ Behavior toggles.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.5.8.6`** — Fast path answers without sacrificing semantic
+    depth. Human output now shows the active router lane by default,
+    filename hits are final only for path-depth questions, and semantic
+    queries that contain a filename-like clue keep that file as an
+    anchor while lazy/cascade refinement continues in the same
+    invocation. Cold-start semantic queries can show a bounded content
+    preview from the anchor before refinement, metadata questions use a
+    fast filesystem lane, and cross-folder diffusion is suppressed when
+    the current scope already has a concrete anchor.
   - **`0.5.8.5`** — Multilingual intelligent routing hardening
     without weakening semantic recall. Natural-language CLI queries
     can now be passed bare, quoted, or smart-quoted, so

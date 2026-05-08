@@ -114,7 +114,7 @@ def test_llm_filename_intent_handles_cjk_filename_token(tmp_path):
 
 
 @pytest.mark.skipif(not _has_find(), reason="find not on PATH")
-def test_filename_candidates_strip_cjk_wrappers_from_primary_token(tmp_path):
+def test_filename_candidates_recover_cjk_clue_from_generic_ngrams(tmp_path):
     class _Decision:
         intent = "filename"
         primary_token = "我的合同文件"

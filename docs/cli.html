@@ -124,26 +124,60 @@
  </table>
  </div>
 
- <h3 id="first-time-workflow">First-time workflow (5 commands, &lt; 2 min)</h3>
-<pre><code># 1. install
-pip install skylakegrep
+ <h3 id="first-time-workflow">First-time workflow (Python-safe, &lt; 2 min)</h3>
+<pre><code># 0. confirm Python 3.9+ is available
+python3 --version
 
-# 2. pull the embedding model (1024-d, multilingual, ~ 2 GB)
+# 1. install with the same Python that will own the CLI
+python3 -m pip install --user skylakegrep
+
+# 2. pull required models, one command per model
 ollama pull bge-m3
+ollama pull qwen2.5:3b
 
-# 3. register skygrep with your LLM CLI(s) — claude code / codex / etc.
+# 3. verify runtime, models, install path, and index state
+skygrep doctor
+
+# 4. register skygrep with your LLM CLI(s) — claude code / codex / etc.
 skygrep setup
 
-# 4. cd into any project (no manual index step needed)
+# 5. cd into any project (no manual index step needed)
 cd ~/your-project
 
-# 5. ask anything
+# 6. ask anything
 skygrep "where does the cascade tau threshold get computed"</code></pre>
  <p>
- That's it. The first query auto-indexes in the background and
+ On macOS, <code>python</code> may not exist; use <code>python3</code>.
+ If the shell cannot find <code>skygrep</code> after install, inspect
+ <code>python3 -m site --user-base</code>, <code>which -a skygrep</code>,
+ and <code>python3 -m pip show skylakegrep</code>. The usual PATH fix is:
+ </p>
+<pre><code>export PATH="$(python3 -m site --user-base)/bin:$PATH"</code></pre>
+ <p>
+ The first query auto-indexes in the background and
  falls back to <code>rg</code> for the first ~ 1 s; subsequent
  warm queries land in 0.5–2 s.
  </p>
+
+ <h3 id="clean-reinstall">Clean uninstall / reinstall</h3>
+<pre><code># Remove LLM-CLI snippets written by `skygrep setup`.
+skygrep setup --uninstall || true
+
+# Remove the Python package from the Python that installed it.
+python3 -m pip uninstall -y skylakegrep
+
+# Optional: delete local indexes/config. This does not delete your files.
+rm -rf ~/.skylakegrep
+
+# Optional: remove downloaded Ollama models.
+ollama rm bge-m3
+ollama rm qwen2.5:3b
+
+# Reinstall.
+python3 -m pip install --user --no-cache-dir skylakegrep
+ollama pull bge-m3
+ollama pull qwen2.5:3b
+skygrep doctor</code></pre>
 
  <h3 id="search-flags">Flags for <code>skygrep search</code> (and the bare form)</h3>
  <p>The full <code>--help</code> is on every install. Quick reference:</p>
@@ -157,7 +191,7 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  <tr><td><code>--json</code></td><td>off</td><td>Emit results as a JSON array; suppresses human formatting.</td></tr>
  <tr><td><code>--answer</code></td><td>off</td><td>Synthesize an answer from retrieved snippets via Ollama.</td></tr>
  <tr><td><code>--content / --no-content</code></td><td>on</td><td>Show or hide snippet bodies in human output.</td></tr>
- <tr><td><code>--detail compact|full</code></td><td>compact</td><td>How much body to show (full extracts content from PDFs / docx).</td></tr>
+ <tr><td><code>--detail brief|summary|standard|full</code></td><td>standard</td><td>How much body to show. <code>full</code> extracts content from concrete filename matches; semantic-depth filename anchors may show a bounded content preview in standard human output.</td></tr>
  <tr><td><code>--language</code></td><td>—</td><td>Restrict to one or more language keys; repeatable.</td></tr>
  <tr><td><code>--include</code></td><td>—</td><td>Glob; only paths matching at least one pattern are kept; repeatable.</td></tr>
  <tr><td><code>--exclude</code></td><td>—</td><td>Glob; paths matching any pattern are dropped; repeatable.</td></tr>
@@ -170,7 +204,7 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  <tr><td><code>--lazy / --no-lazy</code></td><td>on (0.5.1+)</td><td>Cold-start auto-trigger: when the index is not yet built and ripgrep alone returns a path-token-weak result, an LLM-routed lazy semantic tier (~5–30 s, 25 seed files batch-embedded with bge-m3) fires and merges. Completely off when ripgrep is strong; user never has to know which tier they need. <code>--no-lazy</code> opts out for benchmarking pure rg cold-start. See the 0.5.3 release notes for the deterministic dir-token picker, numeric-prefix penalty, and import-diffusion that lifted Django-oracle hit-rate to <strong>4 / 10</strong> over rg-only's 0 / 10 on vocabulary-mismatch queries.</td></tr>
  <tr><td><code>--rg-shortcut / --no-rg-shortcut</code></td><td>on</td><td>Lexical pre-gate: small clustered rg result with path/token overlap returns directly, skipping the semantic cascade. Pass <code>--no-rg-shortcut</code> to force pure cascade for benchmarking.</td></tr>
  <tr><td><code>--filename-shortcut / --no-filename-shortcut</code></td><td>on (0.13+)</td><td>Filename-lookup pre-gate: queries that look like "where is foo file" / "find package.json" route to <code>find -iname '*token*'</code> and skip both content shortcuts.</td></tr>
- <tr><td><code>--explain / -x</code></td><td>off (0.5.8+)</td><td>Why-this-matched explainability. Prints a one-line <strong>router rationale</strong> at the top (<code>🧭 router: &lt;intent&gt; · primary_token=… · conf=… · source=&lt;llm|fallback-rules&gt;</code> + a one-sentence reason), a per-result <strong><code>via:</code> line</strong> showing which channel(s) contributed (cosine cascade · symbol RRF · filename-lookup · ripgrep) and the score, and a <strong><code>🛤  cascade lane:</code> summary</strong> at the bottom with σ-adaptive evidence (<code>gap=…, tau=…</code>). All signals read straight from existing pipeline telemetry — no extra retrieval, no model calls. Off by default keeps existing UX byte-identical to 0.5.7.</td></tr>
+ <tr><td><code>--explain / -x</code></td><td>off (0.5.8+)</td><td>The concise router lane now prints by default in human output (<code>🧭 router: &lt;intent&gt; · primary_token=… · conf=… · source=…</code>). <code>--explain</code> adds the one-sentence router reason, per-result <strong><code>via:</code> lines</strong> showing which channel(s) contributed (cosine cascade · symbol RRF · filename-lookup · ripgrep) and the score, plus a <strong><code>🛤  cascade lane:</code> summary</strong> with σ-adaptive evidence (<code>gap=…, tau=…</code>). All signals read straight from existing pipeline telemetry — no extra retrieval, no model calls. Use <code>--json</code> for machine-readable output without human routing/status lines.</td></tr>
  </tbody>
  </table>
  </div>

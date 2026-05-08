@@ -51,6 +51,13 @@ enumeration only as an **offline fallback** when the substrate is
 unavailable, with a written rationale for why the enumeration is
 acceptable in that bounded context.
 
+**Heartline:** never fix a user-reported query by adding a special
+trigger for that exact wording, language wrapper, private example, or
+one-off filename shape. If a query exposes a routing miss, improve the
+generic intent substrate or retrieval contract so the whole class of
+queries improves. Tests may keep sanitized regression receipts, but the
+production path must not become a pile of per-case triggers.
+
 ### Past lapses in this project (the receipts)
 
 These are real mistakes the project has made — recorded here so
@@ -125,6 +132,22 @@ When trade-offs collide, the priorities are:
 Background workers (recovery, watch, serve) exist to give the user
 **both** a fast first answer AND eventual full quality.
 
+Foreground work should stop only when the current query's **answer
+depth** is satisfied. A concrete filename hit is enough for a path
+question; the same hit is enough for `--detail full` because render-time
+lazy extraction can read the concrete file body directly. It is not
+enough for `--answer`, agentic, or semantic-content questions; those
+paths must keep the semantic/cascade layer alive. Global indexing and
+recovery may continue in the background after any fast foreground answer.
+Filename finality also requires an independent fast-intent confirmation
+that the query is path-depth; if the substrate is uncertain or sees a
+semantic information need, the filename match stays as an anchor and
+retrieval continues.
+Conversely, semantic-depth queries that contain a path-like filename
+clue should keep the filename tier enabled: the filename hit is an
+anchor for retrieval, not a competing intent that semantic search must
+choose against.
+
 ---
 
 ## Principle 4 — End-to-End Means Every Public Surface
@@ -164,7 +187,8 @@ content-agnostic by construction.**
 Proactive work is only acceptable when ALL these hold:
 
   1. **Bounded latency.** Total wall-clock cap (default 500 ms,
-     `SKYGREP_PROACTIVE_BUDGET_MS`); each enhancer also has its
+     `SKYGREP_PROACTIVE_BUDGET_MS`, currently 2000 ms by default);
+     each enhancer also has its
      own `individual_budget_ms`. The runner uses
      `ThreadPoolExecutor.shutdown(wait=False, cancel_futures=True)`
      so over-budget work doesn't bleed into the user's perceived
@@ -188,6 +212,13 @@ Proactive work is only acceptable when ALL these hold:
      `SKYGREP_NO_HINTS=1`) disables the whole framework so users
      who need a quiet CLI / strictly-deterministic CI can opt
      out.
+  6. **Answer-depth aware.** Proactive results may complete the
+     foreground request only when their structured evidence satisfies
+     the user's requested depth. Path lookup can finish on concrete
+     filename evidence; full-detail lookup can finish after lazy
+     extraction from that concrete file; synthesized answers and
+     semantic-content questions must continue through the semantic
+     layer.
 
 ### What proactive should NOT do
 
@@ -199,16 +230,17 @@ Proactive work is only acceptable when ALL these hold:
     create files, run shell commands, modify the index, etc.,
     without an explicit user confirmation step (which we do not
     yet provide; future enhancers requiring action must ask).
-  - **Replace the user.** Proactive output is additional
-    information, never a substitute for the main results. The
-    main cascade results render first; proactive output appears
-    as a footer block.
+  - **Replace semantic recall.** Proactive output is additional
+    evidence, never a permission slip to suppress recall without
+    evidence. It may render before cascade when it has already
+    satisfied a path-depth query, but it must not terminate a
+    semantic or synthesized-answer path.
 
 ### Receipts (proactive enhancers shipped)
 
 | Enhancer | What | Released in |
 | --- | --- | :-: |
-| **`filename_extend`** | When the user asks for a file by name (`intent=filename` or `where is …` / `在哪 / 找一下 …` phrases) and the in-project search returns 0 hits, parallel `find` across `~/Downloads`, `~/Desktop`, `~/Documents` (depth=4, individual budget 400 ms). Surfaces matches that would have required the user to `cd` and re-issue the query. | `0.2.7` ✓ |
+| **`filename_extend`** | When the generic intent substrate routes to `intent=filename` and the current search scope lacks concrete basename evidence, run bounded parallel filename expansion across configured home roots (default common user document roots, overridable by `SKYGREP_PROACTIVE_DIRS`). Results use the same `filename-lookup` schema as in-scope filename search, so path answers return fast and `--detail full` can lazily extract content from the matched file without waiting for semantic indexing. | `0.2.7` ✓, refined through `0.5.8.x` |
 | `query_refinement` (open) | When the cascade returns top-1 < floor AND σ-gap < floor, ask the LLM router for a refined query suggestion. Bounded by individual_budget_ms ≤ 400 ms. | open |
 | `markdown_link_traverse` (open) | When a top hit is a `.md` file, surface notes linked from it via `extractors.markdown` (already shipped in 0.2.0). Pure SQL on the existing reference graph; budget ≤ 100 ms. | open |
 | `pdf_section_extract` (open) | When a top hit is a `.pdf`, surface section titles. Reuses the 0.1.0 `pypdf` extraction. Budget ≤ 300 ms. | open |

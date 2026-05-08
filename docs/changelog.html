@@ -66,6 +66,21 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.8.6 · answer-depth routing · progressive semantic refinement</div>
+ <h3>Fast path answers stay fast, while semantic questions continue past filename anchors</h3>
+ <p>
+ This release makes filename evidence answer-depth aware. A concrete
+ filename hit can finish a path-depth query, but semantic questions that
+ mention a filename keep that file as an anchor while lazy/cascade
+ refinement continues in the same invocation. Human output now shows the
+ active router lane by default, cold-start semantic queries can show a
+ bounded content preview from the anchor before refinement, metadata
+ questions use a fast filesystem lane, and cross-folder diffusion is
+ suppressed when the current scope already has a concrete anchor.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.8.6.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.8.5 · multilingual routing · bare-query CLI · bounded proactive diffusion</div>
  <h3>Natural-language queries work bare, quoted, or smart-quoted while semantic recall remains intact</h3>
  <p>

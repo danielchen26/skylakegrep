@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shutil
 import sqlite3
 import sys
 import time
@@ -29,6 +30,7 @@ import click
 
 logger = logging.getLogger(__name__)
 
+from . import __version__
 from . import auto_index, bootstrap, code_graph, config as cfg_mod, enrich as enrich_mod, integrations as integrations_mod
 from .answerer import get_answerer
 from .config import get_config
@@ -36,6 +38,7 @@ from .embeddings import get_embedder
 from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
 from .intent import classify_intent, merge_results as merge_tiers
 from .llm_router import RouterDecision, route_query
+from .metadata_search import metadata_results
 from .intelligent_cli import (
     assess_result_quality,
     detect_out_of_scope,
@@ -96,6 +99,59 @@ def merge_results(result_groups: list[list[dict]], top: int) -> list[dict]:
     return sorted(merged.values(), key=lambda item: item["score"], reverse=True)[:top]
 
 
+def _is_filename_lookup_result(result: dict | None) -> bool:
+    return bool(result and result.get("fallback") == "filename-lookup")
+
+
+def _result_is_depth_upgrade(existing: dict | None, candidate: dict | None) -> bool:
+    """Whether ``candidate`` should replace an already-rendered same-path hit.
+
+    Path-level anchors are useful early, but a later semantic/lazy result
+    for the same file contains the real answer body. Prefer that deeper
+    evidence while preserving the first path position.
+    """
+
+    if not candidate:
+        return False
+    if not existing:
+        return True
+    if _is_filename_lookup_result(existing) and not _is_filename_lookup_result(candidate):
+        return bool((candidate.get("snippet") or candidate.get("chunk") or "").strip())
+    return False
+
+
+def _merge_sources_preferring_depth(
+    sources: tuple[list[dict], ...],
+    *,
+    top: int,
+) -> list[dict]:
+    """Merge path-ranked result tiers while upgrading anchors to content.
+
+    The cold-start pipeline can find the same file twice: first as a fast
+    filename anchor, then as a lazy semantic chunk. The old path-only
+    dedupe kept the anchor metadata and discarded the semantic body. This
+    helper keeps the anchor's position but swaps in the deeper result.
+    """
+
+    ordered: list[dict] = []
+    by_path: dict[str, int] = {}
+    for source in sources:
+        for result in source:
+            path = result.get("path", "")
+            if not path:
+                continue
+            if path in by_path:
+                idx = by_path[path]
+                if _result_is_depth_upgrade(ordered[idx], result):
+                    ordered[idx] = result
+                continue
+            if len(ordered) >= top:
+                continue
+            by_path[path] = len(ordered)
+            ordered.append(result)
+    return ordered[:top]
+
+
 _QUERY_EDGE_QUOTES = "\"'“”‘’"
 
 
@@ -114,6 +170,64 @@ def _normalize_query_args(query: str | tuple[str, ...]) -> str:
     else:
         query_s = query
     return query_s.strip().strip(_QUERY_EDGE_QUOTES).strip()
+
+
+def _filename_evidence_satisfies_depth(
+    query: str,
+    decision: RouterDecision,
+    *,
+    detail: str,
+    answer: bool,
+    agentic: bool,
+) -> bool:
+    """Return True only when filename evidence can finish the foreground.
+
+    Filename evidence is an anchor; it is final only for path-depth
+    requests. For content / explanation / synthesized-answer requests,
+    the semantic layer must keep running even if the basename match is
+    perfect. The fast intent substrate is used as an independent veto so
+    a single router misclassification cannot under-search.
+    """
+
+    if answer or agentic:
+        return False
+    if getattr(decision, "intent", "") != "filename":
+        return False
+    # Explicit full detail means the foreground can satisfy the user by
+    # extracting content from the concrete filename hit at render time.
+    if detail == "full":
+        return True
+    try:
+        from .fast_intent import classify_fast_intent
+        fast = classify_fast_intent(query)
+    except Exception:
+        fast = None
+    if fast is None:
+        return False
+    return fast.intent == "filename"
+
+
+def _render_detail_for_result(
+    result: dict,
+    default_detail: str,
+    decision: "RouterDecision | None",
+) -> str:
+    """Choose render depth for one result without changing retrieval.
+
+    If a semantic-depth query found a concrete filename anchor, the user
+    needs evidence from the file, not just path metadata. Promote those
+    anchor cards to bounded full extraction in the standard view. Pure
+    filename/path queries keep the normal metadata-only standard view.
+    """
+
+    if (
+        default_detail == "standard"
+        and decision is not None
+        and getattr(decision, "intent", "") == "semantic"
+        and _is_filename_lookup_result(result)
+    ):
+        return "full"
+    return default_detail
 
 
 def _build_explain_string(r: dict, decision: "RouterDecision | None") -> str:
@@ -182,8 +296,17 @@ def _build_explain_string(r: dict, decision: "RouterDecision | None") -> str:
     return " · ".join(parts)
 
 
-def _format_router_explain(decision: "RouterDecision | None") -> str:
-    """One-line router rationale for the top of --explain output."""
+def _format_router_explain(
+    decision: "RouterDecision | None",
+    *,
+    include_reason: bool = True,
+) -> str:
+    """Router status for human output.
+
+    The first line is concise enough to show by default so users and
+    agent wrappers can see the active routing path immediately. The
+    reason line stays behind ``--explain`` to avoid noisy default output.
+    """
     if decision is None:
         return ""
     intent = decision.intent or "?"
@@ -197,7 +320,7 @@ def _format_router_explain(decision: "RouterDecision | None") -> str:
     if decision.source:
         head += f" · source={decision.source}"
     reason = (decision.reason or "").strip()
-    if reason:
+    if include_reason and reason:
         head += f'\n   reason: "{reason}"'
     return head
 
@@ -280,6 +403,7 @@ class MgrepCLI(click.Group):
 
 
 @click.group(cls=MgrepCLI, invoke_without_command=True)
+@click.version_option(__version__, prog_name="skygrep")
 @click.pass_context
 def cli(ctx):
     """``skygrep`` — local semantic code search.
@@ -493,15 +617,54 @@ def search_cmd(
             )
             return
 
+    project_root = cfg_mod.project_root()
+    db_path = config["db_path"]
+
+    # Metadata queries ("latest files I opened", "recently modified
+    # files") are not content search. Answer them from filesystem
+    # timestamps before any Ollama preheat, router call, index check, or
+    # lazy semantic path can add seconds of irrelevant work.
+    metadata_start = time.time()
+    metadata_hits, metadata_query = metadata_results(query, project_root, top_k=top)
+    if metadata_query is not None:
+        elapsed = time.time() - metadata_start
+        if json_output:
+            click.echo(render_json_results(metadata_hits))
+            return
+        if metadata_hits:
+            click.echo(f"▾ {metadata_query.kind} file metadata matches:", err=True)
+            for r in metadata_hits:
+                click.echo(
+                    render_terminal_result(
+                        r,
+                        content=content,
+                        project_root=str(project_root),
+                        detail=detail,
+                        ocr=ocr,
+                        explain=explain,
+                    )
+                )
+            click.echo(f"\n✓ {elapsed:.3f}s · quality=BEST")
+            click.echo(f"   path   : metadata-{metadata_query.kind}")
+            click.echo(f"   reason : {metadata_query.reason}")
+            click.echo(f"   pool   : {len(metadata_hits)} files · semantic-skipped")
+        else:
+            click.echo(
+                "No matching files found for that metadata query in the "
+                "current search scope.",
+                err=True,
+            )
+            click.echo(f"\n✓ {elapsed:.3f}s · quality=EMPTY")
+            click.echo(f"   path   : metadata-{metadata_query.kind}")
+            click.echo(f"   reason : {metadata_query.reason}")
+        return
+
     # Fire-and-forget Ollama preheat. Loads embed + HyDE models with
     # ``keep_alive=-1`` in background threads so the cold-load cost
     # (~5-10 s per model on Mac CPU) is amortised across the time we
     # spend on rg prefilter, file-mean cosine, and DB migrations.
     # Best-effort: failures are silently swallowed inside ``preheat_models``.
     bootstrap.preheat_models()
-
-    project_root = cfg_mod.project_root()
-    db_path = config["db_path"]
 
     from . import auto_index as ai
 
@@ -545,10 +708,12 @@ def search_cmd(
             pass
     router_elapsed = time.time() - router_start
 
-    # 0.5.8: surface the router decision to the user when --explain is on.
+    # 0.5.8+: surface the routing path early in human output so users and
+    # agent wrappers can see whether this invocation is path-depth,
+    # semantic-depth, metadata, or mixed before deeper tiers start.
     # Printed to stderr so it never pollutes JSON / piped output.
-    if explain and not json_output:
-        _hdr = _format_router_explain(decision)
+    if not json_output:
+        _hdr = _format_router_explain(decision, include_reason=explain)
         if _hdr:
             click.echo(_hdr, err=True)
 
@@ -583,9 +748,13 @@ def search_cmd(
                 _attach_explain(fn_results, decision)
     filename_answered = (
         bool(fn_results)
-        and decision.intent == "filename"
-        and not agentic
-        and not answer
+        and _filename_evidence_satisfies_depth(
+            query,
+            decision,
+            detail=detail,
+            answer=answer,
+            agentic=agentic,
+        )
     )
     if filename_answered:
         elapsed = router_elapsed + fn_elapsed
@@ -619,7 +788,7 @@ def search_cmd(
                     r,
                     content=content,
                     project_root=str(project_root),
-                    detail=detail,
+                    detail=_render_detail_for_result(r, detail, decision),
                     ocr=ocr,
                     explain=explain,
                 )
@@ -691,6 +860,73 @@ def search_cmd(
         rg_cold = ai.rg_fallback_results(query, project_root, top_k=top)
         rg_elapsed = time.time() - start
 
+        # Filename intent on a cold, unindexed project is the exact case
+        # where semantic lazy search is most likely to waste time: the
+        # answer may simply be outside cwd (Downloads/Desktop/Documents).
+        # Run the bounded filename proactive tier before lazy embedding;
+        # if it finds concrete basename evidence, return immediately.
+        if (
+            decision.intent == "filename"
+            and not fn_results
+            and _filename_evidence_satisfies_depth(
+                query,
+                decision,
+                detail=detail,
+                answer=answer,
+                agentic=agentic,
+            )
+        ):
+            try:
+                proactive_start = time.time()
+                from . import proactive as _proactive_cold_early
+                early_proactive, _ = _proactive_cold_early.run_enhancers_parallel(
+                    query,
+                    decision,
+                    [],
+                    top_k=top,
+                    ctx=_proactive_cold_early.ProactiveContext(
+                        conn=conn, project_root=project_root,
+                    ),
+                )
+                proactive_elapsed = time.time() - proactive_start
+            except Exception:
+                logger.exception(
+                    "early cold-start proactive filename search failed; "
+                    "falling through to lazy semantic"
+                )
+                early_proactive = []
+                proactive_elapsed = 0.0
+            if early_proactive:
+                rendered = _proactive_cold_early.render_proactive_output(
+                    early_proactive,
+                    content=content,
+                    project_root=str(project_root),
+                    detail=detail,
+                    ocr=ocr,
+                    explain=explain,
+                )
+                elapsed = rg_elapsed + proactive_elapsed
+                if json_output:
+                    payload = []
+                    for pr in early_proactive:
+                        payload.extend(pr.extra_hits)
+                    click.echo(render_json_results(payload))
+                    return
+                if rendered:
+                    click.echo(rendered)
+                click.echo(f"\n✓ {elapsed:.3f}s · quality=BEST")
+                click.echo("   path   : proactive-filename")
+                click.echo(
+                    f"   router : {decision.source} → intent={decision.intent} "
+                    f"({decision.confidence:.2f})"
+                )
+                click.echo(
+                    f"   pool   : 0 filename + {len(rg_cold)} rg + "
+                    f"{len(early_proactive)} proactive · lazy-skipped"
+                )
+                click.echo("   index  : building in background")
+                return
+
         # 0.5.1 auto-trigger lazy semantic on a weak rg cold-start.
         # The user can't be expected to know whether they're in the
         # right folder or whether their keyword query happens to align
@@ -752,6 +988,7 @@ def search_cmd(
         # ``early_printed_paths`` so STAGE 2 only echoes the newly-
         # found-by-lazy results.
         early_printed_paths: set = set()
+        early_printed_results: dict[str, dict] = {}
         will_fire_lazy = lazy and not rg_strong
         if will_fire_lazy and not json_output:
             preliminary: list = []
@@ -768,8 +1005,13 @@ def search_cmd(
                 if len(preliminary) >= top:
                     break
             if preliminary:
+                prelim_label = (
+                    "preliminary filename anchors + keyword matches"
+                    if fn_results
+                    else "preliminary keyword matches"
+                )
                 click.echo(
-                    "▾ preliminary keyword matches "
+                    f"▾ {prelim_label} "
                     "(lazy semantic refinement starting…):",
                     err=True,
                 )
@@ -779,12 +1021,15 @@ def search_cmd(
                             r,
                             content=content,
                             project_root=str(project_root),
-                            detail=detail,
+                            detail=_render_detail_for_result(r, detail, decision),
                             ocr=ocr,
                             explain=explain,
                         )
                     )
-                    early_printed_paths.add(r.get("path", ""))
+                    printed_path = r.get("path", "")
+                    early_printed_paths.add(printed_path)
+                    if printed_path:
+                        early_printed_results[printed_path] = r
                 click.echo("", err=True)
             else:
                 click.echo(
@@ -798,12 +1043,14 @@ def search_cmd(
         #   rg has hits, paths weak (vocab-mismatch)  → lazy_cwd
         #   rg has zero hits (probably wrong folder)  → lazy_cwd ∥ lazy_cross_folder
         #
-        # The third case is the user's "我们在错的 path 下面" scenario:
-        # rg returned nothing in cwd, so the answer is most likely in
-        # a sibling folder. Both lazy paths run in parallel — Ollama
-        # serialises embed requests at the model layer, so wall time
-        # is dominated by whichever batch is bigger, not their sum.
-        cold_wrong_folder = (lazy and len(rg_cold) == 0)
+        # The third case is the user's "wrong path" scenario:
+        # rg returned nothing in cwd, so the answer may be in a sibling
+        # folder. Both lazy paths run in parallel. If the filename tier
+        # already found a local anchor, this is no longer wrong-folder:
+        # keep refinement focused on cwd so the same invocation upgrades
+        # the anchor to content instead of diffusing across unrelated
+        # home roots.
+        cold_wrong_folder = (lazy and len(rg_cold) == 0 and not fn_results)
         if lazy and not rg_strong:
             from concurrent.futures import ThreadPoolExecutor as _TPE
             from . import lazy_indexer as LZ
@@ -879,30 +1126,20 @@ def search_cmd(
         # lazy answer beneath rg's score-1.0 hits — visible as 1/10
         # auto-trigger hit rate on the Django oracle bench. With
         # lazy-priority, the lazy module's top-K reaches the user
-        # whenever it fired. Filename hits remain prepended (0.13
-        # behaviour) — the bench shows filename can still drown
-        # everything for filename-shaped queries; that's tracked as
-        # a 0.6 issue, not in scope for this patch.
+        # whenever it fired. Filename hits stay as anchors, but a later
+        # semantic result for the same path upgrades the anchor to
+        # content so semantic-depth queries do not end as metadata-only
+        # filename cards.
         if lazy_results or cross_results:
-            seen: set[str] = set()
-            ordered: list = []
             # filename → cwd-lazy → cross-folder → rg backfill,
             # deduped by path. Cross-folder is appended AFTER cwd-lazy
             # because when cwd genuinely contains the answer (rg
             # returned 0 because of vocabulary mismatch, but the file
             # IS local), we want the cwd hit to win.
-            for source in (fn_results, lazy_results, cross_results, rg_cold):
-                for r in source:
-                    p = r.get("path", "")
-                    if not p or p in seen:
-                        continue
-                    seen.add(p)
-                    ordered.append(r)
-                    if len(ordered) >= top:
-                        break
-                if len(ordered) >= top:
-                    break
-            results = ordered[:top]
+            results = _merge_sources_preferring_depth(
+                (fn_results, lazy_results, cross_results, rg_cold),
+                top=top,
+            )
         else:
             results = merge_tiers(
                 filename=fn_results,
@@ -955,7 +1192,13 @@ def search_cmd(
         if early_printed_paths:
             new_results = [
                 r for r in results
-                if r.get("path", "") and r.get("path", "") not in early_printed_paths
+                if r.get("path", "") and (
+                    r.get("path", "") not in early_printed_paths
+                    or _result_is_depth_upgrade(
+                        early_printed_results.get(r.get("path", "")),
+                        r,
+                    )
+                )
             ]
             if new_results:
                 click.echo(
@@ -968,7 +1211,7 @@ def search_cmd(
                             r,
                             content=content,
                             project_root=str(project_root),
-                            detail=detail,
+                            detail=_render_detail_for_result(r, detail, decision),
                             ocr=ocr,
                             explain=explain,
                         )
@@ -989,13 +1232,20 @@ def search_cmd(
                         r,
                         content=content,
                         project_root=str(project_root),
-                        detail=detail,
+                        detail=_render_detail_for_result(r, detail, decision),
                         ocr=ocr,
                         explain=explain,
                     )
                 )
         if cold_proactive_results:
-            rendered = _proactive.render_proactive_output(cold_proactive_results)
+            rendered = _proactive.render_proactive_output(
+                cold_proactive_results,
+                content=content,
+                project_root=str(project_root),
+                detail=detail,
+                ocr=ocr,
+                explain=explain,
+            )
             if rendered:
                 click.echo(rendered)
         building = ai.is_index_building(db_path)
@@ -1153,7 +1403,7 @@ def search_cmd(
                         r,
                         content=content,
                         project_root=str(project_root),
-                        detail=detail,
+                        detail=_render_detail_for_result(r, detail, decision),
                         ocr=ocr,
                         explain=explain,
                     )
@@ -1228,7 +1478,12 @@ def search_cmd(
             try:
                 from . import proactive as _proactive_early2
                 rendered = _proactive_early2.render_proactive_output(
-                    _early_proactive_results
+                    _early_proactive_results,
+                    content=content,
+                    project_root=str(project_root),
+                    detail=detail,
+                    ocr=ocr,
+                    explain=explain,
                 )
                 if rendered:
                     click.echo(
@@ -1242,15 +1497,15 @@ def search_cmd(
             except Exception:
                 logger.exception("early proactive render failed")
 
-    # v0.15.0 LLM-router can authorise skipping the cascade entirely
-    # when it is highly confident the query is a pure filename lookup.
-    # The decision is gated by MIN_CONFIDENCE_TO_SKIP_CASCADE — never
-    # skipped on a low-confidence call.
+    # A router may classify the query as filename-like, but it is only
+    # allowed to suppress semantic retrieval after the filename tier has
+    # produced concrete evidence. Without that evidence, keep the cascade
+    # running so a fast intent decision cannot reduce recall.
     answerer = None
     cascade_telemetry: dict | None = None
     recovery_state: dict | None = None
     queries = [query]
-    if (decision.skip_cascade or filename_answered) and not agentic and not answer:
+    if filename_answered and not agentic and not answer:
         results: list[dict] = []
         elapsed = fn_elapsed + rg_elapsed
     else:
@@ -1469,7 +1724,7 @@ def search_cmd(
                         r,
                         content=content,
                         project_root=str(project_root),
-                        detail=detail,
+                        detail=_render_detail_for_result(r, detail, decision),
                         ocr=ocr,
                         explain=explain,
                     )
@@ -1601,7 +1856,7 @@ def search_cmd(
                         r,
                         content=content,
                         project_root=str(project_root),
-                        detail=detail,
+                        detail=_render_detail_for_result(r, detail, decision),
                         ocr=ocr,
                         explain=explain,
                     )
@@ -1619,7 +1874,7 @@ def search_cmd(
                     r,
                     content=content,
                     project_root=str(project_root),
-                    detail=detail,
+                    detail=_render_detail_for_result(r, detail, decision),
                     ocr=ocr,
                     explain=explain,
                 )
@@ -1627,9 +1882,9 @@ def search_cmd(
 
     # ``path=`` is the headline routing decision the user actually cares
     # about: which retrieval strategy answered this specific query.
-    cascade_was_skipped = decision.skip_cascade or filename_answered
+    cascade_was_skipped = filename_answered
     path_label = "filename-lookup" if filename_answered else (
-        "cascade-skipped" if decision.skip_cascade else "cascade"
+        "cascade"
     )
     if cascade and cascade_telemetry is not None:
         path_label = cascade_telemetry.get("path") or (
@@ -1771,7 +2026,14 @@ def search_cmd(
                 )
             )
             if proactive_results:
-                rendered = _proactive.render_proactive_output(proactive_results)
+                rendered = _proactive.render_proactive_output(
+                    proactive_results,
+                    content=content,
+                    project_root=str(project_root),
+                    detail=detail,
+                    ocr=ocr,
+                    explain=explain,
+                )
                 if rendered:
                     click.echo(rendered)
         except Exception:
@@ -1972,6 +2234,11 @@ def doctor():
     report = bootstrap.doctor_report(config["ollama_url"])
     pad = lambda label: f"  {label:<26}"  # noqa: E731
     click.echo("skygrep doctor")
+    click.echo(f"{pad('Version')}{__version__}")
+    click.echo(f"{pad('Python')}{sys.executable}")
+    invoked = str(Path(sys.argv[0]).resolve()) if sys.argv and sys.argv[0] else "(unknown)"
+    click.echo(f"{pad('CLI invoked')}{invoked}")
+    click.echo(f"{pad('CLI on PATH')}{shutil.which('skygrep') or '(not on PATH)'}")
     if report["ollama"]["ok"]:
         click.echo(f"{pad('Ollama runtime')}✓ {report['ollama']['url']}")
     else:

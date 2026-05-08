@@ -56,6 +56,9 @@ subset:
   5. Built wheel/sdist scanned for private material before upload.
   6. Local editable install refreshed with `pip install -e .`, and the
      local `skygrep` wrapper confirmed to run the same source/version.
+  7. A formal post-release report sent to the user with every public
+     link, the exact verification commands/results, and a clear statement
+     that the privacy redline passed.
 
 ## Public surfaces, every release
 
@@ -159,7 +162,38 @@ state from being visible to anyone:
 12. refresh local editable install:
         .venv/bin/python -m pip install -e .
         skygrep --help
+13. send the formal post-release report:
+        version and commit/tag
+        PyPI project URL + exact X.Y.Z JSON/simple-index verification
+        GitHub commit/tag/release URLs
+        GitHub Pages homepage/changelog/versioned release-notes URLs
+        README URL
+        wheel/sdist artifact status
+        fresh-install result and local editable-install result
+        full test result, benchmark/CLI receipts, and privacy scan result
 ```
+
+## Post-release report contract
+
+After every end-to-end release, the final message to the user must be a
+formal release summary, not a casual "done". It must include:
+
+  - **Version / commit / tag** — exact version, commit SHA, and tag.
+  - **Public links** — PyPI project, PyPI version if available, GitHub
+    Release, tag, commit, README, GitHub Pages homepage, changelog, and
+    versioned release-notes page.
+  - **Package proof** — build result, `twine check`, PyPI JSON/simple
+    index verification, fresh-venv install, and local editable install.
+  - **Quality proof** — full test result plus the targeted regression
+    and end-to-end CLI cases that justify the release.
+  - **Performance / accuracy statement** — what was measured, compared
+    to the previous behavior where applicable, and whether speed,
+    accuracy, routing intelligence, and comprehensive recall were
+    preserved or improved.
+  - **Privacy proof** — explicit statement that source/dist/public
+    surfaces passed the privacy scan; no real user prompts, local paths,
+    filenames, screenshots, document categories, names, or emails were
+    published.
 
 ## What "release" does NOT mean
 

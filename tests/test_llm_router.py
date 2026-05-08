@@ -18,6 +18,7 @@ from unittest.mock import patch
 
 import pytest
 
+from skylakegrep.src import fast_intent
 from skylakegrep.src import llm_router as router
 from skylakegrep.src.llm_router import RouterDecision, route_query
 
@@ -183,10 +184,22 @@ def test_rule_based_empty_query_safe_default():
     assert d.source == "fallback-mixed"
 
 
-# ---- cheap filename pre-router -------------------------------------
+# ---- fast intent substrate -----------------------------------------
 
 
-def test_cheap_filename_router_handles_multilingual_identifier_lookup():
+def test_fast_metadata_handles_opened_files_without_llm():
+    with patch(
+        "skylakegrep.src.llm_router.requests.post",
+        side_effect=AssertionError("LLM should not be called"),
+    ):
+        d = route_query("show the 4 most recently opened files")
+    assert d.intent == "mixed"
+    assert d.source == "fast-metadata"
+    assert d.out_of_scope == "recency"
+    assert d.skip_cascade is False
+
+
+def test_fast_intent_handles_multilingual_identifier_lookup():
     with patch(
         "skylakegrep.src.llm_router.requests.post",
         side_effect=AssertionError("LLM should not be called"),
@@ -194,11 +207,11 @@ def test_cheap_filename_router_handles_multilingual_identifier_lookup():
         d = route_query("我的 CASE42 文件在哪")
     assert d.intent == "filename"
     assert d.primary_token == "CASE42"
-    assert d.skip_cascade is True
-    assert d.source == "heuristic-filename"
+    assert d.skip_cascade is False
+    assert d.source == "fast-intent"
 
 
-def test_cheap_filename_router_handles_dotted_lookup():
+def test_fast_intent_handles_dotted_lookup():
     with patch(
         "skylakegrep.src.llm_router.requests.post",
         side_effect=AssertionError("LLM should not be called"),
@@ -206,31 +219,46 @@ def test_cheap_filename_router_handles_dotted_lookup():
         d = route_query("find package.json")
     assert d.intent == "filename"
     assert d.primary_token == "package.json"
-    assert d.skip_cascade is True
+    assert d.skip_cascade is False
 
 
-def test_cheap_filename_router_handles_cjk_lookup():
+def test_fast_intent_handles_cjk_lookup_without_wrapper_lists():
     with patch(
         "skylakegrep.src.llm_router.requests.post",
         side_effect=AssertionError("LLM should not be called"),
     ):
         d = route_query("我的合同文件在哪")
     assert d.intent == "filename"
-    assert d.primary_token == "合同"
-    assert d.skip_cascade is True
+    assert d.source == "fast-intent"
+    assert d.skip_cascade is False
+    assert "合同" in fast_intent.filename_candidates("我的合同文件在哪")
 
 
-def test_cheap_filename_router_does_not_steal_semantic_question():
+def test_fast_intent_does_not_steal_semantic_question():
     with patch(
         "skylakegrep.src.llm_router.requests.post",
         side_effect=AssertionError("LLM should not be called"),
     ):
         d = route_query("how does CASE42 scoring work?")
     assert d.intent == "semantic"
-    assert d.source == "heuristic-semantic"
+    assert d.source == "fast-intent"
+    assert d.skip_filename is False
+    assert d.primary_token == "CASE42"
 
 
-def test_cheap_semantic_router_skips_llm_for_obvious_question():
+def test_fast_semantic_query_keeps_filename_anchor_available():
+    with patch(
+        "skylakegrep.src.llm_router.requests.post",
+        side_effect=AssertionError("LLM should not be called"),
+    ):
+        d = route_query("explain CASE42_Project_Report logic")
+    assert d.intent == "semantic"
+    assert d.skip_cascade is False
+    assert d.skip_filename is False
+    assert d.primary_token == "CASE42_Project_Report"
+
+
+def test_fast_intent_semantic_router_skips_llm_for_obvious_question():
     with patch(
         "skylakegrep.src.llm_router.requests.post",
         side_effect=AssertionError("LLM should not be called"),
@@ -239,7 +267,16 @@ def test_cheap_semantic_router_skips_llm_for_obvious_question():
     assert d.intent == "semantic"
     assert d.skip_cascade is False
     assert d.skip_filename is True
-    assert d.source == "heuristic-semantic"
+    assert d.source == "fast-intent"
+
+
+def test_fast_intent_ambiguous_short_code_query_defers_to_fallback():
+    with patch(
+        "skylakegrep.src.llm_router.requests.post",
+        side_effect=RuntimeError("LLM unavailable"),
+    ):
+        d = route_query("auth login")
+    assert d.source == "fallback-rules"
 
 
 # ---- route_query end-to-end ----------------------------------------

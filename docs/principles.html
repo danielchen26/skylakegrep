@@ -241,6 +241,21 @@ signal to refine.</p>
 </ol>
 <p>Background workers (recovery, watch, serve) exist to give the user
 <strong>both</strong> a fast first answer AND eventual full quality.</p>
+<p>Foreground work should stop only when the current query's <strong>answer
+depth</strong> is satisfied. A concrete filename hit is enough for a path
+question; the same hit is enough for <code>--detail full</code> because render-time
+lazy extraction can read the concrete file body directly. It is not
+enough for <code>--answer</code>, agentic, or semantic-content questions; those
+paths must keep the semantic/cascade layer alive. Global indexing and
+recovery may continue in the background after any fast foreground answer.
+Filename finality also requires an independent fast-intent confirmation
+that the query is path-depth; if the substrate is uncertain or sees a
+semantic information need, the filename match stays as an anchor and
+retrieval continues.</p>
+<p>Conversely, semantic-depth queries that contain a path-like filename
+clue should keep the filename tier enabled: the filename hit is an
+anchor for retrieval, not a competing intent that semantic search must
+choose against.</p>
 <hr />
 <h2>Principle 4 — End-to-End Means Every Public Surface</h2>
 <p><code>docs/RELEASING.md</code> codifies the surfaces every release touches. The
