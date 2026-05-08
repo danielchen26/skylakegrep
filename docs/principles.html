@@ -98,6 +98,29 @@ guidance for any contributor (human or AI agent) working in this
 repository. Loaded into Claude sessions via <code>CLAUDE.md</code> so the
 principles travel with the code.</p>
 <hr />
+<h2>Principle 0 — Release Privacy Redline</h2>
+<p>This is the deepest project rule and it applies before every repo
+change, test fixture, benchmark receipt, doc page, release note, GitHub
+Release body, PyPI long description, screenshot, and generated artifact:
+never publish a user's real prompts, private filenames, private folder
+names, local machine paths, document categories, names, email addresses,
+or any other information derived from the user's local computer or
+conversation.</p>
+<p>If a bug report or terminal transcript contains private material, the
+first step is to translate it into a fictional placeholder before it is
+written to any tracked file. Use generic examples such as <code>case42</code>,
+<code>project-report.pdf</code>, <code>/Users/example/...</code>, <code>~/example-folder</code>, or
+<code>&lt;filename-A&gt;</code>. Do not preserve the user's actual wording "for realism";
+realism loses to privacy every time.</p>
+<p>Every release must run the privacy gate before build and again against
+the built wheel/sdist plus public surfaces. Use
+<code>scripts/privacy_release_scan.py</code>, adding any private terms from the
+current conversation or local screenshots via the untracked
+<code>.release-private-patterns</code> file or <code>SKYGREP_PRIVATE_PATTERNS</code>. A release
+is blocked until the scan is clean. If private material ever reaches a
+public surface, delete or yank that surface first, force-push sanitized
+GitHub content if needed, then ship a sanitized patch release.</p>
+<hr />
 <h2>Principle 1 — Understanding &gt; Enumeration</h2>
 <p><strong>The anti-pattern:</strong> when a question can be answered by a generic
 <em>understanding</em> layer (a language model, a multilingual embedder,
@@ -219,11 +242,16 @@ signal to refine.</p>
 <p>Background workers (recovery, watch, serve) exist to give the user
 <strong>both</strong> a fast first answer AND eventual full quality.</p>
 <hr />
-<h2>Principle 4 — Public surfaces must be sync'd at every release</h2>
-<p><code>releasing.html</code> codifies the eight surfaces every release
-touches. The 0.2.2 → 0.2.3 lapse (PyPI shipped, GitHub Pages
-silent) is the receipts; the checklist is the prevention. No
-release is done until every surface is updated.</p>
+<h2>Principle 4 — End-to-End Means Every Public Surface</h2>
+<p><code>docs/RELEASING.md</code> codifies the surfaces every release touches. The
+word "release" means the whole chain: current codebase committed,
+tagged, pushed to GitHub; PyPI uploaded and verified through JSON,
+simple index, and clean-venv install; GitHub Release created with
+artifacts; GitHub README and GitHub Pages home/changelog/release pages
+rendered and verified; local editable install refreshed to the same
+version. The 0.2.2 → 0.2.3 lapse (PyPI shipped, GitHub Pages silent)
+is the receipt; the checklist is the prevention. No release is done
+until every surface is updated and the privacy gate is clean.</p>
 <hr />
 <h2>Principle 6 — Proactive over Passive</h2>
 <p><strong>The anti-pattern:</strong> when the system can't answer the user's
@@ -351,7 +379,7 @@ measured (e.g. "future Phase C wins"), say so — don't claim it.</p>
 <hr />
 <h2>How this document gets used</h2>
 <ul>
-<li><code>CLAUDE.md</code> imports this file via <code>@principles.html</code> so any
+<li><code>CLAUDE.md</code> imports this file via <code>@docs/PRINCIPLES.md</code> so any
     Claude session in this repo loads the principles automatically.</li>
 <li>Human contributors should read this once on first PR; the rule
     in <strong>Principle 1</strong> is the most likely tripwire.</li>
@@ -359,7 +387,7 @@ measured (e.g. "future Phase C wins"), say so — don't claim it.</p>
     identified — receipts go in the table above; the rule and
     pattern stay stable.</li>
 </ul>
- </article>
+</article>
  </main>
  </div>
  </body>

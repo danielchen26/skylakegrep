@@ -72,9 +72,9 @@ $ skygrep "Where is my <file>?"
 [footer telemetry]
 
 💡 Found 2 match(es) outside the current project root while the cascade was running:
-   📄 /Users/.../Downloads/<file>.pdf · 2300 KB
-   📄 /Users/.../Desktop/<file>-draft.docx · 145 KB
-   → next: cd /Users/.../Downloads && skygrep "<query>"
+   📄 /Users/example/Downloads/<file>.pdf · 2300 KB
+   📄 /Users/example/Desktop/<file>-draft.docx · 145 KB
+   → next: cd /Users/example/Downloads && skygrep "<query>"
 ```
 
 Implementation:

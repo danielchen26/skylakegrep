@@ -7,22 +7,31 @@ principles travel with the code.
 
 ---
 
-## Release privacy hardline
+## Principle 0 — Release Privacy Redline
 
-Public release material must never use a user's real private files,
-real document categories, real names, real home-directory paths, or
-case-specific personal examples. This applies to README examples,
-docs, changelog cards, GitHub Release notes, PyPI long descriptions,
-tests that ship in sdists, screenshots, benchmark receipts, and source
-comments.
+This is the deepest project rule and it applies before every repo
+change, test fixture, benchmark receipt, doc page, release note, GitHub
+Release body, PyPI long description, screenshot, and generated artifact:
+never publish a user's real prompts, private filenames, private folder
+names, local machine paths, document categories, names, email addresses,
+or any other information derived from the user's local computer or
+conversation.
 
-Use fictional, generic placeholders such as `case42`,
-`project-report.pdf`, `/Users/example/...`, or `<filename-A>` instead.
-Before every PyPI/GitHub/GitHub Pages release, run a privacy grep for
-private names, real paths, immigration/legal/medical/financial document
-terms, and user-provided filenames. If a private example ever slips into
-a release, yank or delete that release surface first, then ship a
-sanitized patch release.
+If a bug report or terminal transcript contains private material, the
+first step is to translate it into a fictional placeholder before it is
+written to any tracked file. Use generic examples such as `case42`,
+`project-report.pdf`, `/Users/example/...`, `~/example-folder`, or
+`<filename-A>`. Do not preserve the user's actual wording "for realism";
+realism loses to privacy every time.
+
+Every release must run the privacy gate before build and again against
+the built wheel/sdist plus public surfaces. Use
+`scripts/privacy_release_scan.py`, adding any private terms from the
+current conversation or local screenshots via the untracked
+`.release-private-patterns` file or `SKYGREP_PRIVATE_PATTERNS`. A release
+is blocked until the scan is clean. If private material ever reaches a
+public surface, delete or yank that surface first, force-push sanitized
+GitHub content if needed, then ship a sanitized patch release.
 
 ---
 
@@ -118,12 +127,17 @@ Background workers (recovery, watch, serve) exist to give the user
 
 ---
 
-## Principle 4 — Public surfaces must be sync'd at every release
+## Principle 4 — End-to-End Means Every Public Surface
 
-`docs/RELEASING.md` codifies the eight surfaces every release
-touches. The 0.2.2 → 0.2.3 lapse (PyPI shipped, GitHub Pages
-silent) is the receipts; the checklist is the prevention. No
-release is done until every surface is updated.
+`docs/RELEASING.md` codifies the surfaces every release touches. The
+word "release" means the whole chain: current codebase committed,
+tagged, pushed to GitHub; PyPI uploaded and verified through JSON,
+simple index, and clean-venv install; GitHub Release created with
+artifacts; GitHub README and GitHub Pages home/changelog/release pages
+rendered and verified; local editable install refreshed to the same
+version. The 0.2.2 → 0.2.3 lapse (PyPI shipped, GitHub Pages silent)
+is the receipt; the checklist is the prevention. No release is done
+until every surface is updated and the privacy gate is clean.
 
 ---
 

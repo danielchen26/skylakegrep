@@ -151,10 +151,10 @@ telemetry: {'fired': ['filename_extend'], 'completed': ['filename_extend'],
             'timed_out': [], 'budget_ms': 2000, 'elapsed_ms': 1093}
 
 💡 Found 4 match(es) outside the current project root...
-   /Users/.../Downloads/<filename-A>.pdf
-   /Users/.../Downloads/<filename-A>.docx
-   /Users/.../Downloads/<filename-B>.pdf
-   /Users/.../Downloads/<filename-C>.pdf
+   /Users/example/Downloads/<filename-A>.pdf
+   /Users/example/Downloads/<filename-A>.docx
+   /Users/example/Downloads/<filename-B>.pdf
+   /Users/example/Downloads/<filename-C>.pdf
 ```
 
 This is what the user should see when they run their query against

@@ -8,11 +8,56 @@ existed. From 0.2.3 onwards, no release leaves the workstation
 without the full surface sync.
 
 A release is **not** a `git tag` + `twine upload`. It is a
-coordinated update across **eight surfaces**, every one of which
-has to be touched (or explicitly skipped with a documented
-reason).
+coordinated update across the codebase, PyPI, GitHub, GitHub Pages,
+and the local editable install. Every surface has to be touched (or
+explicitly skipped with a documented reason), and every surface has to
+pass the privacy redline before it goes public.
 
-## Eight surfaces, every release
+## Privacy redline, before any release work
+
+Never publish a user's real local prompts, private filenames, private
+folder names, absolute local paths, names, emails, screenshots, or
+document categories from the user's computer. If a real user example is
+needed to reproduce a bug, translate it into a fictional placeholder
+before writing it to a tracked file.
+
+Before every build, run:
+
+```
+.venv/bin/python scripts/privacy_release_scan.py
+```
+
+After building wheel/sdist, run:
+
+```
+.venv/bin/python scripts/privacy_release_scan.py dist
+```
+
+If the current conversation, screenshots, or local test data included
+private terms, add them to the untracked `.release-private-patterns`
+file or pass them through `SKYGREP_PRIVATE_PATTERNS`. Do not commit the
+private terms. The release is blocked until this scan is clean. If a
+private example reaches a public surface, delete or yank that surface
+first, then ship a sanitized patch release.
+
+## End-to-end definition
+
+When someone says "end-to-end release", it means all of this, not a
+subset:
+
+  1. Current codebase committed, pushed to GitHub, tagged, and matching
+     `pyproject.toml`.
+  2. PyPI uploaded and verified through project JSON, simple index, and
+     a fresh `pip install --no-cache-dir skylakegrep==X.Y.Z`.
+  3. GitHub Release created with wheel and sdist artifacts attached.
+  4. GitHub README/raw content, GitHub Pages homepage, changelog, and
+     versioned release-notes page rendered and verified from public
+     URLs.
+  5. Built wheel/sdist scanned for private material before upload.
+  6. Local editable install refreshed with `pip install -e .`, and the
+     local `skygrep` wrapper confirmed to run the same source/version.
+
+## Public surfaces, every release
 
   1. **`pyproject.toml`** — bump `version`. Required for the CI
      `Verify the tag matches pyproject.toml` step to pass.
@@ -81,16 +126,17 @@ Order matters. The order below is the one that prevents partial
 state from being visible to anyone:
 
 ```
+0.  run privacy gate on source tree; sanitize placeholders first
 1.  bump pyproject + write release notes + sweep README +
     sweep index.html + (optionally) repo description
-2.  pytest -q tests/                        ← 134/134 must pass
-3.  git add -p && git commit -m "release: vX.Y.Z — …"
-4.  git push origin master                  ← surfaces are live
+2.  pytest -q tests/                        ← full suite must pass
+3.  python -m build && twine check dist/*   ← package is valid
+4.  run privacy gate against dist artifacts
+5.  git add -p && git commit -m "release: vX.Y.Z — …"
+6.  git push origin master                  ← surfaces are live
                                               with the new content
                                               before the tag
                                               announces a release
-5.  python -m build                         ← produces dist/*
-6.  twine check dist/*                      ← both PASSED
 7.  git tag -a vX.Y.Z -m "vX.Y.Z — …"
 8.  git push origin vX.Y.Z                  ← CI fires; ignore the
                                               PyPI-401 step until
@@ -105,13 +151,20 @@ state from being visible to anyone:
         dist/skylakegrep-X.Y.Z.tar.gz
 11. verify:
         curl -s https://pypi.org/pypi/skylakegrep/json | jq .info.version
+        curl -s https://pypi.org/simple/skylakegrep/ | grep X.Y.Z
         gh release list --limit 3
+        fresh venv: pip install --no-cache-dir skylakegrep==X.Y.Z
+        public GitHub Pages home/changelog/release URL all show X.Y.Z
+        public README and release body pass privacy scan
+12. refresh local editable install:
+        .venv/bin/python -m pip install -e .
+        skygrep --help
 ```
 
 ## What "release" does NOT mean
 
   - **A code-only commit is not a release.** Code reaches users
-    only when the eight surfaces above are sync'd. If you don't
+    only when all public surfaces above are sync'd. If you don't
     want to ship to PyPI, name your work as a milestone commit,
     not a release.
   - **A docs-only commit between releases is fine.** Major doc
@@ -120,7 +173,7 @@ state from being visible to anyone:
     (e.g. updating the headline benchmark number on the GitHub
     Pages site is enough to warrant a metadata bump, à la 0.2.1
     → 0.2.3).
-  - **Skipping any of the eight surfaces requires a documented
+  - **Skipping any public surface requires a documented
     reason** in the release-notes "Known follow-ups" section.
     "I forgot" is not a documented reason.
 

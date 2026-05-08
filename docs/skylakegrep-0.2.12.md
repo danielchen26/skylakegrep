@@ -89,10 +89,10 @@ run_enhancers_parallel:
               'timed_out': [], 'budget_ms': 2000, 'elapsed_ms': 1117}
 
   💡 Found 4 match(es) outside the current project root...
-    /Users/.../Downloads/<filename-A>.pdf
-    /Users/.../Downloads/<filename-A>.docx
-    /Users/.../Downloads/<filename-B>.pdf
-    /Users/.../Downloads/<filename-C>.pdf
+    /Users/example/Downloads/<filename-A>.pdf
+    /Users/example/Downloads/<filename-A>.docx
+    /Users/example/Downloads/<filename-B>.pdf
+    /Users/example/Downloads/<filename-C>.pdf
 ```
 
 This time the production code path actually surfaces the user's
