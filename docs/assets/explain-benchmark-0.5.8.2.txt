@@ -40,8 +40,8 @@ skylakegrep:
 
 --- [known subcommand: stats]
     $ skygrep stats
-    DB:           /Users/tianchichen/.skylakegrep/repos/skylakegrep-fc16be12.db
-    Project root: /Users/tianchichen/Documents/GitHub/skylakegrep
+    DB:           /Users/example/.skylakegrep/repos/skylakegrep-fc16be12.db
+    Project root: /Users/example/Documents/GitHub/skylakegrep
     Total chunks: 1094
 
 --- [group --help]
@@ -53,7 +53,7 @@ skylakegrep:
     $ skygrep --json -n 1 'render_terminal_result'
     [
       {
-        "path": "/Users/tianchichen/Documents/GitHub/skylakegrep/skylakegrep/src/render.py",
+        "path": "/Users/example/Documents/GitHub/skylakegrep/skylakegrep/src/render.py",
 
 ############ section 2: 4 LLM-ROUTED INTENTS (cleared cache, source=llm proof) ############
 

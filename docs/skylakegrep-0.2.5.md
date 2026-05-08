@@ -10,7 +10,7 @@ and a hierarchical telemetry footer that's actually scannable.
 
 > **License:** PolyForm Noncommercial 1.0.0. Personal / academic /
 > research / hobby use is fully permitted. Commercial use requires
-> a separate license — contact <chentianchi@gmail.com>.
+> a separate license — contact the maintainers.
 
 ## Critical bug fix — recovery worker now triggers on pre-0.2.2 indexes
 

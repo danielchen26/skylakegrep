@@ -66,11 +66,28 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.8.5 · multilingual routing · bare-query CLI · bounded proactive diffusion</div>
+ <h3>Natural-language queries work bare, quoted, or smart-quoted while semantic recall remains intact</h3>
+ <p>
+ This release hardens the intelligent router around the real cases
+ users type at a shell: <code>skygrep where is my case42 file in Downloads</code>,
+ <code>skygrep -x where is my case42 file in Downloads</code>, smart-quoted
+ pasted text, and Chinese or mixed-language filename questions such as
+ <code>我的 CASE42 文件在哪</code> and <code>我的合同文件在哪</code>. Filename
+ answers can return immediately when the filename layer has a clear
+ answer, while literal/rg evidence still joins the normal semantic
+ cascade instead of suppressing it. Proactive outside-path diffusion is
+ now bounded to filename intent, and obvious semantic questions take a
+ cheap semantic pre-router path before the LLM router.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.8.5.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.8.3 · hot-fix · filename skip-cascade UnboundLocalError</div>
  <h3>High-confidence filename lookups can skip cascade without crashing later in the warm cross-folder gate</h3>
  <p>
  The LLM router correctly skips semantic cascade for pure filename
- lookups such as <code>skygrep -x "where is my eb1b file"</code>.
+ lookups such as <code>skygrep -x "where is my case42 file"</code>.
  In 0.5.8.2 the cascade branch initialised <code>queries</code>,
  but the cascade-skipped path did not; a later warm cross-folder
  condition still read <code>len(queries)</code>. 0.5.8.3 initialises

@@ -415,32 +415,21 @@ def _filename_token(query: str, decision: Any) -> str:
     query, preferring a non-empty ``decision.primary_token`` when
     the LLM router has already done the work for us."""
 
-    primary = getattr(decision, "primary_token", "") or ""
-    if isinstance(primary, str) and len(primary.strip()) >= 2:
-        return primary.strip()
     try:
-        from .auto_index import _FN_TOKEN_RE, _FN_QUESTION_WORDS
+        from .auto_index import _filename_candidate_tokens
     except Exception:
         return ""
-    raw = _FN_TOKEN_RE.findall(query)
-    candidates = [
-        t for t in raw if t.lower() not in _FN_QUESTION_WORDS and len(t) >= 3
-    ]
-    if not candidates:
-        return ""
+    candidates = _filename_candidate_tokens(query, decision)
+    return candidates[0] if candidates else ""
 
-    def score(t: str) -> int:
-        s = 0
-        if any(c.isdigit() for c in t):
-            s += 100  # task-001 / v6.2 / req-2024-08-style identifiers
-        if any(c in "._-" for c in t):
-            s += 50
-        if t != t.lower() and t != t.upper():
-            s += 20
-        return s
 
-    best = sorted(candidates, key=lambda t: (-score(t), -len(t)))
-    return best[0]
+def _filename_tokens(query: str, decision: Any) -> list[str]:
+    try:
+        from .auto_index import _filename_candidate_tokens
+    except Exception:
+        token = _filename_token(query, decision)
+        return [token] if token else []
+    return _filename_candidate_tokens(query, decision)
 
 
 def _looks_like_identifier(token: str) -> bool:
@@ -480,17 +469,11 @@ def filename_extend_should_fire(
     """Fire when conventional retrieval can't answer the user's
     query under the current scope.
 
-    Per Principle 6 (Proactive over Passive) **with no auxiliary
-    gating**: the gate looks at exactly one signal — did the cascade
-    return useful results? It does NOT inspect ``decision.intent``
-    (that would re-introduce intent-shape gating which the user has
-    explicitly rejected), it does NOT enumerate trigger phrases, it
-    does NOT do token-shape morphology checks. Token-shape /
-    morphology decisions belong INSIDE ``filename_extend_execute``,
-    where the enhancer can early-return ``None`` without firing
-    ``find`` if no usable token can be extracted — keeping the
-    latency cost at exactly zero for queries where filename search
-    would be useless.
+    This enhancer is scoped to ``intent=filename``. That keeps the
+    global search contract intact: code-token, lexical, and semantic
+    queries may show fast preliminary matches, but they must not pay
+    for a home-directory filename walk or get polluted by unrelated
+    sibling-folder files after cascade has already answered.
 
     Two cases (the only two):
 
@@ -502,33 +485,14 @@ def filename_extend_should_fire(
         provide a token, trust that the cascade answered and don't
         fire — there's nothing to validate against.
 
-    Why this is the right shape:
-
-      - **No intent gating.** Whatever the LLM classified the
-        intent as, if the cascade couldn't answer, the user is
-        worse off than if we tried. Per Principle 6, we try.
-      - **No keyword gating.** Trigger phrases (``where is`` / ``在哪``
-        / ``find me`` / ``我的``) are gone — that was the 0.2.7 lapse
-        and is not coming back.
-      - **No token-shape gating at the gate.** The 0.2.9 attempt to
-        gate on identifier morphology was correctly criticised by
-        the user as the same anti-pattern wearing different
-        clothes. Token-shape decisions live one layer deeper, in
-        ``filename_extend_execute``, so they affect what the
-        enhancer DOES, not whether it's eligible.
-      - **Zero latency penalty in the common case.** Pure-NL queries
-        with 0 results (``how does cascade work``) reach
-        ``execute``, which calls ``_filename_token``, which returns
-        an empty string because the regex finds no
-        identifier-eligible candidate, which causes early ``return
-        None``. ``find`` is never invoked, no subprocess started,
-        no parallelism overhead beyond the thread-pool startup.
-        Queries that DO have an identifier token pay the
-        ``find`` cost — but those are the exact queries we want
-        to extend.
+    Token-shape decisions still live inside ``filename_extend_execute``:
+    the gate decides whether filename extension is relevant, and execute
+    decides what concrete candidate token is safe to glob.
     """
 
     if decision is None:
+        return False
+    if getattr(decision, "intent", "") != "filename":
         return False
     if not results:
         return True
@@ -549,29 +513,30 @@ def filename_extend_should_fire(
     # ``_filename_token`` runs the same regex + identifier-shape
     # scoring the LLM router uses internally to score
     # ``primary_token`` candidates.
-    primary_token = (getattr(decision, "primary_token", "") or "").strip()
-    if not primary_token:
-        candidate = (_filename_token(query, decision) or "").strip()
-        # Only accept a morphology-extracted token if it looks like
-        # an identifier (digit / punctuation / mixed case). Without
+    raw_primary = (getattr(decision, "primary_token", "") or "").strip()
+    candidates = _filename_tokens(query, decision)
+    if raw_primary:
+        token_lowers = [t.lower() for t in candidates if t.strip()]
+    else:
+        # Only accept morphology-extracted tokens if they look like
+        # identifiers (digit / punctuation / mixed case). Without
         # this check, queries like ``"how does cascade work"`` would
         # treat ``cascade`` as a filename candidate and fire on
         # any non-cascade result, surfacing irrelevant matches from
-        # ``~/Downloads``. The LLM-supplied ``primary_token`` (when
-        # present) is already vetted against the same shape signals
-        # in the router prompt; the morphology check here aligns the
-        # rule-based-fallback path with that contract.
-        if candidate and _looks_like_identifier(candidate):
-            primary_token = candidate
-    if not primary_token:
+        # ``~/Downloads``. The LLM-supplied ``primary_token`` path
+        # above is already an understanding-layer decision.
+        token_lowers = [
+            t.lower() for t in candidates if _looks_like_identifier(t)
+        ]
+    if not token_lowers:
         # Genuinely no usable identifier in the query (pure NL).
         # Trust the cascade.
         return False
-    token_lower = primary_token.lower()
     return not any(
-        token_lower in Path(r.get("path", "")).name.lower()
+        token in Path(r.get("path", "")).name.lower()
         for r in results
         if r.get("path")
+        for token in token_lowers
     )
 
 
@@ -591,8 +556,11 @@ def filename_extend_execute(
     ``tempfile.TemporaryDirectory`` fixtures without touching the
     real ``~/Downloads``."""
 
-    token = _filename_token(query, decision)
-    if not token or len(token) < 2:
+    raw_primary = (getattr(decision, "primary_token", "") or "").strip()
+    tokens = _filename_tokens(query, decision)
+    if not raw_primary:
+        tokens = [t for t in tokens if _looks_like_identifier(t)]
+    if not tokens:
         return None
 
     if search_dirs is None:
@@ -617,19 +585,26 @@ def filename_extend_execute(
     per_dir_s = max(0.2, individual_budget_ms / 1000.0)
 
     all_hits: list[tuple[str, str]] = []
-    with ThreadPoolExecutor(max_workers=min(len(dirs), 4)) as pool:
-        fut_to_dir = {
-            pool.submit(_find_one_dir, d, token, per_dir_s): d
-            for d in dirs
-        }
-        for fut in as_completed(fut_to_dir, timeout=individual_budget_ms / 1000.0 + 0.2):
-            try:
-                hits = fut.result(timeout=0.001)
-            except Exception:
-                continue
-            d = fut_to_dir[fut]
-            for h in hits[:5]:
-                all_hits.append((h, str(d)))
+    for token in tokens:
+        if not token or len(token) < 2:
+            continue
+        with ThreadPoolExecutor(max_workers=min(len(dirs), 4)) as pool:
+            fut_to_dir = {
+                pool.submit(_find_one_dir, d, token, per_dir_s): d
+                for d in dirs
+            }
+            for fut in as_completed(
+                fut_to_dir, timeout=individual_budget_ms / 1000.0 + 0.2
+            ):
+                try:
+                    hits = fut.result(timeout=0.001)
+                except Exception:
+                    continue
+                d = fut_to_dir[fut]
+                for h in hits[:5]:
+                    all_hits.append((h, str(d)))
+        if all_hits:
+            break
 
     if not all_hits:
         return None

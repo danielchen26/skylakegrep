@@ -461,6 +461,19 @@ _LEXICAL_MIN_PATH_TOKEN_OVERLAP = 2
 _LEXICAL_MAX_PARENT_DIRS = 2
 
 
+def _lexical_single_literal_token(term: str) -> bool:
+    """True when a single query term is specific enough for 1-token path overlap.
+
+    The original shortcut required two overlapping query tokens in a path. That
+    is correct for natural-language phrases like "auth login", but it makes a
+    bare symbol query such as "filename_shortcut" impossible to fast-path even
+    when rg finds a tiny, clustered set. Keep the exception narrow: long or
+    identifier-shaped tokens only.
+    """
+
+    return len(term) >= 8 or "_" in term or any(c.isdigit() for c in term)
+
+
 def lexical_shortcut(
     query: str,
     project_root: Path,
@@ -511,7 +524,10 @@ def lexical_shortcut(
         overlap = sum(1 for t in lower_terms if t in p_lower)
         if overlap > max_overlap:
             max_overlap = overlap
-    if max_overlap < min_path_token_overlap:
+    required_overlap = min_path_token_overlap
+    if len(lower_terms) == 1 and _lexical_single_literal_token(lower_terms[0]):
+        required_overlap = 1
+    if max_overlap < required_overlap:
         return None
 
     # Condition 4: matches cluster in a small number of parent dirs
@@ -545,6 +561,7 @@ _FN_LOOKUP_INTENT = (
     "look for", "search for", "open ",
 )
 _FN_TOKEN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._\-]{2,40}")
+_FN_CJK_RUN_RE = re.compile(r"[\u3400-\u9fff]{2,32}")
 _FN_QUESTION_WORDS = frozenset({
     "is", "are", "the", "a", "an", "of", "for", "me", "my", "to",
     "in", "on", "at", "by", "from", "with", "where", "find",
@@ -553,6 +570,83 @@ _FN_QUESTION_WORDS = frozenset({
     "any", "some", "all", "this", "that", "these", "those",
     "and", "or", "but", "not",
 })
+_FN_CJK_WRAPPERS = (
+    "请问", "請問", "帮我", "幫我", "我的", "这个", "這個", "那个", "那個",
+    "文件", "档案", "檔案", "在哪", "哪里", "哪裡", "一下", "找", "打开",
+    "開啟",
+)
+
+
+def _filename_cjk_candidates(text: str) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for run in _FN_CJK_RUN_RE.findall(text):
+        cand = run
+        for wrapper in _FN_CJK_WRAPPERS:
+            cand = cand.replace(wrapper, "")
+        cand = cand.strip()
+        if len(cand) < 2:
+            continue
+        if cand in seen:
+            continue
+        seen.add(cand)
+        out.append(cand)
+    return out
+
+
+def _filename_candidate_tokens(query: str, decision=None) -> list[str]:
+    """Return filename-match candidates, strongest first.
+
+    The LLM router may return a descriptive primary token such as
+    ``"我的 CASE42 文件"``. Use that understanding as the source of truth
+    for intent, but keep the matching mechanism pragmatic: try the full
+    primary token first, then identifier-shaped sub-tokens extracted from
+    the primary token and the query. This keeps Chinese / mixed-language
+    filename lookups from falling through to semantic cascade just because
+    the model included surrounding words in ``primary_token``.
+    """
+
+    raw_candidates: list[str] = []
+    primary = (getattr(decision, "primary_token", "") or "").strip()
+    if primary:
+        raw_candidates.append(primary)
+        raw_candidates.extend(_FN_TOKEN_RE.findall(primary))
+        raw_candidates.extend(_filename_cjk_candidates(primary))
+    raw_candidates.extend(_FN_TOKEN_RE.findall(query))
+    raw_candidates.extend(_filename_cjk_candidates(query))
+
+    def _is_identifier_like(t: str) -> int:
+        """Higher score = more filename-identifier-like."""
+        score = 0
+        if any(c.isdigit() for c in t):
+            score += 100  # task-001, v6, task001
+        if any(c in "._-" for c in t):
+            score += 50   # foo.py, my-file, snake_case
+        if t != t.lower() and t != t.upper():
+            score += 20   # CamelCase / PascalCase
+        return score
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for token in raw_candidates:
+        token = token.strip()
+        if len(token) < 2:
+            continue
+        if token.lower() in _FN_QUESTION_WORDS:
+            continue
+        key = token.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(token)
+
+    # Keep a full LLM primary phrase first if present, because exact
+    # phrase matches are the most precise. Rank all extracted tokens by
+    # filename-likeness, then length.
+    prefix = [primary] if primary and deduped and deduped[0] == primary else []
+    rest = deduped[1:] if prefix else deduped
+    rest = sorted(rest, key=lambda t: (-_is_identifier_like(t), -len(t)))
+    return (prefix + rest)[:8]
 
 
 def filename_shortcut(
@@ -562,6 +656,7 @@ def filename_shortcut(
     top_k: int,
     max_files: int = 30,
     max_depth: int = 6,
+    decision=None,
 ) -> list[dict] | None:
     """Try to short-circuit search by interpreting the query as a
     filename lookup. Returns a result list (shaped like
@@ -583,9 +678,12 @@ def filename_shortcut(
     """
     q_lower = query.lower()
 
-    # Condition 1: explicit lookup intent
+    # Condition 1: explicit lookup intent. Trust the LLM router when
+    # available; it handles multilingual lookup phrasings such as
+    # ``我的 CASE42 文件在哪`` that should not require English keyword lists.
     has_intent = any(phrase in q_lower for phrase in _FN_LOOKUP_INTENT)
-    if not has_intent:
+    llm_filename_intent = getattr(decision, "intent", None) == "filename"
+    if not has_intent and not llm_filename_intent:
         # Allow standalone "file" / "files" as a softer trigger
         if not re.search(r"\bfiles?\b", q_lower):
             return None
@@ -595,30 +693,9 @@ def filename_shortcut(
     # plain longest token won (e.g. picking "evidence" over "task-001"
     # for the query "where is task-001 support letter evidence in all
     # files?", which then matched the wrong CSV).
-    raw_tokens = _FN_TOKEN_RE.findall(query)
-    candidates = [
-        t for t in raw_tokens if t.lower() not in _FN_QUESTION_WORDS
-    ]
-    candidates = [t for t in candidates if len(t) >= 3]
+    candidates = _filename_candidate_tokens(query, decision)
     if not candidates:
         return None
-
-    def _is_identifier_like(t: str) -> int:
-        """Higher score = more filename-identifier-like."""
-        score = 0
-        if any(c.isdigit() for c in t):
-            score += 100  # task-001, v6, task001
-        if any(c in "._-" for c in t):
-            score += 50   # foo.py, my-file, snake_case
-        if t != t.lower() and t != t.upper():
-            score += 20   # CamelCase / PascalCase
-        return score
-
-    # Sort by (identifier-likeness desc, length desc) so we try
-    # `task-001` before `evidence` and `package.json` before `parser`.
-    ordered = sorted(
-        candidates, key=lambda t: (-_is_identifier_like(t), -len(t))
-    )
 
     find_bin = shutil.which("find")
     if not find_bin:
@@ -626,7 +703,7 @@ def filename_shortcut(
 
     paths: list[str] = []
     pattern: str = ""
-    for cand in ordered:
+    for cand in candidates:
         try:
             r = subprocess.run(
                 [
@@ -715,7 +792,6 @@ def filename_shortcut(
             "semantic_score": 0.0,
             "lexical_score": 1.0,
             "fallback": "filename-lookup",
+            "filename_token": pattern,
         })
     return results
-
-

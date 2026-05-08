@@ -59,7 +59,7 @@
 <p>0.5.8.2 let the LLM router authorise a pure filename lookup and skip
 the semantic cascade when confidence was high. That was the right
 routing decision for queries like:</p>
-<pre><code>skygrep -x "where is my eb1b file"</code></pre>
+<pre><code>skygrep -x "where is my case42 file"</code></pre>
 <p>The bug was in the CLI orchestration after that decision. The normal
 cascade branch initialised <code>queries = [query]</code>, but the skip-cascade
 branch did not. A later warm cross-folder gate still read

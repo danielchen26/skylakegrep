@@ -58,6 +58,35 @@ def test_shortcut_fires_on_clean_lexical_match(tmp_path):
     assert any("login.py" in r["path"] for r in out)
 
 
+@pytest.mark.skipif(not _has_rg(), reason="ripgrep not installed")
+def test_shortcut_fires_on_single_specific_literal_token(tmp_path):
+    root = _project(
+        tmp_path,
+        {
+            "src/search/filename_shortcut.py": "def filename_shortcut(): pass",
+            "tests/test_filename_shortcut.py": "filename_shortcut behavior",
+            "src/billing/invoice.py": "def make_invoice(): pass",
+        },
+    )
+    out = auto_index.lexical_shortcut("filename_shortcut", root, top_k=5)
+    assert out is not None, "single explicit symbol token should fast-path"
+    assert all(r["fallback"] == "rg-shortcut" for r in out)
+    assert any("filename_shortcut.py" in r["path"] for r in out)
+
+
+@pytest.mark.skipif(not _has_rg(), reason="ripgrep not installed")
+def test_shortcut_skips_single_short_token(tmp_path):
+    root = _project(
+        tmp_path,
+        {
+            "src/auth/auth.py": "auth token",
+            "tests/auth/test_auth.py": "auth login",
+        },
+    )
+    out = auto_index.lexical_shortcut("auth", root, top_k=5)
+    assert out is None, "short one-word queries remain conservative"
+
+
 # ---- condition 1: too many query terms ------------------------------
 
 

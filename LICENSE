@@ -35,7 +35,7 @@ the URL for them above, as well as copies of any plain-text
 lines beginning with `Required Notice:` that the licensor
 provided with the software. For example:
 
-> Required Notice: Copyright Tianchi Chen
+> Required Notice: Copyright skylakegrep contributors
 > (https://github.com/danielchen26/local-mgrep)
 
 ## Changes and New Works License
@@ -142,7 +142,7 @@ it from other items in commerce.
 
 ## Required Notice
 
-Copyright © 2024–2026 Tianchi Chen
+Copyright © 2024–2026 skylakegrep contributors
 <https://github.com/danielchen26/local-mgrep>
 
 ## Commercial use
@@ -150,7 +150,7 @@ Copyright © 2024–2026 Tianchi Chen
 Commercial use of this software is **not permitted** under this
 license. To obtain a commercial license, please open a GitHub
 issue at the repository above titled "Commercial license inquiry"
-or contact the author at <chentianchi@gmail.com>.
+or contact the maintainers through the repository.
 
 Earlier releases of this software (v0.2.0 through v0.15.1) were
 distributed under the MIT License at the time of release; those

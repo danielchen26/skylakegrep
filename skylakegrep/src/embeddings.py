@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import requests
 from .answerer import _coerce_keep_alive

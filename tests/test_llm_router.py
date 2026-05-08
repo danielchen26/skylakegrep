@@ -89,7 +89,7 @@ def test_high_confidence_skip_cascade_honored():
     fake_response = {
         "response": json.dumps({
             "intent": "filename",
-            "primary_token": "eb1b",
+            "primary_token": "case42",
             "skip_cascade": True,
             "extract_content": True,
             "confidence": 0.95,
@@ -106,12 +106,12 @@ def test_high_confidence_skip_cascade_honored():
 
     with patch("skylakegrep.src.llm_router.requests.post",
                return_value=_FakeResp()):
-        decision = router._llm_decision("where is eb1b file?")
+        decision = router._llm_decision("where is case42 file?")
 
     assert decision is not None
     assert decision.skip_cascade is True
     assert decision.extract_content is True
-    assert decision.primary_token == "eb1b"
+    assert decision.primary_token == "case42"
 
 
 # ---- _llm_decision: failure modes -----------------------------------
@@ -166,7 +166,7 @@ def test_llm_decision_clamps_invalid_intent_to_mixed():
 
 
 def test_rule_based_filename_intent():
-    d = router._rule_based_decision("where is eb1b file?")
+    d = router._rule_based_decision("where is case42 file?")
     assert d.intent == "filename"
     assert d.source == "fallback-rules"
 
@@ -183,6 +183,65 @@ def test_rule_based_empty_query_safe_default():
     assert d.source == "fallback-mixed"
 
 
+# ---- cheap filename pre-router -------------------------------------
+
+
+def test_cheap_filename_router_handles_multilingual_identifier_lookup():
+    with patch(
+        "skylakegrep.src.llm_router.requests.post",
+        side_effect=AssertionError("LLM should not be called"),
+    ):
+        d = route_query("我的 CASE42 文件在哪")
+    assert d.intent == "filename"
+    assert d.primary_token == "CASE42"
+    assert d.skip_cascade is True
+    assert d.source == "heuristic-filename"
+
+
+def test_cheap_filename_router_handles_dotted_lookup():
+    with patch(
+        "skylakegrep.src.llm_router.requests.post",
+        side_effect=AssertionError("LLM should not be called"),
+    ):
+        d = route_query("find package.json")
+    assert d.intent == "filename"
+    assert d.primary_token == "package.json"
+    assert d.skip_cascade is True
+
+
+def test_cheap_filename_router_handles_cjk_lookup():
+    with patch(
+        "skylakegrep.src.llm_router.requests.post",
+        side_effect=AssertionError("LLM should not be called"),
+    ):
+        d = route_query("我的合同文件在哪")
+    assert d.intent == "filename"
+    assert d.primary_token == "合同"
+    assert d.skip_cascade is True
+
+
+def test_cheap_filename_router_does_not_steal_semantic_question():
+    with patch(
+        "skylakegrep.src.llm_router.requests.post",
+        side_effect=AssertionError("LLM should not be called"),
+    ):
+        d = route_query("how does CASE42 scoring work?")
+    assert d.intent == "semantic"
+    assert d.source == "heuristic-semantic"
+
+
+def test_cheap_semantic_router_skips_llm_for_obvious_question():
+    with patch(
+        "skylakegrep.src.llm_router.requests.post",
+        side_effect=AssertionError("LLM should not be called"),
+    ):
+        d = route_query("how does cascade decide")
+    assert d.intent == "semantic"
+    assert d.skip_cascade is False
+    assert d.skip_filename is True
+    assert d.source == "heuristic-semantic"
+
+
 # ---- route_query end-to-end ----------------------------------------
 
 
@@ -193,8 +252,8 @@ def test_route_query_falls_back_when_llm_unavailable():
         "skylakegrep.src.llm_router.requests.post",
         side_effect=r.ConnectionError("ollama down"),
     ):
-        d = route_query("where is foo file?")
-    assert d.intent == "filename"
+        d = route_query("auth login")
+    assert d.intent == "lexical"
     assert d.source == "fallback-rules"
 
 
@@ -204,7 +263,7 @@ def test_route_query_use_llm_false_skips_llm_entirely():
         "skylakegrep.src.llm_router.requests.post",
         side_effect=AssertionError("should not be called"),
     ):
-        d = route_query("how does X work", use_llm=False)
+        d = route_query("auth login", use_llm=False)
     assert d.source == "fallback-rules"
 
 
@@ -216,7 +275,7 @@ def test_route_query_caches_in_sqlite(tmp_path):
     fake_response = {
         "response": json.dumps({
             "intent": "filename",
-            "primary_token": "eb1b",
+            "primary_token": "case42",
             "confidence": 0.9,
             "reason": "test",
         })
@@ -233,8 +292,8 @@ def test_route_query_caches_in_sqlite(tmp_path):
         "skylakegrep.src.llm_router.requests.post",
         return_value=_FakeResp(),
     ) as mocked:
-        d1 = route_query("where is eb1b file?", conn=conn)
-        d2 = route_query("where is eb1b file?", conn=conn)
+        d1 = route_query("cache this ambiguous router query", conn=conn)
+        d2 = route_query("cache this ambiguous router query", conn=conn)
 
     assert d1.intent == "filename"
     assert d2.intent == "filename"

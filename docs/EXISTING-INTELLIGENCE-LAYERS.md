@@ -67,7 +67,7 @@ acknowledging that failure mode means re-incurring it.
 #### Filename shortcut (`auto_index.filename_shortcut`)
 
 - When `route_query` flags the query as filename intent (or query
-  has filename-shaped tokens like `package.json`, `Eb1b_*.pdf`),
+  has filename-shaped tokens like `package.json`, `Case42_*.pdf`),
   route to `find -iname '*token*'` and skip cosine entirely.
 - Returns the `chunks`-table dict shape so it composes with merge.
 - Conservative: requires identifier-shape token (digits / `._-` /

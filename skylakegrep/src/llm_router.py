@@ -60,6 +60,8 @@ LLM_TIMEOUT_SECONDS = float(
     os.environ.get("SKYGREP_LLM_ROUTER_TIMEOUT_SECONDS", "8.0")
 )
 
+ROUTER_CACHE_VERSION = 3
+
 # Below this confidence the LLM's "skip_cascade" decision is ignored
 # — accuracy is the gold standard, never trust an unsure model.
 MIN_CONFIDENCE_TO_SKIP_CASCADE = float(
@@ -140,6 +142,134 @@ def _rule_based_decision(query: str) -> RouterDecision:
     )
 
 
+# ---- Cheap deterministic filename pre-router -----------------------
+
+_CHEAP_FILENAME_TOKEN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._\-]{1,40}")
+_CHEAP_CJK_RUN_RE = re.compile(r"[\u3400-\u9fff]{2,32}")
+_CHEAP_FILENAME_STOPWORDS = frozenset({
+    "where", "find", "locate", "show", "open", "search", "file", "files",
+    "folder", "directory", "my", "the", "this", "that", "please",
+})
+_CHEAP_LOOKUP_RE = re.compile(
+    r"\b(where|find|locate|show|open|search)\b|在哪|哪里|哪裡|找|打开"
+)
+_CHEAP_FILE_RE = re.compile(r"\bfiles?\b|文件|档案|檔案")
+_CHEAP_SEMANTIC_RE = re.compile(
+    r"^\s*(how|why|explain|describe|summarize|trace|walk\s+through)\b",
+    re.IGNORECASE,
+)
+_CHEAP_CJK_WRAPPERS = (
+    "请问", "請問", "帮我", "幫我", "我的", "这个", "這個", "那个", "那個",
+    "文件", "档案", "檔案", "在哪", "哪里", "哪裡", "一下", "找", "打开",
+    "開啟", "打开",
+)
+
+
+def _cheap_cjk_filename_candidates(query: str) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for run in _CHEAP_CJK_RUN_RE.findall(query):
+        cand = run
+        for wrapper in _CHEAP_CJK_WRAPPERS:
+            cand = cand.replace(wrapper, "")
+        cand = cand.strip()
+        if len(cand) < 2:
+            continue
+        if cand not in seen:
+            seen.add(cand)
+            out.append(cand)
+    return out
+
+
+def _cheap_filename_decision(query: str) -> RouterDecision | None:
+    """Fast-path obvious filename lookups before paying an LLM router call.
+
+    This covers mixed-language queries such as ``我的 CASE42 文件在哪`` and
+    identifier-first queries such as ``find package.json``. It intentionally
+    requires a lookup wrapper plus either a file word or a strongly
+    filename-shaped token, so descriptive semantic questions still fall
+    through to the LLM/fallback router.
+    """
+
+    q = query.strip()
+    if not q:
+        return None
+    has_lookup = _CHEAP_LOOKUP_RE.search(q) is not None
+    has_file_word = _CHEAP_FILE_RE.search(q) is not None
+    if not has_lookup:
+        return None
+
+    candidates: list[str] = []
+    seen: set[str] = set()
+    for token in _CHEAP_FILENAME_TOKEN_RE.findall(q):
+        lo = token.lower()
+        if lo in _CHEAP_FILENAME_STOPWORDS or lo in seen:
+            continue
+        seen.add(lo)
+        candidates.append(token)
+    candidates.extend(t for t in _cheap_cjk_filename_candidates(q) if t not in seen)
+    if not candidates:
+        return None
+
+    def _score(token: str) -> tuple[int, int]:
+        shaped = 0
+        if any(c.isdigit() for c in token):
+            shaped += 100
+        if any(c in "._-" for c in token):
+            shaped += 80
+        if token != token.lower() and token != token.upper():
+            shaped += 20
+        return shaped, len(token)
+
+    candidates.sort(key=lambda t: (-_score(t)[0], -_score(t)[1]))
+    best = candidates[0]
+    best_score, _ = _score(best)
+    if not has_file_word and best_score <= 0:
+        return None
+
+    return RouterDecision(
+        intent="filename",
+        primary_token=best,
+        skip_cascade=True,
+        skip_filename=False,
+        skip_lexical=True,
+        extract_content=True,
+        confidence=0.92,
+        source="heuristic-filename",
+        reason="query has a filename lookup wrapper and a distinctive filename token",
+        out_of_scope="none",
+    )
+
+
+def _cheap_semantic_decision(query: str) -> RouterDecision | None:
+    """Fast-path obvious explanatory/content questions.
+
+    These queries do not need an LLM router call to decide whether cascade
+    should run: cascade must run, filename should stay off, and no retrieval
+    is skipped. Keeping this deterministic path narrow preserves the LLM
+    router for ambiguous cases while avoiding cold-router latency on common
+    "how/why/explain" questions.
+    """
+
+    q = query.strip()
+    if not q:
+        return None
+    if _CHEAP_SEMANTIC_RE.search(q) is None:
+        return None
+    return RouterDecision(
+        intent="semantic",
+        primary_token="",
+        skip_cascade=False,
+        skip_filename=True,
+        skip_lexical=False,
+        extract_content=False,
+        confidence=0.82,
+        source="heuristic-semantic",
+        reason="query asks for an explanatory content answer, so semantic cascade should run",
+        out_of_scope="none",
+    )
+
+
 # ---- LLM call ------------------------------------------------------
 
 
@@ -151,6 +281,10 @@ Given the user's query, decide:
     query that should drive a filename `find -iname '*token*'` match.
     Prefer tokens with digits or unusual capitalisation (e.g. "task-001",
     "v6", "PascalCase") over common English words.
+    For filename lookups in any language, output the smallest distinctive
+    substring likely to appear in the basename, NOT the whole natural-language
+    phrase. Strip words such as "my", "file", "where", "在哪", "文件" when
+    they are only wrappers around the actual filename clue.
   - skip_cascade: true only when you are CERTAIN the query is a
     filename lookup and semantic content search is unnecessary.
     Default to false; uncertainty MUST keep cascade on.
@@ -177,6 +311,12 @@ Examples:
 
 Query: "where is task-001 file?"
 {{"intent": "filename", "primary_token": "task-001", "skip_cascade": true, "skip_filename": false, "extract_content": true, "confidence": 0.95, "reason": "user asks for a specific file by name", "out_of_scope": "none"}}
+
+Query: "我的 CASE42 文件在哪"
+{{"intent": "filename", "primary_token": "CASE42", "skip_cascade": true, "skip_filename": false, "extract_content": true, "confidence": 0.9, "reason": "user asks for a file by a distinctive filename token", "out_of_scope": "none"}}
+
+Query: "我的合同文件在哪"
+{{"intent": "filename", "primary_token": "合同", "skip_cascade": true, "skip_filename": false, "extract_content": true, "confidence": 0.85, "reason": "user asks for a file by a distinctive filename term", "out_of_scope": "none"}}
 
 Query: "how does the auth token get refreshed"
 {{"intent": "semantic", "primary_token": "", "skip_cascade": false, "skip_filename": true, "extract_content": false, "confidence": 0.9, "reason": "descriptive question about code behaviour", "out_of_scope": "none"}}
@@ -305,6 +445,8 @@ def _cache_get(conn: sqlite3.Connection, query: str) -> RouterDecision | None:
         d = json.loads(row[0])
     except json.JSONDecodeError:
         return None
+    if d.get("cache_version") != ROUTER_CACHE_VERSION:
+        return None
     # Tolerate cached payloads written by older versions that didn't
     # know about the 0.2.6 ``out_of_scope`` field. ``RouterDecision``
     # has a default for it, so dropping it from ``d`` lets the dataclass
@@ -327,6 +469,7 @@ def _cache_set(conn: sqlite3.Connection, query: str, decision: RouterDecision) -
             "(query TEXT PRIMARY KEY, decision TEXT)"
         )
         payload = json.dumps({
+            "cache_version": ROUTER_CACHE_VERSION,
             "intent": decision.intent,
             "primary_token": decision.primary_token,
             "skip_cascade": decision.skip_cascade,
@@ -550,6 +693,14 @@ def route_query(
     """
     if not query or not query.strip():
         return _all_runs()
+
+    cheap = _cheap_filename_decision(query)
+    if cheap is None:
+        cheap = _cheap_semantic_decision(query)
+    if cheap is not None:
+        if conn is not None:
+            _cache_set(conn, query, cheap)
+        return cheap
 
     cached: RouterDecision | None = None
     if conn is not None:

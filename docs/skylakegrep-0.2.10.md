@@ -8,7 +8,7 @@ gate logic; this one fixes the underlying mechanism.
 
 > **License:** PolyForm Noncommercial 1.0.0. Personal / academic /
 > research / hobby use is fully permitted. Commercial use requires
-> a separate license — contact <chentianchi@gmail.com>.
+> a separate license — contact the maintainers.
 
 ## What was wrong (root-cause diagnosis)
 

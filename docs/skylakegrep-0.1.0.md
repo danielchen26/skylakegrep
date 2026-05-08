@@ -6,7 +6,7 @@ incremental changelog.
 
 > **License:** PolyForm Noncommercial 1.0.0. Personal / academic /
 > research / hobby use is fully permitted. Commercial use requires
-> a separate license — contact <chentianchi@gmail.com>.
+> a separate license — contact the maintainers.
 
 ## What it does
 

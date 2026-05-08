@@ -437,11 +437,27 @@ Behavior toggles.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.5.8.5`** — Multilingual intelligent routing hardening
+    without weakening semantic recall. Natural-language CLI queries
+    can now be passed bare, quoted, or smart-quoted, so
+    `skygrep where is my case42 file in Downloads`,
+    `skygrep -x where is my case42 file in Downloads`, and
+    smart-quoted terminal input all route as one query instead of
+    failing Click argument parsing. A generic cheap filename
+    pre-router handles English, Chinese, and mixed-language file
+    lookups (`我的 CASE42 文件在哪` -> `CASE42`, `我的合同文件在哪` ->
+    `合同`) and a cheap semantic pre-router avoids cold LLM router
+    latency for obvious `how` / `why` / `explain` questions. Filename
+    answers can return immediately while background indexing continues;
+    literal/rg evidence still feeds the normal cascade instead of
+    suppressing semantic recall. Proactive outside-path diffusion is
+    now bounded to filename intent, so wrong-folder file recovery stays
+    fast without polluting ordinary semantic/code searches.
   - **`0.5.8.3`** — Hot-fix for high-confidence filename lookups
     that skipped the semantic cascade: the cascade branch initialised
     `queries`, but the cascade-skipped path did not, and the later
     warm cross-folder gate still read `len(queries)`. Queries like
-    `skygrep -x "where is my eb1b file"` could show proactive
+    `skygrep -x "where is my case42 file"` could show proactive
     outside-project filename matches and then crash with
     `UnboundLocalError`. `queries` is now initialised before the
     branch; regression coverage locks the filename skip path.
@@ -541,7 +557,7 @@ specific order.
 
 PolyForm Noncommercial 1.0.0. Personal · academic · research ·
 hobby use is fully permitted. Commercial use requires a separate
-license — contact <chentianchi@gmail.com>.
+license — contact the maintainers.
 
 ---
 

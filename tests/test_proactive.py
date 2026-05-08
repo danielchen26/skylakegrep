@@ -304,11 +304,12 @@ class KillSwitchTests(unittest.TestCase):
 
 
 class FilenameExtendShouldFireTests(unittest.TestCase):
-    """Per Principle 1, the gate trusts ``decision.intent`` only.
-    We do NOT keyword-match the query against ``where is`` / ``在哪`` /
-    etc. — that's the enumeration anti-pattern the user has flagged
-    multiple times. The LLM router (or its rule-based fallback) is
-    where intent classification lives."""
+    """The home-dir filename extender is scoped to filename intent.
+
+    rg/semantic hits are allowed to provide fast feedback, but they
+    must not trigger unrelated home-directory walks unless the router
+    has understood the query as a filename lookup.
+    """
 
     def test_fires_on_filename_intent_and_zero_results(self):
         d = _MockDecision(intent="filename")
@@ -316,24 +317,25 @@ class FilenameExtendShouldFireTests(unittest.TestCase):
             filename_extend_should_fire("Where is my file?", d, [])
         )
 
-    def test_fires_on_mixed_intent_and_zero_results(self):
-        # Mixed intent treated as filename-eligible because the
-        # LLM was uncertain — we still want proactive to help.
+    def test_does_not_fire_on_mixed_intent_and_zero_results(self):
         d = _MockDecision(intent="mixed")
-        self.assertTrue(filename_extend_should_fire("anything", d, []))
+        self.assertFalse(filename_extend_should_fire("anything", d, []))
 
-    def test_gate_fires_on_zero_results_regardless_of_intent(self):
-        """0.2.10: the gate is strictly a "did cascade fail" check.
-        Whatever intent the LLM classified, if results are empty,
-        the gate fires. Token-shape and other content checks belong
-        inside ``execute``, not at the gate."""
-        for intent in ("semantic", "lexical", "filename", "mixed"):
+    def test_gate_fires_on_zero_results_only_for_filename_intent(self):
+        for intent in ("semantic", "lexical", "mixed"):
             with self.subTest(intent=intent):
                 d = _MockDecision(intent=intent)
-                self.assertTrue(
+                self.assertFalse(
                     filename_extend_should_fire("any query", d, []),
-                    msg=f"gate must fire on empty results, intent={intent}",
+                    msg=f"non-filename intent must not launch home-dir find, intent={intent}",
                 )
+        self.assertTrue(
+            filename_extend_should_fire(
+                "where is my task-001 file",
+                _MockDecision(intent="filename"),
+                [],
+            )
+        )
 
     def test_does_not_fire_when_results_match_primary_token(self):
         # When LLM gave a primary_token AND the cascade already
@@ -371,28 +373,18 @@ class FilenameExtendShouldFireTests(unittest.TestCase):
             )
         )
 
-    def test_fires_on_lexical_noise_when_llm_unreachable(self):
-        """0.2.12 regression: rule-based fallback (LLM unavailable)
-        leaves ``primary_token=''``. Cold-start cascade can return
-        noisy ``rg`` hits — e.g. ``Project.toml`` files containing
-        the user's lookup token as a substring inside Julia package
-        UUIDs. None of those file basenames contain ``eb1b``, so the
-        gate must fall back to ``_filename_token(query)`` morphology
-        extraction, recognise that the cascade missed, and fire
-        proactive search to find the actual files in
-        ``~/Downloads`` / etc.
-
-        The 0.2.10–0.2.11 gate gave up at ``primary_token=''``, leaving
-        the user with the wrong-results-no-extend UX the user
-        reported on Desktop with their EB1B query."""
-        d = _MockDecision(intent="lexical", primary_token="")  # rule-based shape
+    def test_fires_on_filename_noise_with_empty_primary_token(self):
+        """When the router classifies filename intent but lacks a
+        primary token, morphology fallback still recognises the lookup
+        token and validates that current results missed the file."""
+        d = _MockDecision(intent="filename", primary_token="")
         rg_noise_results = [
             {"path": "/proj/LotkaVolterra/Project.toml", "score": 1.0},
             {"path": "/proj/LotkaVolterra/Manifest.toml", "score": 1.0},
         ]
         self.assertTrue(
             filename_extend_should_fire(
-                '我有没有跟"eb1b"有关的文件？', d, rg_noise_results,
+                '我有没有跟"case42"有关的文件？', d, rg_noise_results,
             )
         )
 
@@ -491,6 +483,17 @@ class FilenameExtendExecuteTests(unittest.TestCase):
         )
         self.assertIsNotNone(result)
         self.assertGreater(len(result.extra_hits), 0)
+
+    def test_extracts_identifier_from_multilingual_primary_token(self):
+        d = _MockDecision(intent="filename", primary_token="我的 task-001 文件")
+        result = filename_extend_execute(
+            "我的 task-001 文件在哪",
+            d, top_k=10, individual_budget_ms=2000,
+            search_dirs=[Path(self.tmp)],
+        )
+        self.assertIsNotNone(result)
+        names = {Path(h["path"]).name for h in result.extra_hits}
+        self.assertIn("task-001-spec.md", names)
 
 
 # ---------------------------------------------------------------------------

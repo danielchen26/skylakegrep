@@ -7,6 +7,25 @@ principles travel with the code.
 
 ---
 
+## Release privacy hardline
+
+Public release material must never use a user's real private files,
+real document categories, real names, real home-directory paths, or
+case-specific personal examples. This applies to README examples,
+docs, changelog cards, GitHub Release notes, PyPI long descriptions,
+tests that ship in sdists, screenshots, benchmark receipts, and source
+comments.
+
+Use fictional, generic placeholders such as `case42`,
+`project-report.pdf`, `/Users/example/...`, or `<filename-A>` instead.
+Before every PyPI/GitHub/GitHub Pages release, run a privacy grep for
+private names, real paths, immigration/legal/medical/financial document
+terms, and user-provided filenames. If a private example ever slips into
+a release, yank or delete that release surface first, then ship a
+sanitized patch release.
+
+---
+
 ## Principle 1 — Understanding > Enumeration
 
 **The anti-pattern:** when a question can be answered by a generic

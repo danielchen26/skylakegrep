@@ -41,11 +41,57 @@ class BareFormRoutingTests(unittest.TestCase):
         full = ctx.protected_args + ctx.args
         self.assertEqual(full[:1], ["doctor"])
 
+    def test_search_command_name_is_explicit(self):
+        self.assertIn("search", cli_module.cli.commands)
+        self.assertNotIn("search-cmd", cli_module.cli.commands)
+
     def test_help_flag_does_not_route_to_search(self):
         runner = CliRunner()
         result = runner.invoke(cli_module.cli, ["--help"])
         self.assertEqual(result.exit_code, 0)
         self.assertIn("Common usage", result.output)
+
+    def test_search_accepts_query_split_by_smart_quotes(self):
+        runner = CliRunner()
+        with patch.object(
+            cli_module.bootstrap, "preheat_models", return_value=None
+        ), patch.object(
+            cli_module, "get_config", return_value={"db_path": Path("/tmp/noop.db")}
+        ), patch.object(
+            cli_module, "route_query",
+            side_effect=RuntimeError("stop after normalized query"),
+        ) as routed:
+            result = runner.invoke(
+                cli_module.cli,
+                ["search", "“where", "is", "my", "case42", "file", "in", "Downloads”"],
+            )
+        self.assertIsInstance(result.exception, RuntimeError)
+        routed.assert_called_once()
+        self.assertEqual(
+            routed.call_args.args[0],
+            "where is my case42 file in Downloads",
+        )
+
+    def test_bare_form_accepts_query_split_by_smart_quotes(self):
+        runner = CliRunner()
+        with patch.object(
+            cli_module.bootstrap, "preheat_models", return_value=None
+        ), patch.object(
+            cli_module, "get_config", return_value={"db_path": Path("/tmp/noop.db")}
+        ), patch.object(
+            cli_module, "route_query",
+            side_effect=RuntimeError("stop after normalized query"),
+        ) as routed:
+            result = runner.invoke(
+                cli_module.cli,
+                ["“where", "is", "my", "case42", "file", "in", "Downloads”"],
+            )
+        self.assertIsInstance(result.exception, RuntimeError)
+        routed.assert_called_once()
+        self.assertEqual(
+            routed.call_args.args[0],
+            "where is my case42 file in Downloads",
+        )
 
 
 class DoctorTests(unittest.TestCase):
@@ -160,8 +206,8 @@ class SearchRoutingRegressionTests(unittest.TestCase):
                 conn.close()
 
             filename_result = {
-                "path": str(root / "EB1B_Denial_Analysis.pdf"),
-                "file": str(root / "EB1B_Denial_Analysis.pdf"),
+                "path": str(root / "CASE42_Project_Report.pdf"),
+                "file": str(root / "CASE42_Project_Report.pdf"),
                 "chunk": "size: 1.0 KB    modified: now    type: pdf",
                 "snippet": "size: 1.0 KB    modified: now    type: pdf",
                 "language": "pdf",
@@ -172,7 +218,7 @@ class SearchRoutingRegressionTests(unittest.TestCase):
             }
             decision = cli_module.RouterDecision(
                 intent="filename",
-                primary_token="eb1b",
+                primary_token="case42",
                 skip_cascade=True,
                 skip_filename=False,
                 skip_lexical=True,
@@ -205,7 +251,7 @@ class SearchRoutingRegressionTests(unittest.TestCase):
             ):
                 result = runner.invoke(
                     cli_module.cli,
-                    ["search", "where is my eb1b file", "--json"],
+                    ["search", "where is my case42 file", "--json"],
                 )
 
         self.assertEqual(result.exit_code, 0, result.output)
@@ -213,6 +259,145 @@ class SearchRoutingRegressionTests(unittest.TestCase):
         payload = json.loads(result.output)
         self.assertEqual(payload[0]["path"], filename_result["path"])
         self.assertEqual(payload[0]["language"], "pdf")
+
+    def test_rg_shortcut_does_not_skip_cascade(self):
+        """rg shortcut may preview/rank, but semantic cascade still runs."""
+
+        from skylakegrep.src.storage import init_db, store_chunks_batch
+
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "project"
+            root.mkdir()
+            indexed_file = root / "src" / "search" / "filename_shortcut.py"
+            indexed_file.parent.mkdir(parents=True)
+            indexed_file.write_text("def filename_shortcut(): pass\n")
+            db_path = Path(temp_dir) / "index.db"
+            conn = init_db(db_path)
+            try:
+                store_chunks_batch(
+                    conn,
+                    [{
+                        "file": str(indexed_file),
+                        "chunk": "def filename_shortcut(): pass",
+                        "language": "python",
+                        "chunk_index": 0,
+                        "file_mtime": indexed_file.stat().st_mtime,
+                        "start_line": 1,
+                        "end_line": 1,
+                        "start_byte": 0,
+                        "end_byte": len("def filename_shortcut(): pass\n"),
+                        "embedding": [1.0, 0.0],
+                    }],
+                )
+                now = str(time.time())
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS meta "
+                    "(key TEXT PRIMARY KEY, value TEXT)"
+                )
+                conn.execute(
+                    "INSERT INTO meta(key, value) VALUES(?, ?)",
+                    ("last_full_index_at", now),
+                )
+                conn.execute(
+                    "INSERT INTO meta(key, value) VALUES(?, ?)",
+                    ("last_refresh_at", now),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+            rg_result = {
+                "path": str(indexed_file),
+                "file": str(indexed_file),
+                "chunk": "def filename_shortcut(): pass",
+                "snippet": "def filename_shortcut(): pass",
+                "language": "python",
+                "start_line": 1,
+                "end_line": 1,
+                "score": 1.0,
+                "fallback": "rg-shortcut",
+            }
+            semantic_file = root / "src" / "semantic.py"
+            semantic_file.write_text("def semantic_answer(): pass\n")
+            semantic_result = {
+                "path": str(semantic_file),
+                "file": str(semantic_file),
+                "chunk": "def semantic_answer(): pass",
+                "snippet": "def semantic_answer(): pass",
+                "language": "python",
+                "start_line": 1,
+                "end_line": 1,
+                "score": 0.8,
+            }
+            decision = cli_module.RouterDecision(
+                intent="mixed",
+                primary_token="",
+                skip_cascade=False,
+                skip_filename=False,
+                skip_lexical=False,
+                confidence=0.75,
+                source="llm",
+                reason="literal token",
+                out_of_scope="none",
+            )
+
+            class _FakeEmbedder:
+                def embed(self, text):
+                    return [1.0, 0.0]
+
+            with patch.dict(
+                os.environ,
+                {"SKYGREP_DB_PATH": str(db_path), "SKYGREP_NO_HINTS": "1"},
+                clear=False,
+            ), patch.object(
+                cli_module.bootstrap, "preheat_models", return_value=None
+            ), patch.object(
+                cli_module.bootstrap, "try_autostart_ollama", return_value=False
+            ), patch.object(
+                cli_module, "route_query", return_value=decision
+            ), patch.object(
+                cli_module.cfg_mod, "project_root", return_value=root
+            ), patch.object(
+                cli_module.auto_index, "incremental_refresh", return_value=0
+            ), patch.object(
+                cli_module.auto_index, "filename_shortcut", return_value=None
+            ), patch.object(
+                cli_module.auto_index, "lexical_shortcut", return_value=[rg_result]
+            ), patch.object(
+                cli_module, "_symbols_table_populated", return_value=True
+            ), patch.object(
+                cli_module.code_graph, "populate_graph_table", return_value=0
+            ), patch.object(
+                cli_module, "get_embedder", return_value=_FakeEmbedder()
+            ) as get_embedder_mock, patch.object(
+                cli_module, "get_answerer", return_value=object()
+            ), patch.object(
+                cli_module, "maybe_start_recovery", return_value=None
+            ), patch.object(
+                cli_module,
+                "cascade_search",
+                return_value=(
+                    [semantic_result],
+                    {
+                        "path": "cosine-cheap",
+                        "early_exit": True,
+                        "gap": 1.0,
+                        "tau": 0.1,
+                    },
+                ),
+            ):
+                result = runner.invoke(
+                    cli_module.cli,
+                    ["search", "filename_shortcut", "--json"],
+                )
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertTrue(get_embedder_mock.called, "cascade should still run")
+        payload = json.loads(result.output)
+        paths = {item["path"] for item in payload}
+        self.assertIn(str(indexed_file), paths)
+        self.assertIn(str(semantic_file), paths)
 
 
 if __name__ == "__main__":

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import fnmatch
 from pathlib import Path
 from tree_sitter import Language, Parser

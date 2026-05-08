@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.8.5 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.8.5 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.8.5</p>
+<h1>skylakegrep 0.5.8.5 — multilingual routing hardening without losing semantic recall</h1>
+<p>0.5.8.5 fixes the real terminal and routing regressions uncovered after
+0.5.8.3: smart quotes were being passed as literal characters, bare
+multi-word queries were rejected by Click, multilingual filename
+questions were not always routed through the fast filename layer, and
+proactive outside-path search could run for queries that were not
+actually filename lookups.</p>
+<p>The release keeps the core guarantee intact: lexical and filename
+signals can make the first answer faster, but normal code/content
+queries still keep semantic cascade coverage instead of being reduced to
+a conservative <code>rg</code> answer.</p>
+<h2>What changed</h2>
+<ul>
+<li>The CLI now accepts natural-language queries as bare words, quoted
+  strings, or smart-quoted pasted text:</li>
+</ul>
+<p><code>skygrep where is my case42 file in Downloads
+  skygrep -x where is my case42 file in Downloads
+  skygrep “where is my case42 file in Downloads”</code></p>
+<ul>
+<li>Added a generic cheap filename pre-router for English, Chinese, and
+  mixed-language file lookups. Examples:</li>
+</ul>
+<p><code>我的 CASE42 文件在哪  -&gt; CASE42
+  我的合同文件在哪   -&gt; 合同
+  where is package.json -&gt; package.json</code></p>
+<ul>
+<li>Added a cheap semantic pre-router for obvious <code>how</code>, <code>why</code>,
+  <code>explain</code>, <code>describe</code>, <code>trace</code>, and <code>summarize</code> questions. These skip
+  the LLM router startup path but still run the semantic cascade.</li>
+<li>Filename answers can return immediately when filename evidence is
+  already decisive. If the index is not ready, background indexing can
+  still continue, but the user gets the known filename answer first.</li>
+<li>Literal/rg evidence no longer short-circuits the semantic cascade for
+  general code/content questions. It is used as evidence, then the
+  semantic layers still run.</li>
+<li>Proactive outside-path diffusion is now scoped to filename intent, so
+  wrong-folder recovery still works for file questions without slowing
+  or polluting ordinary semantic searches.</li>
+<li>Router cache versioning was bumped so stale cached decisions cannot
+  override the new routing behavior.</li>
+</ul>
+<h2>Verified</h2>
+<ul>
+<li>Full test suite:
+  <code>pytest -q tests</code> -&gt; <code>233 passed, 2 warnings, 19 subtests passed</code>.</li>
+<li>Static diff check:
+  <code>git diff --check</code> -&gt; clean.</li>
+<li>Python 3.9 package smoke:
+  install the built wheel into a clean venv, import
+  <code>skylakegrep.__version__</code>, confirm <code>skygrep --help</code> exposes the
+  <code>search</code> command, then run
+  <code>skygrep -x where is my case42 file in Downloads</code> successfully.</li>
+<li>Real terminal replay of the reported smart-quote case:
+  <code>skygrep “where is my case42 file in Downloads”</code> returns the CASE42
+  filename matches and exits 0 instead of failing Click parsing.</li>
+<li>Real bare-query replay:
+  <code>skygrep -x where is my case42 file in Downloads</code> routes as one query,
+  prints <code>path: filename-lookup</code>, and returns the CASE42 files.</li>
+<li>Multilingual filename replay:
+  <code>skygrep -x "我的 CASE42 文件在哪"</code> routes through
+  <code>heuristic-filename</code> with primary token <code>CASE42</code> and returns the CASE42
+  filename results.</li>
+<li>Semantic edge replay:
+  <code>skygrep -x "how does cascade decide"</code> routes through the semantic
+  path and does not trigger proactive filename diffusion.</li>
+<li>Wrong-folder proactive replay:
+  a filename query from a directory that does not contain the target
+  expands outward and finds the matching file outside the current path.</li>
+</ul>
+<h2>Compatibility</h2>
+<ul>
+<li>No index schema change.</li>
+<li>No required index rebuild.</li>
+<li>Public CLI flags are unchanged.</li>
+<li>JSON output shape is unchanged.</li>
+<li>Previously invalid bare or smart-quoted query invocations now work.</li>
+</ul></article>
+</main>
+</div>
+</body></html>

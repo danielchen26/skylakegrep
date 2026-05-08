@@ -46,7 +46,7 @@ $ skygrep -x "where does the parallel umbrella fan out to subprocesses"
    reason: "descriptive question about code behavior and concurrency"
 🛤  cascade lane: cosine-cheap (gap=0.025, tau=0.014)
 
-╭─ /Users/tianchichen/Downloads/claude code leak/claude-code-main/src/utils/permissions/classifierDecision.ts:1-39 ── [ts]  0.429
+╭─ /Users/example/Downloads/example workspace/claude-code-main/src/utils/permissions/classifierDecision.ts:1-39 ── [ts]  0.429
 │ via: cosine cascade · score=0.429
 │ 
 │ import { feature } from 'bun:bundle'

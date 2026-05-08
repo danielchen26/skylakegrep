@@ -13,7 +13,7 @@ from skylakegrep.src.intent import classify_intent, merge_results
 @pytest.mark.parametrize(
     "query",
     [
-        "where is eb1b file?",
+        "where is case42 file?",
         "find package.json",
         "show me the README",
         "locate config.toml",
@@ -79,14 +79,14 @@ def _r(path: str, score: float, fallback: str) -> dict:
 def test_merge_filename_intent_promotes_filename_results():
     """Under filename intent, filename hits should rank above
     semantic hits even if semantic scores are higher."""
-    fn = [_r("eb1b.pdf", 1.0, "filename-lookup")]
+    fn = [_r("case42.pdf", 1.0, "filename-lookup")]
     sem = [_r("other.py", 4.5, "cascade"), _r("more.py", 3.2, "cascade")]
     merged = merge_results(
         filename=fn, lexical=[], semantic=sem,
         intent="filename", top_k=5,
     )
     # filename result must be first
-    assert merged[0]["path"] == "eb1b.pdf"
+    assert merged[0]["path"] == "case42.pdf"
     assert len(merged) == 3
 
 

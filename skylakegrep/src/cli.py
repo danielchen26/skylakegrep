@@ -96,6 +96,26 @@ def merge_results(result_groups: list[list[dict]], top: int) -> list[dict]:
     return sorted(merged.values(), key=lambda item: item["score"], reverse=True)[:top]
 
 
+_QUERY_EDGE_QUOTES = "\"'“”‘’"
+
+
+def _normalize_query_args(query: str | tuple[str, ...]) -> str:
+    """Normalize Click query arguments into the user-intended query string.
+
+    Shells only treat ASCII quotes as grouping characters. If a terminal,
+    IME, or autocomplete inserts smart quotes (`“like this”`), zsh passes
+    every word as a separate argv element and Click would normally report
+    "unexpected extra arguments". Accept multiple query words and strip only
+    quote characters that sit on the outside edge.
+    """
+
+    if isinstance(query, tuple):
+        query_s = " ".join(part for part in query if part)
+    else:
+        query_s = query
+    return query_s.strip().strip(_QUERY_EDGE_QUOTES).strip()
+
+
 def _build_explain_string(r: dict, decision: "RouterDecision | None") -> str:
     """Build a one-line 'why this hit' string from signals already on
     the result dict. Read-only — no extra retrieval, no model calls.
@@ -116,8 +136,11 @@ def _build_explain_string(r: dict, decision: "RouterDecision | None") -> str:
 
     if fb == "filename-lookup":
         parts.append("filename-lookup")
-        if decision is not None and decision.primary_token:
-            parts.append(f'token "{decision.primary_token}"')
+        token = r.get("filename_token") or (
+            decision.primary_token if decision is not None else ""
+        )
+        if token:
+            parts.append(f'token "{token}"')
     elif fb in ("ripgrep", "rg-shortcut"):
         parts.append(fb)
         ls = r.get("lexical_score")
@@ -342,8 +365,8 @@ def index(path: str, reset: bool, incremental: bool):
     auto_index._meta_set(conn, "last_refresh_at", str(time.time()))
 
 
-@cli.command()
-@click.argument("query")
+@cli.command("search")
+@click.argument("query", nargs=-1, required=True)
 @click.option("--top", "-n", "-m", default=5, help="Number of results")
 @click.option("--json", "json_output", is_flag=True, help="Emit stable JSON results")
 @click.option("--answer", is_flag=True, help="Synthesize a local Ollama answer from search results")
@@ -376,7 +399,7 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--lazy/--no-lazy", default=True, help="0.5.1+ auto-trigger: on cold-start (no index yet), if ripgrep alone returns a weak result (few hits or no path/token overlap with the query) the cold-start path also fires the lazy LLM-routed semantic tier (~5 s) and merges. When ripgrep already returns a strong keyword answer, lazy is skipped — user gets the instant rg result. Default on so the user never has to know which tier they need; pass --no-lazy to force pure rg cold-start (benchmarking).")
 @click.option("--explain", "-x", is_flag=True, help="0.5.8+ explainability: print one-line 'why this hit' rationale per result (which channel, score, matched symbol) plus a top-of-output router decision and cascade lane. Uses signals already in the pipeline — no extra retrieval, no model calls. Default off (existing UX is unchanged).")
 def search_cmd(
-    query: str,
+    query: tuple[str, ...],
     top: int,
     json_output: bool,
     answer: bool,
@@ -410,6 +433,7 @@ def search_cmd(
     explain: bool,
 ):
     """Run a search. Aliased as the bare form: ``skygrep "<query>"``."""
+    query = _normalize_query_args(query)
 
     # Intelligent CLI hint — out-of-scope query detection.
     #
@@ -549,12 +573,69 @@ def search_cmd(
     fn_elapsed = 0.0
     if filename_shortcut and not decision.skip_filename and not agentic and not answer:
         fn_start = time.time()
-        fn_hits = ai.filename_shortcut(query, project_root, top_k=top)
+        fn_hits = ai.filename_shortcut(
+            query, project_root, top_k=top, decision=decision
+        )
         fn_elapsed = time.time() - fn_start
         if fn_hits:
             fn_results = fn_hits
             if explain:
                 _attach_explain(fn_results, decision)
+    filename_answered = (
+        bool(fn_results)
+        and decision.intent == "filename"
+        and not agentic
+        and not answer
+    )
+    if filename_answered:
+        elapsed = router_elapsed + fn_elapsed
+        index_note = "refresh skipped (filename fast path)"
+        if auto_index:
+            fast_conn = None
+            try:
+                fast_conn = init_db(db_path)
+                if not ai.is_index_ready(fast_conn):
+                    spawned = ai.spawn_background_index(project_root, db_path)
+                    index_note = (
+                        "background indexing queued"
+                        if spawned is not None
+                        else "background indexing already running"
+                    )
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("filename fast-path background index check failed: %s", exc)
+            finally:
+                if fast_conn is not None:
+                    try:
+                        fast_conn.close()
+                    except sqlite3.Error:
+                        pass
+        if json_output:
+            click.echo(render_json_results(fn_results))
+            return
+        click.echo("▾ filename matches:", err=True)
+        for r in fn_results:
+            click.echo(
+                render_terminal_result(
+                    r,
+                    content=content,
+                    project_root=str(project_root),
+                    detail=detail,
+                    ocr=ocr,
+                    explain=explain,
+                )
+            )
+        click.echo(f"\n✓ {elapsed:.3f}s · quality=BEST")
+        click.echo("   path   : filename-lookup")
+        click.echo(
+            f"   router : {decision.source} → intent={decision.intent} "
+            f"({decision.confidence:.2f})"
+        )
+        click.echo(
+            f"   pool   : {len(fn_results)} filename + 0 lexical · "
+            "cascade-skipped"
+        )
+        click.echo(f"   index  : {index_note}")
+        return
 
     # Routing decision: ready → cascade; building or absent → rg fallback.
     # 0.5.1: when the cold-start path is taken (no index yet) and rg
@@ -1016,7 +1097,13 @@ def search_cmd(
     # always also run cascade so semantic recall is never sacrificed.
     rg_results: list[dict] = []
     rg_elapsed = 0.0
-    if rg_shortcut and not decision.skip_lexical and not agentic and not answer:
+    if (
+        rg_shortcut
+        and not decision.skip_lexical
+        and not agentic
+        and not answer
+        and not filename_answered
+    ):
         rg_start = time.time()
         rg_hits = ai.lexical_shortcut(query, project_root, top_k=top)
         rg_elapsed = time.time() - rg_start
@@ -1052,11 +1139,14 @@ def search_cmd(
             if len(warm_preliminary) >= top:
                 break
         if warm_preliminary:
-            click.echo(
-                "▾ preliminary keyword + filename matches "
-                "(semantic cascade refining…):",
-                err=True,
-            )
+            if filename_answered:
+                click.echo("▾ filename matches:", err=True)
+            else:
+                click.echo(
+                    "▾ preliminary keyword + filename matches "
+                    "(semantic cascade refining…):",
+                    err=True,
+                )
             for r in warm_preliminary:
                 click.echo(
                     render_terminal_result(
@@ -1077,7 +1167,7 @@ def search_cmd(
     # gated firing on "results are weak", which on warm path meant
     # waiting for the full cascade (potentially 60 s+ on rerank-
     # escalated queries) before filename_extend could even start
-    # looking in ``~/Downloads``. The user's eb1b query receipt:
+    # looking in ``~/Downloads``. The generic case42 benchmark receipt:
     # filename_extend can answer in ~100 ms but was hidden behind
     # 99.7 s of cascade rerank — total wall time 12:50.
     #
@@ -1093,7 +1183,12 @@ def search_cmd(
     _proactive_pool = None
     _proactive_fut = None
     _early_proactive_results: list = []
-    if not json_output and not agentic:
+    if (
+        not json_output
+        and not agentic
+        and not filename_answered
+        and decision.intent == "filename"
+    ):
         try:
             from concurrent.futures import ThreadPoolExecutor as _PTPE
             from . import proactive as _proactive_early
@@ -1115,7 +1210,7 @@ def search_cmd(
     # 0.5.6: drain the proactive future BEFORE cascade dispatch.
     # filename_extend is a fast (~100 ms-1 s) `find -iname` call —
     # waiting up to 2 s here means the user sees the proactive
-    # answer (e.g. EB1B PDFs in ~/Downloads) BEFORE cascade even
+    # answer (e.g. CASE42 PDFs in ~/Downloads) BEFORE cascade even
     # starts, and we know whether to bother showing cascade-only
     # framing if proactive already nailed the answer.
     if _proactive_fut is not None:
@@ -1155,9 +1250,9 @@ def search_cmd(
     cascade_telemetry: dict | None = None
     recovery_state: dict | None = None
     queries = [query]
-    if decision.skip_cascade and not agentic and not answer:
+    if (decision.skip_cascade or filename_answered) and not agentic and not answer:
         results: list[dict] = []
-        elapsed = 0.0
+        elapsed = fn_elapsed + rg_elapsed
     else:
         embedder = get_embedder(role="query")
         # Intelligent-recovery hook (0.2.2+). Embed the user's query first
@@ -1223,8 +1318,8 @@ def search_cmd(
                 if answerer is None:
                     answerer = get_answerer()
                 # 0.5.6: hard 30 s wall-clock timeout on cascade.
-                # On vocabulary-mismatch queries (the "eb1b" / personal
-                # term in a code repo case) the σ-adaptive gate flips to
+                # On vocabulary-mismatch queries (the "case42" / generic
+                # filename term in a code repo case) the σ-adaptive gate flips to
                 # cross-encoder rerank which can run 60–100 s. The user
                 # has already seen the proactive umbrella's answer (e.g.
                 # filename_extend hits in ~/Downloads) at ≤ 2 s — there
@@ -1485,7 +1580,12 @@ def search_cmd(
     # added by the cross-folder pass (deduped against
     # ``early_warm_paths``). Otherwise (rg-strong / no cross-folder
     # / json) render the full ranked top-K.
-    if early_warm_paths:
+    if filename_answered and early_warm_paths:
+        # The fast-path answer already streamed above. Do not print the
+        # generic "sibling-folder search added no new matches" message;
+        # no sibling-folder semantic pass ran on this path.
+        pass
+    elif early_warm_paths:
         new_warm = [
             r for r in results
             if r.get("path", "") and r.get("path", "") not in early_warm_paths
@@ -1527,7 +1627,10 @@ def search_cmd(
 
     # ``path=`` is the headline routing decision the user actually cares
     # about: which retrieval strategy answered this specific query.
-    path_label = "rg-only" if decision.skip_cascade else "cascade-skipped"
+    cascade_was_skipped = decision.skip_cascade or filename_answered
+    path_label = "filename-lookup" if filename_answered else (
+        "cascade-skipped" if decision.skip_cascade else "cascade"
+    )
     if cascade and cascade_telemetry is not None:
         path_label = cascade_telemetry.get("path") or (
             "cosine-cheap" if cascade_telemetry.get("early_exit") else "cosine-escalated-rerank"
@@ -1606,9 +1709,9 @@ def search_cmd(
             f"{len(fn_results)} filename",
             f"{len(rg_results)} lexical",
         ]
-        if cascade and not decision.skip_cascade:
+        if cascade and not cascade_was_skipped:
             pool_pieces.append("cascade")
-        elif decision.skip_cascade:
+        elif cascade_was_skipped:
             pool_pieces.append("cascade-skipped")
         rows.append(("pool", " + ".join(pool_pieces[:2]) + " · " + pool_pieces[2]))
         index_pieces = [f"{ai.index_age_human(conn)} ago", f"{status['files']} files"]

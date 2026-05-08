@@ -5,7 +5,7 @@ the semantic cascade when confidence was high. That was the right
 routing decision for queries like:
 
 ```
-skygrep -x "where is my eb1b file"
+skygrep -x "where is my case42 file"
 ```
 
 The bug was in the CLI orchestration after that decision. The normal
