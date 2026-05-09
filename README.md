@@ -513,6 +513,13 @@ Behavior toggles.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.5.11`** — Fast scoped discovery plus Python 3.10 CI hotfix.
+    This supersedes 0.5.10: the scoped descriptor + metadata
+    file-discovery lane, background refresh deferral, honest wall-time
+    footer, and automatic setup-instruction refresh remain the headline
+    behavior, and the proactive enhancer now handles Python 3.10
+    `concurrent.futures.TimeoutError` budget exhaustion as telemetry
+    instead of surfacing it as an exception in CI.
   - **`0.5.10`** — Fast scoped file discovery and agent
     instruction depth. Scoped file-location queries that combine a
     concrete folder, target descriptors, and metadata modifiers now use

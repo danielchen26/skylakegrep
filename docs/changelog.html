@@ -66,6 +66,20 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.11 · fast scoped discovery · Python 3.10 CI hotfix</div>
+ <h3>0.5.10's fast scoped discovery release, hardened for the full CI matrix</h3>
+ <p>
+ This release supersedes 0.5.10. The generic scoped descriptor + metadata
+ file-discovery lane, background refresh deferral, wall-time footer, and
+ automatic setup-instruction refresh remain the main user-facing behavior.
+ The proactive enhancer now also catches Python 3.10
+ <code>concurrent.futures.TimeoutError</code> budget exhaustion explicitly,
+ so a total-budget timeout is recorded as telemetry instead of escaping as
+ an exception in CI.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.11.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.10 · fast scoped file discovery · agent instruction depth</div>
  <h3>Scoped file-location questions return fast, while agents learn the right output depth</h3>
  <p>

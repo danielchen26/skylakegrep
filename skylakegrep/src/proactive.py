@@ -50,7 +50,11 @@ import os
 import re
 import subprocess
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import (
+    ThreadPoolExecutor,
+    TimeoutError as FuturesTimeoutError,
+    as_completed,
+)
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -308,7 +312,7 @@ def run_enhancers_parallel(
                 completed.append(enh.name)
                 if result is not None:
                     out.append(result)
-        except TimeoutError:
+        except (TimeoutError, FuturesTimeoutError):
             pass
         # Anything still un-done at this point exceeded the budget.
         for fut, enh in future_to_enh.items():
@@ -592,7 +596,7 @@ def filename_extend_execute(
                         all_hits.append((h, str(d)))
                     if all_hits:
                         break
-            except TimeoutError:
+            except (TimeoutError, FuturesTimeoutError):
                 pass
         finally:
             pool.shutdown(wait=False, cancel_futures=True)
