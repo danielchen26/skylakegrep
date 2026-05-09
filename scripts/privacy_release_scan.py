@@ -51,6 +51,8 @@ SKIP_DIRS = {
 }
 DEFAULT_PATTERNS = {
     "real macOS home path": re.compile(r"/Users/(?!example\b)[A-Za-z0-9._-]+"),
+    "real macOS temp path": re.compile(r"/private/var/folders/[A-Za-z0-9._/-]+"),
+    "real macOS var temp path": re.compile(r"/var/folders/[A-Za-z0-9._/-]+"),
     "email address": re.compile(
         r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
     ),

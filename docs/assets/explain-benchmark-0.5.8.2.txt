@@ -130,7 +130,7 @@ skylakegrep:
 --- 0.5.8.2 (--explain off) MUST produce identical paths to 0.5.7 PyPI
 
 [notice] A new release of pip is available: 26.0 -> 26.1.1
-[notice] To update, run: /private/var/folders/_4/lyc4w14j5mx8gg_68zdvk9s80000gn/T/tmp.9rmcX43RDj/v/bin/python3.14 -m pip install --upgrade pip
+[notice] To update, run: /tmp/example-venv/bin/python -m pip install --upgrade pip
     ✓ byte-identical to 0.5.7 PyPI when --explain is off
     ╭─ skylakegrep/src/cli.py:1121-1148 ───────────────────────────────────────────────── [python]  0.498
     ╭─ benchmarks/v0_7_multilang_bench.py:58-79 ───────────────────────────────────────── [python]  0.478

@@ -667,16 +667,25 @@ def diversify_results(candidates: list[dict], top_k: int, max_per_file: int = MA
     return selected
 
 
+def _matches_path_pattern(path: str, basename: str, pattern: str) -> bool:
+    if fnmatch.fnmatch(path, pattern) or fnmatch.fnmatch(basename, pattern):
+        return True
+    # Users usually write include globs relative to the project root
+    # (`src/**`, `docs/*.md`) while the DB stores absolute file paths.
+    # Treat non-absolute slash patterns as segment globs too.
+    if "/" in pattern and not Path(pattern).is_absolute():
+        return fnmatch.fnmatch(path, f"*/{pattern.lstrip('/')}")
+    return False
+
+
 def path_matches(path: str, include_patterns: tuple[str, ...], exclude_patterns: tuple[str, ...]) -> bool:
     basename = Path(path).name
     if include_patterns and not any(
-        fnmatch.fnmatch(path, pattern) or fnmatch.fnmatch(basename, pattern)
-        for pattern in include_patterns
+        _matches_path_pattern(path, basename, pattern) for pattern in include_patterns
     ):
         return False
     if exclude_patterns and any(
-        fnmatch.fnmatch(path, pattern) or fnmatch.fnmatch(basename, pattern)
-        for pattern in exclude_patterns
+        _matches_path_pattern(path, basename, pattern) for pattern in exclude_patterns
     ):
         return False
     return True

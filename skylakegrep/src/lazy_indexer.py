@@ -89,6 +89,20 @@ _DEFAULT_IGNORE_DIRS = frozenset({
     "build", "dist", "out", ".tox", ".pytest_cache", "vendor",
     ".next", ".nuxt", ".cache", "Library", "Caches", "Applications",
 })
+_DEFAULT_IGNORE_PATH_SUFFIXES = (
+    ("go", "pkg", "mod"),
+)
+
+
+def _should_prune_dir(parent_parts: tuple[str, ...], dirname: str) -> bool:
+    if dirname in _DEFAULT_IGNORE_DIRS or dirname.startswith("."):
+        return True
+    candidate = parent_parts + (dirname,)
+    return any(
+        len(candidate) >= len(suffix)
+        and candidate[-len(suffix):] == suffix
+        for suffix in _DEFAULT_IGNORE_PATH_SUFFIXES
+    )
 
 
 def crawl_tree(
@@ -96,32 +110,48 @@ def crawl_tree(
     *,
     max_files: int = 5000,
     extensions: tuple[str, ...] = _DEFAULT_CODE_EXTENSIONS,
+    max_seconds: float | None = None,
 ) -> tuple[list[str], dict[str, int]]:
     """Walk ``root``, return ``(file_paths, dir_summary)``. Cheap stat-only."""
     files: list[str] = []
     dir_summary: dict[str, int] = {}
     root = root.resolve()
-    for path in root.rglob("*"):
+    deadline = (
+        time.perf_counter() + max_seconds
+        if max_seconds is not None and max_seconds > 0
+        else None
+    )
+    for current, dirs, names in os.walk(root):
+        if deadline is not None and time.perf_counter() >= deadline:
+            break
+
+        # Prune before descent. Path.rglob filters ignored dirs only after
+        # walking into them, which makes home-directory cold starts crawl
+        # through hidden/editor/vendor trees the user never asked to search.
         try:
-            rel_parts = path.relative_to(root).parts
+            rel_parent = Path(current).relative_to(root)
         except ValueError:
             continue
-        if any(
-            part in _DEFAULT_IGNORE_DIRS or part.startswith(".")
-            for part in rel_parts
-        ):
-            continue
-        if not path.is_file():
-            continue
-        if path.suffix.lower() not in extensions:
-            continue
-        try:
-            rel = path.relative_to(root)
-        except ValueError:
-            continue
-        files.append(str(path))
-        parent = str(rel.parent) if rel.parent != Path(".") else "."
-        dir_summary[parent] = dir_summary.get(parent, 0) + 1
+        parent_parts = () if rel_parent == Path(".") else rel_parent.parts
+        dirs[:] = [
+            d for d in dirs
+            if not _should_prune_dir(parent_parts, d)
+        ]
+        parent = str(rel_parent) if rel_parent != Path(".") else "."
+        for name in names:
+            if deadline is not None and time.perf_counter() >= deadline:
+                break
+            if name.startswith("."):
+                continue
+            path = Path(current) / name
+            if path.suffix.lower() not in extensions:
+                continue
+            if not path.is_file():
+                continue
+            files.append(str(path))
+            dir_summary[parent] = dir_summary.get(parent, 0) + 1
+            if len(files) >= max_files:
+                break
         if len(files) >= max_files:
             break
     return files, dir_summary
@@ -570,6 +600,26 @@ def _stderr_progress(msg: str) -> None:
     print(msg, file=sys.stderr, flush=True)
 
 
+def _env_int(name: str, default: int, *, minimum: int = 0) -> int:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        return max(minimum, int(raw))
+    except ValueError:
+        return default
+
+
+def _env_float(name: str, default: float, *, minimum: float = 0.0) -> float:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        return max(minimum, float(raw))
+    except ValueError:
+        return default
+
+
 def _read_text_safely(path: str, *, cap: int = 200_000) -> str:
     try:
         return Path(path).read_text(encoding="utf-8", errors="replace")[:cap]
@@ -588,6 +638,7 @@ def lazy_explore_cold_start(
     *,
     top_k: int = 5,
     seed_budget: int = 25,
+    crawl_budget_s: float | None = None,
     progress: Optional[Callable[[str], None]] = None,
 ) -> tuple[list[dict], dict]:
     """Run cold-start lazy semantic exploration on a fresh project.
@@ -618,7 +669,9 @@ def lazy_explore_cold_start(
     # Step 1: cheap crawl (single-threaded — pyfilesystem walk is GIL-bound
     # and not amortisable across threads).
     t1 = time.perf_counter()
-    files, dir_summary = crawl_tree(Path(root))
+    if crawl_budget_s is None:
+        crawl_budget_s = _env_float("SKYGREP_LAZY_CRAWL_BUDGET_S", 2.0)
+    files, dir_summary = crawl_tree(Path(root), max_seconds=crawl_budget_s)
     tele["crawled_files"] = len(files)
     tele["crawl_ms"] = int((time.perf_counter() - t1) * 1000)
 
@@ -862,7 +915,7 @@ def lazy_explore_cross_folder(
     *,
     embedder,
     top_k: int = 5,
-    seed_budget: int = 10,
+    seed_budget: int = 5,
     candidate_roots: Optional[list[Path]] = None,
     progress: Optional[Callable[[str], None]] = None,
 ) -> tuple[list[dict], dict]:
@@ -903,21 +956,40 @@ def lazy_explore_cross_folder(
     # from this. 5000/root is enough to cover any reasonably-sized
     # OSS repo while keeping the wall-clock walk under ~5 s on a
     # cold filesystem cache.
+    # 0.5.12: make the cap a real wall-clock budget, not just a file-count
+    # budget. On large home trees, walking ignored hidden/vendor dirs before
+    # filtering could keep a cold semantic query alive for >100 s. The crawl
+    # now prunes before descent and stops when the foreground budget is spent.
+    crawl_budget_s = _env_float("SKYGREP_CROSS_FOLDER_CRAWL_BUDGET_S", 1.5)
+    max_files_per_root = _env_int(
+        "SKYGREP_CROSS_FOLDER_MAX_FILES_PER_ROOT", 2000, minimum=1
+    )
+    deadline = time.perf_counter() + crawl_budget_s
     all_files: list[str] = []
+    roots_seen = 0
     for root in candidate_roots:
+        remaining = deadline - time.perf_counter()
+        if remaining <= 0:
+            break
         if not root.is_dir():
             continue
         try:
-            files, _ = crawl_tree(root, max_files=5000)
+            files, _ = crawl_tree(
+                root,
+                max_files=max_files_per_root,
+                max_seconds=remaining,
+            )
+            roots_seen += 1
             all_files.extend(files)
         except Exception:
             continue
     if not all_files:
-        return [], {"path": "lazy-cross-folder", "candidate_roots": 0}
+        return [], {"path": "lazy-cross-folder", "candidate_roots": roots_seen}
 
     seeds = token_shortcut_seeds(query, all_files, max_seeds=seed_budget)
     if not seeds:
         return [], {"path": "lazy-cross-folder",
+                    "candidate_roots": roots_seen,
                     "files_seen": len(all_files),
                     "seeds": 0}
 
@@ -931,7 +1003,7 @@ def lazy_explore_cross_folder(
     ]
     return results, {
         "path": "lazy-cross-folder",
-        "candidate_roots": len(candidate_roots),
+        "candidate_roots": roots_seen,
         "files_seen": len(all_files),
         "seeds": len(seeds),
         "embedded_new": n_new,

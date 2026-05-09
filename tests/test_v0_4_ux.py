@@ -656,6 +656,100 @@ class SearchRoutingRegressionTests(unittest.TestCase):
         self.assertIn("lazy-skipped", result.output)
         self.assertIn("generic report body marker", result.output)
 
+    def test_cold_semantic_cross_folder_timeout_returns_partial_answer(self):
+        from skylakegrep.src import lazy_indexer as lazy_module
+
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "project"
+            root.mkdir()
+            target = root / "src" / "session_memory.ts"
+            target.parent.mkdir()
+            target.write_text("export function renewSession() {}\n", encoding="utf-8")
+            db_path = Path(temp_dir) / "index.db"
+            decision = cli_module.RouterDecision(
+                intent="semantic",
+                primary_token="session refresh logic",
+                skip_cascade=False,
+                skip_filename=True,
+                skip_lexical=False,
+                confidence=0.93,
+                source="fast-intent",
+                reason="semantic query",
+                out_of_scope="none",
+            )
+            lazy_result = {
+                "path": str(target),
+                "file": str(target),
+                "chunk": "export function renewSession() {}",
+                "snippet": "export function renewSession() {}",
+                "language": "typescript",
+                "start_line": 1,
+                "end_line": 1,
+                "score": 0.8,
+            }
+
+            def _slow_cross(*args, **kwargs):
+                time.sleep(2.0)
+                return [], {"path": "lazy-cross-folder", "late": True}
+
+            with patch.dict(
+                os.environ,
+                {
+                    "SKYGREP_DB_PATH": str(db_path),
+                    "SKYGREP_NO_HINTS": "1",
+                    "SKYGREP_COLD_LAZY_TOTAL_BUDGET_S": "1",
+                    "SKYGREP_COLD_LAZY_CWD_BUDGET_S": "1",
+                    "SKYGREP_COLD_LAZY_CROSS_BUDGET_S": "1",
+                },
+                clear=False,
+            ), patch.object(
+                cli_module, "get_config", return_value={"db_path": db_path}
+            ), patch.object(
+                cli_module.cfg_mod, "project_root", return_value=root
+            ), patch.object(
+                cli_module.bootstrap, "preheat_models", return_value=None
+            ), patch.object(
+                cli_module.bootstrap, "try_autostart_ollama", return_value=False
+            ), patch.object(
+                cli_module, "route_query", return_value=decision
+            ), patch.object(
+                cli_module.auto_index, "is_index_ready", return_value=False
+            ), patch.object(
+                cli_module.auto_index, "spawn_background_index", return_value=None
+            ), patch.object(
+                cli_module.auto_index, "filename_shortcut", return_value=None
+            ), patch.object(
+                cli_module.auto_index, "rg_fallback_results", return_value=[]
+            ), patch.object(
+                cli_module, "get_embedder", return_value=object()
+            ), patch.object(
+                lazy_module,
+                "lazy_explore_cold_start",
+                return_value=(
+                    [lazy_result],
+                    {
+                        "sigma": 0.05,
+                        "confidence": "medium",
+                        "embed_new": 1,
+                        "embed_cached": 0,
+                    },
+                ),
+            ), patch.object(
+                lazy_module, "lazy_explore_cross_folder", side_effect=_slow_cross
+            ):
+                start = time.perf_counter()
+                result = runner.invoke(
+                    cli_module.cli,
+                    ["search", "where does session refresh logic live?", "--auto-index"],
+                )
+                elapsed = time.perf_counter() - start
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertLess(elapsed, 1.8, result.output)
+        self.assertIn("session_memory.ts", result.output)
+        self.assertIn("cross-folder timed out", result.output)
+
     def test_high_confidence_filename_skip_cascade_keeps_json_path_alive(self):
         """Regression for the filename skip path: ``queries`` used to be
         initialised only inside the cascade branch, but the warm cross-folder

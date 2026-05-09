@@ -37,8 +37,9 @@
 
 **Semantic search for code, PDFs, notes, and docs.** Fully offline.
 No cloud. No telemetry. No subscription. Ask in plain English (or
-any of 100+ languages) and get the right file + line range in
-under a second.
+any of 100+ languages) and get the right file + line range. Scoped
+location and lexical-friendly queries usually return sub-second; deeper
+semantic retrieval stays bounded and reports its route while it works.
 
 ```console
 $ skygrep "where does the auth token get refreshed?"
@@ -58,10 +59,10 @@ async def renew_session(req: Request):
 
 > **30 / 30** public-OSS recall (fully-indexed) &nbsp;·&nbsp;
 > **+30 %** lazy auto-trigger over `rg` cold-start (0.5.3) &nbsp;·&nbsp;
-> **~1.1 s** first answer on wrong-path queries via parallel proactive umbrella (0.5.7, real-CLI verified) &nbsp;·&nbsp;
+> **bounded wrong-path discovery** via proactive umbrella &nbsp;·&nbsp;
 > **~1 s** warm queries &nbsp;·&nbsp;
 > **100 %** local &nbsp;·&nbsp;
-> **43** releases shipped
+> **44** releases shipped
 
 ---
 
@@ -79,7 +80,8 @@ $ skygrep "where does session refresh logic live?"
 → auth/middleware.py:78  ·  renew_session()
 ```
 
-> No `rg` hit for *"session refresh"*; cosine bridges to `renew_session` in 0.5 s.
+> No `rg` hit for *"session refresh"*; semantic retrieval bridges to
+> `renew_session` from the project index.
 
 ---
 
@@ -153,7 +155,8 @@ $ skygrep "where does the parallel umbrella dispatch?"
 → ~/code/skylakegrep/src/cli.py:912  ·  cascade ‖ proactive umbrella
 ```
 
-> **~1.1 s wall** on a wrong cwd, real-CLI verified (0.5.6 / 0.5.7).
+> Wrong-cwd discovery is bounded. Set `SKYGREP_PROACTIVE_DIRS` or pass
+> an explicit scope when an agent already knows where to look.
 
 ---
 
@@ -459,12 +462,16 @@ task needs it.
 | Show relevant source/document snippets | `skygrep --content --detail standard "what does the API migration plan say about rollback?"` |
 | Read deeper after narrowing to one path | `skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"` |
 | Synthesize a local answer from retrieved evidence | `skygrep --answer --content "summarize the payment retry policy"` |
-| Feed compact structured context to an LLM agent | `skygrep --json --content --detail standard "where is token refresh implemented?"` |
+| Feed compact structured context to an LLM agent | `skygrep --json --content --detail standard --include "src/**" "where is token refresh implemented?"` |
 | Audit why a route/result was chosen | `skygrep --explain "where is token refresh implemented?"` |
 
-Agent rule of thumb: start bare for **where / locate / which file**
-questions; add `--content` for **what does it say / explain / summarize**
-questions; add `--json` whenever another LLM will consume the result.
+Agent rule of thumb: run from the relevant project root, or pass
+`--include` / `--lexical-root` when the scope is known. Start bare for
+**where / locate / which file** questions; add `--content` for **what
+does it say / explain / summarize** questions; add `--json` whenever
+another LLM will consume the result. Avoid broad home-directory semantic
+queries unless the user really wants cross-folder discovery; they are now
+bounded, but scoped queries are both faster and more accurate.
 
 ### Reading the per-query telemetry footer (0.2.2+)
 
@@ -513,6 +520,15 @@ Behavior toggles.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.5.12`** — Bounded cold semantic routing and public example
+    verification. Cold-start semantic search now enforces real
+    foreground budgets for cwd and cross-folder lazy lanes, prunes
+    hidden/dependency-cache trees before descent, runs ripgrep fallback
+    in one bounded pass, and avoids cross-folder pollution when local
+    semantic evidence exists. Agent examples now show scoped
+    `--include` usage, relative include globs work against absolute
+    index paths, and `--answer` no longer adds missing-evidence caveats
+    when retrieved sources directly answer.
   - **`0.5.11`** — Fast scoped discovery plus Python 3.10 CI hotfix.
     This supersedes 0.5.10: the scoped descriptor + metadata
     file-discovery lane, background refresh deferral, honest wall-time
@@ -667,7 +683,7 @@ source .venv/bin/activate
 pip install -e .[rerank]
 
 # Verify
-.venv/bin/python -m pytest -q tests/        # 295 / 295 should pass
+.venv/bin/python -m pytest -q tests/        # 309 / 309 should pass
 ```
 
 The release protocol is documented in

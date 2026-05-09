@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import requests
 from .answerer import _coerce_keep_alive
 from .config import get_config
@@ -53,6 +54,16 @@ def _clip(text: str) -> str:
     return text[:MAX_INPUT_CHARS]
 
 
+def _timeout_from_env(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        return max(0.5, float(raw))
+    except ValueError:
+        return default
+
+
 class OllamaEmbedder:
     def __init__(
         self,
@@ -69,6 +80,8 @@ class OllamaEmbedder:
         # the same shell session. None / empty string falls back to
         # Ollama's default (~5 min).
         self.keep_alive = keep_alive
+        self.request_timeout_s: float | None = None
+        self.batch_timeout_s: float | None = None
         self._zero_dim: int | None = None
 
     def _prep(self, text: str) -> str:
@@ -85,6 +98,14 @@ class OllamaEmbedder:
             payload["keep_alive"] = ka
         return payload
 
+    def _request_timeout(self, *, batch: bool) -> float:
+        attr = self.batch_timeout_s if batch else self.request_timeout_s
+        if attr is not None:
+            return max(0.5, float(attr))
+        if batch:
+            return _timeout_from_env("SKYGREP_OLLAMA_BATCH_TIMEOUT_S", 120.0)
+        return _timeout_from_env("SKYGREP_OLLAMA_TIMEOUT_S", 60.0)
+
     def embed(self, text: str) -> list[float]:
         try:
             resp = requests.post(
@@ -92,7 +113,7 @@ class OllamaEmbedder:
                 json=self._maybe_keep_alive(
                     {"model": self.model, "prompt": self._prep(text)}
                 ),
-                timeout=60,
+                timeout=self._request_timeout(batch=False),
             )
             resp.raise_for_status()
             vec = resp.json().get("embedding")
@@ -115,7 +136,7 @@ class OllamaEmbedder:
                 json=self._maybe_keep_alive(
                     {"model": self.model, "input": prepped}
                 ),
-                timeout=120,
+                timeout=self._request_timeout(batch=True),
             )
             resp.raise_for_status()
             embeddings = resp.json().get("embeddings")

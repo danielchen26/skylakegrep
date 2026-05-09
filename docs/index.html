@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.11 adds fast scoped file discovery, background refresh deferral, honest wall-time footers, and automatic agent-instruction refresh for the information-depth ladder. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
+ <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.12 bounds cold semantic routing, prunes hidden and dependency-cache trees, scopes agent examples, and tightens local answer synthesis. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.11 adds fast scoped file discovery, background refresh deferral, wall-time footers, and automatic agent-instruction refresh. 100% local, 100+ languages." />
+ <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.12 bounds cold semantic routing, prunes cache trees, scopes agent examples, and tightens answer synthesis. 100% local, 100+ languages." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -624,7 +624,7 @@
 }
 </style>
 <section id="overview" class="hero hero-redesigned">
- <p class="eyebrow">v0.5.11 · 100% local · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.5.12 · 100% local · PolyForm Noncommercial 1.0.0</p>
  <h1>Find <span class="hero-accent">anything</span> on your machine.</h1>
  <p class="lead">
  Semantic search for code, PDFs, notes, and docs.
@@ -645,7 +645,7 @@
     <span class="tk-cmt"># swap the access cookie when the refresh JWT is still valid</span>
     <span class="tk-kw">if</span> req.cookies.get(<span class="tk-str">"rt"</span>) <span class="tk-kw">and</span> access_expired(req):
         <span class="tk-kw">return await</span> refresh_token(claims, key)</pre>
- <div class="term-footer">[0.5s · path=cosine-cheap · σ-gap=0.082 ≥ τ=0.005 (adaptive) → high-confidence early-exit · <span class="term-glyph">✓</span> quality=BEST]</div>
+ <div class="term-footer">[sub-second warm · path=cosine-cheap · σ-gap=0.082 ≥ τ=0.005 (adaptive) → high-confidence early-exit · <span class="term-glyph">✓</span> quality=BEST]</div>
  </div>
  <!-- Frame 2: Cross-content (markdown + PDF) -->
  <div class="term-frame term-frame-2">
@@ -697,7 +697,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <span class="dot">·</span>
  <strong>100 %</strong> local
  <span class="dot">·</span>
- <strong>43</strong> releases shipped
+ <strong>44</strong> releases shipped
  </p>
 </section>
 
@@ -725,7 +725,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <div class="scenario-demo">
  <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "where does session refresh logic live?"</div>
  <div class="sd-result">→ <code>auth/middleware.py:78</code> · <code>renew_session()</code></div>
- <div class="sd-takeaway">No <code>rg</code> hit for "session refresh"; cosine bridges to <code>renew_session</code> in 0.5 s.</div>
+ <div class="sd-takeaway">No <code>rg</code> hit for "session refresh"; semantic retrieval bridges to <code>renew_session()</code> from the project index.</div>
  </div>
  </article>
 
@@ -771,7 +771,9 @@ Throughput projections under sustained 5k QPS load...</pre>
  <p class="lead">
  The bare command is intentionally fast for location and concept lookup.
  Add depth only when you need file contents, synthesis, or structured
- context for another agent.
+ context for another agent. These examples are command patterns: run them
+ from the relevant project root, or add <code>--include</code> /
+ <code>--lexical-root</code> when an agent already knows the scope.
  </p>
 
  <div class="scenario-grid">
@@ -824,12 +826,14 @@ Throughput projections under sustained 5k QPS load...</pre>
  <h3>Give another LLM structured context.</h3>
  <p>
  Agents should prefer <code>--json</code> over scraping terminal
- output. Add <code>--answer</code> only when you want local synthesis
+ output. Include a scope when the caller knows one; this avoids broad
+ home-folder exploration and gives the next LLM compact, relevant
+ evidence. Add <code>--answer</code> only when you want local synthesis
  instead of source evidence.
  </p>
  <div class="scenario-demo">
- <div class="sd-prompt"><span class="term-prompt">$</span>skygrep --json --content --detail standard "where is token refresh implemented?"</div>
- <div class="sd-prompt"><span class="term-prompt">$</span>skygrep --answer --content "summarize the payment retry policy"</div>
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep --json --content --detail standard --include "src/**" "where is token refresh implemented?"</div>
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep --answer --content --include "docs/**" "summarize the payment retry policy"</div>
  <div class="sd-result">→ compact records with paths, scores, snippets, and route metadata</div>
  <div class="sd-takeaway">Lower token cost and less ambiguity for Claude Code, Codex, OpenCode, and other agents.</div>
  </div>
@@ -882,7 +886,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <div class="sd-prompt"><span class="term-prompt">$</span>cd /tmp/scratch</div>
  <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "where does the parallel umbrella dispatch?"</div>
  <div class="sd-result">→ <code>~/code/skylakegrep/src/cli.py:912</code> · cascade ‖ proactive umbrella</div>
- <div class="sd-takeaway"><strong>~1.1 s wall</strong> on a wrong cwd, real-CLI verified (0.5.6 / 0.5.7).</div>
+ <div class="sd-takeaway">Wrong-cwd discovery is bounded; use <code>SKYGREP_PROACTIVE_DIRS</code> or an explicit scope when an agent knows where to look.</div>
  </div>
  </article>
 
@@ -922,12 +926,12 @@ Throughput projections under sustained 5k QPS load...</pre>
  pipeline.
  </p>
  <div class="scenario-demo">
- <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "what does CASE42_Project_Report say about retries"</div>
- <div class="sd-result">🧭 router: <strong>semantic</strong> · primary_token=<code>"CASE42_Project_Report"</code> · conf=0.81 · source=fast-intent</div>
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "what does Project_Report say about retries"</div>
+ <div class="sd-result">🧭 router: <strong>semantic</strong> · primary_token=<code>"Project_Report"</code> · conf=0.81 · source=fast-intent</div>
  <div class="sd-result">▾ preliminary filename anchors + keyword matches (lazy semantic refinement starting…)</div>
- <div class="sd-result">═══ <code>CASE42_Project_Report.txt</code> · bounded content preview</div>
+ <div class="sd-result">═══ <code>Project_Report.txt</code> · bounded content preview</div>
  <div class="sd-result">⚡ lazy refinement continues in the same invocation</div>
- <div class="sd-takeaway"><strong>0.5.11:</strong> scoped file discovery returns path-depth answers fast, while content/answer-depth queries keep semantic refinement alive.</div>
+ <div class="sd-takeaway"><strong>0.5.12:</strong> scoped file discovery returns path-depth answers fast, while content/answer-depth queries keep semantic refinement alive.</div>
  </div>
  </article>
  </div>
@@ -953,7 +957,7 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap"></div>
      <div class="why-cell why-self">
        <strong>skylakegrep</strong>
-       <span class="why-sub">v0.5.11</span>
+       <span class="why-sub">v0.5.12</span>
      </div>
      <div class="why-cell"><code>ripgrep</code><span class="why-sub">lexical baseline</span></div>
      <div class="why-cell"><a href="https://www.mgrep.dev/" target="_blank" rel="noopener">mgrep</a><span class="why-sub">Mixedbread · paid</span></div>
@@ -1189,7 +1193,8 @@ skygrep doctor</code></pre>
  the right depth: bare <code>skygrep</code> for location/concept lookup,
  <code>--content</code> for snippets, <code>--detail full</code> only
  after narrowing, <code>--answer</code> for local synthesis, and
- <code>--json</code> for machine-readable agent calls. Re-running
+ <code>--json</code> plus <code>--include</code> for machine-readable
+ agent calls when the scope is known. Re-running
  <code>skygrep setup</code> refreshes the managed block when these
  instructions improve. After an upgrade, normal <code>skygrep</code>
  searches and <code>skygrep doctor</code> also refresh already-registered

@@ -66,6 +66,23 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.12 · bounded cold semantic routing · public example verification</div>
+ <h3>Cold semantic search is now budgeted, scoped, and verified against the public examples</h3>
+ <p>
+ This release hardens the path that previously let broad cold-start
+ semantic searches spend too long exploring home and sibling roots. The
+ lazy cwd and cross-folder lanes now have separate wall-clock budgets,
+ hidden and dependency-cache trees are pruned before traversal, ripgrep
+ fallback runs in one bounded pass, warm cross-folder expansion no longer
+ pollutes local answers, and relative include globs such as
+ <code>--include "src/**"</code> match absolute indexed paths. The public
+ README / GitHub Pages examples were rerun on a fictional project, and
+ <code>--answer</code> was tightened so direct evidence does not receive a
+ contradictory missing-answer caveat.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.12.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.11 · fast scoped discovery · Python 3.10 CI hotfix</div>
  <h3>0.5.10's fast scoped discovery release, hardened for the full CI matrix</h3>
  <p>

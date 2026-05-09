@@ -112,6 +112,9 @@ DEFAULT_IGNORED_DIRS = {
     "target",
     "vendor",
 }
+DEFAULT_IGNORED_PATH_SUFFIXES = {
+    ("go", "pkg", "mod"),
+}
 
 
 def load_ignore_patterns(root: Path) -> list[str]:
@@ -129,8 +132,15 @@ def load_ignore_patterns(root: Path) -> list[str]:
 
 def is_ignored(path: Path, root: Path, patterns: list[str]) -> bool:
     relative = path.relative_to(root).as_posix()
-    parts = set(path.relative_to(root).parts)
-    if parts & DEFAULT_IGNORED_DIRS:
+    rel_parts = path.relative_to(root).parts
+    parts = set(rel_parts)
+    if parts & DEFAULT_IGNORED_DIRS or any(part.startswith(".") for part in rel_parts):
+        return True
+    if any(
+        len(rel_parts) >= len(suffix)
+        and rel_parts[:len(suffix)] == suffix
+        for suffix in DEFAULT_IGNORED_PATH_SUFFIXES
+    ):
         return True
     for pattern in patterns:
         normalized = pattern.strip("/")

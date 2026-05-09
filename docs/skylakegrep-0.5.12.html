@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.12 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.12 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.12</p>
+<h1>skylakegrep 0.5.12 — bounded cold semantic routing and public example verification</h1>
+<p>0.5.12 hardens the cold-start and agent-facing paths that matter most
+when users copy examples directly from the README or GitHub Pages. It
+keeps the 0.5.10/0.5.11 scoped-discovery behavior, then adds real
+foreground budgets, better pruning, scoped agent examples, and a cleaner
+answer-synthesis contract.</p>
+<p>All examples below use fictional placeholders.</p>
+<h2>What changed</h2>
+<ul>
+<li>Cold-start semantic search now has separate foreground budgets for
+  cwd lazy exploration, cross-folder lazy exploration, and foreground
+  embedding. A slow sibling/home exploration lane can time out without
+  blocking the answer already found in the current project.</li>
+<li>Lazy crawlers prune hidden folders and dependency caches before
+  descent instead of discovering them and filtering afterward. This keeps
+  broad searches out of editor caches, package-manager trees, and other
+  irrelevant generated paths.</li>
+<li>Ripgrep cold fallback now runs one bounded multi-pattern pass instead
+  of one subprocess per query term, reducing startup stalls for natural
+  language questions.</li>
+<li>Warm cross-folder expansion no longer fires when the local project has
+  semantic evidence. That prevents broad home-folder evidence from
+  polluting a relevant local answer.</li>
+<li>Relative include globs such as <code>--include "src/**"</code> and
+  <code>--include "docs/**"</code> now match absolute indexed paths, so examples
+  used by LLM agents return the intended scoped evidence.</li>
+<li>The local answer prompt was tightened: when retrieved sources directly
+  answer the question, <code>--answer</code> should answer from those sources
+  without appending a contradictory missing-evidence caveat.</li>
+<li>The README, GitHub Pages homepage, CLI reference, setup instructions,
+  and release notes now tell agents to pass <code>--include</code> or
+  <code>--lexical-root</code> when they already know the scope.</li>
+</ul>
+<h2>Before vs after</h2>
+<table>
+<thead>
+<tr>
+<th>Query shape</th>
+<th>Previous behavior observed during validation</th>
+<th>0.5.12 behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Broad cold semantic query from a large home-like folder</td>
+<td>Could wait on cwd/cross-folder lazy futures for around 100 seconds</td>
+<td>bounded foreground lazy budgets; returns partial/local evidence or timeout telemetry instead of hanging</td>
+</tr>
+<tr>
+<td>Natural-language cold query with several words</td>
+<td>Could run ripgrep once per term</td>
+<td>one bounded ripgrep pass with multiple patterns</td>
+</tr>
+<tr>
+<td>Local project has semantic evidence but confidence is not perfect</td>
+<td>Could add unrelated sibling/home evidence</td>
+<td>cross-folder expansion is skipped when local results exist</td>
+</tr>
+<tr>
+<td>Agent uses <code>--include "src/**"</code> against an absolute index path</td>
+<td>Could return no results</td>
+<td>relative segment globs match absolute stored paths</td>
+</tr>
+<tr>
+<td><code>--answer</code> finds direct evidence</td>
+<td>Could answer correctly and then add an unnecessary absence caveat</td>
+<td>answers from direct evidence without the contradictory caveat</td>
+</tr>
+</tbody>
+</table>
+<h2>Public example verification</h2>
+<p>The public README / GitHub Pages command patterns were rerun on a
+fictional local project containing code, docs, notes, hidden folders, and
+dependency-cache folders. Representative shell wall times:</p>
+<table>
+<thead>
+<tr>
+<th>Example pattern</th>
+<th style="text-align: right;">Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>skygrep "where does the auth token get refreshed?"</code></td>
+<td style="text-align: right;">1.42 s</td>
+</tr>
+<tr>
+<td><code>skygrep "where does session refresh logic live?"</code></td>
+<td style="text-align: right;">4.58 s</td>
+</tr>
+<tr>
+<td><code>skygrep "the design doc on rate limiter rewrite"</code></td>
+<td style="text-align: right;">0.38 s</td>
+</tr>
+<tr>
+<td><code>skygrep "我昨天写的 cascade 调度代码"</code></td>
+<td style="text-align: right;">0.81 s</td>
+</tr>
+<tr>
+<td><code>skygrep --content --detail standard "what does the API migration plan say about rollback?"</code></td>
+<td style="text-align: right;">0.36 s</td>
+</tr>
+<tr>
+<td><code>skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"</code></td>
+<td style="text-align: right;">5.49 s</td>
+</tr>
+<tr>
+<td><code>skygrep --json --content --detail standard --include "src/**" "where is token refresh implemented?"</code></td>
+<td style="text-align: right;">1.35 s</td>
+</tr>
+<tr>
+<td><code>skygrep --answer --content --include "docs/**" "summarize the payment retry policy"</code></td>
+<td style="text-align: right;">2.58 s</td>
+</tr>
+<tr>
+<td>Wrong-cwd proactive search with an explicit proactive root</td>
+<td style="text-align: right;">0.81 s</td>
+</tr>
+</tbody>
+</table>
+<p>These are not headline benchmark claims; they are release-gate receipts
+that the examples users copy from public docs execute correctly and stay
+bounded on a mixed synthetic project.</p>
+<h2>Verification</h2>
+<ul>
+<li>Full local test suite: <code>309 passed, 2 warnings, 20 subtests passed</code>.</li>
+<li>Targeted regression slice: <code>37 passed</code>, covering cold semantic
+  timeout behavior, hidden/dependency pruning, relative include globs,
+  setup-instruction scope guidance, and answer mode.</li>
+<li>Public example synthetic CLI run: 15 command patterns completed with
+  expected anchors and bounded wall time.</li>
+<li>Source privacy scan: clean before build.</li>
+<li>Wheel/sdist privacy scan: required before upload.</li>
+<li>GitHub Actions test matrix: required after push.</li>
+</ul>
+<h2>Compatibility</h2>
+<ul>
+<li>No CLI flag was removed.</li>
+<li>Required JSON fields are unchanged.</li>
+<li>Existing indexes are compatible.</li>
+<li>New timeout and crawl-budget environment variables only cap foreground
+  cold-start work. Background indexing can still build comprehensive
+  coverage.</li>
+<li>Existing <code>skygrep setup</code> managed snippets continue to auto-refresh
+  inside the BEGIN/END block only.</li>
+</ul>
+<h2>Privacy note</h2>
+<p>The release notes, docs, README, tests, wheel, and sdist use fictional
+examples only. No real user prompt, private filename, private folder
+name, absolute local machine path, screenshot, document category, name,
+or email is included in the public release surfaces.</p></article>
+</main>
+</div>
+</body></html>

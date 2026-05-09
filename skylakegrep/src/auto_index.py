@@ -398,43 +398,65 @@ def rg_fallback_results(
     terms = extract_query_terms(query)
     if not terms:
         return []
-    file_hits: dict[str, set[str]] = {}
+
+    try:
+        timeout_s = max(
+            0.5,
+            float(os.environ.get("SKYGREP_RG_FALLBACK_TIMEOUT_S", "2")),
+        )
+    except ValueError:
+        timeout_s = 2.0
+
+    cmd = [rg, "-il", "-F", "--sort", "path"]
+    for glob in (
+        "!node_modules/**",
+        "!.venv/**",
+        "!venv/**",
+        "!target/**",
+        "!dist/**",
+        "!build/**",
+        "!Library/**",
+    ):
+        cmd.extend(["-g", glob])
     for term in terms:
-        try:
-            r = subprocess.run(
-                # ``--sort path`` forces rg to emit hits in deterministic
-                # alphabetical order so the dict-insertion order below
-                # — and therefore the gate decision in cli.py — is
-                # stable across runs. Without this, multi-threaded scan
-                # made rg's stdout order non-deterministic, which in
-                # turn made the cold-start "rg is strong → skip lazy"
-                # gate flip across runs of the same query.
-                [rg, "-il", "-F", "--sort", "path", term, str(root)],
-                capture_output=True,
-                text=True,
-                timeout=8,
-            )
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            continue
-        for line in r.stdout.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            file_hits.setdefault(line, set()).add(term)
-    if not file_hits:
+        cmd.extend(["-e", term])
+    cmd.append(str(root))
+    try:
+        # Run one OR query instead of one rg process per term. The old
+        # serial path could spend N*8 s before lazy semantic search even
+        # started on broad home-directory queries.
+        r = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout_s,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
         return []
-    # Tie-break by path so two files with the same hit count produce a
-    # deterministic ordering — belt-and-suspenders alongside ``--sort path``.
-    ranked = sorted(file_hits.items(), key=lambda kv: (-len(kv[1]), kv[0]))[: top_k * 2]
+
+    paths = []
+    seen_paths: set[str] = set()
+    for line in r.stdout.splitlines():
+        line = line.strip()
+        if not line or line in seen_paths:
+            continue
+        seen_paths.add(line)
+        paths.append(line)
+        if len(paths) >= top_k * 8:
+            break
+    if not paths:
+        return []
 
     results: list[dict] = []
     term_pat = re.compile(
         "|".join(re.escape(t) for t in terms), flags=re.IGNORECASE
     ) if terms else None
-    for path, hits in ranked:
+    for path in paths:
         snippet, sl, el, lang = _read_snippet(Path(path), term_pat, snippet_lines)
         if snippet is None:
             continue
+        evidence = f"{path}\n{snippet}".lower()
+        hits = {t for t in terms if t.lower() in evidence}
         results.append(
             {
                 "path": path,

@@ -51,6 +51,17 @@ def test_parse_llm_json_returns_none_on_garbage():
     assert router._parse_llm_json("{ broken: json") is None
 
 
+def test_simplify_router_query_removes_location_shell():
+    assert (
+        router.simplify_router_query("where does session refresh logic live?")
+        == "session refresh logic"
+    )
+    assert (
+        router.simplify_router_query("where is token refresh implemented?")
+        == "token refresh"
+    )
+
+
 # ---- _llm_decision: confidence safety -------------------------------
 
 

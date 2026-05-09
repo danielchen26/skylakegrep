@@ -50,7 +50,7 @@ Use the smallest command that gives enough depth:
 
   - **Call from an LLM/agent tool path**:
 
-        skygrep --json --content --detail standard "where is token refresh implemented?"
+        skygrep --json --content --detail standard --include "src/**" "where is token refresh implemented?"
 
 Decision rules for agents:
 
@@ -63,6 +63,9 @@ Decision rules for agents:
     just source evidence.
   - Add `--json` for machine-readable agent context; do not scrape
     human terminal output.
+  - Add `--include` or `--lexical-root` whenever the caller already
+    knows the relevant repo, folder, or file. Scoped calls are faster
+    and reduce irrelevant cross-folder evidence.
   - Add `--explain` when routing or provenance matters.
 
 Use `rg` directly only when:

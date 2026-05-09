@@ -37,7 +37,7 @@ from .config import get_config
 from .embeddings import get_embedder
 from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
 from .intent import classify_intent, merge_results as merge_tiers
-from .llm_router import RouterDecision, route_query
+from .llm_router import RouterDecision, route_query, simplify_router_query
 from .metadata_search import (
     analyze_metadata_query,
     descriptor_file_results,
@@ -1389,7 +1389,7 @@ def search_cmd(
         # filename-lookup hits collected above so the cold-start path
         # also benefits from the v0.14.0 hierarchical-merge model.
         start = time.time()
-        lexical_query = strip_scope_clauses(query) or query
+        lexical_query = simplify_router_query(strip_scope_clauses(query) or query)
         rg_cold = ai.rg_fallback_results(lexical_query, project_root, top_k=top)
         rg_elapsed = time.time() - start
 
@@ -1605,10 +1605,52 @@ def search_cmd(
         )
         if lazy and not rg_strong:
             from concurrent.futures import ThreadPoolExecutor as _TPE
+            from concurrent.futures import TimeoutError as _FuturesTimeout
             from . import lazy_indexer as LZ
 
             # Wire a stderr progress sink unless --json is requested.
             _progress = None if json_output else LZ._stderr_progress
+
+            def _env_int_local(name: str, default: int) -> int:
+                try:
+                    return max(1, int(_os.environ.get(name, str(default))))
+                except ValueError:
+                    return default
+
+            def _env_float_local(name: str, default: float) -> float:
+                try:
+                    return max(1.0, float(_os.environ.get(name, str(default))))
+                except ValueError:
+                    return default
+
+            lazy_seed_budget = _env_int_local(
+                "SKYGREP_COLD_LAZY_SEED_BUDGET", 12
+            )
+            cross_seed_budget = _env_int_local(
+                "SKYGREP_COLD_CROSS_SEED_BUDGET", 3
+            )
+            total_lazy_budget_s = _env_float_local(
+                "SKYGREP_COLD_LAZY_TOTAL_BUDGET_S", 8.0
+            )
+            cwd_lazy_budget_s = _env_float_local(
+                "SKYGREP_COLD_LAZY_CWD_BUDGET_S", 5.0
+            )
+            cross_lazy_budget_s = _env_float_local(
+                "SKYGREP_COLD_LAZY_CROSS_BUDGET_S", 2.5
+            )
+            cwd_embed_timeout_s = _env_float_local(
+                "SKYGREP_COLD_LAZY_EMBED_TIMEOUT_S", 4.0
+            )
+            cross_embed_timeout_s = _env_float_local(
+                "SKYGREP_COLD_CROSS_EMBED_TIMEOUT_S", 2.0
+            )
+
+            def _apply_foreground_embed_timeout(embedder, seconds: float) -> None:
+                try:
+                    setattr(embedder, "request_timeout_s", seconds)
+                    setattr(embedder, "batch_timeout_s", seconds)
+                except Exception:
+                    pass
 
             # 0.5.7: each parallel worker opens its OWN SQLite
             # connection — sqlite3 forbids cross-thread reuse of a
@@ -1624,10 +1666,15 @@ def search_cmd(
                 try:
                     _wconn = init_db(db_path)
                     embedder_cwd = get_embedder(role="query")
+                    _apply_foreground_embed_timeout(
+                        embedder_cwd, cwd_embed_timeout_s
+                    )
                     try:
                         return LZ.lazy_explore_cold_start(
-                            _wconn, query, project_root, embedder_cwd,
-                            top_k=top, progress=_progress,
+                            _wconn, lexical_query, project_root, embedder_cwd,
+                            top_k=top,
+                            seed_budget=lazy_seed_budget,
+                            progress=_progress,
                         )
                     finally:
                         try:
@@ -1642,10 +1689,15 @@ def search_cmd(
                 try:
                     _wconn = init_db(db_path)
                     embedder_cross = get_embedder(role="query")
+                    _apply_foreground_embed_timeout(
+                        embedder_cross, cross_embed_timeout_s
+                    )
                     try:
                         return LZ.lazy_explore_cross_folder(
-                            _wconn, query, embedder=embedder_cross,
-                            top_k=top, progress=_progress,
+                            _wconn, lexical_query, embedder=embedder_cross,
+                            top_k=top,
+                            seed_budget=cross_seed_budget,
+                            progress=_progress,
                         )
                     finally:
                         try:
@@ -1658,11 +1710,44 @@ def search_cmd(
 
             lazy_start = time.time()
             if cold_wrong_folder:
-                with _TPE(max_workers=2) as _pool:
-                    f_cwd = _pool.submit(_run_cwd)
-                    f_cross = _pool.submit(_run_cross)
-                    lazy_results, lazy_tele = f_cwd.result()
-                    cross_results, cross_tele = f_cross.result()
+                _pool = _TPE(max_workers=2)
+                f_cwd = _pool.submit(_run_cwd)
+                f_cross = _pool.submit(_run_cross)
+                deadline = time.time() + total_lazy_budget_s
+                try:
+                    lazy_results, lazy_tele = f_cwd.result(
+                        timeout=min(cwd_lazy_budget_s, total_lazy_budget_s)
+                    )
+                except _FuturesTimeout:
+                    lazy_results, lazy_tele = [], {
+                        "path": "lazy-cold-start",
+                        "timed_out": True,
+                    }
+                    if not json_output:
+                        click.echo(
+                            "↻ cwd lazy semantic search hit the foreground "
+                            "budget; continuing with any sibling-folder "
+                            "evidence…",
+                            err=True,
+                        )
+                remaining = max(0.0, deadline - time.time())
+                try:
+                    cross_results, cross_tele = f_cross.result(
+                        timeout=min(cross_lazy_budget_s, remaining)
+                    )
+                except _FuturesTimeout:
+                    cross_results, cross_tele = [], {
+                        "path": "lazy-cross-folder",
+                        "timed_out": True,
+                    }
+                    if not json_output:
+                        click.echo(
+                            "↻ cross-folder lazy search hit the foreground "
+                            "budget; background indexing will continue.",
+                            err=True,
+                        )
+                finally:
+                    _pool.shutdown(wait=False, cancel_futures=True)
             else:
                 lazy_results, lazy_tele = _run_cwd()
             lazy_elapsed = time.time() - lazy_start
@@ -1837,18 +1922,22 @@ def search_cmd(
             f" + {len(cold_proactive_results)} proactive"
             if cold_proactive_results else ""
         )
-        if lazy_results or cross_results:
+        if lazy_results or cross_results or lazy_tele or cross_tele:
             lazy_tag = (
                 f" + lazy auto (σ={lazy_tele.get('sigma', 0):.3f}, "
                 f"conf={lazy_tele.get('confidence', '?')}, "
                 f"{lazy_tele.get('embed_new', 0)}new/"
                 f"{lazy_tele.get('embed_cached', 0)}cached)"
             )
+            if lazy_tele.get("timed_out"):
+                lazy_tag += " · cwd-timeout"
             if cross_results:
                 lazy_tag += (
                     f" + cross-folder ({cross_tele.get('candidate_roots', 0)} "
                     f"roots · {cross_tele.get('files_seen', 0)} files seen)"
                 )
+            elif cross_tele.get("timed_out"):
+                lazy_tag += " + cross-folder timed out"
         elif lazy and cold_lexical_answered:
             lazy_tag = " · lexical evidence → lazy skipped"
         elif lazy and rg_strong:
@@ -2052,6 +2141,8 @@ def search_cmd(
         not json_output
         and not agentic
         and not filename_answered
+        and not fn_results
+        and not rg_results
         and not explicit_scope
         and decision.intent == "filename"
     ):
@@ -2299,6 +2390,7 @@ def search_cmd(
         and 'cascade_telemetry' in dir() and cascade_telemetry is not None
         and not agentic
         and not explicit_scope
+        and not results
         and (cascade_telemetry.get("gap") is not None)
         and (cascade_telemetry.get("tau") is not None)
         and (cascade_telemetry.get("gap") < cascade_telemetry.get("tau"))
@@ -2377,6 +2469,22 @@ def search_cmd(
         )
         from . import lazy_indexer as _LZ
         _cross_embedder = get_embedder(role="query")
+        _warm_cross_query = simplify_router_query(strip_scope_clauses(query) or query)
+        try:
+            _warm_cross_embed_timeout = max(
+                0.5,
+                float(_os.environ.get("SKYGREP_WARM_CROSS_EMBED_TIMEOUT_S", "4")),
+            )
+            setattr(_cross_embedder, "request_timeout_s", _warm_cross_embed_timeout)
+            setattr(_cross_embedder, "batch_timeout_s", _warm_cross_embed_timeout)
+        except ValueError:
+            pass
+        try:
+            _warm_cross_seed_budget = max(
+                1, int(_os.environ.get("SKYGREP_WARM_CROSS_SEED_BUDGET", "5"))
+            )
+        except ValueError:
+            _warm_cross_seed_budget = 5
         _t_cross = time.time()
         # 0.5.7: open a SQLite connection INSIDE the worker thread.
         # Same fix as 0.5.6 cascade-in-worker-thread and the
@@ -2388,9 +2496,10 @@ def search_cmd(
             _wconn = init_db(_db_path)
             try:
                 return _LZ.lazy_explore_cross_folder(
-                    _wconn, query,
+                    _wconn, _warm_cross_query,
                     embedder=_cross_embedder,
                     top_k=top,
+                    seed_budget=_warm_cross_seed_budget,
                     progress=None if json_output else _LZ._stderr_progress,
                 )
             finally:
@@ -2400,23 +2509,23 @@ def search_cmd(
                     pass
 
         try:
-            with _TPE(max_workers=1) as _xpool:
-                _fut = _xpool.submit(_warm_cross_in_worker)
-                try:
-                    warm_cross_results, warm_cross_tele = _fut.result(
-                        timeout=8.0
+            _xpool = _TPE(max_workers=1)
+            _fut = _xpool.submit(_warm_cross_in_worker)
+            try:
+                warm_cross_results, warm_cross_tele = _fut.result(timeout=8.0)
+            except _FuturesTimeout:
+                warm_cross_tele = {
+                    "path": "lazy-cross-folder",
+                    "timed_out": True,
+                }
+                if not json_output:
+                    click.echo(
+                        "↻ sibling-folder search timed out at 8 s — "
+                        "skipping (cascade matches above are the answer)",
+                        err=True,
                     )
-                except _FuturesTimeout:
-                    warm_cross_tele = {
-                        "path": "lazy-cross-folder",
-                        "timed_out": True,
-                    }
-                    if not json_output:
-                        click.echo(
-                            "↻ sibling-folder search timed out at 8 s — "
-                            "skipping (cascade matches above are the answer)",
-                            err=True,
-                        )
+            finally:
+                _xpool.shutdown(wait=False, cancel_futures=True)
         except Exception as exc:  # noqa: BLE001
             logger.warning("warm cross-folder lazy failed: %s", exc)
         warm_cross_elapsed = time.time() - _t_cross

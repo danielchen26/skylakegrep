@@ -475,6 +475,10 @@ _FILLER_TOKENS_RE = re.compile(
     r"such)\b\s*",
     re.IGNORECASE,
 )
+_TRAILING_LOCATION_PREDICATE_RE = re.compile(
+    r"\b(live|lives|located|implemented|defined|declared|stored|kept)\s*$",
+    re.IGNORECASE,
+)
 
 
 def simplify_router_query(query: str) -> str:
@@ -508,6 +512,10 @@ def simplify_router_query(query: str) -> str:
             break
         s = new_s
     s = _FILLER_TOKENS_RE.sub("", s)
+    # Location questions often end with a predicate shell ("where does X
+    # live?", "where is X implemented?"). For retrieval, that shell is not
+    # evidence; the content phrase before it is.
+    s = _TRAILING_LOCATION_PREDICATE_RE.sub("", s).strip()
     s = re.sub(r"\s+", " ", s).strip()
     return s if s else query
 

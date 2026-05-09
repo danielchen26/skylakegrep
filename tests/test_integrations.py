@@ -40,6 +40,7 @@ class IntegrationModelTests(unittest.TestCase):
         self.assertIn("--content --detail full", content)
         self.assertIn("--answer --content", content)
         self.assertIn("--json --content --detail standard", content)
+        self.assertIn('--include "src/**"', content)
         self.assertIn("--explain", content)
         self.assertIn("project brief", content)
 

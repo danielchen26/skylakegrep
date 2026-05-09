@@ -10,7 +10,7 @@ from click.testing import CliRunner
 
 from skylakegrep.src import cli as cli_module
 from skylakegrep.src.indexer import collect_indexable_files, prepare_file_chunks
-from skylakegrep.src.storage import init_db, search, store_chunks_batch
+from skylakegrep.src.storage import init_db, path_matches, search, store_chunks_batch
 
 
 class StaticEmbedder:
@@ -21,6 +21,13 @@ class StaticEmbedder:
 
 
 class SearchQualityTests(unittest.TestCase):
+    def test_relative_include_glob_matches_absolute_index_path(self):
+        path = "/tmp/project/src/auth/session.py"
+
+        self.assertTrue(path_matches(path, ("src/**",), ()))
+        self.assertTrue(path_matches(path, ("src/auth/*.py",), ()))
+        self.assertFalse(path_matches(path, ("docs/**",), ()))
+
     def test_prepare_file_chunks_records_line_ranges_when_parser_falls_back(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "main.go"

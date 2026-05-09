@@ -184,8 +184,11 @@ class OllamaAnswerer:
         )
         prompt = (
             "You are answering a code search question using only local search results. "
-            "Be concise, cite file paths and line ranges, say if the answer is not present, "
-            "and do not ask follow-up questions.\n\n"
+            "Be concise and cite file paths and line ranges. If one or more results "
+            "directly answer the question, answer from those results and do not add "
+            "a caveat that the answer is missing. Say the answer is not present only "
+            "when none of the provided results contain direct evidence. Do not ask "
+            "follow-up questions.\n\n"
             f"Question: {query}\n\n"
             f"Local search results:\n{context}\n\n"
             "Answer:"

@@ -30,6 +30,36 @@ class CrawlTreeTests(unittest.TestCase):
         self.assertIn(str(visible.resolve()), files)
         self.assertNotIn(str(hidden.resolve()), files)
 
+    def test_crawl_tree_prunes_vendor_dirs(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            vendor = root / "node_modules" / "pkg" / "session.ts"
+            vendor.parent.mkdir(parents=True)
+            vendor.write_text("export const session = 1\n", encoding="utf-8")
+            visible = root / "src" / "session.ts"
+            visible.parent.mkdir()
+            visible.write_text("export const session = 2\n", encoding="utf-8")
+
+            files, _ = LZ.crawl_tree(root)
+
+        self.assertIn(str(visible.resolve()), files)
+        self.assertNotIn(str(vendor.resolve()), files)
+
+    def test_crawl_tree_prunes_language_dependency_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            cache_file = root / "go" / "pkg" / "mod" / "dep" / "session.go"
+            cache_file.parent.mkdir(parents=True)
+            cache_file.write_text("package dep\n", encoding="utf-8")
+            source_file = root / "go" / "src" / "app" / "session.go"
+            source_file.parent.mkdir(parents=True)
+            source_file.write_text("package app\n", encoding="utf-8")
+
+            files, _ = LZ.crawl_tree(root)
+
+        self.assertIn(str(source_file.resolve()), files)
+        self.assertNotIn(str(cache_file.resolve()), files)
+
 
 class StemFamilyKeyTests(unittest.TestCase):
     def test_numeric_prefix_files_collapse_to_same_key(self) -> None:
