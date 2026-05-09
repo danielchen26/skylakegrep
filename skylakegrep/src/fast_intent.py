@@ -35,9 +35,14 @@ _PROTOTYPES: dict[str, tuple[str, ...]] = {
         "locate a named local file by basename or document identifier",
         "find which folder contains a specific file or attachment",
         "where is a particular file stored",
+        "show where a named report or brief is stored",
+        "find the manuscript draft by title words",
+        "locate a document using descriptive basename words",
         "open the file named by this identifier",
         "查找本地文件路径 根据文件名或文档编号",
         "找到某个文件在哪里",
+        "我的文件在哪",
+        "文件路径在哪里",
         "查找某个文档的位置",
         "檔案在哪裡",
         "localiser un fichier nommé par identifiant",
@@ -45,14 +50,24 @@ _PROTOTYPES: dict[str, tuple[str, ...]] = {
     ),
     "semantic": (
         "explain how code behavior works and why it happens",
+        "explain named identifier logic",
+        "explain a project report logic",
         "describe implementation logic or data flow",
         "how does this system decide what to do",
+        "how are constraints or budgets enforced",
+        "what policy governs retries limits and attempts",
+        "what does this document say about a process",
+        "how does a field or attribute work",
+        "what does an identifier field mean in the implementation",
         "why does this function return that result",
         "trace the call flow through the implementation",
         "解释代码如何工作 为什么这样实现",
         "解释这个函数为什么返回结果",
         "说明功能逻辑和调用流程",
         "这个流程是怎么决定的",
+        "这个摘要说明了什么流程",
+        "摘要说明了什么 renewal process",
+        "说明文档内容和相关过程",
         "expliquer le comportement du code",
     ),
     "lexical": (
@@ -304,7 +319,16 @@ def classify_fast_intent(query: str) -> FastIntent | None:
         "metadata_size",
     }:
         return None
-    if score < _MIN_SCORE[intent] or margin < _MIN_MARGIN[intent]:
+    required_margin = _MIN_MARGIN[intent]
+    if intent == "semantic" and any(
+        any(ch in token for ch in "._-/") for token in _IDENT_RE.findall(query)
+    ):
+        # Structured identifiers often contain substrings that look like
+        # metadata words (created_at, modified_time). When the semantic
+        # centroid is still clearly on top, do not fall through to an LLM just
+        # because the metadata centroid is also nearby.
+        required_margin = min(required_margin, 0.030)
+    if score < _MIN_SCORE[intent] or margin < required_margin:
         return None
 
     confidence = min(0.95, 0.55 + score + margin * 2.0)

@@ -42,6 +42,12 @@ def test_recently_created_specific_artifact_is_metadata_modifier():
     assert "brief" in facet.target_descriptors
 
 
+def test_metadata_terminal_ignores_explicit_scope_label():
+    q = classify_metadata_query("show recently created files in CASE42 folder")
+    assert q is not None
+    assert q.kind == "created"
+
+
 def test_latest_files_with_content_descriptor_is_not_unfiltered_metadata():
     assert classify_metadata_query("latest python files") is None
 

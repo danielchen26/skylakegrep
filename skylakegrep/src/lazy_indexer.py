@@ -87,7 +87,7 @@ _DEFAULT_CODE_EXTENSIONS = (
 _DEFAULT_IGNORE_DIRS = frozenset({
     "node_modules", ".git", "venv", ".venv", "__pycache__", "target",
     "build", "dist", "out", ".tox", ".pytest_cache", "vendor",
-    ".next", ".nuxt", ".cache",
+    ".next", ".nuxt", ".cache", "Library", "Caches", "Applications",
 })
 
 
@@ -102,7 +102,14 @@ def crawl_tree(
     dir_summary: dict[str, int] = {}
     root = root.resolve()
     for path in root.rglob("*"):
-        if any(part in _DEFAULT_IGNORE_DIRS for part in path.parts):
+        try:
+            rel_parts = path.relative_to(root).parts
+        except ValueError:
+            continue
+        if any(
+            part in _DEFAULT_IGNORE_DIRS or part.startswith(".")
+            for part in rel_parts
+        ):
             continue
         if not path.is_file():
             continue

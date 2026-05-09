@@ -8,8 +8,27 @@ Ollama running.
 from __future__ import annotations
 
 import unittest
+import tempfile
+from pathlib import Path
 
 from skylakegrep.src import lazy_indexer as LZ
+
+
+class CrawlTreeTests(unittest.TestCase):
+    def test_crawl_tree_skips_hidden_tool_dirs(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            hidden = root / ".tool" / "target.py"
+            hidden.parent.mkdir()
+            hidden.write_text("hidden = True\n", encoding="utf-8")
+            visible = root / "src" / "target.py"
+            visible.parent.mkdir()
+            visible.write_text("hidden = False\n", encoding="utf-8")
+
+            files, _ = LZ.crawl_tree(root)
+
+        self.assertIn(str(visible.resolve()), files)
+        self.assertNotIn(str(hidden.resolve()), files)
 
 
 class StemFamilyKeyTests(unittest.TestCase):

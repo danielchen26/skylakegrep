@@ -38,7 +38,12 @@ from .embeddings import get_embedder
 from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
 from .intent import classify_intent, merge_results as merge_tiers
 from .llm_router import RouterDecision, route_query
-from .metadata_search import metadata_results, rank_results_by_metadata
+from .metadata_search import (
+    analyze_metadata_query,
+    metadata_results,
+    rank_results_by_metadata,
+)
+from .query_scope import resolve_scope_facet, strip_scope_clauses
 from .intelligent_cli import (
     assess_result_quality,
     detect_out_of_scope,
@@ -192,6 +197,135 @@ def _apply_adaptive_metadata_ranking(
     return rank_results_by_metadata(results, kind)
 
 
+def _suppress_nonterminal_out_of_scope_for_scope(
+    query: str,
+    decision: "RouterDecision | None",
+    *,
+    explicit_scope: bool,
+) -> None:
+    """Keep metadata as a facet when a scoped query still asks for content.
+
+    The LLM may see a temporal-looking word inside a scoped content question
+    and mark it as a metadata-only request. Scope plus remaining target terms
+    means that is not safe: terminal metadata is still handled by
+    ``metadata_results`` before routing, while non-terminal or unproven
+    metadata must let normal retrieval continue.
+    """
+
+    if not explicit_scope or decision is None:
+        return
+    if getattr(decision, "out_of_scope", None) not in {"recency", "size", "listing"}:
+        return
+    facet = analyze_metadata_query(query)
+    if facet is not None and facet.terminal:
+        return
+    decision.out_of_scope = "none"
+
+
+def _filter_results_to_explicit_scope(
+    results: list[dict],
+    scope_root: Path | None,
+) -> list[dict]:
+    """Keep a query-plan scope authoritative across every retrieval lane.
+
+    Cross-folder and proactive lanes may have embedded external files into a
+    scoped DB during earlier versions. Once the current query has an explicit
+    filesystem scope, those old rows must not leak back into ranking.
+    """
+
+    if scope_root is None or not results:
+        return results
+    try:
+        resolved_scope = scope_root.expanduser().resolve()
+    except OSError:
+        return results
+    scoped: list[dict] = []
+    for result in results:
+        raw_path = result.get("path") or result.get("file") or ""
+        if not raw_path:
+            continue
+        path = Path(str(raw_path)).expanduser()
+        if not path.is_absolute():
+            if str(path).startswith(".."):
+                continue
+            scoped.append(result)
+            continue
+        try:
+            if path.resolve().is_relative_to(resolved_scope):
+                scoped.append(result)
+        except OSError:
+            continue
+    return scoped
+
+
+def _lexical_evidence_satisfies_depth(
+    query: str,
+    results: list[dict],
+    decision: "RouterDecision | None",
+    *,
+    detail: str,
+    answer: bool,
+    agentic: bool,
+) -> bool:
+    """Return True when exact text evidence can finish the default CLI view.
+
+    This is evidence-based, not keyword-based: the text snippet must contain
+    multiple query terms and carry a strong lexical score. Synthesized/agentic
+    calls keep semantic retrieval alive because they need deeper context.
+    """
+
+    if not results or answer or agentic:
+        return False
+    if decision is not None and getattr(decision, "intent", "") == "filename":
+        return False
+    if detail == "full":
+        return False
+    search_query = strip_scope_clauses(query) or query
+    terms = [t.lower() for t in auto_index.extract_query_terms(search_query)]
+    if len(terms) < 2:
+        return False
+    best = results[0]
+    try:
+        lexical_score = float(best.get("lexical_score", best.get("score", 0.0)))
+    except (TypeError, ValueError):
+        lexical_score = 0.0
+    min_lexical_score = 0.18 if search_query != query else 0.4
+    if lexical_score < min_lexical_score:
+        return False
+    text = f"{best.get('snippet', '')}\n{best.get('chunk', '')}".lower()
+    content_hits = {
+        term
+        for term in terms
+        if any(variant in text for variant in _term_surface_variants(term))
+    }
+    return len(content_hits) >= 2
+
+
+def _term_surface_variants(term: str) -> set[str]:
+    """Small language-agnostic-ish surface variants for lexical evidence.
+
+    This is not stemming for retrieval ranking. It only decides whether an
+    already-returned exact-text result is strong enough to avoid waiting for
+    a deeper semantic refinement in the default human CLI view.
+    """
+
+    term = (term or "").lower().strip()
+    if len(term) < 3:
+        return {term} if term else set()
+    variants = {term}
+    if term.endswith("ies") and len(term) > 4:
+        variants.add(term[:-3] + "y")
+    if term.endswith("es") and len(term) > 4:
+        variants.add(term[:-2])
+    if term.endswith("s") and len(term) > 3:
+        variants.add(term[:-1])
+    if term.endswith("ed") and len(term) > 4:
+        variants.add(term[:-2])
+    if term.endswith("ing") and len(term) > 5:
+        variants.add(term[:-3])
+    return {v for v in variants if len(v) >= 3}
+
+
 _QUERY_EDGE_QUOTES = "\"'“”‘’"
 
 
@@ -244,6 +378,13 @@ def _filename_evidence_satisfies_depth(
         fast = None
     if fast is None:
         return False
+    if (
+        fast.intent == "metadata"
+        and getattr(decision, "intent", "") == "filename"
+        and getattr(decision, "metadata_kind", None)
+        and not getattr(decision, "metadata_terminal", False)
+    ):
+        return True
     return fast.intent == "filename"
 
 
@@ -753,6 +894,18 @@ def search_cmd(
             return
 
     project_root = cfg_mod.project_root()
+    scope_facet = resolve_scope_facet(query, project_root)
+    explicit_scope = scope_facet is not None
+    if scope_facet is not None:
+        project_root = scope_facet.root
+        if _os.environ.get("SKYGREP_DB_PATH") is None:
+            config["db_path"] = cfg_mod.project_db_path(project_root)
+        if not json_output:
+            click.echo(
+                f"📁 scope: {project_root} · {scope_facet.reason} "
+                f"(conf={scope_facet.confidence:.2f})",
+                err=True,
+            )
     db_path = config["db_path"]
 
     # Metadata queries ("latest files I opened", "recently modified
@@ -842,6 +995,9 @@ def search_cmd(
         except sqlite3.Error:
             pass
     router_elapsed = time.time() - router_start
+    _suppress_nonterminal_out_of_scope_for_scope(
+        query, decision, explicit_scope=explicit_scope
+    )
 
     # 0.5.8+: surface the routing path early in human output so users and
     # agent wrappers can see whether this invocation is path-depth,
@@ -980,6 +1136,7 @@ def search_cmd(
         cold_filename_path_depth = (
             decision.intent == "filename"
             and not fn_results
+            and not explicit_scope
             and _filename_evidence_satisfies_depth(
                 query,
                 decision,
@@ -1016,7 +1173,9 @@ def search_cmd(
                         [],
                         top_k=top,
                         ctx=_proactive_cold_pre_rg.ProactiveContext(
-                            conn=conn, project_root=project_root,
+                            conn=conn,
+                            project_root=project_root,
+                            explicit_scope=explicit_scope,
                         ),
                     )
                 )
@@ -1093,7 +1252,8 @@ def search_cmd(
         # filename-lookup hits collected above so the cold-start path
         # also benefits from the v0.14.0 hierarchical-merge model.
         start = time.time()
-        rg_cold = ai.rg_fallback_results(query, project_root, top_k=top)
+        lexical_query = strip_scope_clauses(query) or query
+        rg_cold = ai.rg_fallback_results(lexical_query, project_root, top_k=top)
         rg_elapsed = time.time() - start
 
         # Filename intent on a cold, unindexed project is the exact case
@@ -1105,6 +1265,7 @@ def search_cmd(
             decision.intent == "filename"
             and not fn_results
             and not pre_rg_proactive_ran
+            and not explicit_scope
             and _filename_evidence_satisfies_depth(
                 query,
                 decision,
@@ -1122,7 +1283,9 @@ def search_cmd(
                     [],
                     top_k=top,
                     ctx=_proactive_cold_early.ProactiveContext(
-                        conn=conn, project_root=project_root,
+                        conn=conn,
+                        project_root=project_root,
+                        explicit_scope=explicit_scope,
                     ),
                 )
                 proactive_elapsed = time.time() - proactive_start
@@ -1215,7 +1378,17 @@ def search_cmd(
         cross_results: list = []
         cross_tele: dict = {}
         lazy_elapsed = 0.0
-        rg_strong = _rg_is_strong(rg_cold, query)
+        rg_strong = _rg_is_strong(rg_cold, lexical_query)
+        cold_lexical_answered = _lexical_evidence_satisfies_depth(
+            query,
+            rg_cold,
+            decision,
+            detail=detail,
+            answer=answer,
+            agentic=agentic,
+        )
+        if cold_lexical_answered:
+            rg_strong = True
 
         # 0.5.4 streaming UX — STAGE 1: when lazy is about to fire (rg
         # is weak), print the rg + filename preliminary hits *first*
@@ -1287,7 +1460,12 @@ def search_cmd(
         # keep refinement focused on cwd so the same invocation upgrades
         # the anchor to content instead of diffusing across unrelated
         # home roots.
-        cold_wrong_folder = (lazy and len(rg_cold) == 0 and not fn_results)
+        cold_wrong_folder = (
+            lazy
+            and len(rg_cold) == 0
+            and not fn_results
+            and not explicit_scope
+        )
         if lazy and not rg_strong:
             from concurrent.futures import ThreadPoolExecutor as _TPE
             from . import lazy_indexer as LZ
@@ -1391,6 +1569,9 @@ def search_cmd(
                 top_k=top,
             )
         results = _apply_adaptive_metadata_ranking(results, decision)
+        results = _filter_results_to_explicit_scope(
+            results, project_root if explicit_scope else None,
+        )
         if explain:
             _attach_explain(results, decision)
         if json_output:
@@ -1415,7 +1596,9 @@ def search_cmd(
             cold_proactive_results, _ = _proactive.run_enhancers_parallel(
                 query, decision, results, top_k=top,
                 ctx=_proactive.ProactiveContext(
-                    conn=conn, project_root=project_root,
+                    conn=conn,
+                    project_root=project_root,
+                    explicit_scope=explicit_scope,
                 ),
             )
         except Exception:
@@ -1529,6 +1712,8 @@ def search_cmd(
                     f" + cross-folder ({cross_tele.get('candidate_roots', 0)} "
                     f"roots · {cross_tele.get('files_seen', 0)} files seen)"
                 )
+        elif lazy and cold_lexical_answered:
+            lazy_tag = " · lexical evidence → lazy skipped"
         elif lazy and rg_strong:
             lazy_tag = " · rg strong → lazy skipped"
         elif not lazy:
@@ -1618,12 +1803,26 @@ def search_cmd(
         and not filename_answered
     ):
         rg_start = time.time()
-        rg_hits = ai.lexical_shortcut(query, project_root, top_k=top)
+        lexical_query = strip_scope_clauses(query) or query
+        rg_hits = ai.lexical_shortcut(
+            lexical_query,
+            project_root,
+            top_k=top,
+            allow_content_evidence=explicit_scope,
+        )
         rg_elapsed = time.time() - rg_start
         if rg_hits:
             rg_results = rg_hits
             if explain:
                 _attach_explain(rg_results, decision)
+    lexical_answered = _lexical_evidence_satisfies_depth(
+        query,
+        rg_results,
+        decision,
+        detail=detail,
+        answer=answer,
+        agentic=agentic,
+    )
 
     # 0.5.6 warm-path streaming UX: print filename + ripgrep
     # preliminary matches *before* dispatching the cascade. The
@@ -1654,6 +1853,8 @@ def search_cmd(
         if warm_preliminary:
             if filename_answered:
                 click.echo("▾ filename matches:", err=True)
+            elif lexical_answered:
+                click.echo("▾ keyword matches:", err=True)
             else:
                 click.echo(
                     "▾ preliminary keyword + filename matches "
@@ -1700,6 +1901,7 @@ def search_cmd(
         not json_output
         and not agentic
         and not filename_answered
+        and not explicit_scope
         and decision.intent == "filename"
     ):
         try:
@@ -1711,7 +1913,9 @@ def search_cmd(
                 query, decision, [],  # empty results → enhancers fire
                 top_k=top,
                 ctx=_proactive_early.ProactiveContext(
-                    conn=conn, project_root=project_root,
+                    conn=conn,
+                    project_root=project_root,
+                    explicit_scope=explicit_scope,
                 ),
             )
         except Exception:
@@ -1768,8 +1972,11 @@ def search_cmd(
     cascade_telemetry: dict | None = None
     recovery_state: dict | None = None
     queries = [query]
-    if filename_answered and not agentic and not answer:
-        results: list[dict] = []
+    if (filename_answered or lexical_answered) and not agentic and not answer:
+        if lexical_answered and not filename_answered:
+            results = rg_results[:top]
+        else:
+            results = []
         elapsed = fn_elapsed + rg_elapsed
     else:
         embedder = get_embedder(role="query")
@@ -1940,6 +2147,7 @@ def search_cmd(
         lazy and cascade and len(queries) == 1
         and 'cascade_telemetry' in dir() and cascade_telemetry is not None
         and not agentic
+        and not explicit_scope
         and (cascade_telemetry.get("gap") is not None)
         and (cascade_telemetry.get("tau") is not None)
         and (cascade_telemetry.get("gap") < cascade_telemetry.get("tau"))
@@ -1965,6 +2173,9 @@ def search_cmd(
             top_k=top,
         )
     results = _apply_adaptive_metadata_ranking(results, decision)
+    results = _filter_results_to_explicit_scope(
+        results, project_root if explicit_scope else None,
+    )
     if explain:
         _attach_explain(results, decision)
 
@@ -2076,6 +2287,9 @@ def search_cmd(
             results.append(r)
             _seen_paths.add(p)
         results = _apply_adaptive_metadata_ranking(results, decision)
+        results = _filter_results_to_explicit_scope(
+            results, project_root if explicit_scope else None,
+        )
         if explain:
             _attach_explain(results, decision)
     # 0.5.8 explainability: print the cascade-lane summary right before
@@ -2113,7 +2327,7 @@ def search_cmd(
     # added by the cross-folder pass (deduped against
     # ``early_warm_paths``). Otherwise (rg-strong / no cross-folder
     # / json) render the full ranked top-K.
-    if filename_answered and early_warm_paths:
+    if (filename_answered or lexical_answered) and early_warm_paths:
         # The fast-path answer already streamed above. Do not print the
         # generic "sibling-folder search added no new matches" message;
         # no sibling-folder semantic pass ran on this path.
@@ -2124,8 +2338,13 @@ def search_cmd(
             if r.get("path", "") and r.get("path", "") not in early_warm_paths
         ]
         if new_warm:
+            warm_label = (
+                "▾ refined matches from sibling-folder semantic search:"
+                if warm_cross_results
+                else "▾ refined matches from semantic search:"
+            )
             click.echo(
-                "▾ refined matches from sibling-folder semantic search:",
+                warm_label,
                 err=True,
             )
             for r in new_warm:
@@ -2160,10 +2379,13 @@ def search_cmd(
 
     # ``path=`` is the headline routing decision the user actually cares
     # about: which retrieval strategy answered this specific query.
-    cascade_was_skipped = filename_answered
-    path_label = "filename-lookup" if filename_answered else (
-        "cascade"
-    )
+    cascade_was_skipped = filename_answered or lexical_answered
+    if filename_answered:
+        path_label = "filename-lookup"
+    elif lexical_answered:
+        path_label = "lexical-exact"
+    else:
+        path_label = "cascade"
     if cascade and cascade_telemetry is not None:
         path_label = cascade_telemetry.get("path") or (
             "cosine-cheap" if cascade_telemetry.get("early_exit") else "cosine-escalated-rerank"
@@ -2299,7 +2521,9 @@ def search_cmd(
                 _proactive.run_enhancers_parallel(
                     query, decision, results, top_k=top,
                     ctx=_proactive.ProactiveContext(
-                        conn=conn, project_root=project_root,
+                        conn=conn,
+                        project_root=project_root,
+                        explicit_scope=explicit_scope,
                     ),
                 )
             )
@@ -2331,6 +2555,7 @@ def search_cmd(
         not hints_disabled()
         and not json_output
         and not proactive_results
+        and not cascade_was_skipped
     ):
         _quality_hint = assess_result_quality(results, cascade_telemetry)
         if _quality_hint:

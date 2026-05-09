@@ -61,7 +61,7 @@ async def renew_session(req: Request):
 > **~1.1 s** first answer on wrong-path queries via parallel proactive umbrella (0.5.7, real-CLI verified) &nbsp;·&nbsp;
 > **~1 s** warm queries &nbsp;·&nbsp;
 > **100 %** local &nbsp;·&nbsp;
-> **42** releases shipped
+> **43** releases shipped
 
 ---
 
@@ -484,6 +484,17 @@ Behavior toggles.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.5.9`** — Generic adaptive routing and scoped search
+    performance. Scope is now a first-class query-plan facet: folder /
+    repo / workspace clauses are resolved to a concrete root and stripped
+    from router text before fast-intent, LLM fallback, metadata, and
+    lexical gates run. Metadata remains instant when it fully answers the
+    query, but acts only as a modifier when the user also names a target.
+    Scoped semantic and JSON/agent queries can now finish from strong
+    lexical evidence without waiting for expensive cascade/rerank, while
+    CJK and mixed-language scope forms such as `在合同档案文件夹...` are handled
+    generically. Release validation covered 12 synthetic CLI cases, all
+    under 0.9 s after the fix, with no private examples in public surfaces.
   - **`0.5.8.7`** — Adaptive query-plan routing. Filesystem
     metadata is now a `metadata_kind` / `metadata_terminal` facet
     instead of a mutually exclusive intent: pure metadata queries
@@ -608,7 +619,7 @@ source .venv/bin/activate
 pip install -e .[rerank]
 
 # Verify
-.venv/bin/python -m pytest -q tests/        # 270 / 270 should pass
+.venv/bin/python -m pytest -q tests/        # 295 / 295 should pass
 ```
 
 The release protocol is documented in

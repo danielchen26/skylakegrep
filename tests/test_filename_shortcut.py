@@ -20,12 +20,49 @@ def _has_find() -> bool:
     return shutil.which("find") is not None
 
 
+def _has_rg() -> bool:
+    return shutil.which("rg") is not None
+
+
 def _project(tmp_path: Path, files: dict[str, str]) -> Path:
     for rel, body in files.items():
         p = tmp_path / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(body)
     return tmp_path
+
+
+@pytest.mark.skipif(not _has_rg(), reason="rg not on PATH")
+def test_lexical_shortcut_can_use_scoped_content_evidence(tmp_path):
+    root = _project(
+        tmp_path,
+        {
+            "docs/rate_limits.md": (
+                "The service budget is 120 requests per minute.\n"
+                "Retry policy stops after three failed attempts.\n"
+            ),
+            "notes/created_at.md": (
+                "created_at is a field name, not a filesystem request.\n"
+            ),
+        },
+    )
+
+    strict = auto_index.lexical_shortcut(
+        "how are request budgets enforced",
+        root,
+        top_k=5,
+    )
+    scoped = auto_index.lexical_shortcut(
+        "how are request budgets enforced",
+        root,
+        top_k=5,
+        allow_content_evidence=True,
+    )
+
+    assert strict is None
+    assert scoped is not None
+    assert Path(scoped[0]["path"]).name == "rate_limits.md"
+    assert scoped[0]["fallback"] == "rg-shortcut"
 
 
 # ---- happy path -----------------------------------------------------
@@ -176,6 +213,37 @@ def test_skips_when_too_many_files_match(tmp_path):
         "find doc file", root, top_k=10, max_files=30
     )
     assert out is None
+
+
+@pytest.mark.skipif(not _has_find(), reason="find not on PATH")
+def test_composite_filename_query_ignores_wrapper_words_and_prefers_artifacts(tmp_path):
+    class _Decision:
+        intent = "filename"
+        primary_token = "project brief"
+        metadata_kind = "created"
+        metadata_terminal = False
+
+    root = _project(
+        tmp_path,
+        {
+            "paper/project_brief.pdf": "x",
+            "paper/project_brief.tex": "x",
+            "paper/project_brief.fls": "x",
+            "reports/SHOWCASE.html": "x",
+        },
+    )
+
+    out = auto_index.filename_shortcut(
+        "Show me where my project brief that I recently created in CASE42 folder",
+        root,
+        top_k=10,
+        decision=_Decision(),
+    )
+
+    assert out is not None
+    names = [Path(r["path"]).name for r in out]
+    assert "SHOWCASE.html" not in names
+    assert names[:2] == ["project_brief.pdf", "project_brief.tex"]
 
 
 # ---- condition 4: no basename literally contains the token ---------

@@ -58,6 +58,38 @@ generic intent substrate or retrieval contract so the whole class of
 queries improves. Tests may keep sanitized regression receipts, but the
 production path must not become a pile of per-case triggers.
 
+### Adaptive query-plan contract
+
+A user query is not a single label. Treat it as an open-world query
+plan made of independent facets that can coexist:
+
+  - **target** — the artifact, symbol, document, or concept being
+    searched for.
+  - **scope** — where the user wants the search bounded, such as a
+    project, repository, folder, or workspace.
+  - **metadata** — modifiers such as created, modified, opened, size,
+    or order. Metadata can be terminal only when the user is asking for
+    a metadata list; otherwise it ranks or filters evidence.
+  - **answer depth** — path, preview, source excerpt, explanation,
+    structured JSON, or synthesized answer.
+  - **retrieval needs** — filename, lexical, semantic, structural,
+    graph, or cross-folder expansion. Multiple needs may be active in
+    the same query.
+
+The fast model or router may propose these facets, but it is not an
+oracle. Deterministic evidence must validate the plan before it is used
+to stop work: a scope facet must resolve to a real bounded root; a
+filename result must contain concrete basename/path evidence; a
+metadata facet must be treated as a modifier unless the query's answer
+depth is metadata-only; semantic or synthesized-answer requests must
+keep semantic retrieval alive even when a filename anchor is found.
+
+Uncertainty must degrade by broadening carefully, not by scanning the
+world. Prefer bounded roots, visible user/project directories, and
+hidden/cache/tool-directory suppression over home-wide sweeps. If the
+foreground answer is incomplete, show the best evidence and the active
+routing path, then let indexing/recovery continue in the background.
+
 ### Past lapses in this project (the receipts)
 
 These are real mistakes the project has made — recorded here so
@@ -72,6 +104,7 @@ future contributors see the pattern and don't repeat it.
 | **proactive.filename_extend_should_fire** | 0.2.7 shipped the proactive framework but its built-in gate enumerated English / Chinese natural-language lookup phrases (`"where is" / "find me" / "在哪" / "找一下" / "我的"`) as a fallback when ``decision.intent`` was not ``"filename"``. The user caught this on the same day: "I see you're still using a lot of these keyword phrases. We shouldn't use keywords." This was the **third** Principle-1 lapse against the same anti-pattern in this project | `0.2.8`: gate trusts ``decision.intent`` exclusively. When LLM router (or its rule-based fallback) classifies intent as ``filename`` / ``mixed`` → fire; anything else → don't. ``decision is None`` means "no understanding available" and refuses to fire rather than enumerate. The LLM is the only source of intent truth | `0.2.8` ✓ shipped |
 | **proactive gate iteration (0.2.9 → 0.2.10)** | 0.2.8's strict ``intent ∈ {filename, mixed}`` gate rejected the LLM-unreachable case where rule-based fallback returned ``intent=lexical, primary_token=""``. 0.2.9 added a third eligibility case based on token-shape morphology (``_looks_like_identifier``) — and the user immediately caught this as the same anti-pattern in different clothes ("我不是要什么关不关键的短语就是说你现在不是有一个intent吗任何的intent如果当前的问题识别不了或者在当前的问题下识别不了应该触发"). **Fourth Principle-1 lapse.** | `0.2.10`: gate is purely results-based. ``not results`` → fire; ``results present + primary_token + no basename match`` → fire; everything else → don't. Token-shape / morphology decisions moved INTO ``filename_extend_execute`` where they shape the *mechanism* (which token to ``find`` for, return None if none usable) but never gate *eligibility*. The cleanest realisation of "policy = did scope fail; mechanism = how to extend scope" | `0.2.10` ✓ shipped |
 | **proactive `find` budget bug (0.2.7 → 0.2.10)** | 0.2.7-0.2.9 divided the per-enhancer budget by the number of search dirs (``per_dir_s = budget / N``), even though the dirs run in **parallel** threads. A 400 ms budget across 3 dirs gave 133 ms per ``find`` — under the typical ``~/Downloads`` ``find`` time of 161 ms. ``find`` got SIGKILLed seconds before yielding its output, returning 0 hits despite matching files existing. Three releases of "the gate fires, why is there no output?" came from this. **Lesson:** end-to-end time-the-actual-thing before shipping. Unit tests on the gate alone don't catch mechanism timing bugs | `0.2.10`: ``per_dir_s = max(0.2, individual_budget_ms / 1000.0)`` (no division). Defaults bumped to ``DEFAULT_TOTAL_BUDGET_MS = 2000``, ``filename_extend.individual_budget_ms = 1500``. End-to-end verified before tagging: 1093 ms wall clock to surface 4 actual user-reported files from the user's real home dirs | `0.2.10` ✓ shipped |
+| **single-intent routing (0.5.8.x)** | A query like `show where my project report that I recently created in case42 folder` can contain target, scope, metadata, and answer-depth facets at once. Treating the fast-intent result as one terminal label lets `metadata` suppress filename anchors, lets `filename` suppress semantic depth, or lets a missing scope fall back to broad hidden/tool-directory sweeps. | Query planning is now facet-based: scope is resolved to a real bounded root before search; metadata is a ranking/filter modifier unless metadata-only; hidden/cache/tool directories are excluded from lazy seeds; filename evidence only ends foreground work when it satisfies the requested answer depth. The small model proposes facets, but filesystem evidence decides finality. | `0.5.9` |
 
 ### The rule (for every PR)
 

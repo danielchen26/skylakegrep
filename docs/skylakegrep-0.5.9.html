@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.9 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.9 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.9</p>
+<h1>skylakegrep 0.5.9 — generic adaptive routing and scoped search performance</h1>
+<p>0.5.9 is a product-level routing release. It keeps the existing CLI and
+JSON surfaces compatible, but changes how skylakegrep plans a query before
+choosing retrieval lanes.</p>
+<p>The core shift: a user query is no longer treated as one terminal intent.
+It can contain independent facets at the same time:</p>
+<ul>
+<li><strong>scope</strong> — the folder / repo / workspace the user wants searched;</li>
+<li><strong>target</strong> — the file, artifact, symbol, or document clue;</li>
+<li><strong>metadata</strong> — created / opened / modified / size as either a full
+  answer or a ranking constraint;</li>
+<li><strong>answer depth</strong> — path-only, preview, evidence, or deeper semantic
+  content.</li>
+</ul>
+<p>The router can still use a small local model, but model output is not
+trusted blindly. Filesystem scope, filename evidence, lexical evidence,
+metadata facets, and semantic depth each have their own validation gate.</p>
+<h2>What changed</h2>
+<ul>
+<li>Added a first-class <strong>query scope facet</strong>. Phrases such as
+  <code>in CASE42 folder</code>, <code>inside Research Workspace</code>, and
+  <code>在合同档案文件夹...</code> now resolve to a concrete local root before
+  retrieval starts. Scope constrains every lane and prevents broad hidden
+  / tool-directory sweeps from outranking the folder the user actually
+  named.</li>
+<li>Scope clauses are stripped from the text that is sent to fast-intent,
+  the LLM router, metadata analysis, and lexical gates. This prevents the
+  folder name from becoming the primary filename token or semantic target.</li>
+<li>Metadata is now a plan facet, not a terminal intent by default.
+  <code>show recently created files</code> remains a zero-semantic filesystem
+  answer, while <code>show where project brief recently created in PROJECT
+  folder</code> keeps filename / lexical / semantic retrieval alive and uses
+  creation time only as a modifier.</li>
+<li>CJK and mixed-language scope handling is generic at the grammar layer:
+  scope suffixes such as <code>文件夹</code>, <code>目录</code>, and <code>项目</code> are recognized even
+  when the query continues immediately after the suffix.</li>
+<li>Warm scoped semantic queries can finish from strong lexical evidence
+  without waiting for expensive cascade / rerank. The fallback is scoped
+  and evidence-based: a small result set plus snippet hits can satisfy the
+  default human view even when the path vocabulary differs from the query.</li>
+<li>JSON / agent calls benefit from the same scoped lexical shortcut. A
+  structured <code>--json --detail summary</code> call can now return the relevant
+  code and document snippets directly instead of waiting for cascade when
+  lexical evidence is already sufficient.</li>
+<li>Markdown, text, PDF, and docx content now participate more consistently
+  in indexing. Text-like files are chunked directly; PDF/docx files use the
+  existing bounded text extraction path.</li>
+<li>Filename lookup ranking now considers basename coverage, query-term
+  coverage, hidden-path penalties, document/code extension priority, and
+  metadata facets. This keeps concrete document anchors above unrelated
+  generated or hidden files.</li>
+<li>Human output no longer says <code>sibling-folder semantic search</code> unless a
+  sibling-folder pass actually ran. When lexical evidence is final, the UI
+  says <code>keyword matches</code> and marks <code>cascade-skipped</code>.</li>
+</ul>
+<h2>Before vs after</h2>
+<p>The release benchmark uses only synthetic placeholder files and folders.</p>
+<table>
+<thead>
+<tr>
+<th>Query shape</th>
+<th>Previous behavior observed during validation</th>
+<th>0.5.9 behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Scoped filename lookup</td>
+<td>Could wait behind broad scans or semantic setup</td>
+<td><code>0.397s</code>, <code>path=filename-lookup</code></td>
+</tr>
+<tr>
+<td>Scoped semantic content</td>
+<td>Could wait ~7 s because scope polluted routing</td>
+<td><code>0.338s</code>, <code>source=fast-intent</code></td>
+</tr>
+<tr>
+<td>Metadata-only scoped query</td>
+<td>Could fall into content search</td>
+<td><code>0.279s</code>, <code>path=metadata-created</code></td>
+</tr>
+<tr>
+<td>Metadata modifier query</td>
+<td>Could wait for LLM or be treated as metadata-only</td>
+<td><code>0.379s</code>, <code>metadata=created:modifier</code></td>
+</tr>
+<tr>
+<td>Folder names with spaces</td>
+<td>Could approach multi-second LLM routing</td>
+<td><code>0.401s</code>, scoped fast plan</td>
+</tr>
+<tr>
+<td>CJK filename scope</td>
+<td>Could miss the folder scope</td>
+<td><code>0.370s</code>, scoped filename lookup</td>
+</tr>
+<tr>
+<td>CJK + English semantic scope</td>
+<td>Could miss scope and search outside</td>
+<td><code>0.333s</code>, scoped lexical evidence</td>
+</tr>
+<tr>
+<td>Wrong-directory filename lookup</td>
+<td>Keeps bounded proactive recovery</td>
+<td><code>0.372s</code>, proactive filename result</td>
+</tr>
+<tr>
+<td>Warm vocabulary-mismatch semantic query</td>
+<td>Could wait 9-16 s for cascade/rerank</td>
+<td><code>0.453s</code>, scoped lexical evidence</td>
+</tr>
+<tr>
+<td>Warm JSON agent query</td>
+<td>Could wait ~9.5 s</td>
+<td><code>0.877s</code>, JSON <code>rg-shortcut</code> results</td>
+</tr>
+</tbody>
+</table>
+<h2>Release benchmark</h2>
+<p>The 0.5.9 release gate ran a 12-case real CLI benchmark on a synthetic
+workspace:</p>
+<pre><code class="language-text">OK filename_scope_simple              0.397s
+OK semantic_scope_content             0.338s
+OK metadata_terminal_scope            0.279s
+OK metadata_modifier_scope            0.379s
+OK scope_with_spaces_and_modifier     0.401s
+OK cjk_filename_scope                 0.370s
+OK cjk_semantic_scope                 0.333s
+OK wrong_dir_proactive_no_scope       0.372s
+OK json_filename_scope                0.334s
+OK warm_semantic_vocab_mismatch       0.453s
+OK warm_code_identifier_collision     0.616s
+OK warm_json_semantic_agent_shape     0.877s
+</code></pre>
+<p>These cases cover cold-start, warm-index, filename, semantic, metadata
+terminal, metadata modifier, folder names with spaces, CJK / mixed
+language, wrong-directory proactive search, code identifier collisions,
+and JSON / LLM-agent output shape.</p>
+<h2>Verification</h2>
+<ul>
+<li>Full test suite: <code>295 passed, 20 subtests passed</code>.</li>
+<li>Targeted routing suite: <code>122 passed, 3 subtests passed</code>.</li>
+<li>End-to-end synthetic CLI benchmark: <code>12 / 12 passed</code>.</li>
+<li><code>git diff --check</code>: clean.</li>
+<li>Source privacy scan: required before build.</li>
+<li>Wheel/sdist privacy scan: required before upload.</li>
+</ul>
+<h2>Compatibility</h2>
+<ul>
+<li>No CLI flag was removed.</li>
+<li>Required JSON fields are unchanged.</li>
+<li>No user action is required for existing project indexes. Text/PDF/docx
+  coverage improves as indexes refresh or rebuild naturally.</li>
+<li>Router cache entries are keyed by the scope-stripped routing query, so
+  stale folder-token routing decisions are not reused for scoped variants.</li>
+</ul>
+<h2>Privacy note</h2>
+<p>All examples in this release use fictional placeholders such as <code>CASE42</code>,
+<code>PROJECT folder</code>, <code>project-report.pdf</code>, and <code>合同档案</code>. No real user prompt,
+private filename, private folder name, local machine path, screenshot, or
+document category is included in the release notes, tests, docs, wheel, or
+sdist.</p></article>
+</main>
+</div>
+</body></html>

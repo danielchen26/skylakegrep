@@ -31,6 +31,7 @@ from unittest.mock import patch
 from skylakegrep.src import proactive as p
 from skylakegrep.src.proactive import (
     ProactiveEnhancement,
+    ProactiveContext,
     ProactiveResult,
     clear_registry,
     filename_extend_execute,
@@ -122,6 +123,37 @@ class ShouldFireGateTests(unittest.TestCase):
             )
             self.assertEqual(res, [])
             self.assertEqual(tel["fired"], [])
+
+    def test_filename_extend_respects_explicit_scope(self):
+        decision = _MockDecision(intent="filename", primary_token="CASE42")
+        ctx = ProactiveContext(explicit_scope=True)
+        self.assertFalse(
+            filename_extend_should_fire(
+                "where is CASE42 file in project folder",
+                decision,
+                [],
+                ctx=ctx,
+            )
+        )
+
+    def test_filename_extend_can_use_plain_descriptor_token_when_intent_is_filename(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "project-report.pdf"
+            target.write_text("x")
+            decision = _MockDecision(intent="filename", primary_token="")
+
+            result = filename_extend_execute(
+                "where is project report file",
+                decision,
+                top_k=5,
+                individual_budget_ms=1000,
+                search_dirs=[root],
+            )
+
+            self.assertIsNotNone(result)
+            assert result is not None
+            self.assertEqual(Path(result.extra_hits[0]["path"]).name, "project-report.pdf")
 
 
 # ---------------------------------------------------------------------------

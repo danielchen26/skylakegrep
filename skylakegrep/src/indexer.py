@@ -73,12 +73,28 @@ def get_parser(language_name):
     except ImportError:
         return None
 
-SUPPORTED_EXTENSIONS = {
+CODE_EXTENSIONS = {
     ".py": "python", ".js": "javascript", ".ts": "typescript",
     ".tsx": "tsx", ".jsx": "jsx", ".go": "go", ".rs": "rust",
     ".java": "java", ".c": "c", ".cpp": "cpp", ".h": "c",
     ".cs": "csharp", ".rb": "ruby", ".php": "php", ".swift": "swift",
     ".kt": "kotlin", ".scala": "scala", ".vue": "vue", ".svelte": "svelte",
+}
+TEXT_EXTENSIONS = {
+    ".md": "markdown",
+    ".markdown": "markdown",
+    ".txt": "text",
+    ".rst": "rst",
+    ".log": "log",
+}
+BINARY_TEXT_EXTENSIONS = {
+    ".pdf": "pdf",
+    ".docx": "docx",
+}
+SUPPORTED_EXTENSIONS = {
+    **CODE_EXTENSIONS,
+    **TEXT_EXTENSIONS,
+    **BINARY_TEXT_EXTENSIONS,
 }
 
 DEFAULT_IGNORED_DIRS = {
@@ -299,11 +315,20 @@ def prepare_file_chunks(filepath: Path, root: Path | None = None) -> list[dict]:
     if ext not in SUPPORTED_EXTENSIONS:
         return []
     try:
-        content = filepath.read_text(errors="ignore")
+        if ext in CODE_EXTENSIONS or ext in TEXT_EXTENSIONS:
+            content = filepath.read_text(errors="ignore")
+        else:
+            from .binary_extract import extract_text
+            content = extract_text(filepath, ocr=False).text
     except Exception:
         return []
+    if not content.strip():
+        return []
     lang = SUPPORTED_EXTENSIONS[ext]
-    chunks = extract_code_chunks(content, lang)
+    if ext in CODE_EXTENSIONS:
+        chunks = extract_code_chunks(content, lang)
+    else:
+        chunks = split_text_chunks(content)
     file_mtime = filepath.stat().st_mtime
     if root is not None:
         try:

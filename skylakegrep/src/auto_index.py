@@ -488,6 +488,7 @@ def lexical_shortcut(
     max_files: int = _LEXICAL_MAX_FILES,
     min_path_token_overlap: int = _LEXICAL_MIN_PATH_TOKEN_OVERLAP,
     max_parent_dirs: int = _LEXICAL_MAX_PARENT_DIRS,
+    allow_content_evidence: bool = False,
 ) -> list[dict] | None:
     """Try to short-circuit cascade retrieval via ripgrep when the query is
     lexically friendly. Returns a results list shaped like
@@ -533,7 +534,10 @@ def lexical_shortcut(
     if len(lower_terms) == 1 and _lexical_single_literal_token(lower_terms[0]):
         required_overlap = 1
     if max_overlap < required_overlap:
-        return None
+        if not allow_content_evidence or not _lexical_content_evidence_satisfies(
+            results, lower_terms
+        ):
+            return None
 
     # Condition 4: matches cluster in a small number of parent dirs
     parent_dirs = {str(Path(p).parent) for p in paths}
@@ -544,6 +548,49 @@ def lexical_shortcut(
     for r in results:
         r["fallback"] = "rg-shortcut"
     return results
+
+
+def _lexical_content_evidence_satisfies(
+    results: list[dict],
+    terms: list[str],
+) -> bool:
+    """Scoped fallback for vocabulary-mismatch paths.
+
+    Path-token overlap is the safest lexical shortcut globally. Inside an
+    explicit user scope, however, the path may use different vocabulary while
+    the snippet itself directly answers the query. Accept only when the best
+    hit contains at least two query term surfaces after small morphology
+    normalization.
+    """
+
+    if not results or len(terms) < 2:
+        return False
+    best = results[0]
+    text = f"{best.get('snippet', '')}\n{best.get('chunk', '')}".casefold()
+    hits = {
+        term
+        for term in terms
+        if any(variant in text for variant in _term_surface_variants(term))
+    }
+    return len(hits) >= 2
+
+
+def _term_surface_variants(term: str) -> set[str]:
+    term = (term or "").casefold().strip()
+    if len(term) < 3:
+        return {term} if term else set()
+    variants = {term}
+    if term.endswith("ies") and len(term) > 4:
+        variants.add(term[:-3] + "y")
+    if term.endswith("es") and len(term) > 4:
+        variants.add(term[:-2])
+    if term.endswith("s") and len(term) > 3:
+        variants.add(term[:-1])
+    if term.endswith("ed") and len(term) > 4:
+        variants.add(term[:-2])
+    if term.endswith("ing") and len(term) > 5:
+        variants.add(term[:-3])
+    return {v for v in variants if len(v) >= 3}
 
 
 # ----- v0.13.0 filename-lookup shortcut -----------------------------
@@ -570,7 +617,124 @@ def _filename_candidate_tokens(query: str, decision=None) -> list[str]:
     The ``find`` validation below decides which candidate is real.
     """
     primary = (getattr(decision, "primary_token", "") or "").strip()
-    return filename_candidates(query, primary_token=primary)
+    candidates = filename_candidates(query, primary_token=primary)
+    descriptor_terms = set(_filename_query_terms(query))
+    out: list[str] = []
+    seen: set[str] = set()
+    for cand in candidates:
+        cand_clean = cand.strip()
+        if not cand_clean:
+            continue
+        key = cand_clean.casefold()
+        parts = [
+            part.casefold()
+            for part in re.split(r"[\\s._-]+", cand_clean)
+            if len(part) >= 2
+        ]
+        keep = False
+        if primary and key == primary.casefold():
+            keep = True
+        elif any(part in descriptor_terms for part in parts):
+            keep = True
+        elif is_pathlike_candidate(cand_clean):
+            keep = True
+        elif all("\u3400" <= ch <= "\u9fff" for ch in cand_clean):
+            keep = True
+        if keep and key not in seen:
+            seen.add(key)
+            out.append(cand_clean)
+    return out
+
+
+_FILENAME_RANK_STOPWORDS = frozenset(
+    "a an all and any are as at by did do does for from give i in into is it "
+    "me my of on or please show some tell that the these this those to was "
+    "were what when where which with you file files folder folders directory "
+    "dir repo repository project workspace recently recent latest newest oldest "
+    "last opened accessed used created made wrote written modified changed "
+    "edited updated".split()
+)
+
+
+def _filename_query_terms(query: str) -> list[str]:
+    terms: list[str] = []
+    seen: set[str] = set()
+    for raw in re.findall(r"[A-Za-z0-9][A-Za-z0-9._-]{1,80}", query or ""):
+        for part in re.split(r"[._-]+", raw):
+            token = part.casefold()
+            if len(token) < 3 or token.isdigit():
+                continue
+            if token in _FILENAME_RANK_STOPWORDS:
+                continue
+            if token not in seen:
+                seen.add(token)
+                terms.append(token)
+    return terms
+
+
+def _stat_for_metadata_kind(path: Path, kind: str | None) -> float:
+    if not kind:
+        return 0.0
+    try:
+        st = path.stat()
+    except OSError:
+        return 0.0
+    if kind == "created":
+        return float(getattr(st, "st_birthtime", st.st_mtime))
+    if kind == "opened":
+        return float(st.st_atime)
+    if kind == "size":
+        return float(st.st_size)
+    return float(st.st_mtime)
+
+
+def _filename_sort_key(path: str, query: str, decision=None) -> tuple:
+    path_obj = Path(path)
+    path_norm = path.casefold().replace("_", " ").replace("-", " ").replace(".", " ")
+    path_compact = path_norm.replace(" ", "")
+    terms = _filename_query_terms(query)
+    coverage = sum(
+        1
+        for term in terms
+        if term in path_norm or term.replace(" ", "") in path_compact
+    )
+    basename = path_obj.name.casefold()
+    basename_coverage = sum(1 for term in terms if term in basename)
+    hidden_penalty = 1 if any(part.startswith(".") for part in path_obj.parts) else 0
+    final_doc_exts = {".pdf", ".docx", ".doc"}
+    source_doc_exts = {".tex", ".md", ".txt", ".ipynb"}
+    code_exts = {".py", ".js", ".ts", ".tsx", ".jsx", ".rs", ".go", ".java"}
+    generated_exts = {
+        ".aux", ".bbl", ".bcf", ".blg", ".fdb_latexmk", ".fls", ".log",
+        ".out", ".synctex", ".toc",
+    }
+    suffix = path_obj.suffix.casefold()
+    if suffix in final_doc_exts:
+        ext_penalty = 0
+    elif suffix in source_doc_exts or suffix in code_exts:
+        ext_penalty = 1
+    elif suffix in generated_exts:
+        ext_penalty = 3
+    else:
+        ext_penalty = 2
+    metadata_ts = _stat_for_metadata_kind(
+        path_obj, getattr(decision, "metadata_kind", None)
+    )
+    try:
+        mtime = path_obj.stat().st_mtime
+    except OSError:
+        mtime = 0.0
+    depth = path.count("/")
+    return (
+        -coverage,
+        -basename_coverage,
+        hidden_penalty,
+        ext_penalty,
+        -metadata_ts,
+        depth,
+        -mtime,
+        path,
+    )
 
 
 def filename_shortcut(
@@ -669,15 +833,12 @@ def filename_shortcut(
     if not paths:
         return None
 
-    # Rank: shorter path first (less nested = likely the canonical),
-    # then most-recently-modified within the same depth.
-    def _sort_key(p: str) -> tuple:
-        st = Path(p).stat() if Path(p).exists() else None
-        depth = p.count("/")
-        mtime = -st.st_mtime if st else 0.0
-        return (depth, mtime)
-
-    paths.sort(key=_sort_key)
+    # Rank by query-term coverage first. For composite filename asks like
+    # "the X Y report in PROJECT folder", a path containing X + Y + report
+    # is more likely correct than a shorter path containing only "report".
+    # Metadata facets (created/opened/modified/size) break ties without
+    # turning metadata into a global result source.
+    paths.sort(key=lambda p: _filename_sort_key(p, query, decision))
     paths = paths[:top_k]
 
     results: list[dict] = []

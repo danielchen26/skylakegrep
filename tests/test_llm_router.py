@@ -226,13 +226,13 @@ def test_composite_metadata_query_does_not_become_router_metadata():
         )
     assert d.intent in {"filename", "semantic", "mixed"}
     assert d.intent != "metadata"
-    assert d.source == "fallback-rules"
-    assert d.out_of_scope is None
+    assert d.source == "fast-intent"
+    assert d.out_of_scope == "none"
     assert d.metadata_kind == "created"
     assert d.metadata_terminal is False
 
 
-def test_metadata_modifier_overrides_llm_out_of_scope_for_composite_query():
+def test_metadata_modifier_uses_fast_plan_before_llm():
     fake = RouterDecision(
         intent="mixed",
         source="llm",
@@ -246,7 +246,7 @@ def test_metadata_modifier_overrides_llm_out_of_scope_for_composite_query():
             "in PROJECT folder",
             use_llm=True,
         )
-    assert d.source == "llm"
+    assert d.source == "fast-intent"
     assert d.out_of_scope == "none"
     assert d.metadata_kind == "created"
     assert d.metadata_terminal is False
@@ -321,6 +321,55 @@ def test_fast_intent_semantic_router_skips_llm_for_obvious_question():
     assert d.skip_cascade is False
     assert d.skip_filename is True
     assert d.source == "fast-intent"
+
+
+def test_scope_clause_does_not_become_primary_token():
+    with patch(
+        "skylakegrep.src.llm_router.requests.post",
+        side_effect=AssertionError("LLM should not be called"),
+    ):
+        d = route_query("what does retry policy say about backoff in CASE42 folder")
+    assert d.intent == "semantic"
+    assert d.source == "fast-intent"
+    assert d.primary_token == ""
+
+
+def test_metadata_modifier_has_fast_content_plan_without_llm():
+    with patch(
+        "skylakegrep.src.llm_router.requests.post",
+        side_effect=AssertionError("LLM should not be called"),
+    ):
+        d = route_query(
+            "show where journal manuscript recently created "
+            "in Case 42 Research folder"
+        )
+    assert d.intent == "mixed"
+    assert d.source == "fast-intent"
+    assert d.metadata_kind == "created"
+    assert d.metadata_terminal is False
+    assert d.out_of_scope == "none"
+
+
+def test_metadata_identifier_collision_uses_fast_semantic_plan():
+    with patch(
+        "skylakegrep.src.llm_router.requests.post",
+        side_effect=AssertionError("LLM should not be called"),
+    ):
+        d = route_query("how does created_at field work in CASE42 folder")
+    assert d.intent == "semantic"
+    assert d.source == "fast-intent"
+    assert d.metadata_kind is None
+
+
+def test_mixed_language_scoped_semantic_query_skips_llm():
+    with patch(
+        "skylakegrep.src.llm_router.requests.post",
+        side_effect=AssertionError("LLM should not be called"),
+    ):
+        d = route_query("合同摘要在合同档案文件夹说明了什么 renewal process")
+    assert d.intent == "semantic"
+    assert d.source == "fast-intent"
+    assert d.primary_token == ""
 
 
 def test_fast_intent_ambiguous_short_code_query_defers_to_fallback():

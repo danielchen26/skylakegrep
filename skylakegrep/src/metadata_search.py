@@ -15,6 +15,7 @@ import re
 import time
 
 from .fast_intent import classify_fast_intent
+from .query_scope import strip_scope_clauses
 
 
 @dataclass(frozen=True)
@@ -88,8 +89,9 @@ def _descriptor_tokens(query: str) -> list[str]:
     lane from hijacking such composite searches.
     """
 
+    scoped_query = strip_scope_clauses(query or "")
     out: list[str] = []
-    for raw in _TOKEN_RE.findall(query or ""):
+    for raw in _TOKEN_RE.findall(scoped_query):
         token = raw.strip("._-").lower()
         if len(token) < 2:
             continue
@@ -98,7 +100,7 @@ def _descriptor_tokens(query: str) -> list[str]:
         if token in _NON_DESCRIPTOR_TOKENS:
             continue
         out.append(token)
-    cjk_query = query or ""
+    cjk_query = scoped_query
     for fragment in _CJK_NON_DESCRIPTOR_FRAGMENTS:
         cjk_query = cjk_query.replace(fragment, " ")
     for raw in _CJK_RUN_RE.findall(cjk_query):

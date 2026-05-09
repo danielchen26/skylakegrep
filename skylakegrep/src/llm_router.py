@@ -52,6 +52,7 @@ from . import intent as intent_mod
 from .config import get_config
 from .fast_intent import best_filename_token, classify_fast_intent
 from .metadata_search import MetadataFacet, analyze_metadata_query
+from .query_scope import strip_scope_clauses
 
 logger = logging.getLogger(__name__)
 
@@ -628,6 +629,7 @@ def route_query(
     if not query or not query.strip():
         return _all_runs()
 
+    routing_query = strip_scope_clauses(query).strip() or query
     metadata_facet = analyze_metadata_query(query)
     if metadata_facet is not None and metadata_facet.terminal:
         oos = "size" if metadata_facet.kind == "size" else "recency"
@@ -646,14 +648,35 @@ def route_query(
             metadata_terminal=True,
         )
 
-    fast = classify_fast_intent(query)
+    fast = classify_fast_intent(routing_query)
     # Metadata is a terminal fast lane only when classify_metadata_query()
     # accepted the whole query above. If fast-intent sees recency/size words
     # inside a query with residual target constraints, those words are search
     # modifiers, not the answer. Fall through to LLM / safe routing so content
     # depth is still decided by the full query.
+    if fast is not None and fast.intent == "metadata":
+        cheap_intent = "mixed" if metadata_facet is not None else "semantic"
+        cheap = RouterDecision(
+            intent=cheap_intent,
+            primary_token="",
+            skip_cascade=False,
+            skip_filename=False,
+            skip_lexical=False,
+            extract_content=False,
+            confidence=max(0.65, min(0.85, fast.confidence - 0.1)),
+            source="fast-intent",
+            reason=(
+                "fast metadata signal treated as a modifier; "
+                "continuing content retrieval without an LLM call"
+            ),
+            out_of_scope="none",
+        )
+        cheap = _attach_metadata_facet(cheap, metadata_facet)
+        if conn is not None:
+            _cache_set(conn, routing_query, cheap)
+        return cheap
     if fast is not None and fast.intent != "metadata":
-        anchor_token = best_filename_token(query)
+        anchor_token = best_filename_token(routing_query)
         primary_token = fast.primary_token
         skip_filename = fast.intent == "semantic"
         if fast.intent == "semantic" and anchor_token:
@@ -676,12 +699,12 @@ def route_query(
         )
         cheap = _attach_metadata_facet(cheap, metadata_facet)
         if conn is not None:
-            _cache_set(conn, query, cheap)
+            _cache_set(conn, routing_query, cheap)
         return cheap
 
     cached: RouterDecision | None = None
     if conn is not None:
-        cached = _cache_get(conn, query)
+        cached = _cache_get(conn, routing_query)
         if cached is not None:
             # 0.5.8.1: stale-cache invalidation. If a previous version cached
             # a ``fallback-*`` decision (rule-based or all-runs), 0.5.7's
@@ -698,14 +721,14 @@ def route_query(
 
     if use_llm:
         try:
-            decision = _llm_decision(query)
+            decision = _llm_decision(routing_query)
         except Exception as exc:  # noqa: BLE001 — never let routing crash a search
             logger.debug("LLM router unexpected error: %s", exc)
             decision = None
         if decision is not None:
             decision = _attach_metadata_facet(decision, metadata_facet)
             if conn is not None:
-                _cache_set(conn, query, decision)
+                _cache_set(conn, routing_query, decision)
             return decision
 
     # If we passed through a stale ``fallback-*`` cache hit and the LLM
@@ -714,8 +737,8 @@ def route_query(
     if cached is not None:
         return _attach_metadata_facet(cached, metadata_facet)
 
-    decision = _rule_based_decision(query)
+    decision = _rule_based_decision(routing_query)
     decision = _attach_metadata_facet(decision, metadata_facet)
     if conn is not None:
-        _cache_set(conn, query, decision)
+        _cache_set(conn, routing_query, decision)
     return decision

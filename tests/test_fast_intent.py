@@ -20,6 +20,24 @@ def test_fast_intent_accepts_obvious_semantic_without_llm():
     assert d.intent == "semantic"
 
 
+def test_fast_intent_accepts_generic_document_location():
+    d = classify_fast_intent("show where journal manuscript is stored")
+    assert d is not None
+    assert d.intent == "filename"
+
+
+def test_fast_intent_accepts_generic_policy_question():
+    d = classify_fast_intent("how are request budgets enforced")
+    assert d is not None
+    assert d.intent == "semantic"
+
+
+def test_fast_intent_accepts_mixed_language_document_question():
+    d = classify_fast_intent("合同摘要 说明了什么 renewal process")
+    assert d is not None
+    assert d.intent == "semantic"
+
+
 def test_fast_intent_defers_ambiguous_short_code_query():
     assert classify_fast_intent("auth login") is None
 

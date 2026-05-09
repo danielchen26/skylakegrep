@@ -66,6 +66,25 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.9 · generic adaptive routing · scoped search performance</div>
+ <h3>Scope is now a first-class query-plan facet, so scoped searches stay fast and precise</h3>
+ <p>
+ This release upgrades routing from a single terminal intent into a
+ facet-based plan: scope, target, metadata, and answer depth are handled
+ independently. Folder / repo / workspace clauses are resolved to a real
+ local root and stripped from router text before fast-intent, LLM fallback,
+ metadata, and lexical gates run. Metadata remains instant when it fully
+ answers the query, but becomes only a modifier when the user also names a
+ target. Scoped semantic and JSON/agent queries can now finish from strong
+ lexical evidence without waiting for expensive cascade/rerank, while CJK
+ and mixed-language scope forms are handled generically. The release gate
+ includes a 12-case synthetic CLI benchmark covering cold/warm, filename,
+ semantic, metadata terminal/modifier, CJK, wrong-directory proactive, and
+ JSON output.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.9.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.8.7 · adaptive query-plan routing · metadata terminal/modifier facets</div>
  <h3>Metadata is now a routing facet: fast when it fully answers, deeper when it only constrains</h3>
  <p>

@@ -96,6 +96,7 @@ class ProactiveContext:
 
     conn: Any | None = None
     project_root: Any | None = None
+    explicit_scope: bool = False
     # Pre-fetched on the main thread by ``run_enhancers_parallel``
     # before the worker pool starts. Snapshot of recovery progress
     # at the moment the search command launched; enhancers read
@@ -460,7 +461,11 @@ def _looks_like_identifier(token: str) -> bool:
 
 
 def filename_extend_should_fire(
-    query: str, decision: Any, results: list[dict],
+    query: str,
+    decision: Any,
+    results: list[dict],
+    *,
+    ctx: ProactiveContext | None = None,
 ) -> bool:
     """Fire when conventional retrieval can't answer the user's
     query under the current scope.
@@ -487,6 +492,8 @@ def filename_extend_should_fire(
     decides what concrete candidate token is safe to glob.
     """
 
+    if ctx is not None and ctx.explicit_scope:
+        return False
     if decision is None:
         return False
     if getattr(decision, "intent", "") != "filename":
@@ -507,19 +514,7 @@ def filename_extend_should_fire(
     # basename match below decides whether it is evidence.
     raw_primary = (getattr(decision, "primary_token", "") or "").strip()
     candidates = _filename_tokens(query, decision)
-    if raw_primary:
-        token_lowers = [t.lower() for t in candidates if t.strip()]
-    else:
-        # Only accept morphology-extracted tokens if they look like
-        # identifiers (digit / punctuation / mixed case). Without
-        # this check, queries like ``"how does cascade work"`` would
-        # treat ``cascade`` as a filename candidate and fire on
-        # any non-cascade result, surfacing irrelevant matches from
-        # ``~/Downloads``. A router-supplied ``primary_token`` above is
-        # already an understanding-layer decision.
-        token_lowers = [
-            t.lower() for t in candidates if _looks_like_identifier(t)
-        ]
+    token_lowers = [t.lower() for t in candidates if t.strip()]
     if not token_lowers:
         # Genuinely no usable identifier in the query (pure NL).
         # Trust the cascade.
@@ -550,8 +545,6 @@ def filename_extend_execute(
 
     raw_primary = (getattr(decision, "primary_token", "") or "").strip()
     tokens = _filename_tokens(query, decision)
-    if not raw_primary:
-        tokens = [t for t in tokens if _looks_like_identifier(t)]
     if not tokens:
         return None
 

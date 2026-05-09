@@ -134,6 +134,41 @@ handles the generic case. Use it as the <em>primary</em> path. Keep
 enumeration only as an <strong>offline fallback</strong> when the substrate is
 unavailable, with a written rationale for why the enumeration is
 acceptable in that bounded context.</p>
+<p><strong>Heartline:</strong> never fix a user-reported query by adding a special
+trigger for that exact wording, language wrapper, private example, or
+one-off filename shape. If a query exposes a routing miss, improve the
+generic intent substrate or retrieval contract so the whole class of
+queries improves. Tests may keep sanitized regression receipts, but the
+production path must not become a pile of per-case triggers.</p>
+<h3>Adaptive query-plan contract</h3>
+<p>A user query is not a single label. Treat it as an open-world query
+plan made of independent facets that can coexist:</p>
+<ul>
+<li><strong>target</strong> — the artifact, symbol, document, or concept being
+    searched for.</li>
+<li><strong>scope</strong> — where the user wants the search bounded, such as a
+    project, repository, folder, or workspace.</li>
+<li><strong>metadata</strong> — modifiers such as created, modified, opened, size,
+    or order. Metadata can be terminal only when the user is asking for
+    a metadata list; otherwise it ranks or filters evidence.</li>
+<li><strong>answer depth</strong> — path, preview, source excerpt, explanation,
+    structured JSON, or synthesized answer.</li>
+<li><strong>retrieval needs</strong> — filename, lexical, semantic, structural,
+    graph, or cross-folder expansion. Multiple needs may be active in
+    the same query.</li>
+</ul>
+<p>The fast model or router may propose these facets, but it is not an
+oracle. Deterministic evidence must validate the plan before it is used
+to stop work: a scope facet must resolve to a real bounded root; a
+filename result must contain concrete basename/path evidence; a
+metadata facet must be treated as a modifier unless the query's answer
+depth is metadata-only; semantic or synthesized-answer requests must
+keep semantic retrieval alive even when a filename anchor is found.</p>
+<p>Uncertainty must degrade by broadening carefully, not by scanning the
+world. Prefer bounded roots, visible user/project directories, and
+hidden/cache/tool-directory suppression over home-wide sweeps. If the
+foreground answer is incomplete, show the best evidence and the active
+routing path, then let indexing/recovery continue in the background.</p>
 <h3>Past lapses in this project (the receipts)</h3>
 <p>These are real mistakes the project has made — recorded here so
 future contributors see the pattern and don't repeat it.</p>
@@ -188,6 +223,12 @@ future contributors see the pattern and don't repeat it.</p>
 <td>0.2.7-0.2.9 divided the per-enhancer budget by the number of search dirs (<code>per_dir_s = budget / N</code>), even though the dirs run in <strong>parallel</strong> threads. A 400 ms budget across 3 dirs gave 133 ms per <code>find</code> — under the typical <code>~/Downloads</code> <code>find</code> time of 161 ms. <code>find</code> got SIGKILLed seconds before yielding its output, returning 0 hits despite matching files existing. Three releases of "the gate fires, why is there no output?" came from this. <strong>Lesson:</strong> end-to-end time-the-actual-thing before shipping. Unit tests on the gate alone don't catch mechanism timing bugs</td>
 <td><code>0.2.10</code>: <code>per_dir_s = max(0.2, individual_budget_ms / 1000.0)</code> (no division). Defaults bumped to <code>DEFAULT_TOTAL_BUDGET_MS = 2000</code>, <code>filename_extend.individual_budget_ms = 1500</code>. End-to-end verified before tagging: 1093 ms wall clock to surface 4 actual user-reported files from the user's real home dirs</td>
 <td><code>0.2.10</code> ✓ shipped</td>
+</tr>
+<tr>
+<td><strong>single-intent routing (0.5.8.x)</strong></td>
+<td>A query like <code>show where my project report that I recently created in case42 folder</code> can contain target, scope, metadata, and answer-depth facets at once. Treating the fast-intent result as one terminal label lets <code>metadata</code> suppress filename anchors, lets <code>filename</code> suppress semantic depth, or lets a missing scope fall back to broad hidden/tool-directory sweeps.</td>
+<td>Query planning is now facet-based: scope is resolved to a real bounded root before search; metadata is a ranking/filter modifier unless metadata-only; hidden/cache/tool directories are excluded from lazy seeds; filename evidence only ends foreground work when it satisfies the requested answer depth. The small model proposes facets, but filesystem evidence decides finality.</td>
+<td><code>0.5.9</code></td>
 </tr>
 </tbody>
 </table>
