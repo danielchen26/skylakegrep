@@ -239,6 +239,94 @@ def metadata_results(
     return results, meta
 
 
+def descriptor_file_results(
+    query: str,
+    root: Path,
+    *,
+    top_k: int = 5,
+    max_files: int = 25_000,
+    facet: MetadataFacet | None = None,
+) -> tuple[list[dict], MetadataFacet | None]:
+    """Find scoped files using residual target descriptors plus metadata.
+
+    This is the foreground lane for queries like "where is the report I
+    recently created in PROJECT folder". The timestamp word is a modifier,
+    not the answer, and the target descriptors should constrain a bounded
+    filesystem search before any semantic embedding work starts.
+    """
+
+    facet = facet or analyze_metadata_query(query, default_limit=top_k)
+    if facet is None or facet.terminal or not facet.target_descriptors:
+        return [], facet
+
+    descriptors = tuple(
+        token.casefold()
+        for token in facet.target_descriptors
+        if token and len(token.strip()) >= 2
+    )
+    if not descriptors:
+        return [], facet
+
+    scored: list[tuple[tuple, Path, os.stat_result, set[str]]] = []
+    scanned = 0
+    for base in _search_roots(root):
+        for path in _iter_files(base):
+            try:
+                st = path.stat()
+            except OSError:
+                continue
+            scanned += 1
+            matched = _descriptor_matches(path, descriptors)
+            if matched:
+                scored.append((
+                    _descriptor_sort_key(path, st, facet.kind, descriptors, matched),
+                    path,
+                    st,
+                    matched,
+                ))
+            if scanned >= max_files:
+                break
+        if scanned >= max_files:
+            break
+
+    scored.sort(key=lambda item: item[0])
+    primary_scored = [
+        item for item in scored
+        if _descriptor_ext_penalty(item[1].suffix.casefold()) < 3
+    ]
+    if primary_scored:
+        scored = primary_scored
+    results: list[dict] = []
+    for _key, path, st, matched in scored[:top_k]:
+        label = _kind_label(facet.kind)
+        value = (
+            _fmt_size(st.st_size)
+            if facet.kind == "size"
+            else _fmt_time(_stat_value(st, facet.kind))
+        )
+        snippet = (
+            f"{label}: {value}    modified: {_fmt_time(st.st_mtime)}    "
+            f"opened: {_fmt_time(st.st_atime)}    size: {_fmt_size(st.st_size)}    "
+            f"matched: {', '.join(sorted(matched))}"
+        )
+        coverage = len(matched) / max(1, len(descriptors))
+        results.append({
+            "path": str(path),
+            "file": str(path),
+            "chunk": snippet,
+            "snippet": snippet,
+            "language": path.suffix.lstrip(".") or "file",
+            "start_line": None,
+            "end_line": None,
+            "score": 0.7 + 0.3 * coverage,
+            "fallback": f"metadata-descriptor-{facet.kind}",
+            "metadata_kind": facet.kind,
+            "metadata_reason": facet.reason,
+            "matched_descriptors": sorted(matched),
+        })
+    return results, facet
+
+
 def rank_results_by_metadata(results: list[dict], kind: str) -> list[dict]:
     """Apply a cheap metadata facet to an already-relevant result set.
 
@@ -283,6 +371,92 @@ def rank_results_by_metadata(results: list[dict], kind: str) -> list[dict]:
         ranked.append((adjusted, -idx, result))
     ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
     return [item[2] for item in ranked]
+
+
+def _descriptor_matches(path: Path, descriptors: tuple[str, ...]) -> set[str]:
+    path_norm = _descriptor_surface(str(path))
+    basename_norm = _descriptor_surface(path.name)
+    compact_path = path_norm.replace(" ", "")
+    compact_base = basename_norm.replace(" ", "")
+    matched: set[str] = set()
+    for token in descriptors:
+        variants = _descriptor_variants(token)
+        if any(
+            variant in path_norm
+            or variant in basename_norm
+            or variant.replace(" ", "") in compact_path
+            or variant.replace(" ", "") in compact_base
+            for variant in variants
+        ):
+            matched.add(token)
+    return matched
+
+
+def _descriptor_sort_key(
+    path: Path,
+    st: os.stat_result,
+    kind: str,
+    descriptors: tuple[str, ...],
+    matched: set[str],
+) -> tuple:
+    basename_norm = _descriptor_surface(path.name)
+    basename_hits = sum(
+        1
+        for token in descriptors
+        if any(variant in basename_norm for variant in _descriptor_variants(token))
+    )
+    ext_penalty = _descriptor_ext_penalty(path.suffix.casefold())
+    hidden_penalty = 1 if any(part.startswith(".") for part in path.parts) else 0
+    metadata_value = _stat_value(st, kind)
+    return (
+        -len(matched),
+        -basename_hits,
+        hidden_penalty,
+        ext_penalty,
+        -metadata_value,
+        len(path.parts),
+        str(path),
+    )
+
+
+def _descriptor_ext_penalty(suffix: str) -> int:
+    final_doc_exts = {".pdf", ".docx", ".doc"}
+    source_doc_exts = {".tex", ".md", ".txt", ".rst"}
+    code_exts = {".py", ".js", ".ts", ".tsx", ".jsx", ".rs", ".go", ".java"}
+    generated_exts = {
+        ".aux", ".bbl", ".bcf", ".blg", ".fdb_latexmk", ".fls", ".log",
+        ".out", ".synctex", ".toc",
+    }
+    if suffix in final_doc_exts:
+        return 0
+    elif suffix in source_doc_exts or suffix in code_exts:
+        return 1
+    elif suffix in generated_exts:
+        return 3
+    return 2
+
+
+def _descriptor_surface(text: str) -> str:
+    return re.sub(r"[^0-9a-z\u3400-\u9fff]+", " ", (text or "").casefold())
+
+
+def _descriptor_variants(token: str) -> set[str]:
+    token = (token or "").casefold().strip()
+    if not token:
+        return set()
+    variants = {token}
+    if len(token) >= 3:
+        if token.endswith("ies") and len(token) > 4:
+            variants.add(token[:-3] + "y")
+        if token.endswith("es") and len(token) > 4:
+            variants.add(token[:-2])
+        if token.endswith("s") and len(token) > 3:
+            variants.add(token[:-1])
+        if token.endswith("ed") and len(token) > 4:
+            variants.add(token[:-2])
+        if token.endswith("ing") and len(token) > 5:
+            variants.add(token[:-3])
+    return {v for v in variants if len(v) >= 2}
 
 
 def _stat_value(st: os.stat_result, kind: str) -> float:

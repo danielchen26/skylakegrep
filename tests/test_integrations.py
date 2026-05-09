@@ -34,12 +34,62 @@ class IntegrationModelTests(unittest.TestCase):
             self.assertIn(integ.END_MARKER, content)
             self.assertIn("skylakegrep semantic search", content)
 
+    def test_registered_snippet_teaches_agent_depth_flags(self):
+        content = integ.SNIPPET_BODY
+        self.assertIn("--content --detail standard", content)
+        self.assertIn("--content --detail full", content)
+        self.assertIn("--answer --content", content)
+        self.assertIn("--json --content --detail standard", content)
+        self.assertIn("--explain", content)
+        self.assertIn("project brief", content)
+
     def test_register_idempotent(self):
         with tempfile.TemporaryDirectory() as d:
             tmp = Path(d)
             i = self._make(tmp)
             i.register()
             self.assertFalse(i.register())  # second call: no change
+
+    def test_register_refreshes_existing_managed_block(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            i = self._make(tmp)
+            old_block = (
+                integ.BEGIN_MARKER
+                + "\n\nold setup guidance\n"
+                + integ.END_MARKER
+                + "\n"
+            )
+            i.config_path.parent.mkdir(parents=True, exist_ok=True)
+            i.config_path.write_text("# My instructions\n\n" + old_block + "\nKeep this.\n")
+
+            self.assertTrue(i.register())
+            content = i.config_path.read_text()
+            self.assertIn("# My instructions", content)
+            self.assertIn("Keep this.", content)
+            self.assertIn("--json --content --detail standard", content)
+            self.assertNotIn("old setup guidance", content)
+
+    def test_refresh_registered_snippets_only_touches_managed_blocks(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            stale = self._make(tmp, name="Stale", config_name="STALE.md")
+            fresh = self._make(tmp, name="Fresh", config_name="FRESH.md")
+            unregistered = self._make(tmp, name="Plain", config_name="PLAIN.md")
+
+            stale.config_path.write_text(
+                integ.BEGIN_MARKER
+                + "\n\nold setup guidance\n"
+                + integ.END_MARKER
+                + "\n"
+            )
+            fresh.register()
+            unregistered.config_path.write_text("user-authored rules only\n")
+
+            changed = integ.refresh_registered_snippets([stale, fresh, unregistered])
+            self.assertEqual([item.name for item in changed], ["Stale"])
+            self.assertIn("--json --content --detail standard", stale.config_path.read_text())
+            self.assertEqual(unregistered.config_path.read_text(), "user-authored rules only\n")
 
     def test_register_appends_without_clobbering_existing(self):
         with tempfile.TemporaryDirectory() as d:
@@ -92,6 +142,34 @@ class SetupCliTests(unittest.TestCase):
                 result = runner.invoke(cli_module.cli, ["setup", "--skip"])
                 self.assertEqual(result.exit_code, 0, result.output)
                 self.assertTrue(integ.is_setup_done())
+
+    def test_setup_refreshes_already_registered_snippet(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            integration = integ.Integration(
+                name="TestAgent",
+                description="A test integration",
+                config_path=tmp / "AGENTS.md",
+                detection_paths=(tmp,),
+                detection_binaries=(),
+            )
+            integration.config_path.write_text(
+                "# User rules\n\n"
+                + integ.BEGIN_MARKER
+                + "\n\nold setup guidance\n"
+                + integ.END_MARKER
+                + "\n"
+            )
+            tmp_marker = tmp / "setup_done"
+            with patch.object(integ, "SETUP_DONE_MARKER", tmp_marker):
+                with patch.object(integ, "all_integrations", return_value=[integration]):
+                    runner = CliRunner()
+                    result = runner.invoke(cli_module.cli, ["setup"])
+            self.assertEqual(result.exit_code, 0, result.output)
+            self.assertIn("updated snippet", result.output)
+            content = integration.config_path.read_text()
+            self.assertIn("--json --content --detail standard", content)
+            self.assertNotIn("old setup guidance", content)
 
 
 if __name__ == "__main__":

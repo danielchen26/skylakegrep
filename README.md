@@ -325,6 +325,17 @@ skygrep setup     # Claude Code · Codex · OpenCode · Gemini CLI · Cursor
 skygrep "your question here"
 ```
 
+`skygrep setup` writes a short agent rule into Claude Code, Codex,
+OpenCode, Gemini CLI, and Cursor when detected. The rule tells the
+agent which depth to request: bare `skygrep` for location/concept
+lookups, `--content` for source snippets, `--detail full` only after
+narrowing, `--answer` for local synthesis, and `--json` for
+machine-readable tool calls. Re-running `skygrep setup` refreshes the
+managed block when these instructions improve. After an upgrade, normal
+`skygrep` searches and `skygrep doctor` also refresh already-registered
+managed blocks automatically; new integrations still require an explicit
+`skygrep setup`.
+
 On macOS, `python` may not exist; use `python3`. If `skygrep` installs but
 the shell cannot find it, inspect:
 
@@ -436,6 +447,24 @@ first query, and auto-recovers when the embedder is upgraded.
   <img alt="skylakegrep — CLI cheatsheet (bare form featured, 8 secondary commands as tiles)" src="docs/assets/cli-cheatsheet.svg" width="100%">
 </p>
 
+### Choose the right information depth
+
+The same natural-language question can ask for different levels of
+evidence. Keep the first query cheap; only ask for more depth when the
+task needs it.
+
+| Goal | Command |
+|---|---|
+| Locate the file or folder quickly | `skygrep "where is the project brief I edited recently?"` |
+| Show relevant source/document snippets | `skygrep --content --detail standard "what does the API migration plan say about rollback?"` |
+| Read deeper after narrowing to one path | `skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"` |
+| Synthesize a local answer from retrieved evidence | `skygrep --answer --content "summarize the payment retry policy"` |
+| Feed compact structured context to an LLM agent | `skygrep --json --content --detail standard "where is token refresh implemented?"` |
+| Audit why a route/result was chosen | `skygrep --explain "where is token refresh implemented?"` |
+
+Agent rule of thumb: start bare for **where / locate / which file**
+questions; add `--content` for **what does it say / explain / summarize**
+questions; add `--json` whenever another LLM will consume the result.
 
 ### Reading the per-query telemetry footer (0.2.2+)
 
@@ -484,6 +513,18 @@ Behavior toggles.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.5.10`** — Fast scoped file discovery and agent
+    instruction depth. Scoped file-location queries that combine a
+    concrete folder, target descriptors, and metadata modifiers now use
+    a generic filesystem-evidence lane before semantic cascade, so
+    path-depth answers can return in sub-second time without sacrificing
+    semantic depth for content/answer queries. Large foreground refreshes
+    defer to background indexing, footer timing now reports command wall
+    time, and `skygrep setup` teaches Claude Code / Codex / OpenCode /
+    Gemini / Cursor the information-depth ladder (`--content`,
+    `--detail full`, `--answer`, `--json`). Existing managed setup
+    snippets auto-refresh after upgrade without touching user-authored
+    text.
   - **`0.5.9`** — Generic adaptive routing and scoped search
     performance. Scope is now a first-class query-plan facet: folder /
     repo / workspace clauses are resolved to a concrete root and stripped

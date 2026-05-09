@@ -92,7 +92,7 @@
  </tr>
  <tr>
  <td><code>skygrep setup</code></td>
- <td>Register skygrep with detected LLM CLIs (Claude Code, Codex, OpenCode, Gemini CLI, Cursor) so agents prefer it. Run once.</td>
+ <td>Register skygrep with detected LLM CLIs (Claude Code, Codex, OpenCode, Gemini CLI, Cursor) so agents prefer it and know which information depth to request. Existing managed snippets auto-refresh after upgrade.</td>
  <td><code>skygrep setup</code> · <code>skygrep setup --uninstall</code></td>
  </tr>
  <tr>
@@ -146,6 +146,23 @@ cd ~/your-project
 
 # 6. ask anything
 skygrep "where does the cascade tau threshold get computed"</code></pre>
+ <p>
+ <code>skygrep setup</code> writes a managed instruction block that teaches
+ agents to choose the right output depth. Re-running setup refreshes that
+ block, and normal searches / <code>skygrep doctor</code> refresh older managed
+ blocks after an upgrade. New integrations still require explicit setup.
+ </p>
+ <h3 id="information-depth">Information-depth examples</h3>
+ <table>
+ <thead><tr><th>Need</th><th>Command</th></tr></thead>
+ <tbody>
+ <tr><td>Locate a file or folder quickly</td><td><code>skygrep "where is the project brief I edited recently?"</code></td></tr>
+ <tr><td>Show relevant snippets</td><td><code>skygrep --content --detail standard "what does the API migration plan say about rollback?"</code></td></tr>
+ <tr><td>Read deeper after narrowing</td><td><code>skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"</code></td></tr>
+ <tr><td>Synthesize a local answer</td><td><code>skygrep --answer --content "summarize the payment retry policy"</code></td></tr>
+ <tr><td>Feed an LLM/agent structured context</td><td><code>skygrep --json --content --detail standard "where is token refresh implemented?"</code></td></tr>
+ </tbody>
+ </table>
  <p>
  On macOS, <code>python</code> may not exist; use <code>python3</code>.
  If the shell cannot find <code>skygrep</code> after install, inspect

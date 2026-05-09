@@ -164,12 +164,15 @@ def incremental_refresh(
     *,
     throttle_seconds: float = DEFAULT_REFRESH_THROTTLE_SECONDS,
     quiet: bool = False,
+    max_foreground_files: int | None = None,
 ) -> int:
     """Quick mtime-based incremental refresh.
 
     Returns the number of files that were re-embedded. Skips entirely when
     the previous refresh ran within ``throttle_seconds`` (no scan, no
-    stat calls).
+    stat calls). If ``max_foreground_files`` is set and the pending work is
+    larger, returns ``-pending_count`` without mutating the index so the
+    caller can queue a background refresh instead of blocking search.
     """
 
     last = _meta_get(conn, "last_refresh_at")
@@ -179,9 +182,17 @@ def incremental_refresh(
 
     indexed = storage.get_indexed_files(conn)
     files = collect_indexable_files(root)
-    embedder = None
-    refreshed = 0
-    deleted_files = storage.delete_missing_files(conn, {str(f) for f in files}, root)
+    current_paths = {str(f) for f in files}
+    root_path = root.resolve()
+    deleted_files: list[str] = []
+    for path in indexed:
+        try:
+            Path(path).resolve().relative_to(root_path)
+        except ValueError:
+            continue
+        if path not in current_paths:
+            deleted_files.append(path)
+    files_to_refresh: list[Path] = []
     for f in files:
         f_str = str(f)
         try:
@@ -190,14 +201,35 @@ def incremental_refresh(
             continue
         prior = indexed.get(f_str)
         if prior is None or mtime > prior:
-            if embedder is None:
-                embedder = get_embedder()
-            chunks = prepare_file_chunks(f, root=root)
-            if chunks:
-                chunks = batch_embed(chunks, embedder, batch_size=10)
-                storage.delete_file_chunks(conn, f_str)
-                storage.store_chunks_batch(conn, chunks)
-                refreshed += 1
+            files_to_refresh.append(f)
+
+    pending = len(files_to_refresh) + len(deleted_files)
+    if (
+        max_foreground_files is not None
+        and max_foreground_files >= 0
+        and pending > max_foreground_files
+    ):
+        if not quiet:
+            click.echo(
+                f"↻ refresh has {pending} pending file change(s); "
+                "deferring to background so search can continue.",
+                err=True,
+            )
+        return -pending
+
+    embedder = None
+    refreshed = 0
+    deleted_files = storage.delete_missing_files(conn, current_paths, root)
+    for f in files_to_refresh:
+        f_str = str(f)
+        if embedder is None:
+            embedder = get_embedder()
+        chunks = prepare_file_chunks(f, root=root)
+        if chunks:
+            chunks = batch_embed(chunks, embedder, batch_size=10)
+            storage.delete_file_chunks(conn, f_str)
+            storage.store_chunks_batch(conn, chunks)
+            refreshed += 1
     if refreshed or deleted_files:
         storage.populate_file_embeddings(conn)
     _meta_set(conn, "last_refresh_at", str(now))
@@ -455,6 +487,16 @@ def _refresh_throttle_from_env() -> float:
         return float(raw)
     except ValueError:
         return DEFAULT_REFRESH_THROTTLE_SECONDS
+
+
+def _foreground_refresh_limit_from_env() -> int:
+    raw = os.environ.get("SKYGREP_AUTO_REFRESH_MAX_FOREGROUND_FILES")
+    if raw is None or raw == "":
+        return 25
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 25
 
 
 # Lexical shortcut tuning. All four conditions must be satisfied for the

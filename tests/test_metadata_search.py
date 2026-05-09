@@ -6,6 +6,7 @@ import time
 from skylakegrep.src.metadata_search import (
     analyze_metadata_query,
     classify_metadata_query,
+    descriptor_file_results,
     metadata_results,
     rank_results_by_metadata,
 )
@@ -142,3 +143,30 @@ def test_metadata_results_do_not_return_unfiltered_composite_matches(tmp_path):
 
     assert meta is None
     assert results == []
+
+
+def test_descriptor_file_results_constrain_metadata_modifier_by_target(tmp_path):
+    scoped = tmp_path / "CASE42"
+    scoped.mkdir()
+    wanted = scoped / "project_brief.pdf"
+    generated = scoped / "project_brief.blg"
+    other = scoped / "unrelated_notes.pdf"
+    wanted.write_text("brief\n")
+    generated.write_text("generated\n")
+    other.write_text("notes\n")
+    now = time.time()
+    os.utime(wanted, (now, now))
+    os.utime(other, (now + 10, now + 10))
+
+    results, facet = descriptor_file_results(
+        "show me where my project brief that I recently created "
+        "in CASE42 folder",
+        scoped,
+        top_k=5,
+    )
+
+    assert facet is not None
+    assert facet.kind == "created"
+    assert facet.terminal is False
+    assert [os.path.basename(r["path"]) for r in results] == ["project_brief.pdf"]
+    assert results[0]["fallback"] == "metadata-descriptor-created"

@@ -190,10 +190,11 @@ word "release" means the whole chain: current codebase committed,
 tagged, pushed to GitHub; PyPI uploaded and verified through JSON,
 simple index, and clean-venv install; GitHub Release created with
 artifacts; GitHub README and GitHub Pages home/changelog/release pages
-rendered and verified; local editable install refreshed to the same
-version. The 0.2.2 → 0.2.3 lapse (PyPI shipped, GitHub Pages silent)
-is the receipt; the checklist is the prevention. No release is done
-until every surface is updated and the privacy gate is clean.
+rendered and verified; managed `skygrep setup` instructions kept current
+for existing agent integrations; local editable install refreshed to the
+same version. The 0.2.2 → 0.2.3 lapse (PyPI shipped, GitHub Pages
+silent) is the receipt; the checklist is the prevention. No release is
+done until every surface is updated and the privacy gate is clean.
 
 ---
 

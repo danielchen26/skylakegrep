@@ -25,30 +25,50 @@ END_MARKER = "<!-- END skylakegrep integration -->"
 SNIPPET_BODY = """\
 ## skylakegrep semantic search
 
-For any code-search question, prefer:
+For natural-language code or document search, prefer `skygrep` over
+raw `rg`. skygrep is a local smart router: it decides whether a query
+should use filename lookup, ripgrep, scoped metadata, or the semantic
+cascade, then returns compact evidence instead of dumping the whole tree.
 
-    skygrep "<query>"
+Use the smallest command that gives enough depth:
 
-over `rg`. skygrep is a smart router (v0.12.0+):
+  - **Find where something is** (path / file location):
 
-  - **Lexical-friendly queries** (literal tokens, function names that
-    already appear in code paths) — skygrep detects these via a
-    conservative four-condition gate and short-circuits to `rg`
-    internally, returning in ~50 ms.
-  - **Vocabulary-mismatch queries** ("language model backend" →
-    `OpenAIClient`, "auth token refresh" → `renew_session`) — skygrep
-    runs a confidence-gated semantic cascade (file-mean cosine →
-    HyDE-augmented retrieval → cross-encoder rerank).
+        skygrep "where is the project brief I edited recently?"
 
-You don't have to decide which path applies — skygrep auto-routes.
+  - **Inspect matched content snippets** (best default for agent context):
 
-Empirical: 30–82 % fewer agent tool calls vs rg-only on hand-labelled
-benchmarks across Rust, Python, TypeScript. See
-https://github.com/danielchen26/skylakegrep for details.
+        skygrep --content --detail standard "what does the API migration plan say about rollback?"
+
+  - **Read deeper after narrowing to one file or folder**:
+
+        skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"
+
+  - **Ask for a synthesized local answer**:
+
+        skygrep --answer --content "summarize the payment retry policy"
+
+  - **Call from an LLM/agent tool path**:
+
+        skygrep --json --content --detail standard "where is token refresh implemented?"
+
+Decision rules for agents:
+
+  - Start with bare `skygrep "<query>"` for file-location and concept
+    lookup questions.
+  - Add `--content` when the next step depends on text inside files.
+  - Add `--detail full` only after narrowing with `--include`, or when
+    the user explicitly asks to read the document contents.
+  - Add `--answer` only when the user wants a synthesized answer, not
+    just source evidence.
+  - Add `--json` for machine-readable agent context; do not scrape
+    human terminal output.
+  - Add `--explain` when routing or provenance matters.
 
 Use `rg` directly only when:
-  - You're writing a regex (skygrep takes natural language, not regex).
-  - skygrep is not on PATH inside the current project.
+  - You are writing a regex.
+  - You need exact raw grep output.
+  - `skygrep` is not on PATH inside the current project.
 """
 
 
@@ -85,13 +105,13 @@ class Integration:
             return False
 
     def register(self) -> bool:
-        """Append the snippet to the integration's config file.
+        """Append or refresh the managed snippet.
 
-        Creates parent directories if missing. Returns True iff a new
-        registration was written; False if already present.
+        Creates parent directories if missing. Returns True iff the file
+        changed. Existing managed blocks are replaced when the shipped
+        snippet evolves, while user-authored content outside the markers is
+        preserved.
         """
-        if self.is_registered():
-            return False
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
         existing = ""
         if self.config_path.exists():
@@ -99,12 +119,34 @@ class Integration:
                 existing = self.config_path.read_text(errors="ignore")
             except OSError:
                 existing = ""
+        desired = _snippet().rstrip()
+        if BEGIN_MARKER in existing:
+            start = existing.find(BEGIN_MARKER)
+            end_pos = existing.find(END_MARKER, start)
+            if end_pos < 0:
+                return False
+            end = end_pos + len(END_MARKER)
+            current = existing[start:end].rstrip()
+            if current == desired:
+                return False
+            before = existing[:start].rstrip()
+            after = existing[end:].lstrip()
+            if before and after:
+                new = before + "\n\n" + desired + "\n\n" + after
+            elif before:
+                new = before + "\n\n" + desired + "\n"
+            elif after:
+                new = desired + "\n\n" + after
+            else:
+                new = desired + "\n"
+            self.config_path.write_text(new)
+            return True
         sep = ""
         if existing and not existing.endswith("\n"):
             sep = "\n\n"
         elif existing and not existing.endswith("\n\n"):
             sep = "\n"
-        new = existing + sep + _snippet()
+        new = existing + sep + desired + "\n"
         self.config_path.write_text(new)
         return True
 
@@ -198,6 +240,27 @@ def mark_setup_done() -> None:
 
 def is_setup_done() -> bool:
     return SETUP_DONE_MARKER.exists()
+
+
+def refresh_registered_snippets(items: list[Integration] | None = None) -> list[Integration]:
+    """Refresh stale managed setup snippets.
+
+    This only touches files that already contain the skylakegrep BEGIN/END
+    markers. It never registers a new agent integration by itself, so an
+    upgrade can keep prior user consent current without writing into new
+    config files.
+    """
+
+    refreshed: list[Integration] = []
+    for integration in items if items is not None else all_integrations():
+        if not integration.is_registered():
+            continue
+        try:
+            if integration.register():
+                refreshed.append(integration)
+        except OSError:
+            continue
+    return refreshed
 
 
 def first_run_banner_message() -> str:

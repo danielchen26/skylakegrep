@@ -40,6 +40,7 @@ from .intent import classify_intent, merge_results as merge_tiers
 from .llm_router import RouterDecision, route_query
 from .metadata_search import (
     analyze_metadata_query,
+    descriptor_file_results,
     metadata_results,
     rank_results_by_metadata,
 )
@@ -87,6 +88,32 @@ def _symbols_table_populated(conn) -> bool:
     except sqlite3.Error:
         return False
     return bool(row and row[0])
+
+
+def _setup_auto_refresh_enabled() -> bool:
+    """Whether normal commands may refresh existing managed setup blocks."""
+
+    import os as _os
+
+    value = _os.environ.get("SKYGREP_SETUP_AUTO_REFRESH", "1").strip().lower()
+    if value in {"0", "false", "no", "off"}:
+        return False
+    # Tests and CI should not mutate a developer's real agent config files.
+    if _os.environ.get("PYTEST_CURRENT_TEST") or _os.environ.get("CI"):
+        return False
+    return True
+
+
+def _auto_refresh_setup_snippets() -> list[integrations_mod.Integration]:
+    """Best-effort refresh of already-registered LLM-agent snippets."""
+
+    if not _setup_auto_refresh_enabled():
+        return []
+    try:
+        return integrations_mod.refresh_registered_snippets()
+    except Exception:
+        logger.exception("setup snippet auto-refresh failed; ignoring")
+        return []
 
 
 def merge_results(result_groups: list[list[dict]], top: int) -> list[dict]:
@@ -386,6 +413,29 @@ def _filename_evidence_satisfies_depth(
     ):
         return True
     return fast.intent == "filename"
+
+
+def _descriptor_file_evidence_satisfies_depth(
+    results: list[dict],
+    decision: RouterDecision,
+    *,
+    answer: bool,
+    agentic: bool,
+) -> bool:
+    """Return True when scoped descriptor+metadata evidence can answer now.
+
+    Descriptor-file results are path/location evidence. They are final for
+    mixed/filename location asks, but semantic/answer/agentic calls still
+    keep deeper retrieval alive.
+    """
+
+    if not results or answer or agentic:
+        return False
+    if getattr(decision, "metadata_terminal", False):
+        return False
+    if not getattr(decision, "metadata_kind", None):
+        return False
+    return getattr(decision, "intent", "") in {"filename", "mixed"}
 
 
 def _render_detail_for_result(
@@ -834,6 +884,11 @@ def search_cmd(
 ):
     """Run a search. Aliased as the bare form: ``skygrep "<query>"``."""
     query = _normalize_query_args(query)
+    _auto_refresh_setup_snippets()
+    command_start = time.perf_counter()
+
+    def _wall_elapsed() -> float:
+        return time.perf_counter() - command_start
 
     # Intelligent CLI hint — out-of-scope query detection.
     #
@@ -888,7 +943,7 @@ def search_cmd(
                     explain=explain,
                 ))
             click.echo(
-                f"\n[Daemon search completed in {elapsed:.3f}s; "
+                f"\n[Daemon search completed in {_wall_elapsed():.3f}s; "
                 f"daemon-side {payload.get('latency_seconds')}s]"
             )
             return
@@ -932,7 +987,7 @@ def search_cmd(
                         explain=explain,
                     )
                 )
-            click.echo(f"\n✓ {elapsed:.3f}s · quality=BEST")
+            click.echo(f"\n✓ {_wall_elapsed():.3f}s · quality=BEST")
             click.echo(f"   path   : metadata-{metadata_query.kind}")
             click.echo(f"   reason : {metadata_query.reason}")
             click.echo(f"   pool   : {len(metadata_hits)} files · semantic-skipped")
@@ -942,7 +997,7 @@ def search_cmd(
                 "current search scope.",
                 err=True,
             )
-            click.echo(f"\n✓ {elapsed:.3f}s · quality=EMPTY")
+            click.echo(f"\n✓ {_wall_elapsed():.3f}s · quality=EMPTY")
             click.echo(f"   path   : metadata-{metadata_query.kind}")
             click.echo(f"   reason : {metadata_query.reason}")
         return
@@ -1084,7 +1139,7 @@ def search_cmd(
                     explain=explain,
                 )
             )
-        click.echo(f"\n✓ {elapsed:.3f}s · quality=BEST")
+        click.echo(f"\n✓ {_wall_elapsed():.3f}s · quality=BEST")
         click.echo("   path   : filename-lookup")
         click.echo(
             f"   router : {decision.source} → intent={decision.intent} "
@@ -1093,6 +1148,88 @@ def search_cmd(
         click.echo(
             f"   pool   : {len(fn_results)} filename + 0 lexical · "
             "cascade-skipped"
+        )
+        click.echo(f"   index  : {index_note}")
+        return
+
+    # Scoped artifact-location + metadata modifier lane.
+    #
+    # Example shape: "where is the report I recently created in PROJECT
+    # folder". Scope, target descriptors, and metadata are already separate
+    # query-plan facets; this lane uses that structure directly instead of
+    # falling through to semantic embedding. It is final only for path-depth
+    # mixed/filename asks. Semantic / answer / agentic calls can still use
+    # the same anchors later while deeper retrieval continues.
+    descriptor_results: list[dict] = []
+    descriptor_elapsed = 0.0
+    if (
+        explicit_scope
+        and not getattr(decision, "metadata_terminal", False)
+        and getattr(decision, "metadata_kind", None)
+        and not decision.skip_filename
+    ):
+        desc_start = time.time()
+        descriptor_results, _descriptor_facet = descriptor_file_results(
+            query,
+            project_root,
+            top_k=top,
+        )
+        descriptor_elapsed = time.time() - desc_start
+        if descriptor_results and explain:
+            _attach_explain(descriptor_results, decision)
+
+    descriptor_answered = _descriptor_file_evidence_satisfies_depth(
+        descriptor_results,
+        decision,
+        answer=answer,
+        agentic=agentic,
+    )
+    if descriptor_answered:
+        elapsed = router_elapsed + fn_elapsed + descriptor_elapsed
+        index_note = "refresh skipped (scoped file-discovery fast path)"
+        if auto_index:
+            fast_conn = None
+            try:
+                fast_conn = init_db(db_path)
+                if not ai.is_index_ready(fast_conn):
+                    spawned = ai.spawn_background_index(project_root, db_path)
+                    index_note = (
+                        "background indexing queued"
+                        if spawned is not None
+                        else "background indexing already running"
+                    )
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("scoped descriptor background index check failed: %s", exc)
+            finally:
+                if fast_conn is not None:
+                    try:
+                        fast_conn.close()
+                    except sqlite3.Error:
+                        pass
+        if json_output:
+            click.echo(render_json_results(descriptor_results))
+            return
+        click.echo("▾ scoped file metadata matches:", err=True)
+        for r in descriptor_results:
+            click.echo(
+                render_terminal_result(
+                    r,
+                    content=content,
+                    project_root=str(project_root),
+                    detail=detail,
+                    ocr=ocr,
+                    explain=explain,
+                )
+            )
+        click.echo(f"\n✓ {_wall_elapsed():.3f}s · quality=BEST")
+        click.echo("   path   : scoped-file-discovery")
+        click.echo(
+            f"   router : {decision.source} → intent={decision.intent} "
+            f"({decision.confidence:.2f})"
+        )
+        click.echo(
+            f"   pool   : {len(fn_results)} filename + "
+            f"{len(descriptor_results)} scoped metadata · semantic-skipped"
         )
         click.echo(f"   index  : {index_note}")
         return
@@ -1216,7 +1353,7 @@ def search_cmd(
                     return
                 if rendered:
                     click.echo(rendered)
-                click.echo(f"\n✓ {elapsed:.3f}s · quality=BEST")
+                click.echo(f"\n✓ {_wall_elapsed():.3f}s · quality=BEST")
                 click.echo("   path   : proactive-filename")
                 click.echo(
                     f"   router : {decision.source} → intent={decision.intent} "
@@ -1314,7 +1451,7 @@ def search_cmd(
                     return
                 if rendered:
                     click.echo(rendered)
-                click.echo(f"\n✓ {elapsed:.3f}s · quality=BEST")
+                click.echo(f"\n✓ {_wall_elapsed():.3f}s · quality=BEST")
                 click.echo("   path   : proactive-filename")
                 click.echo(
                     f"   router : {decision.source} → intent={decision.intent} "
@@ -1628,7 +1765,7 @@ def search_cmd(
             click.echo("\nSources:")
             for result in answer_results:
                 click.echo(render_compact_source(result))
-            click.echo(f"\n[Answer completed in {elapsed:.3f}s]")
+            click.echo(f"\n[Answer completed in {_wall_elapsed():.3f}s]")
             return
         # 0.5.4 streaming UX — STAGE 2: if STAGE 1 already printed
         # preliminary keyword hits, only echo NEW results found by the
@@ -1721,7 +1858,7 @@ def search_cmd(
         else:
             lazy_tag = ""
         click.echo(
-            f"\n[{elapsed:.3f}s · ripgrep cold-start{proactive_tag}{lazy_tag} · "
+            f"\n[{_wall_elapsed():.3f}s · ripgrep cold-start{proactive_tag}{lazy_tag} · "
             f"intent={intent} · {len(fn_results)} filename + "
             f"{len(rg_cold)} rg + {len(lazy_results)} lazy + "
             f"{len(cross_results)} cross-folder · index {suffix}]"
@@ -1732,12 +1869,26 @@ def search_cmd(
     # plus an mtime-based incremental refresh on the way in.
     if auto_index:
         try:
-            ai.incremental_refresh(
+            refreshed = ai.incremental_refresh(
                 conn,
                 project_root,
                 throttle_seconds=ai._refresh_throttle_from_env(),
                 quiet=json_output,
+                max_foreground_files=ai._foreground_refresh_limit_from_env(),
             )
+            if refreshed < 0:
+                spawned = ai.spawn_background_index(project_root, db_path)
+                if not json_output:
+                    note = (
+                        "queued"
+                        if spawned is not None
+                        else "already running"
+                    )
+                    click.echo(
+                        f"↻ background refresh {note} "
+                        f"({abs(refreshed)} pending file change(s)).",
+                        err=True,
+                    )
         except Exception as exc:
             logger.warning("auto-refresh failed: %s", exc)
 
@@ -2320,7 +2471,7 @@ def search_cmd(
         click.echo("\nSources:")
         for result in results:
             click.echo(render_compact_source(result))
-        click.echo(f"\n[Answer completed in {elapsed:.3f}s]")
+        click.echo(f"\n[Answer completed in {_wall_elapsed():.3f}s]")
         return
     # 0.5.6 streaming UX: if the warm-path streaming block already
     # printed the preliminary cascade matches, only echo NEW results
@@ -2402,11 +2553,12 @@ def search_cmd(
     # the user can scan path / router / evidence / pool / index
     # vertically rather than parsing one long ``·``-separated line.
     compact = _os.environ.get("SKYGREP_FOOTER_COMPACT") == "1"
+    wall_elapsed = _wall_elapsed()
 
     if compact:
         # Legacy footer — preserved verbatim for any tooling that grepped
         # the old format. New behaviour is the hierarchical block below.
-        parts: list[str] = [f"{elapsed:.3f}s", f"path={path_label}"]
+        parts: list[str] = [f"{wall_elapsed:.3f}s", f"path={path_label}"]
         parts.append(
             f"router={decision.source} · intent={intent} "
             f"({decision.confidence:.2f}) · "
@@ -2468,7 +2620,10 @@ def search_cmd(
             pool_pieces.append("cascade")
         elif cascade_was_skipped:
             pool_pieces.append("cascade-skipped")
-        rows.append(("pool", " + ".join(pool_pieces[:2]) + " · " + pool_pieces[2]))
+        pool_value = " + ".join(pool_pieces[:2])
+        if len(pool_pieces) > 2:
+            pool_value += " · " + pool_pieces[2]
+        rows.append(("pool", pool_value))
         index_pieces = [f"{ai.index_age_human(conn)} ago", f"{status['files']} files"]
         index_extras: list[str] = []
         if _symbols_table_populated(conn):
@@ -2489,7 +2644,7 @@ def search_cmd(
             cleaned = recovery_footer.replace("recovery=in-progress", "in-progress")
             rows.append(("recovery", cleaned))
         # Render
-        click.echo(f"\n{glyph} {elapsed:.3f}s · quality={quality}")
+        click.echo(f"\n{glyph} {wall_elapsed:.3f}s · quality={quality}")
         label_w = max(len(label) for label, _ in rows)
         for label, value in rows:
             click.echo(f"   {label.ljust(label_w)} : {value}")
@@ -2733,6 +2888,7 @@ def enrich(max_chunks, batch):
 def doctor():
     """Health check: probe Ollama, list models, summarise the project index."""
 
+    refreshed_setup = _auto_refresh_setup_snippets()
     config = get_config()
     report = bootstrap.doctor_report(config["ollama_url"])
     pad = lambda label: f"  {label:<26}"  # noqa: E731
@@ -2784,6 +2940,9 @@ def doctor():
     # LLM-CLI integrations registered via ``skygrep setup``.
     detected = [i for i in integrations_mod.all_integrations() if i.is_detected()]
     if detected:
+        if refreshed_setup:
+            names = ", ".join(i.name for i in refreshed_setup)
+            click.echo(f"{pad('LLM CLI rules')}✓ refreshed managed snippet(s): {names}")
         for i in detected:
             mark = "✓" if i.is_registered() else "—"
             click.echo(f"{pad(f'LLM CLI: {i.name}')}{mark} {'registered' if i.is_registered() else 'not registered (run `skygrep setup`)'}")
@@ -2803,9 +2962,11 @@ def setup(list_only: bool, uninstall: bool, skip: bool, yes: bool):
     that it should prefer ``skygrep`` for natural-language code search and
     fall back to ``rg`` otherwise.
 
-    Use ``--list`` to inspect without modifying. Use ``--uninstall`` to
-    remove every snippet previously written. Use ``--skip`` to suppress
-    the first-run banner without registering anything.
+    Re-running ``skygrep setup`` refreshes existing managed snippets when
+    the shipped agent guidance changes. Use ``--list`` to inspect without
+    modifying. Use ``--uninstall`` to remove every snippet previously
+    written. Use ``--skip`` to suppress the first-run banner without
+    registering anything.
     """
     items = integrations_mod.all_integrations()
 
@@ -2853,9 +3014,18 @@ def setup(list_only: bool, uninstall: bool, skip: bool, yes: bool):
     if yes:
         click.echo("--yes set; registering all without prompting.\n")
 
-    n_registered = 0
+    n_changed = 0
     for i in detected:
         if i.is_registered():
+            try:
+                wrote = i.register()
+                if wrote:
+                    click.echo(f"  ✓ updated snippet in {i.config_path}")
+                    n_changed += 1
+                else:
+                    click.echo(f"  · {i.name} already had the current snippet (no change)")
+            except OSError as exc:
+                click.echo(f"  × {i.name}: failed to update {i.config_path}: {exc}", err=True)
             continue
         if yes:
             answer = "y"
@@ -2871,15 +3041,15 @@ def setup(list_only: bool, uninstall: bool, skip: bool, yes: bool):
             wrote = i.register()
             if wrote:
                 click.echo(f"  ✓ wrote snippet to {i.config_path}")
-                n_registered += 1
+                n_changed += 1
             else:
                 click.echo(f"  · {i.name} already had the snippet (no change)")
         except OSError as exc:
             click.echo(f"  × {i.name}: failed to write {i.config_path}: {exc}", err=True)
 
     integrations_mod.mark_setup_done()
-    click.echo(f"\nDone. Registered {n_registered} integration(s).")
-    if n_registered:
+    click.echo(f"\nDone. Registered/updated {n_changed} integration(s).")
+    if n_changed:
         click.echo("Restart any open Claude Code / Codex / Gemini / Cursor sessions to pick up the change.")
     click.echo("Run `skygrep setup --uninstall` to remove all snippets later.")
 

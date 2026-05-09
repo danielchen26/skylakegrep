@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.9 adds generic adaptive routing: scope, target, metadata, and answer depth are planned independently so scoped searches stay fast and precise. 12-case synthetic release benchmark passes in under 0.9 s per fixed case; JSON and human CLI paths share the same routing improvements. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
+ <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.10 adds fast scoped file discovery, background refresh deferral, honest wall-time footers, and automatic agent-instruction refresh for the information-depth ladder. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.9 adds generic adaptive routing: scope is resolved before search, metadata can be terminal or a modifier, and scoped semantic/JSON queries avoid unnecessary cascade waits. 100% local, 100+ languages." />
+ <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.10 adds fast scoped file discovery, background refresh deferral, wall-time footers, and automatic agent-instruction refresh. 100% local, 100+ languages." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -378,6 +378,7 @@
  <p>Get started</p>
  <a href="#overview" class="active">Overview</a>
  <a href="#scenarios">Scenarios</a>
+ <a href="#depth-examples">Depth examples</a>
  <a href="#new-in-05x">New in 0.5.x</a>
  <a href="#why-skylakegrep">Why skylakegrep?</a>
  <a href="#vs-elasticsearch">vs Elasticsearch</a>
@@ -623,7 +624,7 @@
 }
 </style>
 <section id="overview" class="hero hero-redesigned">
- <p class="eyebrow">v0.5.9 · 100% local · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.5.10 · 100% local · PolyForm Noncommercial 1.0.0</p>
  <h1>Find <span class="hero-accent">anything</span> on your machine.</h1>
  <p class="lead">
  Semantic search for code, PDFs, notes, and docs.
@@ -763,6 +764,80 @@ Throughput projections under sustained 5k QPS load...</pre>
 </section>
 
 
+<!-- ============== Depth examples ============== -->
+<section id="depth-examples" class="doc-section scenarios-section">
+ <p class="eyebrow">Command examples</p>
+ <h2 class="overview-h2">Ask for the depth you need.</h2>
+ <p class="lead">
+ The bare command is intentionally fast for location and concept lookup.
+ Add depth only when you need file contents, synthesis, or structured
+ context for another agent.
+ </p>
+
+ <div class="scenario-grid">
+ <article class="scenario-card">
+ <div class="scenario-tag">LOCATION</div>
+ <h3>Find the right file first.</h3>
+ <p>
+ Use the bare form for <em>where is...</em>, <em>find...</em>, and
+ <em>which file...</em> questions. The router can answer from filename,
+ metadata, lexical, or semantic evidence without making you pick a lane.
+ </p>
+ <div class="scenario-demo">
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "where is the project brief I edited recently?"</div>
+ <div class="sd-result">→ <code>docs/project-brief.md</code> · scoped metadata / filename evidence</div>
+ <div class="sd-takeaway">Fast path: return the path, skip unnecessary content reading.</div>
+ </div>
+ </article>
+
+ <article class="scenario-card">
+ <div class="scenario-tag">CONTENT</div>
+ <h3>Show the source text that supports the answer.</h3>
+ <p>
+ Add <code>--content</code> when the next step depends on what the
+ file says, not only where the file is.
+ </p>
+ <div class="scenario-demo">
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep --content --detail standard "what does the API migration plan say about rollback?"</div>
+ <div class="sd-result">→ <code>docs/migration-plan.md:42-58</code> · relevant snippet</div>
+ <div class="sd-takeaway">Good default for human review and agent context.</div>
+ </div>
+ </article>
+
+ <article class="scenario-card">
+ <div class="scenario-tag">DEEP READ</div>
+ <h3>Read more after narrowing the target.</h3>
+ <p>
+ Use <code>--detail full</code> only when you intentionally want a
+ deeper local read. Pair it with <code>--include</code> to avoid
+ dumping unrelated context.
+ </p>
+ <div class="scenario-demo">
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"</div>
+ <div class="sd-result">→ extended extracted text from the selected file</div>
+ <div class="sd-takeaway">Higher depth, still scoped and local.</div>
+ </div>
+ </article>
+
+ <article class="scenario-card">
+ <div class="scenario-tag">AGENT / JSON</div>
+ <h3>Give another LLM structured context.</h3>
+ <p>
+ Agents should prefer <code>--json</code> over scraping terminal
+ output. Add <code>--answer</code> only when you want local synthesis
+ instead of source evidence.
+ </p>
+ <div class="scenario-demo">
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep --json --content --detail standard "where is token refresh implemented?"</div>
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep --answer --content "summarize the payment retry policy"</div>
+ <div class="sd-result">→ compact records with paths, scores, snippets, and route metadata</div>
+ <div class="sd-takeaway">Lower token cost and less ambiguity for Claude Code, Codex, OpenCode, and other agents.</div>
+ </div>
+ </article>
+ </div>
+</section>
+
+
 <!-- ============== New in 0.5.x ============== -->
 <section id="new-in-05x" class="doc-section scenarios-section">
  <p class="eyebrow">New in 0.5.x</p>
@@ -852,7 +927,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <div class="sd-result">▾ preliminary filename anchors + keyword matches (lazy semantic refinement starting…)</div>
  <div class="sd-result">═══ <code>CASE42_Project_Report.txt</code> · bounded content preview</div>
  <div class="sd-result">⚡ lazy refinement continues in the same invocation</div>
- <div class="sd-takeaway"><strong>0.5.9:</strong> scope, target, metadata, and answer depth are planned independently, so scoped searches stay fast without sacrificing semantic depth.</div>
+ <div class="sd-takeaway"><strong>0.5.10:</strong> scoped file discovery returns path-depth answers fast, while content/answer-depth queries keep semantic refinement alive.</div>
  </div>
  </article>
  </div>
@@ -878,7 +953,7 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap"></div>
      <div class="why-cell why-self">
        <strong>skylakegrep</strong>
-       <span class="why-sub">v0.5.9</span>
+       <span class="why-sub">v0.5.10</span>
      </div>
      <div class="why-cell"><code>ripgrep</code><span class="why-sub">lexical baseline</span></div>
      <div class="why-cell"><a href="https://www.mgrep.dev/" target="_blank" rel="noopener">mgrep</a><span class="why-sub">Mixedbread · paid</span></div>
@@ -1108,6 +1183,20 @@ python3 -m pip install --user --no-cache-dir skylakegrep
 ollama pull bge-m3
 ollama pull qwen2.5:3b
 skygrep doctor</code></pre>
+ <p>
+ Register agent instructions once after install. The managed snippet
+ teaches Claude Code, Codex, OpenCode, Gemini CLI, and Cursor to choose
+ the right depth: bare <code>skygrep</code> for location/concept lookup,
+ <code>--content</code> for snippets, <code>--detail full</code> only
+ after narrowing, <code>--answer</code> for local synthesis, and
+ <code>--json</code> for machine-readable agent calls. Re-running
+ <code>skygrep setup</code> refreshes the managed block when these
+ instructions improve. After an upgrade, normal <code>skygrep</code>
+ searches and <code>skygrep doctor</code> also refresh already-registered
+ managed blocks automatically; new integrations still require explicit
+ setup.
+ </p>
+<pre><code>skygrep setup</code></pre>
  </section>
 
  <!-- ============== Quickstart ============== -->

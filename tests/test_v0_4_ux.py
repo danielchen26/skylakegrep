@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 import time
 import unittest
@@ -87,6 +88,187 @@ class BareFormRoutingTests(unittest.TestCase):
         self.assertIn("metadata-opened", result.output)
         self.assertIn("new.txt", result.output)
         self.assertIn("old.txt", result.output)
+
+    def test_scoped_metadata_modifier_file_discovery_returns_before_embedding(self):
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            scoped = root / "CASE42"
+            scoped.mkdir()
+            wanted = scoped / "project_brief.pdf"
+            unrelated = scoped / "unrelated_notes.pdf"
+            wanted.write_text("brief\n")
+            unrelated.write_text("notes\n")
+            db_path = root / "index.db"
+            decision = cli_module.RouterDecision(
+                intent="mixed",
+                primary_token="",
+                skip_cascade=False,
+                skip_filename=False,
+                skip_lexical=False,
+                confidence=0.85,
+                source="fast-intent",
+                reason="metadata modifier with target descriptors",
+                out_of_scope="none",
+                metadata_kind="created",
+                metadata_terminal=False,
+            )
+
+            with patch.dict(
+                os.environ,
+                {"SKYGREP_DB_PATH": str(db_path), "SKYGREP_NO_HINTS": "1"},
+                clear=False,
+            ), patch.object(
+                cli_module,
+                "get_config",
+                return_value={"db_path": db_path, "rerank_pool": 50},
+            ), patch.object(
+                cli_module.cfg_mod, "project_root", return_value=root
+            ), patch.object(
+                cli_module.bootstrap, "preheat_models", return_value=None
+            ), patch.object(
+                cli_module.bootstrap, "try_autostart_ollama", return_value=False
+            ), patch.object(
+                cli_module, "route_query", return_value=decision
+            ), patch.object(
+                cli_module.auto_index, "filename_shortcut", return_value=None
+            ), patch.object(
+                cli_module,
+                "get_embedder",
+                side_effect=AssertionError("semantic embedding should not run"),
+            ):
+                result = runner.invoke(
+                    cli_module.cli,
+                    [
+                        "search",
+                        "Show me where my project brief that I recently "
+                        "created in CASE42 folder",
+                    ],
+                )
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("scoped-file-discovery", result.output)
+        self.assertIn("project_brief.pdf", result.output)
+        self.assertNotIn("unrelated_notes.pdf", result.output)
+
+    def test_no_cascade_footer_handles_plain_semantic_pool(self):
+        from skylakegrep.src.storage import init_db, store_chunks_batch
+
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = root / "src" / "policy.py"
+            target.parent.mkdir(parents=True)
+            target.write_text("def retry_policy(): pass\n")
+            db_path = root / "index.db"
+            conn = init_db(db_path)
+            try:
+                store_chunks_batch(
+                    conn,
+                    [{
+                        "file": str(target),
+                        "chunk": "def retry_policy(): pass",
+                        "language": "python",
+                        "chunk_index": 0,
+                        "file_mtime": target.stat().st_mtime,
+                        "start_line": 1,
+                        "end_line": 1,
+                        "start_byte": 0,
+                        "end_byte": len("def retry_policy(): pass\n"),
+                        "embedding": [1.0, 0.0],
+                    }],
+                )
+                now = str(time.time())
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS meta "
+                    "(key TEXT PRIMARY KEY, value TEXT)"
+                )
+                conn.execute(
+                    "INSERT INTO meta(key, value) VALUES(?, ?)",
+                    ("last_full_index_at", now),
+                )
+                conn.execute(
+                    "INSERT INTO meta(key, value) VALUES(?, ?)",
+                    ("last_refresh_at", now),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+            decision = cli_module.RouterDecision(
+                intent="semantic",
+                primary_token="",
+                skip_cascade=False,
+                skip_filename=True,
+                skip_lexical=True,
+                confidence=0.9,
+                source="fast-intent",
+                reason="semantic query",
+                out_of_scope="none",
+            )
+            semantic_result = {
+                "path": str(target),
+                "file": str(target),
+                "chunk": "def retry_policy(): pass",
+                "snippet": "def retry_policy(): pass",
+                "language": "python",
+                "start_line": 1,
+                "end_line": 1,
+                "score": 0.9,
+            }
+
+            class _FakeEmbedder:
+                def embed(self, text):
+                    return [1.0, 0.0]
+
+            def _slow_refresh(*args, **kwargs):
+                time.sleep(0.05)
+                return 0
+
+            with patch.dict(
+                os.environ,
+                {"SKYGREP_DB_PATH": str(db_path), "SKYGREP_NO_HINTS": "1"},
+                clear=False,
+            ), patch.object(
+                cli_module,
+                "get_config",
+                return_value={"db_path": db_path, "rerank_pool": 50},
+            ), patch.object(
+                cli_module.cfg_mod, "project_root", return_value=root
+            ), patch.object(
+                cli_module.bootstrap, "preheat_models", return_value=None
+            ), patch.object(
+                cli_module.bootstrap, "try_autostart_ollama", return_value=False
+            ), patch.object(
+                cli_module, "route_query", return_value=decision
+            ), patch.object(
+                cli_module.auto_index, "incremental_refresh", side_effect=_slow_refresh
+            ), patch.object(
+                cli_module, "_symbols_table_populated", return_value=True
+            ), patch.object(
+                cli_module.code_graph, "populate_graph_table", return_value=0
+            ), patch.object(
+                cli_module, "get_embedder", return_value=_FakeEmbedder()
+            ), patch.object(
+                cli_module, "maybe_start_recovery", return_value=None
+            ), patch.object(
+                cli_module, "search", return_value=[semantic_result]
+            ):
+                result = runner.invoke(
+                    cli_module.cli,
+                    [
+                        "search",
+                        "--auto-index",
+                        "--no-cascade",
+                        "explain retry policy",
+                    ],
+                )
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("retry_policy", result.output)
+        match = re.search(r"\n[✓⚠] ([0-9.]+)s · quality", result.output)
+        self.assertIsNotNone(match, result.output)
+        self.assertGreaterEqual(float(match.group(1)), 0.04)
 
     def test_search_accepts_query_split_by_smart_quotes(self):
         runner = CliRunner()

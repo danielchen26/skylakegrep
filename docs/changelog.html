@@ -66,6 +66,23 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.10 · fast scoped file discovery · agent instruction depth</div>
+ <h3>Scoped file-location questions return fast, while agents learn the right output depth</h3>
+ <p>
+ This release adds a generic scoped descriptor + metadata file-discovery
+ lane for path-depth questions that name a folder, target descriptors, and
+ metadata such as created / modified / opened. Those searches can now
+ finish from bounded filesystem evidence without waiting for semantic
+ cascade, while content, answer, and agentic queries still keep deeper
+ retrieval alive. Large foreground refreshes defer to background indexing,
+ footer timing now reports command wall time, and <code>skygrep setup</code>
+ writes the information-depth ladder into Claude Code, Codex, OpenCode,
+ Gemini CLI, and Cursor instructions. Existing managed setup snippets
+ auto-refresh after upgrade without touching user-authored text.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.10.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.9 · generic adaptive routing · scoped search performance</div>
  <h3>Scope is now a first-class query-plan facet, so scoped searches stay fast and precise</h3>
  <p>
