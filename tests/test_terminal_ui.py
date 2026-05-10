@@ -139,31 +139,35 @@ class TerminalUiTests(unittest.TestCase):
         rendered = "".join(ui.HELIX_FRAMES)
         self.assertNotIn("╲", rendered)
         self.assertNotIn("╱", rendered)
-        # All three glyph sizes must appear so the depth hierarchy reads.
+        # Three visual tiers must appear (peak and BIG-mid share ●;
+        # ANSI bold/regular distinguishes them in colored output).
         self.assertIn("●", rendered)
         self.assertIn("•", rendered)
         self.assertIn("·", rendered)
-        # Three distinct glyphs map onto a clear ordering.
         self.assertEqual(ui.HELIX_GLYPHS["B"], "●")
         self.assertEqual(ui.HELIX_GLYPHS["V"], "●")
-        self.assertEqual(ui.HELIX_GLYPHS["M"], "•")
-        self.assertEqual(ui.HELIX_GLYPHS["W"], "•")
+        self.assertEqual(ui.HELIX_GLYPHS["M"], "●")
+        self.assertEqual(ui.HELIX_GLYPHS["W"], "●")
+        self.assertEqual(ui.HELIX_GLYPHS["m"], "•")
+        self.assertEqual(ui.HELIX_GLYPHS["w"], "•")
         self.assertEqual(ui.HELIX_GLYPHS["b"], "·")
         self.assertEqual(ui.HELIX_GLYPHS["v"], "·")
         self.assertEqual(ui.HELIX_GLYPHS["d"], "·")
         # Every frame uses the rail width.
         self.assertEqual({len(frame) for frame in ui.HELIX_FRAMES}, {5})
-        # Every depth tier is exercised on both strands.
+        # Every depth tier is exercised on both strands. Peak letters
+        # (B/V) are reserved for cross-frame overrides; the smooth
+        # cycle uses the BIG/mid/small triplet on each strand.
         all_roles = "".join(ui.HELIX_ROLE_FRAMES)
-        for tier in "BMbVWv":
+        for tier in "MmbWwv":
             self.assertIn(tier, all_roles, f"missing depth tier {tier!r}")
         # Strand positions: None at crossings (only one strand visible).
         fg = [
-            next((i for i, role in enumerate(frame) if role in "BMb"), None)
+            next((i for i, role in enumerate(frame) if role in "BMmb"), None)
             for frame in ui.HELIX_ROLE_FRAMES
         ]
         comp = [
-            next((i for i, role in enumerate(frame) if role in "VWv"), None)
+            next((i for i, role in enumerate(frame) if role in "VWwv"), None)
             for frame in ui.HELIX_ROLE_FRAMES
         ]
         # All five columns are visited by at least one strand.
@@ -197,8 +201,9 @@ class TerminalUiTests(unittest.TestCase):
         self.assertLessEqual(longest_run(comp), 3)
         # Both strands must be visible on most frames; only the small set of
         # crossings hide one strand by design.
-        self.assertGreaterEqual(sum(1 for b in fg if b is not None), 13)
-        self.assertGreaterEqual(sum(1 for v in comp if v is not None), 13)
+        n_frames = len(ui.HELIX_ROLE_FRAMES)
+        self.assertGreaterEqual(sum(1 for b in fg if b is not None), n_frames - 2)
+        self.assertGreaterEqual(sum(1 for v in comp if v is not None), n_frames - 2)
         # Connector dot is present whenever the strands are separated.
         for i, (b, v) in enumerate(zip(fg, comp)):
             if b is not None and v is not None:

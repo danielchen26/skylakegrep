@@ -24,31 +24,46 @@ _ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 # it accelerates toward the center. At the two per-loop crossings only the
 # front strand renders, alternating blue/violet so the eye reads the two
 # faces of the helix (front-of-axis vs back-of-axis).
+# 12-frame loop. Each side of the rail (LEFT / RIGHT) walks its own
+# smooth size wave · → • → ● → • → · → •, with peaks 4 frames apart
+# and the two side-waves offset by 6 frames so left and right peak in
+# alternation. Single-strand descent never skips a tier.
+#
+#   LEFT  side sizes by frame:  · • ● • · • ● • · • • •
+#   RIGHT side sizes by frame:  ● • · • • • · • ● • · •
+#
+# Crossings (i=3, i=9) inherit the LEFT side's "mid" so the cross is
+# a single mid dot framed by · connectors — visually grounded but
+# never abrupt.
 HELIX_ROLE_FRAMES = (
-    "W d M",   # 0  right peak — both side-on (mid · mid)
-    "v d B",   # 1  blue rotates to front (BIG); violet recedes (small)
-    " WdM ",   # 2  contracting; both side-on (mid · mid)
-    " Vdb ",   # 3  violet rotates to front (BIG); blue recedes
-    " dBd ",   # 4  CROSSING — blue strand in front, BIG (flanked by · for visual grounding)
-    " Bdv ",   # 5  blue still front-of-axis after the cross (BIG)
-    " MdW ",   # 6  expanding; both side-on (sides swapped, mid · mid)
-    "b d V",   # 7  violet rotates to front (BIG); blue recedes
-    "M d W",   # 8  left peak — both side-on (sides swapped, mid · mid)
-    "B d v",   # 9  blue rotates to front (BIG)
-    " MdW ",   # 10 contracting; both side-on (mid · mid)
-    " bdV ",   # 11 violet rotates to front (BIG)
-    " dVd ",   # 12 CROSSING — violet strand in front, BIG (flanked by · for visual grounding)
-    " vdB ",   # 13 blue rotates to front (BIG)
-    " WdM ",   # 14 expanding; both side-on (mid · mid)
-    "V d b",   # 15 violet rotates to front (BIG) — loop closes to frame 0
+    "v d M",   # 0    pos[4,0]   LEFT · violet small · RIGHT ● blue BIG
+    "w d m",   # 1    pos[4,0]   LEFT • mid violet · RIGHT • mid blue
+    " Wdb ",   # 2    pos[3,1]   LEFT ● BIG violet · RIGHT · small blue
+    " dmd ",   # 3    CROSSING   blue mid at centre (front), · flanks
+    " bdw ",   # 4    pos[1,3]   LEFT · small blue · RIGHT • mid violet
+    "m d w",   # 5    pos[0,4]   LEFT • mid blue · RIGHT • mid violet
+    "M d v",   # 6    pos[0,4]   LEFT ● BIG blue · RIGHT · small violet
+    "m d w",   # 7    pos[0,4]   LEFT • mid blue · RIGHT • mid violet
+    " bdW ",   # 8    pos[1,3]   LEFT · small blue · RIGHT ● BIG violet
+    " dwd ",   # 9    CROSSING   violet mid at centre (front), · flanks
+    " wdb ",   # 10   pos[3,1]   LEFT • mid violet · RIGHT · small blue
+    "w d m",   # 11   pos[4,0]   LEFT • mid violet · RIGHT • mid blue (loop wraps · → ·)
 )
+# Three visual tiers (● → • → ·) with four logical tiers per strand.
+#
+# BIG (B/V) and BIG-mid (M/W) share the same glyph ● and differ only in
+# ANSI brightness — that keeps the descent ●→●→•→· visually gentle
+# (peak isn't disproportionately larger than the next tier down) while
+# still letting the cycle ramp through four logical phases.
 HELIX_GLYPHS = {
-    "B": "●",  # blue strand, fast / foreground (cross-rush)
-    "M": "•",  # blue strand, mid-arc
-    "b": "·",  # blue strand, resting at peak
-    "V": "●",  # violet strand, fast / foreground (cross-rush)
-    "W": "•",  # violet strand, mid-arc
-    "v": "·",  # violet strand, resting at peak
+    "B": "●",  # blue strand,    peak (bold)
+    "M": "●",  # blue strand,    BIG-mid (regular)
+    "m": "•",  # blue strand,    mid
+    "b": "·",  # blue strand,    small
+    "V": "●",  # violet strand,  peak (bold)
+    "W": "●",  # violet strand,  BIG-mid (regular)
+    "w": "•",  # violet strand,  mid
+    "v": "·",  # violet strand,  small
     "d": "·",  # base-pair connector (neutral white-dim)
     " ": " ",
 }
@@ -220,13 +235,17 @@ def helix_frame(index: int) -> str:
         if role == "B":
             out.append(_paint(glyph, ANSI_BLUE))
         elif role == "M":
+            out.append(_paint(glyph, ANSI_BLUE))  # BIG: bold blue
+        elif role == "m":
             out.append(_paint(glyph, ANSI_BLUE_MID))
         elif role == "b":
             out.append(_paint(glyph, ANSI_BLUE_DIM))
         elif role == "V":
             out.append(_paint(glyph, ANSI_VIOLET))
-        elif role == "W":
+        elif role == "w":
             out.append(_paint(glyph, ANSI_VIOLET_MID))
+        elif role == "W":
+            out.append(_paint(glyph, ANSI_VIOLET))  # BIG: bold violet
         elif role == "v":
             out.append(_paint(glyph, ANSI_VIOLET_DIM))
         elif role == "d":
