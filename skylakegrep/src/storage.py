@@ -820,6 +820,9 @@ def search(
         placeholders = ",".join("?" * len(candidate_paths))
         where.append(f"chunks.file IN ({placeholders})")
         params.extend(sorted(candidate_paths))
+    base_where = list(where)
+    base_params = list(params)
+    top_files_filter_applied = False
     # Multi-resolution stage 1: pick the top-N files by file-level cosine,
     # then restrict chunk-level retrieval to those files only. This stops
     # large consumer files (50 chunks of partial matches) from drowning out
@@ -834,6 +837,7 @@ def search(
             candidate_paths=candidate_paths,
         )
         if top_files:
+            top_files_filter_applied = True
             placeholders = ",".join("?" * len(top_files))
             where.append(f"chunks.file IN ({placeholders})")
             params.extend(top_files)
@@ -851,6 +855,25 @@ def search(
         row for row in rows
         if path_matches(row[1], include_patterns, exclude_patterns)
     ]
+    if not rows and include_patterns and top_files_filter_applied:
+        # A user-provided include glob is a hard scope. The file-level
+        # multi-resolution shortlist is only an optimization; if that shortlist
+        # misses every included path, retry the chunk scan inside the explicit
+        # scope instead of returning an empty result or leaking unrelated files.
+        where_clause = f"WHERE {' AND '.join(base_where)}" if base_where else ""
+        rows = conn.execute(
+            f"""
+            SELECT chunks.id, file, chunk, language, start_line, end_line,
+                   start_byte, end_byte, embedding
+            FROM chunks JOIN vectors ON vectors.id = chunks.id
+            {where_clause}
+            """,
+            base_params,
+        ).fetchall()
+        rows = [
+            row for row in rows
+            if path_matches(row[1], include_patterns, exclude_patterns)
+        ]
     if not rows:
         return []
     rows, matrix = _filter_to_matching_dim(

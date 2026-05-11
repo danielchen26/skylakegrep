@@ -28,6 +28,8 @@ import re
 import shutil
 import sys
 
+from . import ui as ui_mod
+
 # ---- Pygments (optional, soft-fallback) ---------------------------
 
 try:
@@ -188,6 +190,12 @@ def _highlight_log(body: str, color: bool) -> str:
 
 
 def _term_width(default: int = 100) -> int:
+    raw = os.environ.get("SKYGREP_UI_WIDTH", "").strip()
+    if raw:
+        try:
+            return min(max(60, int(raw)), 140)
+        except ValueError:
+            pass
     try:
         w = shutil.get_terminal_size((default, 24)).columns
     except OSError:
@@ -207,6 +215,41 @@ def _shorten_path(path: str, project_root: str | None = None) -> str:
 
 def _visible_len(s: str) -> int:
     return len(re.sub(r"\x1b\[[0-9;]*m", "", s))
+
+
+def _middle_ellipsize(text: str, max_len: int) -> str:
+    if len(text) <= max_len:
+        return text
+    if max_len <= 3:
+        return text[:max_len]
+    keep_left = max(1, (max_len - 3) // 2)
+    keep_right = max(1, max_len - 3 - keep_left)
+    return f"{text[:keep_left]}...{text[-keep_right:]}"
+
+
+def _wrap_plain_lines(text: str, width: int) -> str:
+    if width <= 8:
+        return text
+    out: list[str] = []
+    wrapper = None
+    import textwrap
+
+    wrapper = textwrap.TextWrapper(
+        width=width,
+        break_long_words=True,
+        break_on_hyphens=False,
+        replace_whitespace=False,
+        drop_whitespace=False,
+    )
+    for line in text.splitlines():
+        if not line:
+            out.append("")
+            continue
+        if len(line) <= width:
+            out.append(line)
+            continue
+        out.extend(part.rstrip() for part in wrapper.wrap(line))
+    return "\n".join(out)
 
 
 # ---- Public API ----------------------------------------------------
@@ -239,6 +282,7 @@ def render_terminal_result(
     around ANSI escape sequences (which would be lossy and brittle).
     """
     use_color = _supports_color() if color is None else color
+    helix_rail = ui_mod.rail_style() == "helix"
     width = _term_width()
 
     raw_path = r.get("path", "?")
@@ -255,8 +299,27 @@ def render_terminal_result(
     fallback = r.get("fallback", "")
 
     # ----- Top rule with header -----
+    pill_label = f"[{lang or fallback or 'file'}]" if (lang or fallback) else ""
+    if helix_rail:
+        plain_right = (
+            f"{pill_label} score={score:.3f}"
+            if pill_label else f"score={score:.3f}"
+        )
+    else:
+        plain_right = (
+            f" {pill_label}  {score:.3f}"
+            if pill_label else f"  {score:.3f}"
+        )
+    width = ui_mod.available_content_columns(40) if helix_rail else width
+    left_overhead = len("╭─ ")
+    full_header = f"{path}{line_range}"
+    # Reserve: path trailing space, at least one rule char, and the
+    # separating space before the right-side pill/score.
+    max_path_len = max(12, width - left_overhead - len(plain_right) - 3)
+    path_header = _middle_ellipsize(full_header, max_path_len)
+
     if use_color:
-        path_part = f"{_PATH_CYAN}{path}{_RESET}{_LINE_DIM}{line_range}{_RESET}"
+        path_part = f"{_PATH_CYAN}{path_header}{_RESET}"
         score_part = f"{_BOLD}{_SCORE_GREEN}{score:.3f}{_RESET}"
         pill = (
             f"{_PILL_BG}{_PILL_TEXT} {lang or 'file'} {_RESET}"
@@ -266,32 +329,46 @@ def render_terminal_result(
         corner_bottom = f"{_FRAME_DIM}╰{'─' * (width - 1)}{_RESET}"
         bar = f"{_FRAME_DIM}│ {_RESET}"
     else:
-        path_part = f"{path}{line_range}"
+        path_part = path_header
         score_part = f"{score:.3f}"
         pill = f"[{lang or fallback or 'file'}]" if (lang or fallback) else ""
         corner_top = "╭─"
         corner_bottom = "╰" + "─" * (width - 1)
         bar = "│ "
 
-    # Compose top: `╭─ <path:lines> ─...─ <pill> <score>`
-    plain_left = f"╭─ {path}{line_range} "
-    plain_right = (f" {('[' + (lang or fallback or 'file') + ']')} {score:.3f}")
+    # Compose top: `╭─ <path:lines> ─...─ <pill> <score>`.
+    # In helix mode the entire card lives inside the right content lane;
+    # never let the terminal auto-wrap the score into the left workflow rail.
+    plain_left = f"╭─ {path_header} "
     used = len(plain_left) + len(plain_right)
-    fill = max(2, width - used)
+    fill = max(1, width - used - 1)
     if use_color:
+        right = (
+            f"{pill} score={score_part}"
+            if helix_rail and pill
+            else f"score={score_part}" if helix_rail
+            else f"{pill}  {score_part}"
+        )
         top = (
             f"{corner_top} {path_part} "
             f"{_FRAME_DIM}{'─' * fill}{_RESET} "
-            f"{pill}  {score_part}"
+            f"{right}"
         )
     else:
+        right = (
+            f"{pill} score={score_part}"
+            if helix_rail and pill
+            else f"score={score_part}" if helix_rail
+            else f"{pill}  {score_part}"
+        )
         top = (
-            f"{corner_top} {path}{line_range} "
+            f"{corner_top} {path_part} "
             f"{'─' * fill} "
-            f"{pill}  {score:.3f}"
+            f"{right}"
         )
 
     out_lines: list[str] = ["", top]
+    truncated_path_line = f"path: {full_header}" if path_header != full_header else ""
 
     # ----- v0.15.0 detail levels -----
     # brief   : header-only, no body / corner
@@ -299,10 +376,13 @@ def render_terminal_result(
     # standard: existing default
     # full    : standard + binary content extract for filename matches
     if detail == "brief":
-        return "\n".join(out_lines)
+        return ui_mod.block("\n".join(out_lines))
 
     # ----- Body -----
     body_lines: list[str] = []
+    if truncated_path_line:
+        body_lines.append(truncated_path_line)
+        body_lines.append("")
     explain_line = (r.get("explain") or "").strip() if explain else ""
     has_meta = bool(symbol or explain_line)
     if symbol and detail != "summary":
@@ -396,16 +476,22 @@ def render_terminal_result(
             pass
 
     if extracted_preview:
+        if helix_rail and "\x1b[" not in extracted_preview:
+            body_width = width - _visible_len(bar)
+            extracted_preview = _wrap_plain_lines(extracted_preview, body_width)
         body_lines.extend(extracted_preview.split("\n"))
         body_lines.append("")
 
     if content and body:
+        body_width = width - _visible_len(bar)
         if detail == "summary":
             # One-line preview only
             first_line = next(
                 (ln for ln in body.split("\n") if ln.strip()), ""
             )
             summary_clip = first_line[:160].rstrip()
+            if helix_rail:
+                summary_clip = _wrap_plain_lines(summary_clip, body_width)
             if summary_clip:
                 rendered = _render_body_by_type(
                     summary_clip,
@@ -416,6 +502,8 @@ def render_terminal_result(
                 body_lines.append(rendered)
         else:
             body_clip = body[:max_chars]
+            if helix_rail:
+                body_clip = _wrap_plain_lines(body_clip, body_width)
             rendered = _render_body_by_type(
                 body_clip,
                 lang=lang,
@@ -432,8 +520,9 @@ def render_terminal_result(
     for ln in body_lines:
         out_lines.append(f"{bar}{ln}")
 
-    out_lines.append(corner_bottom)
-    return "\n".join(out_lines)
+    if corner_bottom:
+        out_lines.append(corner_bottom)
+    return ui_mod.block("\n".join(out_lines))
 
 
 def _render_body_by_type(

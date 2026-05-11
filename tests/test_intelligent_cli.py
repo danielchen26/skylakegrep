@@ -245,7 +245,7 @@ class ResultQualityHintTests(unittest.TestCase):
     def test_low_top1_low_gap_fires_hint(self):
         hint = assess_result_quality([{"score": 0.18}], {"gap": 0.001})
         self.assertIsNotNone(hint)
-        self.assertIn("σ-gap", hint)
+        self.assertIn("sigma-gap", hint)
 
     def test_empty_results_fires_hint(self):
         hint = assess_result_quality([], None)

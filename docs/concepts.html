@@ -170,7 +170,12 @@ def search(conn, query_embedding, top_k=10, …):
  …</code></pre>
 
  <h3>JSON (<code>--json</code>)</h3>
- <p>Stable output for scripts and coding agents. See <a href="#json-schema">JSON schema</a>.</p>
+ <p>
+ Stable output for scripts and coding agents. In 0.5.13, JSON agent
+ calls can also include optional candidate-recall provenance fields and
+ same-file support evidence when <code>--content</code> is requested. See
+ <a href="reference.html#json-schema">JSON schema</a>.
+ </p>
 
  <h3>Synthesized answer (<code>--answer</code>)</h3>
  <p>

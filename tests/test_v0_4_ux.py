@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sqlite3
 import tempfile
 import time
 import unittest
@@ -46,11 +47,62 @@ class BareFormRoutingTests(unittest.TestCase):
         self.assertIn("search", cli_module.cli.commands)
         self.assertNotIn("search-cmd", cli_module.cli.commands)
 
+    def test_bare_detail_flag_is_full_detail_shorthand(self):
+        self.assertEqual(
+            cli_module._normalize_search_cli_args(["--detail", "where is config"]),
+            ["--detail=full", "where is config"],
+        )
+        self.assertEqual(
+            cli_module._normalize_search_cli_args(["--detail", "summary", "where is config"]),
+            ["--detail", "summary", "where is config"],
+        )
+
+    def test_include_is_hard_boundary_for_absolute_output_paths(self):
+        root = Path("/repo")
+        rows = [
+            {"path": "/repo/skylakegrep/src/integrations.py"},
+            {"path": "/Users/example/Downloads/private.json"},
+        ]
+        filtered = cli_module._apply_result_boundaries(
+            rows,
+            project_root=root,
+            explicit_scope=False,
+            include_patterns=("skylakegrep/src/integrations.py",),
+            exclude_patterns=(),
+        )
+        self.assertEqual(filtered, [rows[0]])
+
+    def test_exclude_is_hard_boundary_for_absolute_output_paths(self):
+        root = Path("/repo")
+        rows = [
+            {"path": "/repo/skylakegrep/src/render.py"},
+            {"path": "/repo/tests/test_terminal_ui.py"},
+        ]
+        filtered = cli_module._apply_result_boundaries(
+            rows,
+            project_root=root,
+            explicit_scope=False,
+            include_patterns=(),
+            exclude_patterns=("tests/**",),
+        )
+        self.assertEqual(filtered, [rows[0]])
+
     def test_help_flag_does_not_route_to_search(self):
         runner = CliRunner()
         result = runner.invoke(cli_module.cli, ["--help"])
         self.assertEqual(result.exit_code, 0)
         self.assertIn("Common usage", result.output)
+        self.assertIn("Information depth", result.output)
+        self.assertIn("--content --detail standard", result.output)
+        self.assertIn("--json --content --detail standard", result.output)
+
+    def test_search_help_lists_information_depth_examples(self):
+        runner = CliRunner()
+        result = runner.invoke(cli_module.cli, ["search", "--help"])
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("Information depth", result.output)
+        self.assertIn("--detail full", result.output)
+        self.assertIn("--json --content --detail standard", result.output)
 
     def test_version_flag_does_not_route_to_search(self):
         runner = CliRunner()
@@ -266,7 +318,7 @@ class BareFormRoutingTests(unittest.TestCase):
 
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertIn("retry_policy", result.output)
-        match = re.search(r"\n[✓⚠] ([0-9.]+)s · quality", result.output)
+        match = re.search(r"\n╰─ done\s+([0-9.]+)s · quality", result.output)
         self.assertIsNotNone(match, result.output)
         self.assertGreaterEqual(float(match.group(1)), 0.04)
 
@@ -559,7 +611,8 @@ class SearchRoutingRegressionTests(unittest.TestCase):
 
         self.assertEqual(result.exit_code, 0, result.output)
         rg_mock.assert_not_called()
-        self.assertIn("proactive filename searching configured roots", result.output)
+        self.assertIn("├─ proactive  no local filename hit yet", result.output)
+        self.assertIn("searching configured roots", result.output)
         self.assertIn("proactive-filename", result.output)
         self.assertIn("lazy-skipped", result.output)
         self.assertIn("CASE42_Project_Report.pdf", result.output)
@@ -749,6 +802,83 @@ class SearchRoutingRegressionTests(unittest.TestCase):
         self.assertLess(elapsed, 1.8, result.output)
         self.assertIn("session_memory.ts", result.output)
         self.assertIn("cross-folder timed out", result.output)
+        self.assertIn("quality=BEST", result.output)
+        self.assertIn("path", result.output)
+        self.assertIn("router", result.output)
+        self.assertIn("pool", result.output)
+        self.assertIn("budget", result.output)
+        self.assertNotIn("🌊", result.output)
+        self.assertNotIn("💧", result.output)
+        self.assertNotIn("⚡", result.output)
+        self.assertNotIn("▾", result.output)
+        self.assertIn("╰─ done", result.output)
+
+    def test_cold_semantic_cross_folder_db_lock_is_status_not_failure(self):
+        from skylakegrep.src import lazy_indexer as lazy_module
+
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "project"
+            root.mkdir()
+            db_path = Path(temp_dir) / "index.db"
+            decision = cli_module.RouterDecision(
+                intent="semantic",
+                primary_token="rate limiter redesign",
+                skip_cascade=False,
+                skip_filename=True,
+                skip_lexical=False,
+                confidence=0.70,
+                source="llm",
+                reason="semantic query",
+                out_of_scope="none",
+            )
+
+            with patch.dict(
+                os.environ,
+                {
+                    "SKYGREP_DB_PATH": str(db_path),
+                    "SKYGREP_NO_HINTS": "1",
+                    "SKYGREP_COLD_LAZY_TOTAL_BUDGET_S": "1",
+                    "SKYGREP_COLD_LAZY_CWD_BUDGET_S": "1",
+                    "SKYGREP_COLD_LAZY_CROSS_BUDGET_S": "1",
+                },
+                clear=False,
+            ), patch.object(
+                cli_module, "get_config", return_value={"db_path": db_path}
+            ), patch.object(
+                cli_module.cfg_mod, "project_root", return_value=root
+            ), patch.object(
+                cli_module.bootstrap, "preheat_models", return_value=None
+            ), patch.object(
+                cli_module.bootstrap, "try_autostart_ollama", return_value=False
+            ), patch.object(
+                cli_module, "route_query", return_value=decision
+            ), patch.object(
+                cli_module.auto_index, "is_index_ready", return_value=False
+            ), patch.object(
+                cli_module.auto_index, "spawn_background_index", return_value=None
+            ), patch.object(
+                cli_module.auto_index, "filename_shortcut", return_value=None
+            ), patch.object(
+                cli_module.auto_index, "rg_fallback_results", return_value=[]
+            ), patch.object(
+                cli_module, "get_embedder", return_value=object()
+            ), patch.object(
+                lazy_module, "lazy_explore_cold_start", return_value=([], {})
+            ), patch.object(
+                lazy_module,
+                "lazy_explore_cross_folder",
+                side_effect=sqlite3.OperationalError("database is locked"),
+            ):
+                result = runner.invoke(
+                    cli_module.cli,
+                    ["search", "the design doc on rate limiter rewrite", "--auto-index"],
+                )
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("background index is writing", result.output)
+        self.assertIn("No matches yet", result.output)
+        self.assertNotIn("lazy cross-folder failed", result.output)
 
     def test_high_confidence_filename_skip_cascade_keeps_json_path_alive(self):
         """Regression for the filename skip path: ``queries`` used to be

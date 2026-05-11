@@ -59,6 +59,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from . import ui as ui_mod
+
 
 logger = logging.getLogger(__name__)
 
@@ -868,8 +870,8 @@ def render_proactive_output(
         return ""
     lines: list[str] = []
     for pr in results:
-        lines.append("")
-        lines.append(f"💡 {pr.note}")
+        lines.append(ui_mod.spacer())
+        lines.append(ui_mod.step("proactive", pr.note))
         for hit in pr.extra_hits:
             if detail == "full":
                 from .render import render_terminal_result
@@ -890,7 +892,7 @@ def render_proactive_output(
                     sz_kb = f" · {sz // 1024} KB" if sz else ""
                 except Exception:
                     pass
-                lines.append(f"   📄 {hit['path']}{sz_kb}")
+                lines.append(ui_mod.detail(f"file: {hit['path']}{sz_kb}"))
         for cmd in pr.commands:
-            lines.append(f"   → next: {cmd}")
+            lines.append(ui_mod.detail(f"next: {cmd}"))
     return "\n".join(lines)

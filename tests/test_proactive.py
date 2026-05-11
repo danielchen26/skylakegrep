@@ -585,7 +585,7 @@ class RenderTests(unittest.TestCase):
         rendered = render_proactive_output([pr])
         self.assertIn("Found 1 match", rendered)
         self.assertIn("/tmp/foo.txt", rendered)
-        self.assertIn("→ next:", rendered)
+        self.assertIn("next:", rendered)
 
     def test_full_detail_renders_filename_content(self):
         with tempfile.TemporaryDirectory() as temp_dir:

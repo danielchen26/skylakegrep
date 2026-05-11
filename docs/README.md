@@ -12,6 +12,7 @@ The Markdown files here are reference companions to that site.
 | [`skylakegrep-0.1.0.md`](skylakegrep-0.1.0.md) | First public release notes — full description of capabilities, three-tier routing, semantic cascade, PDF/docx extraction, CLI flags, environment variables, license terms. |
 | [`token-benchmarking.md`](token-benchmarking.md) | Methodology and full results for the deterministic context-gathering benchmark. |
 | [`parity-benchmarks.md`](parity-benchmarks.md) | Cross-repo retrieval benchmarks: cascade ablations, multi-language recall, end-to-end agent benchmark protocol. |
+| [`skylakegrep-0.5.13.md`](skylakegrep-0.5.13.md) | Adaptive candidate recall release notes and the agent tool-context benchmark summary. |
 | [`roadmap.md`](roadmap.md) | What's planned for future versions. |
 | [`assets/`](assets) | SVG figures referenced by the site and the project README. |
 
@@ -40,7 +41,10 @@ JSON, or a synthesized answer.
 
 ```bash
 .venv/bin/python benchmarks/agent_context_benchmark.py --top-k 10 --summary-only
+.venv/bin/python benchmarks/agent_tool_depth_benchmark.py --summary-only
 ```
 
 See [`token-benchmarking.md`](token-benchmarking.md) for definitions, the full
 results table, and an explicit list of what the benchmark does not measure.
+See [`benchmarks.html`](benchmarks.html) for the 0.5.13 agent tool-context
+benchmark framing.

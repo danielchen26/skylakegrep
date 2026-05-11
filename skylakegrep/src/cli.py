@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
 import sqlite3
 import sys
@@ -31,7 +32,7 @@ import click
 logger = logging.getLogger(__name__)
 
 from . import __version__
-from . import auto_index, bootstrap, code_graph, config as cfg_mod, enrich as enrich_mod, integrations as integrations_mod
+from . import auto_index, bootstrap, code_graph, config as cfg_mod, enrich as enrich_mod, integrations as integrations_mod, ui as ui_mod
 from .answerer import get_answerer
 from .config import get_config
 from .embeddings import get_embedder
@@ -68,6 +69,7 @@ from .storage import (
     delete_missing_files,
     get_indexed_files,
     init_db,
+    path_matches,
     populate_file_embeddings,
     populate_symbols,
     search,
@@ -90,16 +92,30 @@ def _symbols_table_populated(conn) -> bool:
     return bool(row and row[0])
 
 
+def _ui_step(label: str, message: str) -> str:
+    return ui_mod.step(label, message)
+
+
+def _ui_detail(message: str) -> str:
+    return ui_mod.detail(message)
+
+
+def _ui_done(elapsed: float, quality: str) -> str:
+    return ui_mod.done(elapsed, quality)
+
+
+def _ui_rows(rows: list[tuple[str, str]]) -> str:
+    return ui_mod.rows(rows)
+
+
 def _setup_auto_refresh_enabled() -> bool:
     """Whether normal commands may refresh existing managed setup blocks."""
 
-    import os as _os
-
-    value = _os.environ.get("SKYGREP_SETUP_AUTO_REFRESH", "1").strip().lower()
+    value = os.environ.get("SKYGREP_SETUP_AUTO_REFRESH", "1").strip().lower()
     if value in {"0", "false", "no", "off"}:
         return False
     # Tests and CI should not mutate a developer's real agent config files.
-    if _os.environ.get("PYTEST_CURRENT_TEST") or _os.environ.get("CI"):
+    if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("CI"):
         return False
     return True
 
@@ -283,6 +299,71 @@ def _filter_results_to_explicit_scope(
         except OSError:
             continue
     return scoped
+
+
+def _filter_results_to_cli_path_filters(
+    results: list[dict],
+    *,
+    project_root: Path,
+    include_patterns: tuple[str, ...],
+    exclude_patterns: tuple[str, ...],
+) -> list[dict]:
+    """Apply CLI include/exclude as a hard output boundary.
+
+    Retrieval lanes such as metadata, filename, proactive, and cascade can use
+    different internal path representations. Human and agent callers still
+    expect ``--include`` / ``--exclude`` to be authoritative at the final
+    boundary, especially for ``--json`` context.
+    """
+
+    if not results or (not include_patterns and not exclude_patterns):
+        return results
+    try:
+        resolved_root = project_root.expanduser().resolve()
+    except OSError:
+        resolved_root = project_root
+    filtered: list[dict] = []
+    for result in results:
+        raw_path = str(result.get("path") or result.get("file") or "")
+        if not raw_path:
+            continue
+        candidates = [raw_path]
+        path = Path(raw_path).expanduser()
+        if path.is_absolute():
+            try:
+                candidates.append(path.resolve().relative_to(resolved_root).as_posix())
+            except (OSError, ValueError):
+                pass
+        include_ok = (
+            not include_patterns
+            or any(path_matches(candidate, include_patterns, ()) for candidate in candidates)
+        )
+        excluded = any(
+            not path_matches(candidate, (), exclude_patterns) for candidate in candidates
+        )
+        if include_ok and not excluded:
+            filtered.append(result)
+    return filtered
+
+
+def _apply_result_boundaries(
+    results: list[dict],
+    *,
+    project_root: Path,
+    explicit_scope: bool,
+    include_patterns: tuple[str, ...],
+    exclude_patterns: tuple[str, ...],
+) -> list[dict]:
+    results = _filter_results_to_explicit_scope(
+        results,
+        project_root if explicit_scope else None,
+    )
+    return _filter_results_to_cli_path_filters(
+        results,
+        project_root=project_root,
+        include_patterns=include_patterns,
+        exclude_patterns=exclude_patterns,
+    )
 
 
 def _lexical_evidence_satisfies_depth(
@@ -618,7 +699,7 @@ def _format_router_explain(
     if decision is None:
         return ""
     intent = decision.intent or "?"
-    head = f"🧭 router: {intent}"
+    head = _ui_step("route", f"router: {intent}")
     if decision.primary_token:
         head += f' · primary_token="{decision.primary_token}"'
     try:
@@ -633,7 +714,7 @@ def _format_router_explain(
         head += f" · metadata={meta}:{mode}"
     reason = (decision.reason or "").strip()
     if include_reason and reason:
-        head += f'\n   reason: "{reason}"'
+        head += f'\n{_ui_detail(f"reason: {reason}")}'
     return head
 
 
@@ -642,7 +723,7 @@ def _format_lane_explain(cascade_telemetry: dict | None) -> str:
     if not cascade_telemetry:
         return ""
     path = cascade_telemetry.get("path") or "?"
-    out = f"🛤  cascade lane: {path}"
+    out = _ui_step("cascade", f"lane: {path}")
     gap = cascade_telemetry.get("gap")
     tau = cascade_telemetry.get("tau")
     try:
@@ -693,6 +774,31 @@ def render_json_results(results: list[dict]) -> str:
 
 # Subcommand names that take precedence over bare-form query routing.
 _SUBCOMMANDS = {"index", "search", "watch", "serve", "stats", "doctor", "enrich", "setup"}
+_DETAIL_CHOICES = {"brief", "standard", "full", "summary"}
+
+
+def _normalize_search_cli_args(args: list[str]) -> list[str]:
+    """Make common human shorthand parse like the documented long form."""
+
+    out: list[str] = []
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--detail":
+            next_arg = args[i + 1] if i + 1 < len(args) else None
+            if next_arg in _DETAIL_CHOICES:
+                out.extend([arg, next_arg])
+                i += 2
+            else:
+                # Human shorthand: `skygrep --detail "query"` means
+                # "show the detailed view for this query", not "use the
+                # query string as the detail enum value".
+                out.append("--detail=full")
+                i += 1
+            continue
+        out.append(arg)
+        i += 1
+    return out
 
 
 class MgrepCLI(click.Group):
@@ -721,11 +827,15 @@ class MgrepCLI(click.Group):
         if not args:
             return super().parse_args(ctx, args)
         first = args[0]
+        if first == "search":
+            return super().parse_args(
+                ctx, ["search", *_normalize_search_cli_args(list(args[1:]))]
+            )
         if first in _SUBCOMMANDS:
             return super().parse_args(ctx, args)
         if first in ("--help", "-h", "--version"):
             return super().parse_args(ctx, args)
-        return super().parse_args(ctx, ["search", *args])
+        return super().parse_args(ctx, ["search", *_normalize_search_cli_args(list(args))])
 
 
 @click.group(cls=MgrepCLI, invoke_without_command=True)
@@ -736,10 +846,23 @@ def cli(ctx):
 
     Common usage:
 
+        \b
         skygrep "where is the auth token refreshed?"      # bare query
+        skygrep --content --detail standard "what says rollback?"
+        skygrep --detail "show the deployment steps"      # shorthand for full
+        skygrep --json --content --detail standard "where is token refresh?"
         skygrep doctor                                    # health check
         skygrep stats                                     # index info
         skygrep index .                                   # explicit reindex
+
+    Information depth:
+
+        \b
+        locate:    skygrep "where is the project brief?"
+        snippets:  skygrep --content --detail standard "what does X say?"
+        deep read: skygrep --content --detail full --include "docs/file.md" "show steps"
+        answer:    skygrep --answer --content "summarize X"
+        agent:     skygrep --json --content --detail standard --include "src/**" "where is X?"
     """
 
     if ctx.invoked_subcommand is None:
@@ -844,7 +967,7 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--rg-shortcut/--no-rg-shortcut", default=True, help="Lexical pre-gate: if the query is short and ripgrep returns a small, clustered, path-token-overlapping result set, return the rg result directly and skip the semantic cascade. Default on. Pass --no-rg-shortcut to force pure cascade (useful for benchmarking).")
 @click.option("--filename-shortcut/--no-filename-shortcut", default=True, help="Filename-lookup pre-gate (v0.13.0+): when the query looks like 'where is foo file' / 'find package.json', route to `find -iname '*token*'` and skip both content shortcuts. Default on. Pass --no-filename-shortcut to disable.")
 @click.option("--llm-router/--no-llm-router", default=True, help="LLM-driven query understanding (v0.15.0+). Routes queries via a small local Ollama model (default qwen2.5:3b) for generic intent classification. Falls back to v0.14.0 hand-rolled rules on any failure. Pass --no-llm-router to force the rule-based fallback.")
-@click.option("--detail", default="standard", type=click.Choice(["brief", "standard", "full", "summary"]), help="Output verbosity. `brief` = path + score one-liner. `standard` = +10 lines body (default). `full` = +full extracted PDF/docx content for filename matches. `summary` = +1-line truncated preview (first non-empty line, ≤160 chars; no LLM call).")
+@click.option("--detail", default="standard", type=click.Choice(["brief", "standard", "full", "summary"]), help="Output verbosity. `brief` = path + score one-liner. `standard` = +10 lines body (default). `full` = +full extracted PDF/docx content for filename matches. `summary` = +1-line truncated preview (first non-empty line, ≤160 chars; no LLM call). Bare `--detail \"query\"` is accepted as shorthand for `--detail full \"query\"`.")
 @click.option("--ocr", is_flag=True, help="Run tesseract OCR on scanned PDFs (slow, ~5-30s/page). Opt-in only; requires tesseract + pdftoppm on PATH.")
 @click.option("--lazy/--no-lazy", default=True, help="0.5.1+ auto-trigger: on cold-start (no index yet), if ripgrep alone returns a weak result (few hits or no path/token overlap with the query) the cold-start path also fires the lazy LLM-routed semantic tier (~5 s) and merges. When ripgrep already returns a strong keyword answer, lazy is skipped — user gets the instant rg result. Default on so the user never has to know which tier they need; pass --no-lazy to force pure rg cold-start (benchmarking).")
 @click.option("--explain", "-x", is_flag=True, help="0.5.8+ explainability: print one-line 'why this hit' rationale per result (which channel, score, matched symbol) plus a top-of-output router decision and cascade lane. Uses signals already in the pipeline — no extra retrieval, no model calls. Default off (existing UX is unchanged).")
@@ -882,7 +1005,30 @@ def search_cmd(
     lazy: bool,
     explain: bool,
 ):
-    """Run a search. Aliased as the bare form: ``skygrep "<query>"``."""
+    """Run a search. Aliased as the bare form: ``skygrep "<query>"``.
+
+    Information depth:
+
+      \b
+      skygrep "where is the project brief?"
+          Locate files/folders quickly.
+
+      \b
+      skygrep --content --detail standard "what does the migration plan say?"
+          Show source/document snippets.
+
+      \b
+      skygrep --content --detail full --include "docs/migration-plan.md" "show steps"
+          Read deeper after narrowing to one file or folder.
+
+      \b
+      skygrep --detail "show steps"
+          Shorthand for --detail full "show steps".
+
+      \b
+      skygrep --json --content --detail standard --include "src/**" "where is token refresh?"
+          Machine-readable context for LLM agents.
+    """
     query = _normalize_query_args(query)
     _auto_refresh_setup_snippets()
     command_start = time.perf_counter()
@@ -932,6 +1078,13 @@ def search_cmd(
         else:
             elapsed = time.time() - start
             results = payload.get("results", [])
+            results = _apply_result_boundaries(
+                results,
+                project_root=project_root,
+                explicit_scope=explicit_scope,
+                include_patterns=tuple(include_patterns),
+                exclude_patterns=tuple(exclude_patterns),
+            )
             if json_output:
                 click.echo(render_json_results(results))
                 return
@@ -957,8 +1110,11 @@ def search_cmd(
             config["db_path"] = cfg_mod.project_db_path(project_root)
         if not json_output:
             click.echo(
-                f"📁 scope: {project_root} · {scope_facet.reason} "
-                f"(conf={scope_facet.confidence:.2f})",
+                _ui_step(
+                    "scope",
+                    f"{project_root} · {scope_facet.reason} "
+                    f"(conf={scope_facet.confidence:.2f})",
+                ),
                 err=True,
             )
     db_path = config["db_path"]
@@ -969,13 +1125,24 @@ def search_cmd(
     # lazy semantic path can add seconds of irrelevant work.
     metadata_start = time.time()
     metadata_hits, metadata_query = metadata_results(query, project_root, top_k=top)
-    if metadata_query is not None:
+    metadata_hits = _apply_result_boundaries(
+        metadata_hits,
+        project_root=project_root,
+        explicit_scope=explicit_scope,
+        include_patterns=tuple(include_patterns),
+        exclude_patterns=tuple(exclude_patterns),
+    )
+    metadata_filters_active = bool(include_patterns or exclude_patterns)
+    if metadata_query is not None and (metadata_hits or not metadata_filters_active):
         elapsed = time.time() - metadata_start
         if json_output:
             click.echo(render_json_results(metadata_hits))
             return
         if metadata_hits:
-            click.echo(f"▾ {metadata_query.kind} file metadata matches:", err=True)
+            click.echo(
+                _ui_step("metadata", f"{metadata_query.kind} file matches:"),
+                err=True,
+            )
             for r in metadata_hits:
                 click.echo(
                     render_terminal_result(
@@ -987,19 +1154,23 @@ def search_cmd(
                         explain=explain,
                     )
                 )
-            click.echo(f"\n✓ {_wall_elapsed():.3f}s · quality=BEST")
-            click.echo(f"   path   : metadata-{metadata_query.kind}")
-            click.echo(f"   reason : {metadata_query.reason}")
-            click.echo(f"   pool   : {len(metadata_hits)} files · semantic-skipped")
+            click.echo(_ui_done(_wall_elapsed(), "BEST"))
+            click.echo(_ui_rows([
+                ("path", f"metadata-{metadata_query.kind}"),
+                ("reason", metadata_query.reason),
+                ("pool", f"{len(metadata_hits)} files · semantic-skipped"),
+            ]))
         else:
             click.echo(
                 "No matching files found for that metadata query in the "
                 "current search scope.",
                 err=True,
             )
-            click.echo(f"\n✓ {_wall_elapsed():.3f}s · quality=EMPTY")
-            click.echo(f"   path   : metadata-{metadata_query.kind}")
-            click.echo(f"   reason : {metadata_query.reason}")
+            click.echo(_ui_done(_wall_elapsed(), "EMPTY"))
+            click.echo(_ui_rows([
+                ("path", f"metadata-{metadata_query.kind}"),
+                ("reason", metadata_query.reason),
+            ]))
         return
 
     # Fire-and-forget Ollama preheat. Loads embed + HyDE models with
@@ -1089,7 +1260,13 @@ def search_cmd(
         )
         fn_elapsed = time.time() - fn_start
         if fn_hits:
-            fn_results = fn_hits
+            fn_results = _apply_result_boundaries(
+                fn_hits,
+                project_root=project_root,
+                explicit_scope=explicit_scope,
+                include_patterns=tuple(include_patterns),
+                exclude_patterns=tuple(exclude_patterns),
+            )
             if explain:
                 _attach_explain(fn_results, decision)
     filename_answered = (
@@ -1127,7 +1304,7 @@ def search_cmd(
         if json_output:
             click.echo(render_json_results(fn_results))
             return
-        click.echo("▾ filename matches:", err=True)
+        click.echo(_ui_step("filename", "matches:"), err=True)
         for r in fn_results:
             click.echo(
                 render_terminal_result(
@@ -1139,17 +1316,20 @@ def search_cmd(
                     explain=explain,
                 )
             )
-        click.echo(f"\n✓ {_wall_elapsed():.3f}s · quality=BEST")
-        click.echo("   path   : filename-lookup")
-        click.echo(
-            f"   router : {decision.source} → intent={decision.intent} "
-            f"({decision.confidence:.2f})"
-        )
-        click.echo(
-            f"   pool   : {len(fn_results)} filename + 0 lexical · "
-            "cascade-skipped"
-        )
-        click.echo(f"   index  : {index_note}")
+        click.echo(_ui_done(_wall_elapsed(), "BEST"))
+        click.echo(_ui_rows([
+            ("path", "filename-lookup"),
+            (
+                "router",
+                f"{decision.source} -> intent={decision.intent} "
+                f"({decision.confidence:.2f})",
+            ),
+            (
+                "pool",
+                f"{len(fn_results)} filename + 0 lexical · cascade-skipped",
+            ),
+            ("index", index_note),
+        ]))
         return
 
     # Scoped artifact-location + metadata modifier lane.
@@ -1173,6 +1353,13 @@ def search_cmd(
             query,
             project_root,
             top_k=top,
+        )
+        descriptor_results = _apply_result_boundaries(
+            descriptor_results,
+            project_root=project_root,
+            explicit_scope=explicit_scope,
+            include_patterns=tuple(include_patterns),
+            exclude_patterns=tuple(exclude_patterns),
         )
         descriptor_elapsed = time.time() - desc_start
         if descriptor_results and explain:
@@ -1209,7 +1396,7 @@ def search_cmd(
         if json_output:
             click.echo(render_json_results(descriptor_results))
             return
-        click.echo("▾ scoped file metadata matches:", err=True)
+        click.echo(_ui_step("scope", "file metadata matches:"), err=True)
         for r in descriptor_results:
             click.echo(
                 render_terminal_result(
@@ -1221,17 +1408,21 @@ def search_cmd(
                     explain=explain,
                 )
             )
-        click.echo(f"\n✓ {_wall_elapsed():.3f}s · quality=BEST")
-        click.echo("   path   : scoped-file-discovery")
-        click.echo(
-            f"   router : {decision.source} → intent={decision.intent} "
-            f"({decision.confidence:.2f})"
-        )
-        click.echo(
-            f"   pool   : {len(fn_results)} filename + "
-            f"{len(descriptor_results)} scoped metadata · semantic-skipped"
-        )
-        click.echo(f"   index  : {index_note}")
+        click.echo(_ui_done(_wall_elapsed(), "BEST"))
+        click.echo(_ui_rows([
+            ("path", "scoped-file-discovery"),
+            (
+                "router",
+                f"{decision.source} -> intent={decision.intent} "
+                f"({decision.confidence:.2f})",
+            ),
+            (
+                "pool",
+                f"{len(fn_results)} filename + "
+                f"{len(descriptor_results)} scoped metadata · semantic-skipped",
+            ),
+            ("index", index_note),
+        ]))
         return
 
     # Routing decision: ready → cascade; building or absent → rg fallback.
@@ -1294,12 +1485,21 @@ def search_cmd(
         pre_rg_proactive_ran = False
         if cold_filename_path_depth:
             pre_rg_proactive_ran = True
+            _proactive_live = None
             if not json_output:
                 click.echo(
-                    "▾ no local filename hit yet — proactive filename "
-                    "searching configured roots before broad keyword scan…",
+                    _ui_step(
+                        "proactive",
+                        "no local filename hit yet - searching configured "
+                        "roots before broad keyword scan",
+                    ),
                     err=True,
                 )
+                if ui_mod.live_animation_enabled(sys.stderr):
+                    _proactive_live = ui_mod.LiveHelix(
+                        "proactive",
+                        stream=sys.stderr,
+                    ).start("searching configured roots")
             try:
                 proactive_start = time.time()
                 from . import proactive as _proactive_cold_pre_rg
@@ -1317,18 +1517,24 @@ def search_cmd(
                     )
                 )
                 pre_rg_proactive_elapsed = time.time() - proactive_start
+                if _proactive_live is not None:
+                    _proactive_live.stop()
                 if (
                     not json_output
                     and pre_rg_tele.get("timed_out")
                     and not pre_rg_proactive_results
                 ):
                     click.echo(
-                        "↻ proactive filename search still running past "
-                        "the foreground budget; falling back to project "
-                        "keywords…",
+                        _ui_step(
+                            "budget",
+                            "proactive filename search still running past the "
+                            "foreground budget; falling back to project keywords",
+                        ),
                         err=True,
                     )
             except Exception:
+                if _proactive_live is not None:
+                    _proactive_live.stop()
                 logger.exception(
                     "pre-rg cold-start proactive filename search failed; "
                     "falling through to rg/lazy"
@@ -1349,22 +1555,32 @@ def search_cmd(
                     payload = []
                     for pr in pre_rg_proactive_results:
                         payload.extend(pr.extra_hits)
+                    payload = _apply_result_boundaries(
+                        payload,
+                        project_root=project_root,
+                        explicit_scope=explicit_scope,
+                        include_patterns=tuple(include_patterns),
+                        exclude_patterns=tuple(exclude_patterns),
+                    )
                     click.echo(render_json_results(payload))
                     return
                 if rendered:
                     click.echo(rendered)
-                click.echo(f"\n✓ {_wall_elapsed():.3f}s · quality=BEST")
-                click.echo("   path   : proactive-filename")
-                click.echo(
-                    f"   router : {decision.source} → intent={decision.intent} "
-                    f"({decision.confidence:.2f})"
-                )
-                click.echo(
-                    f"   pool   : 0 filename + 0 rg + "
-                    f"{len(pre_rg_proactive_results)} proactive · "
-                    "rg/lazy-skipped"
-                )
-                click.echo("   index  : building in background")
+                click.echo(_ui_done(_wall_elapsed(), "BEST"))
+                click.echo(_ui_rows([
+                    ("path", "proactive-filename"),
+                    (
+                        "router",
+                        f"{decision.source} -> intent={decision.intent} "
+                        f"({decision.confidence:.2f})",
+                    ),
+                    (
+                        "pool",
+                        f"0 filename + 0 rg + {len(pre_rg_proactive_results)} "
+                        "proactive · rg/lazy-skipped",
+                    ),
+                    ("index", "building in background"),
+                ]))
                 return
 
         # 0.5.4 streaming UX: tell the user immediately that something
@@ -1375,13 +1591,15 @@ def search_cmd(
         # prompt with no signal that the system is working.
         if not json_output:
             click.echo(
-                "🔍 ripgrep cold-start · scanning project keywords…",
+                _ui_step("scan", "ripgrep cold-start · scanning project keywords"),
                 err=True,
             )
             if pre_rg_proactive_ran:
                 click.echo(
-                    "   proactive filename lane found no foreground answer; "
-                    "continuing with rg/lazy depth…",
+                    _ui_detail(
+                        "proactive filename lane found no foreground answer; "
+                        "continuing with rg/lazy depth"
+                    ),
                     err=True,
                 )
 
@@ -1447,21 +1665,32 @@ def search_cmd(
                     payload = []
                     for pr in early_proactive:
                         payload.extend(pr.extra_hits)
+                    payload = _apply_result_boundaries(
+                        payload,
+                        project_root=project_root,
+                        explicit_scope=explicit_scope,
+                        include_patterns=tuple(include_patterns),
+                        exclude_patterns=tuple(exclude_patterns),
+                    )
                     click.echo(render_json_results(payload))
                     return
                 if rendered:
                     click.echo(rendered)
-                click.echo(f"\n✓ {_wall_elapsed():.3f}s · quality=BEST")
-                click.echo("   path   : proactive-filename")
-                click.echo(
-                    f"   router : {decision.source} → intent={decision.intent} "
-                    f"({decision.confidence:.2f})"
-                )
-                click.echo(
-                    f"   pool   : 0 filename + {len(rg_cold)} rg + "
-                    f"{len(early_proactive)} proactive · lazy-skipped"
-                )
-                click.echo("   index  : building in background")
+                click.echo(_ui_done(_wall_elapsed(), "BEST"))
+                click.echo(_ui_rows([
+                    ("path", "proactive-filename"),
+                    (
+                        "router",
+                        f"{decision.source} -> intent={decision.intent} "
+                        f"({decision.confidence:.2f})",
+                    ),
+                    (
+                        "pool",
+                        f"0 filename + {len(rg_cold)} rg + "
+                        f"{len(early_proactive)} proactive · lazy-skipped",
+                    ),
+                    ("index", "building in background"),
+                ]))
                 return
 
         # 0.5.1 auto-trigger lazy semantic on a weak rg cold-start.
@@ -1558,8 +1787,10 @@ def search_cmd(
                     else "preliminary keyword matches"
                 )
                 click.echo(
-                    f"▾ {prelim_label} "
-                    "(lazy semantic refinement starting…):",
+                    _ui_step(
+                        "seed",
+                        f"{prelim_label} (lazy semantic refinement starting):",
+                    ),
                     err=True,
                 )
                 for r in preliminary:
@@ -1580,8 +1811,11 @@ def search_cmd(
                 click.echo("", err=True)
             else:
                 click.echo(
-                    "▾ no keyword matches yet — lazy semantic search "
-                    "exploring (5–30 s)…",
+                    _ui_step(
+                        "lazy",
+                        "no keyword matches yet - lazy semantic search "
+                        "exploring within the foreground budget",
+                    ),
                     err=True,
                 )
         # 0.5.3 cold-start lazy + cross-folder dispatch.
@@ -1609,7 +1843,19 @@ def search_cmd(
             from . import lazy_indexer as LZ
 
             # Wire a stderr progress sink unless --json is requested.
-            _progress = None if json_output else LZ._stderr_progress
+            _live_status = None
+            if not json_output and ui_mod.live_animation_enabled(sys.stderr):
+                _live_status = ui_mod.LiveHelix("semantic", stream=sys.stderr)
+                _live_status.start("starting foreground search")
+                _progress = _live_status.update
+            else:
+                _progress = None if json_output else LZ._stderr_progress
+
+            def _stop_live_status() -> None:
+                nonlocal _live_status
+                if _live_status is not None:
+                    _live_status.stop()
+                    _live_status = None
 
             def _env_int_local(name: str, default: int) -> int:
                 try:
@@ -1652,6 +1898,12 @@ def search_cmd(
                 except Exception:
                     pass
 
+            def _is_db_locked(exc: Exception) -> bool:
+                return (
+                    isinstance(exc, sqlite3.OperationalError)
+                    and "locked" in str(exc).lower()
+                )
+
             # 0.5.7: each parallel worker opens its OWN SQLite
             # connection — sqlite3 forbids cross-thread reuse of a
             # connection. Without this, the cold+wrong-folder
@@ -1682,7 +1934,12 @@ def search_cmd(
                         except Exception:
                             pass
                 except Exception as exc:  # noqa: BLE001
-                    logger.warning("lazy cold-start cwd failed: %s", exc)
+                    if _is_db_locked(exc):
+                        return [], {
+                            "path": "lazy-cold-start",
+                            "db_locked": True,
+                        }
+                    logger.debug("lazy cold-start cwd failed: %s", exc)
                     return [], {}
 
             def _run_cross():
@@ -1705,7 +1962,12 @@ def search_cmd(
                         except Exception:
                             pass
                 except Exception as exc:  # noqa: BLE001
-                    logger.warning("lazy cross-folder failed: %s", exc)
+                    if _is_db_locked(exc):
+                        return [], {
+                            "path": "lazy-cross-folder",
+                            "db_locked": True,
+                        }
+                    logger.debug("lazy cross-folder failed: %s", exc)
                     return [], {}
 
             lazy_start = time.time()
@@ -1724,10 +1986,13 @@ def search_cmd(
                         "timed_out": True,
                     }
                     if not json_output:
+                        _stop_live_status()
                         click.echo(
-                            "↻ cwd lazy semantic search hit the foreground "
-                            "budget; continuing with any sibling-folder "
-                            "evidence…",
+                            _ui_step(
+                            "budget",
+                            "cwd lazy semantic search hit the foreground "
+                            "budget; continuing with any sibling-folder evidence",
+                        ),
                             err=True,
                         )
                 remaining = max(0.0, deadline - time.time())
@@ -1741,16 +2006,43 @@ def search_cmd(
                         "timed_out": True,
                     }
                     if not json_output:
+                        _stop_live_status()
                         click.echo(
-                            "↻ cross-folder lazy search hit the foreground "
+                            _ui_step(
+                            "budget",
+                            "cross-folder lazy search hit the foreground "
                             "budget; background indexing will continue.",
+                            ),
                             err=True,
                         )
                 finally:
                     _pool.shutdown(wait=False, cancel_futures=True)
             else:
                 lazy_results, lazy_tele = _run_cwd()
+                if lazy_tele.get("db_locked") and not json_output:
+                    _stop_live_status()
+                    click.echo(
+                        _ui_step(
+                            "busy",
+                            "cwd lazy semantic search skipped because the "
+                            "background index is writing; retry shortly or run "
+                            "`skygrep stats`.",
+                        ),
+                        err=True,
+                    )
+            _stop_live_status()
             lazy_elapsed = time.time() - lazy_start
+            if cross_tele.get("db_locked") and not json_output:
+                _stop_live_status()
+                click.echo(
+                    _ui_step(
+                        "busy",
+                        "cross-folder lazy search skipped because the "
+                        "background index is writing; retry shortly or run "
+                        "`skygrep stats`.",
+                    ),
+                    err=True,
+                )
 
         elapsed = rg_elapsed + lazy_elapsed
         intent = decision.intent
@@ -1791,8 +2083,12 @@ def search_cmd(
                 top_k=top,
             )
         results = _apply_adaptive_metadata_ranking(results, decision)
-        results = _filter_results_to_explicit_scope(
-            results, project_root if explicit_scope else None,
+        results = _apply_result_boundaries(
+            results,
+            project_root=project_root,
+            explicit_scope=explicit_scope,
+            include_patterns=tuple(include_patterns),
+            exclude_patterns=tuple(exclude_patterns),
         )
         if explain:
             _attach_explain(results, decision)
@@ -1870,7 +2166,7 @@ def search_cmd(
             ]
             if new_results:
                 click.echo(
-                    "▾ refined matches from lazy semantic search:",
+                    _ui_step("refine", "matches from lazy semantic search:"),
                     err=True,
                 )
                 for r in new_results:
@@ -1889,8 +2185,11 @@ def search_cmd(
                 # surfaced. Tell the user explicitly so they don't
                 # think the system hung.
                 click.echo(
-                    "▾ lazy semantic search added no new matches "
-                    "(top-K above is the final answer).",
+                    _ui_step(
+                        "refine",
+                        "lazy semantic search added no new matches "
+                        "(top-K above is the final answer).",
+                    ),
                     err=True,
                 )
         else:
@@ -1931,6 +2230,8 @@ def search_cmd(
             )
             if lazy_tele.get("timed_out"):
                 lazy_tag += " · cwd-timeout"
+            if lazy_tele.get("db_locked"):
+                lazy_tag += " · cwd-db-busy"
             if cross_results:
                 lazy_tag += (
                     f" + cross-folder ({cross_tele.get('candidate_roots', 0)} "
@@ -1938,6 +2239,8 @@ def search_cmd(
                 )
             elif cross_tele.get("timed_out"):
                 lazy_tag += " + cross-folder timed out"
+            elif cross_tele.get("db_locked"):
+                lazy_tag += " + cross-folder db-busy"
         elif lazy and cold_lexical_answered:
             lazy_tag = " · lexical evidence → lazy skipped"
         elif lazy and rg_strong:
@@ -1946,12 +2249,92 @@ def search_cmd(
             lazy_tag = " · --no-lazy"
         else:
             lazy_tag = ""
-        click.echo(
-            f"\n[{_wall_elapsed():.3f}s · ripgrep cold-start{proactive_tag}{lazy_tag} · "
-            f"intent={intent} · {len(fn_results)} filename + "
-            f"{len(rg_cold)} rg + {len(lazy_results)} lazy + "
-            f"{len(cross_results)} cross-folder · index {suffix}]"
-        )
+        if _os.environ.get("SKYGREP_FOOTER_COMPACT") == "1":
+            click.echo(
+                f"\n[{_wall_elapsed():.3f}s · ripgrep cold-start{proactive_tag}{lazy_tag} · "
+                f"intent={intent} · {len(fn_results)} filename + "
+                f"{len(rg_cold)} rg + {len(lazy_results)} lazy + "
+                f"{len(cross_results)} cross-folder · index {suffix}]"
+            )
+        else:
+            path_parts = ["ripgrep-cold-start"]
+            if lazy_results or lazy_tele:
+                path_parts.append("lazy-auto")
+            if cross_results:
+                path_parts.append("cross-folder")
+            elif cross_tele.get("timed_out"):
+                path_parts.append("cross-folder timed out")
+            elif cross_tele.get("db_locked"):
+                path_parts.append("cross-folder db-busy")
+            if cold_proactive_results:
+                path_parts.append("proactive")
+
+            try:
+                router_value = (
+                    f"{decision.source} -> intent={intent} "
+                    f"({float(decision.confidence or 0.0):.2f})"
+                )
+            except (TypeError, ValueError):
+                router_value = f"{decision.source} -> intent={intent}"
+            if decision.primary_token:
+                router_value += f' · primary_token="{decision.primary_token}"'
+
+            evidence_bits: list[str] = []
+            if lazy_tele:
+                if "sigma" in lazy_tele:
+                    try:
+                        evidence_bits.append(
+                            f"sigma={float(lazy_tele.get('sigma', 0.0)):.3f}"
+                        )
+                    except (TypeError, ValueError):
+                        pass
+                if lazy_tele.get("confidence"):
+                    evidence_bits.append(f"conf={lazy_tele.get('confidence')}")
+                if lazy_tele.get("embed_new") is not None:
+                    evidence_bits.append(
+                        f"{lazy_tele.get('embed_new', 0)} new / "
+                        f"{lazy_tele.get('embed_cached', 0)} cached"
+                    )
+            budget_bits: list[str] = []
+            if lazy_tele.get("timed_out"):
+                budget_bits.append("cwd lazy foreground budget hit")
+            if cross_tele.get("timed_out"):
+                budget_bits.append("cross-folder foreground budget hit")
+            if lazy_tele.get("db_locked"):
+                budget_bits.append("cwd lazy skipped: db busy")
+            if cross_tele.get("db_locked"):
+                budget_bits.append("cross-folder skipped: db busy")
+
+            search_bits = [
+                f"{len(fn_results)} filename",
+                f"{len(rg_cold)} rg",
+                f"{len(lazy_results)} lazy",
+                f"{len(cross_results)} cross-folder",
+            ]
+            if cold_proactive_results:
+                search_bits.append(f"{len(cold_proactive_results)} proactive")
+            if lazy_tele.get("seeds_total") or lazy_tele.get("seeds_initial"):
+                search_bits.append(
+                    f"{lazy_tele.get('seeds_total') or lazy_tele.get('seeds_initial')} seeds"
+                )
+            if cross_tele.get("candidate_roots") is not None:
+                search_bits.append(f"{cross_tele.get('candidate_roots', 0)} roots")
+            if cross_tele.get("files_seen") is not None:
+                search_bits.append(f"{cross_tele.get('files_seen', 0)} files seen")
+
+            rows: list[tuple[str, str]] = [
+                ("path", " + ".join(path_parts)),
+                ("router", router_value),
+            ]
+            if evidence_bits:
+                rows.append(("evidence", " · ".join(evidence_bits)))
+            rows.append(("pool", " · ".join(search_bits)))
+            if budget_bits:
+                rows.append(("budget", " · ".join(budget_bits)))
+            rows.append(("index", suffix))
+
+            click.echo(_ui_done(_wall_elapsed(), "BEST"))
+            click.echo(_ui_rows(rows))
         return
 
     # Index is ready (or auto_index disabled): run the normal pipeline,
@@ -1974,8 +2357,11 @@ def search_cmd(
                         else "already running"
                     )
                     click.echo(
-                        f"↻ background refresh {note} "
-                        f"({abs(refreshed)} pending file change(s)).",
+                        _ui_step(
+                            "index",
+                            f"background refresh {note} "
+                            f"({abs(refreshed)} pending file change(s)).",
+                        ),
                         err=True,
                     )
         except Exception as exc:
@@ -1989,10 +2375,13 @@ def search_cmd(
     if not _symbols_table_populated(conn):
         try:
             if not json_output:
-                click.echo("↻ extracting symbols (one-time, no LLM)…", err=True)
+                click.echo(
+                    _ui_step("index", "extracting symbols (one-time, no LLM)"),
+                    err=True,
+                )
             inserted = populate_symbols(conn, project_root)
             if not json_output:
-                click.echo(f"✓ {inserted} symbols indexed", err=True)
+                click.echo(_ui_step("index", f"{inserted} symbols indexed"), err=True)
         except Exception as exc:
             logger.warning("symbol indexing failed: %s", exc)
 
@@ -2005,7 +2394,10 @@ def search_cmd(
         graph_count = row[0] if row else 0
         if graph_count == 0:
             if not json_output:
-                click.echo("↻ building file-export graph (one-time)…", err=True)
+                click.echo(
+                    _ui_step("index", "building file-export graph (one-time)"),
+                    err=True,
+                )
             try:
                 code_graph.populate_graph_table(conn, project_root)
                 graph_ready = True
@@ -2092,13 +2484,16 @@ def search_cmd(
                 break
         if warm_preliminary:
             if filename_answered:
-                click.echo("▾ filename matches:", err=True)
+                click.echo(_ui_step("filename", "matches:"), err=True)
             elif lexical_answered:
-                click.echo("▾ keyword matches:", err=True)
+                click.echo(_ui_step("keyword", "matches:"), err=True)
             else:
                 click.echo(
-                    "▾ preliminary keyword + filename matches "
-                    "(semantic cascade refining…):",
+                    _ui_step(
+                        "seed",
+                        "preliminary keyword + filename matches "
+                        "(semantic cascade refining):",
+                    ),
                     err=True,
                 )
             for r in warm_preliminary:
@@ -2179,8 +2574,10 @@ def search_cmd(
         except _PFuturesTimeout:
             _early_proactive_results = []
             click.echo(
-                "↻ proactive umbrella · still searching home dirs "
-                "(filename_extend running)…",
+                _ui_step(
+                    "proactive",
+                    "still searching configured roots (filename_extend running)",
+                ),
                 err=True,
             )
         if _early_proactive_results:
@@ -2196,9 +2593,12 @@ def search_cmd(
                 )
                 if rendered:
                     click.echo(
-                        "▾ proactive umbrella · home-dir filename matches "
-                        "(filename_extend, ~100 ms-1 s; pure filename glob, no "
-                        "semantic understanding):",
+                        _ui_step(
+                            "proactive",
+                            "configured-root filename matches "
+                            "(filename_extend, ~100 ms-1 s; pure filename glob, no "
+                            "semantic understanding):",
+                        ),
                         err=True,
                     )
                     click.echo(rendered)
@@ -2212,6 +2612,8 @@ def search_cmd(
     # running so a fast intent decision cannot reduce recall.
     answerer = None
     cascade_telemetry: dict | None = None
+    candidate_recall_telemetry: dict | None = None
+    candidate_recall_results: list[dict] = []
     recovery_state: dict | None = None
     queries = [query]
     if (filename_answered or lexical_answered) and not agentic and not answer:
@@ -2247,13 +2649,16 @@ def search_cmd(
             stale = recovery_state.get("stale_count", 0)
             eta_min = recovery_state.get("eta_seconds")
             click.echo(
-                f"⟳ Embedder upgraded "
-                f"({recovery_state.get('stored_fingerprint', '?')} → "
-                f"{recovery_state.get('current_fingerprint', '?')}); "
-                f"re-embedding {stale} stale chunks in the background "
-                f"(mtime-DESC priority). This query falls back to rg "
-                f"+ partial semantic; full semantic resumes "
-                f"progressively as files re-embed.",
+                _ui_step(
+                    "index",
+                    f"embedder upgraded "
+                    f"({recovery_state.get('stored_fingerprint', '?')} -> "
+                    f"{recovery_state.get('current_fingerprint', '?')}); "
+                    f"re-embedding {stale} stale chunks in the background "
+                    f"(mtime-DESC priority). This query falls back to rg "
+                    f"+ partial semantic; full semantic resumes "
+                    f"progressively as files re-embed.",
+                ),
                 err=True,
             )
         start = time.time()
@@ -2270,15 +2675,75 @@ def search_cmd(
             queries = [answerer.hyde(item) for item in queries]
         candidate_paths = None
         if lexical_prefilter:
-            from .hybrid import lexical_candidate_paths
+            from .candidate_recall import (
+                candidate_chunk_results,
+                recall_candidate_paths,
+            )
 
             prefilter_root = Path(lexical_root) if lexical_root else project_root
-            cands = lexical_candidate_paths(query, prefilter_root)
-            if len(cands) >= lexical_min_candidates:
+            recall_query = simplify_router_query(strip_scope_clauses(query) or query)
+            cands, candidate_recall_telemetry = recall_candidate_paths(
+                conn,
+                recall_query,
+                prefilter_root,
+                include_patterns=tuple(include_patterns),
+                exclude_patterns=tuple(exclude_patterns),
+            )
+            if len(cands) >= lexical_min_candidates or include_patterns:
                 candidate_paths = cands
-            # else fall through to corpus-wide cosine
+            # Candidate recall is an additive lane, not a semantic gate. Even
+            # when the candidate set is too small to constrain the cascade, we
+            # still ask the normal scorer for best evidence from those files so
+            # path recall cannot be lost by a later semantic shortlist.
+            if cands:
+                recall_support_per_path = 0
+                if content or answer:
+                    if detail == "full":
+                        recall_support_per_path = 4
+                    elif detail == "standard":
+                        recall_support_per_path = 2
+                candidate_recall_lexical = candidate_chunk_results(
+                    conn,
+                    recall_query,
+                    cands,
+                    top_k=max(top, top * 2),
+                    languages=tuple(language),
+                    include_patterns=tuple(include_patterns),
+                    exclude_patterns=tuple(exclude_patterns),
+                    path_scores=candidate_recall_telemetry.get("path_scores", {}),
+                    path_lanes=candidate_recall_telemetry.get("path_lanes", {}),
+                    support_per_path=recall_support_per_path,
+                )
+                candidate_recall_semantic = search(
+                    conn,
+                    _probe_vec,
+                    max(top, top * 2),
+                    languages=tuple(language),
+                    include_patterns=tuple(include_patterns),
+                    exclude_patterns=tuple(exclude_patterns),
+                    query_text=recall_query,
+                    semantic_only=semantic_only,
+                    rerank=False,
+                    multi_resolution=False,
+                    candidate_paths=cands,
+                    rank_by="file",
+                )
+                candidate_recall_results = merge_results(
+                    [candidate_recall_lexical, candidate_recall_semantic],
+                    max(top, top * 3),
+                )
+                path_lanes = candidate_recall_telemetry.get("path_lanes", {})
+                for result in candidate_recall_results:
+                    result["fallback"] = "candidate-recall"
+                    result["candidate_recall"] = True
+                    result["candidate_recall_lanes"] = path_lanes.get(
+                        result.get("path", ""),
+                        [],
+                    )
 
         result_groups: list[list[dict]] = []
+        if candidate_recall_results:
+            result_groups.append(candidate_recall_results)
         for item in queries:
             query_embedding = embedder.embed(item)
             if cascade:
@@ -2343,10 +2808,13 @@ def search_cmd(
                         }
                         if not json_output:
                             click.echo(
-                                "↻ cascade timed out at 30 s — top-K above "
-                                "(filename_extend / preliminary cascade / "
-                                "cross-folder) is the answer; cascade was "
-                                "in σ-low rerank, unlikely to add value",
+                                _ui_step(
+                                    "budget",
+                                    "cascade timed out at 30 s - top-K above "
+                                    "(filename_extend / preliminary cascade / "
+                                    "cross-folder) is the answer; cascade was "
+                                    "in sigma-low rerank, unlikely to add value",
+                                ),
                                 err=True,
                             )
                     except Exception as _cexc:  # noqa: BLE001
@@ -2374,7 +2842,8 @@ def search_cmd(
                     rank_by=rank_by,
                 )
             )
-        results = merge_results(result_groups, top)
+        merge_width = max(top, top * 3) if candidate_recall_results else top
+        results = merge_results(result_groups, merge_width)
         elapsed = time.time() - start
 
     # 0.5.3 warm-path low-confidence augmentation criterion:
@@ -2416,8 +2885,12 @@ def search_cmd(
             top_k=top,
         )
     results = _apply_adaptive_metadata_ranking(results, decision)
-    results = _filter_results_to_explicit_scope(
-        results, project_root if explicit_scope else None,
+    results = _apply_result_boundaries(
+        results,
+        project_root=project_root,
+        explicit_scope=explicit_scope,
+        include_patterns=tuple(include_patterns),
+        exclude_patterns=tuple(exclude_patterns),
     )
     if explain:
         _attach_explain(results, decision)
@@ -2438,8 +2911,11 @@ def search_cmd(
         ]
         if cascade_only:
             click.echo(
-                "▾ preliminary cascade matches "
-                "(low confidence — also searching sibling folders…):",
+                _ui_step(
+                    "cascade",
+                    "preliminary matches "
+                    "(low confidence - also searching sibling folders):",
+                ),
                 err=True,
             )
             for r in cascade_only:
@@ -2520,8 +2996,11 @@ def search_cmd(
                 }
                 if not json_output:
                     click.echo(
-                        "↻ sibling-folder search timed out at 8 s — "
-                        "skipping (cascade matches above are the answer)",
+                        _ui_step(
+                            "budget",
+                            "sibling-folder search timed out at 8 s - "
+                            "skipping (cascade matches above are the answer)",
+                        ),
                         err=True,
                     )
             finally:
@@ -2547,8 +3026,12 @@ def search_cmd(
             results.append(r)
             _seen_paths.add(p)
         results = _apply_adaptive_metadata_ranking(results, decision)
-        results = _filter_results_to_explicit_scope(
-            results, project_root if explicit_scope else None,
+        results = _apply_result_boundaries(
+            results,
+            project_root=project_root,
+            explicit_scope=explicit_scope,
+            include_patterns=tuple(include_patterns),
+            exclude_patterns=tuple(exclude_patterns),
         )
         if explain:
             _attach_explain(results, decision)
@@ -2599,9 +3082,9 @@ def search_cmd(
         ]
         if new_warm:
             warm_label = (
-                "▾ refined matches from sibling-folder semantic search:"
+                _ui_step("refine", "matches from sibling-folder semantic search:")
                 if warm_cross_results
-                else "▾ refined matches from semantic search:"
+                else _ui_step("refine", "matches from semantic search:")
             )
             click.echo(
                 warm_label,
@@ -2620,8 +3103,11 @@ def search_cmd(
                 )
         else:
             click.echo(
-                "▾ sibling-folder search added no new matches "
-                "(top-K above is the final answer).",
+                _ui_step(
+                    "refine",
+                    "sibling-folder search added no new matches "
+                    "(top-K above is the final answer).",
+                ),
                 err=True,
             )
     else:
@@ -2695,11 +3181,9 @@ def search_cmd(
         parts.append(f"quality={quality}")
         click.echo("\n[" + " · ".join(parts) + "]")
     else:
-        # Hierarchical footer. One header line with elapsed + quality
-        # (with a ✓ / ⚠ glyph that's scannable at a glance), then
-        # indented category rows. Each row is a single semantic group
+        # Hierarchical footer. One rail terminator with elapsed + quality,
+        # then indented category rows. Each row is a single semantic group
         # so the user can read top-down without parsing separators.
-        glyph = "⚠" if recovery_footer else "✓"
         path_detail = ""
         if cascade and cascade_telemetry is not None:
             if cascade_telemetry.get("early_exit"):
@@ -2710,7 +3194,7 @@ def search_cmd(
         rows.append(("path", f"{path_label}{path_detail}"))
         rows.append((
             "router",
-            f"{decision.source} → intent={intent} ({decision.confidence:.2f})",
+            f"{decision.source} -> intent={intent} ({decision.confidence:.2f})",
         ))
         if cascade and cascade_telemetry is not None:
             gap = cascade_telemetry.get('gap', 0)
@@ -2725,6 +3209,10 @@ def search_cmd(
             f"{len(fn_results)} filename",
             f"{len(rg_results)} lexical",
         ]
+        if candidate_recall_telemetry:
+            pool_pieces.append(
+                f"{candidate_recall_telemetry.get('total_paths', 0)} recall"
+            )
         if cascade and not cascade_was_skipped:
             pool_pieces.append("cascade")
         elif cascade_was_skipped:
@@ -2753,10 +3241,8 @@ def search_cmd(
             cleaned = recovery_footer.replace("recovery=in-progress", "in-progress")
             rows.append(("recovery", cleaned))
         # Render
-        click.echo(f"\n{glyph} {wall_elapsed:.3f}s · quality={quality}")
-        label_w = max(len(label) for label, _ in rows)
-        for label, value in rows:
-            click.echo(f"   {label.ljust(label_w)} : {value}")
+        click.echo(_ui_done(wall_elapsed, quality))
+        click.echo(_ui_rows(rows))
 
     # Proactive enhancement framework (0.2.7+). Runs registered
     # enhancers (filename_extend, ...) IN PARALLEL with a hard

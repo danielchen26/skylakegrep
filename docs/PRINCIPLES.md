@@ -314,6 +314,36 @@ measured (e.g. "future Phase C wins"), say so — don't claim it.
 
 ---
 
+## Principle 7 — Recall substrate before route certainty (0.5.13+)
+
+The intent router is allowed to rank retrieval lanes; it is not allowed
+to be the only component that decides which files are visible. Every
+semantic or mixed query should get a cheap, generic candidate recall
+substrate before the expensive cascade makes its final choice.
+
+The substrate must be independent and bounded:
+
+  - path-token recall from indexed paths;
+  - symbol recall from indexed names;
+  - chunk-token recall from SQLite;
+  - bounded `rg -il -F` recall under the requested scope;
+  - explicit include-scope recall when the caller already knows a
+    folder or file boundary.
+
+Candidate recall is an additive evidence lane, not a hard answer. It can
+constrain semantic search only when there is enough evidence or an
+explicit include scope, and it still contributes lexical evidence chunks
+so a downstream LLM can see why the path was selected.
+
+For content/agent calls, one chunk per file is often not enough. The
+retriever may attach a small per-file evidence pack containing related
+symbol, constant, or assertion anchors from the same recalled file. Keep
+that pack bounded by requested depth: no support pack for brief/summary
+location output, compact support for standard content, and wider support
+only for full-depth reads.
+
+---
+
 ## How this document gets used
 
   - `CLAUDE.md` imports this file via `@docs/PRINCIPLES.md` so any

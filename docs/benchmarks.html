@@ -400,7 +400,50 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  <a href="parity-benchmarks.html"><code>parity-benchmarks.html</code></a>.
  </p>
 
- <h3 id="bench-self">4. skylakegrep self-test (regression guard)</h3>
+ <h3 id="bench-agent-context">4. Agent tool-context depth benchmark (0.5.13)</h3>
+ <p>
+ 0.5.13 adds a benchmark for the context that coding agents actually
+ consume between reasoning steps. It does not call remote Claude, GPT, or
+ any cloud model. Instead it compares two deterministic local policies:
+ one structured <code>skygrep --json --content</code> call per task versus
+ a raw <code>rg</code> agent that runs several term searches and then reads
+ line-window context.
+ </p>
+ <p>
+ The task set covers eight generic repository-maintenance questions across
+ locate, snippet, deep, and abstract levels, then runs low / medium / high
+ effort profiles. The scoring model is intentionally simple:
+ sufficiency = 60 % expected-path coverage + 40 % evidence-term coverage.
+ Path precision and sufficiency density measure how much irrelevant
+ context the next LLM turn has to filter.
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr><th>Metric</th><th><code>skygrep-agent</code></th><th>raw <code>rg-agent</code></th><th>Reading</th></tr>
+ </thead>
+ <tbody>
+ <tr><td>Tasks × effort profiles</td><td>24</td><td>24</td><td>8 generic tasks × 3 depth profiles</td></tr>
+ <tr><td>Path coverage</td><td>81.9 %</td><td>100.0 %</td><td><code>rg</code> remains the recall ceiling</td></tr>
+ <tr><td>Path precision</td><td>34.9 %</td><td>12.2 %</td><td>skygrep returns less irrelevant path noise</td></tr>
+ <tr><td>Evidence coverage</td><td>79.2 %</td><td>92.7 %</td><td>support packs close much of the evidence gap</td></tr>
+ <tr><td>Sufficiency score</td><td>80.8 %</td><td>97.1 %</td><td>weighted path + evidence score</td></tr>
+ <tr><td>Tool calls</td><td>24</td><td>147</td><td>6.12× fewer calls for skygrep</td></tr>
+ <tr><td>Context tokens</td><td>56,424</td><td>2,129,655</td><td>37.74× less context for skygrep</td></tr>
+ <tr><td>Sufficiency per 1k tokens</td><td>0.344</td><td>0.011</td><td>31.27× denser context for skygrep</td></tr>
+ </tbody>
+ </table>
+ </div>
+ <p>
+ Honest framing: raw <code>rg</code> can still be faster at producing a
+ large unranked dump, and it remains the ceiling when an agent can afford
+ to inspect everything. The 0.5.13 win is agent-context efficiency:
+ compact ranked evidence with far fewer tool calls and far fewer tokens.
+ Reproduce with
+ <code>benchmarks/agent_tool_depth_benchmark.py --summary-only</code>.
+ </p>
+
+ <h3 id="bench-self">5. skylakegrep self-test (regression guard)</h3>
  <p>
  Deterministic local benchmark over 30 repository-navigation tasks
  against this very repo. Compares a single <code>skygrep search</code>
@@ -467,8 +510,14 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  </li>
  <li>
  <strong>"skygrep is more token-efficient than ripgrep when feeding LLM context"</strong> →
- <a href="#bench-self">benchmark 4</a>: ~17.7× total-token
+ <a href="#bench-self">benchmark 5</a>: ~17.7× total-token
  reduction at equal recall on the 30-task self-test.
+ </li>
+ <li>
+ <strong>"skygrep gives agents denser context with fewer tool calls"</strong> →
+ <a href="#bench-agent-context">benchmark 4</a>: 6.12× fewer tool
+ calls, 37.74× less context, and 31.27× higher sufficiency density on
+ the 0.5.13 agent tool-context benchmark.
  </li>
  </ul>
  <p>

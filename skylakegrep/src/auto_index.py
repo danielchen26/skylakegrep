@@ -32,7 +32,7 @@ from pathlib import Path
 
 import click
 
-from . import config, storage
+from . import config, storage, ui as ui_mod
 from .embeddings import get_embedder
 from .fast_intent import (
     classify_fast_intent,
@@ -211,8 +211,11 @@ def incremental_refresh(
     ):
         if not quiet:
             click.echo(
-                f"↻ refresh has {pending} pending file change(s); "
-                "deferring to background so search can continue.",
+                ui_mod.step(
+                    "index",
+                    f"refresh has {pending} pending file change(s); "
+                    "deferring to background so search can continue.",
+                ),
                 err=True,
             )
         return -pending
@@ -235,9 +238,12 @@ def incremental_refresh(
     _meta_set(conn, "last_refresh_at", str(now))
     if (refreshed or deleted_files) and not quiet:
         click.echo(
-            f"↻ refreshed {refreshed} file(s)"
-            + (f", removed {len(deleted_files)} stale" if deleted_files else "")
-            + ".",
+            ui_mod.step(
+                "index",
+                f"refreshed {refreshed} file(s)"
+                + (f", removed {len(deleted_files)} stale" if deleted_files else "")
+                + ".",
+            ),
             err=True,
         )
     return refreshed

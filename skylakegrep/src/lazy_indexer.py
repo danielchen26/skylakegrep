@@ -74,6 +74,7 @@ from typing import Callable, Optional
 import numpy as np
 
 from . import storage as S
+from . import ui as ui_mod
 
 
 # ── Filesystem crawl ────────────────────────────────────────────────────
@@ -581,6 +582,8 @@ def cosine_topk_with_sigma(
 
 
 _DEFAULT_WORKERS = min(4, os.cpu_count() or 2)
+def _progress_step(label: str, message: str) -> str:
+    return ui_mod.step(label, message)
 
 
 def _emit_progress(progress: Optional[Callable[[str], None]], msg: str) -> None:
@@ -664,7 +667,7 @@ def lazy_explore_cold_start(
     t0 = time.perf_counter()
     tele: dict = {"path": "lazy-cold-start"}
 
-    _emit_progress(progress, "🔍 lazy auto-trigger · scanning project structure…")
+    _emit_progress(progress, _progress_step("lazy", "scanning project structure"))
 
     # Step 1: cheap crawl (single-threaded — pyfilesystem walk is GIL-bound
     # and not amortisable across threads).
@@ -822,10 +825,13 @@ def lazy_explore_cold_start(
     tele["seeds_initial"] = len(seeds)
     _emit_progress(
         progress,
-        f"🌊 {_DEFAULT_WORKERS} subprocesses · "
-        f"{tele['llm_picks']} LLM-routed · "
-        f"{tele['token_seeds']} token-shortcut · "
-        f"{len(seeds)} seeds total"
+        _progress_step(
+            "plan",
+            f"{_DEFAULT_WORKERS} workers · "
+            f"{tele['llm_picks']} LLM-routed · "
+            f"{tele['token_seeds']} token-shortcut · "
+            f"{len(seeds)} seeds total",
+        ),
     )
 
     # Step 5: PARALLEL preload of seed text so the diffusion step can
@@ -861,13 +867,19 @@ def lazy_explore_cold_start(
     if tele["diffusion_neighbours"]:
         _emit_progress(
             progress,
-            f"💧 diffused +{tele['diffusion_neighbours']} import neighbours "
-            f"(total {len(seeds)} seeds)"
+            _progress_step(
+                "expand",
+                f"+{tele['diffusion_neighbours']} import neighbours "
+                f"(total {len(seeds)} seeds)",
+            ),
         )
 
     # Step 7: batch embed. Pass loaded text so we don't re-read the
     # files we already pulled into memory above.
-    _emit_progress(progress, f"⚡ embedding {len(seeds)} files (1 Ollama call)…")
+    _emit_progress(
+        progress,
+        _progress_step("embed", f"{len(seeds)} files (1 Ollama call)"),
+    )
     t1 = time.perf_counter()
     n_new, embeddings, _loaded2 = embed_files_batch(
         conn, seeds, embedder, preloaded_text=loaded,
@@ -944,7 +956,10 @@ def lazy_explore_cross_folder(
 
     _emit_progress(
         progress,
-        f"🌐 cross-folder explore · {len(candidate_roots)} candidate roots…"
+        _progress_step(
+            "cross",
+            f"exploring {len(candidate_roots)} candidate roots",
+        ),
     )
 
     # 0.5.6: cap each candidate root at 5000 files. Earlier 0.5.3

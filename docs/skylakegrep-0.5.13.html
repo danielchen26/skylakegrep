@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.13 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.13 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.13</p>
+<h1>skylakegrep 0.5.13 — adaptive candidate recall for agent-grade context</h1>
+<p>0.5.13 upgrades the retrieval architecture behind semantic and mixed
+queries. The router still decides intent, but it no longer gets to be
+the only gate deciding which files are visible. A bounded candidate
+recall substrate now runs before the expensive cascade so agent calls get
+better path coverage and more source evidence without dumping a whole
+repository into the downstream LLM context.</p>
+<p>All examples and benchmark tasks below are generic repository-maintenance
+scenarios. No private prompts, filenames, folders, screenshots, or local
+paths are included.</p>
+<h2>What changed</h2>
+<ul>
+<li>Added a generic candidate recall lane for semantic, lexical, and mixed
+  queries. It combines independent, bounded signals from explicit
+  <code>--include</code> scopes, indexed path tokens, indexed symbols, SQLite chunk
+  text, and a small <code>rg -il -F</code> path pass.</li>
+<li>Candidate recall is additive evidence, not a hard shortcut. It can
+  surface likely files early, but the normal semantic scorer and reranker
+  still decide final ordering.</li>
+<li><code>--content</code> and agent calls now receive a small per-file support pack
+  when needed: related constants, symbol definitions, or assertion
+  anchors from the same recalled file. <code>brief</code> / location output stays
+  compact; <code>standard</code> gets compact support; <code>full</code> can read wider after
+  the caller narrows scope.</li>
+<li>The indexer now preserves meaningful module-level text, constants, and
+  long string anchors that tree-sitter structural chunking can otherwise
+  miss. This improves evidence coverage for agent-instruction files,
+  tests, configuration modules, and documentation-like source files.</li>
+<li>Candidate recall now participates in intent-aware merge priority:
+  semantic and mixed queries can trust it as a peer evidence lane, while
+  pure filename queries still prefer exact filename lookup first.</li>
+<li>The public README, GitHub Pages homepage, benchmark page, CLI
+  reference, JSON reference, and setup instructions now explain the
+  information-depth ladder for LLM callers: bare lookup, <code>--content</code>,
+  <code>--detail full</code>, <code>--answer</code>, <code>--json</code>, and <code>--include</code>.</li>
+</ul>
+<h2>Why it matters for LLM agents</h2>
+<p>Raw <code>rg</code> is a strong recall ceiling, but it gives an agent too much
+unranked text. 0.5.13 is optimized for the context that a coding agent
+actually consumes between reasoning steps:</p>
+<table>
+<thead>
+<tr>
+<th>Agent need</th>
+<th>Recommended command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Locate the file or concept</td>
+<td><code>skygrep "where is the project brief?"</code></td>
+</tr>
+<tr>
+<td>Inspect snippets for the next step</td>
+<td><code>skygrep --content --detail standard "what does the migration plan say about rollback?"</code></td>
+</tr>
+<tr>
+<td>Read deeply after narrowing scope</td>
+<td><code>skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"</code></td>
+</tr>
+<tr>
+<td>Ask for a synthesized local answer</td>
+<td><code>skygrep --answer --content "summarize the retry policy"</code></td>
+</tr>
+<tr>
+<td>Feed structured agent context</td>
+<td><code>skygrep --json --content --detail standard --include "src/**" "where is token refresh implemented?"</code></td>
+</tr>
+</tbody>
+</table>
+<p>The important rule is: use the smallest depth that can answer the next
+reasoning step. Agents should add <code>--include</code> whenever they already know
+the relevant repo, folder, or file; scoped calls are faster and reduce
+irrelevant cross-folder evidence.</p>
+<h2>Agent tool-context benchmark</h2>
+<p>The release gate runs <code>benchmarks/agent_tool_depth_benchmark.py</code>, a local
+deterministic benchmark that simulates two tool-use policies:</p>
+<ul>
+<li><code>skygrep-agent</code>: one structured <code>skygrep --json --content</code> call per
+  task.</li>
+<li><code>rg-agent</code>: multiple raw <code>rg</code> term searches per task, then line-window
+  context.</li>
+</ul>
+<p>The score is context-centric: path coverage, path precision, evidence
+term coverage, tool-call budget, context-token budget, and latency. It
+does not call remote Claude, GPT, or any cloud model.</p>
+<p>Current 0.5.13 release-gate totals:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align: right;"><code>skygrep-agent</code></th>
+<th style="text-align: right;">raw <code>rg-agent</code></th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tasks × effort profiles</td>
+<td style="text-align: right;">24</td>
+<td style="text-align: right;">24</td>
+<td>8 generic tasks across low / medium / high depth</td>
+</tr>
+<tr>
+<td>Path coverage</td>
+<td style="text-align: right;">81.9 %</td>
+<td style="text-align: right;">100.0 %</td>
+<td><code>rg</code> remains the recall ceiling</td>
+</tr>
+<tr>
+<td>Path precision</td>
+<td style="text-align: right;">34.9 %</td>
+<td style="text-align: right;">12.2 %</td>
+<td>skygrep returns much less irrelevant path noise</td>
+</tr>
+<tr>
+<td>Evidence coverage</td>
+<td style="text-align: right;">79.2 %</td>
+<td style="text-align: right;">92.7 %</td>
+<td>support packs close much of the evidence gap</td>
+</tr>
+<tr>
+<td>Sufficiency score</td>
+<td style="text-align: right;">80.8 %</td>
+<td style="text-align: right;">97.1 %</td>
+<td>weighted 60 % path + 40 % evidence</td>
+</tr>
+<tr>
+<td>Tool calls</td>
+<td style="text-align: right;">24</td>
+<td style="text-align: right;">147</td>
+<td>skygrep used 6.12× fewer tool calls</td>
+</tr>
+<tr>
+<td>Context tokens</td>
+<td style="text-align: right;">56,424</td>
+<td style="text-align: right;">2,129,655</td>
+<td>skygrep emitted 37.74× less context</td>
+</tr>
+<tr>
+<td>Sufficiency per 1k tokens</td>
+<td style="text-align: right;">0.344</td>
+<td style="text-align: right;">0.011</td>
+<td>skygrep was 31.27× denser context</td>
+</tr>
+</tbody>
+</table>
+<p>The honest reading: raw <code>rg</code> is still faster at producing a large dump,
+and it is the recall ceiling when an agent can afford to inspect a huge
+context blob. 0.5.13 is stronger when the downstream model needs compact,
+ranked, sufficient context rather than an unfiltered repository slice.</p>
+<h2>Before vs after</h2>
+<table>
+<thead>
+<tr>
+<th>Query shape</th>
+<th>Previous behavior</th>
+<th>0.5.13 behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Semantic query whose answer is in a source constant or module-level instruction string</td>
+<td>Structural chunking could miss the anchor</td>
+<td>supplemental text chunks preserve it in the index</td>
+</tr>
+<tr>
+<td>Agent asks for source evidence, not just a path</td>
+<td>Top chunk could identify the file but omit nearby proof</td>
+<td>bounded support pack adds related same-file anchors</td>
+</tr>
+<tr>
+<td>Router classifies a query as semantic or mixed but cheap lexical/path evidence knows a likely file</td>
+<td>Cascade alone could miss or delay that file</td>
+<td>candidate recall adds it to the candidate pool before final ranking</td>
+</tr>
+<tr>
+<td>Agent already knows the scope</td>
+<td>Scope could help filtering but not always recall</td>
+<td>explicit include recall votes scoped files into the pool</td>
+</tr>
+<tr>
+<td>Human location query</td>
+<td>Could receive too much snippet support</td>
+<td>location-depth output stays compact; support packs are tied to content depth</td>
+</tr>
+</tbody>
+</table>
+<h2>Verification</h2>
+<ul>
+<li>Full local test suite: required before upload.</li>
+<li>Targeted regression coverage: candidate recall lanes, lexical evidence
+  selection, support-pack attachment, module-level text supplementation,
+  include-scope recall, merge priority, and terminal UI layout.</li>
+<li>Agent tool-context benchmark: required before upload, with the current
+  totals above.</li>
+<li>Source privacy scan: required before build.</li>
+<li>Wheel/sdist privacy scan: required before upload.</li>
+<li>Fresh install and local editable install: required after PyPI upload.</li>
+</ul>
+<h2>Compatibility</h2>
+<ul>
+<li>No CLI flag was removed.</li>
+<li>JSON fields remain backwards compatible. Candidate-recall metadata is
+  additive and optional.</li>
+<li>Existing indexes are compatible, but rebuilding the index lets 0.5.13
+  capture the new supplemental module-level text chunks.</li>
+<li>Existing <code>skygrep setup</code> managed snippets auto-refresh inside their
+  managed BEGIN/END block only; user-authored instructions outside that
+  block are preserved.</li>
+</ul>
+<h2>Privacy note</h2>
+<p>This release uses only generic public examples and repository-maintenance
+benchmark tasks. The release process blocks on source and distribution
+privacy scans so no real user prompt, private filename, private folder
+name, absolute local machine path, screenshot, document category, name,
+or email is published.</p></article>
+</main>
+</div>
+</body></html>

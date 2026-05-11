@@ -262,6 +262,108 @@ def split_text_chunks(content: str, max_lines: int = 50, max_chars: int = 1000) 
         "end_byte": min(len(content.encode("utf8")), max_chars),
     }]
 
+
+def _line_start_bytes(content: str) -> list[int]:
+    offsets: list[int] = []
+    pos = 0
+    for raw_line in content.splitlines(keepends=True):
+        offsets.append(pos)
+        pos += len(raw_line.encode("utf8"))
+    if not offsets and content:
+        offsets.append(0)
+    return offsets
+
+
+def _chunks_for_line_gap(
+    lines: list[str],
+    line_offsets: list[int],
+    start_line: int,
+    end_line: int,
+    *,
+    max_lines: int,
+    max_chars: int,
+) -> list[dict]:
+    gap_lines = lines[start_line - 1:end_line]
+    gap_text = "\n".join(gap_lines)
+    if not gap_text.strip():
+        return []
+    # Avoid indexing parser punctuation dust; keep meaningful constants,
+    # imports, long assignments, and embedded text.
+    if len(gap_text.strip()) < 120 and len([ln for ln in gap_lines if ln.strip()]) < 3:
+        return []
+    base_byte = line_offsets[start_line - 1] if start_line - 1 < len(line_offsets) else 0
+    out: list[dict] = []
+    for chunk in split_text_chunks(gap_text, max_lines=max_lines, max_chars=max_chars):
+        out.append(
+            {
+                "chunk": chunk["chunk"],
+                "start_line": start_line + int(chunk["start_line"]) - 1,
+                "end_line": start_line + int(chunk["end_line"]) - 1,
+                "start_byte": base_byte + int(chunk["start_byte"]),
+                "end_byte": base_byte + int(chunk["end_byte"]),
+            }
+        )
+    return out
+
+
+def _supplement_uncovered_text_chunks(
+    content: str,
+    structural_chunks: list[dict],
+    *,
+    max_lines: int,
+    max_chars: int,
+) -> list[dict]:
+    """Add text chunks for meaningful lines missed by structural parsing."""
+
+    if not structural_chunks:
+        return split_text_chunks(content, max_lines=max_lines, max_chars=max_chars)
+    lines = content.splitlines()
+    if not lines:
+        return structural_chunks
+    line_offsets = _line_start_bytes(content)
+    covered: list[tuple[int, int]] = []
+    for chunk in structural_chunks:
+        try:
+            start = max(1, int(chunk["start_line"]))
+            end = max(start, int(chunk["end_line"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+        covered.append((start, min(end, len(lines))))
+    covered.sort()
+    supplements: list[dict] = []
+    cursor = 1
+    for start, end in covered:
+        if cursor < start:
+            supplements.extend(
+                _chunks_for_line_gap(
+                    lines,
+                    line_offsets,
+                    cursor,
+                    start - 1,
+                    max_lines=max_lines,
+                    max_chars=max_chars,
+                )
+            )
+        cursor = max(cursor, end + 1)
+    if cursor <= len(lines):
+        supplements.extend(
+            _chunks_for_line_gap(
+                lines,
+                line_offsets,
+                cursor,
+                len(lines),
+                max_lines=max_lines,
+                max_chars=max_chars,
+            )
+        )
+    if not supplements:
+        return structural_chunks
+    return sorted(
+        structural_chunks + supplements,
+        key=lambda chunk: (chunk.get("start_line", 0), chunk.get("start_byte", 0)),
+    )
+
+
 def extract_code_chunks(content: str, language: str, max_lines: int = 80, max_chars: int = 2000) -> list[dict]:
     """Emit non-overlapping tree-sitter chunks, preferring the largest fitting node.
 
@@ -304,7 +406,12 @@ def extract_code_chunks(content: str, language: str, max_lines: int = 80, max_ch
             walk(child)
 
     walk(tree.root_node)
-    return chunks or split_text_chunks(content, max_lines=max_lines, max_chars=max_chars)
+    return _supplement_uncovered_text_chunks(
+        content,
+        chunks,
+        max_lines=max_lines,
+        max_chars=max_chars,
+    )
 
 def prepare_file_chunks(filepath: Path, root: Path | None = None) -> list[dict]:
     """Chunk ``filepath`` and prepend a path / language / symbol prefix to each.

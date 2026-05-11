@@ -68,6 +68,29 @@
  </section>
 
 
+ <!-- ============== Candidate recall ============== -->
+ <section id="candidate-recall" class="doc-section">
+ <p class="eyebrow">System · recall</p>
+ <h2>0.5.13 adds bounded candidate recall before final ranking.</h2>
+ <p>
+ The intent router ranks retrieval lanes, but it is no longer the only
+ component that decides which files can be seen. For semantic, lexical,
+ and mixed queries, skygrep now builds a cheap candidate file pool from
+ independent signals before the expensive cascade makes the final choice:
+ explicit include scope, indexed path tokens, indexed symbols, SQLite
+ chunk text, and a bounded <code>rg -il -F</code> pass.
+ </p>
+ <p>
+ Candidate recall is additive. It can vote likely files into the pool,
+ but semantic scoring, reranking, deduplication, and diversification still
+ decide ordering. For <code>--content</code> and agent calls, the selected
+ file can also carry a small same-file support pack: related constants,
+ symbol definitions, or assertion anchors that make the returned context
+ sufficient without widening to a raw tree dump.
+ </p>
+ </section>
+
+
  <!-- ============== Schema ============== -->
  <section id="schema" class="doc-section">
  <p class="eyebrow">System · storage</p>

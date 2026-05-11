@@ -23,6 +23,12 @@ share/python-wheels/
 .installed.cfg
 *.egg
 
+# Rust / Node / desktop app
+target/
+node_modules/
+apps/desktop/dist/
+apps/desktop/src-tauri/target/
+
 # PyInstaller
 *.manifest
 *.spec

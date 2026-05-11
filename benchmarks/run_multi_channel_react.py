@@ -8,7 +8,7 @@ reports per-task hit/miss + aggregate K/10 + timing breakdown.
 Usage:
 
     .venv/bin/python benchmarks/run_multi_channel_react.py \\
-        --db /var/folders/_4/.../skylakegrep-rg-parity.sqlite \\
+        --db /tmp/skylakegrep-rg-parity.sqlite \\
         --root /private/tmp/oss-bench/react
 
 The script can also point at the django (``/tmp/sky-django.sqlite``)
@@ -38,7 +38,7 @@ from skylakegrep.src.symbol_channel import multi_channel_search
 # Default paths matching the reference benchmark setup.
 DEFAULTS = {
     "react": {
-        "db": "/var/folders/_4/lyc4w14j5mx8gg_68zdvk9s80000gn/T/skylakegrep-rg-parity.sqlite",
+        "db": "/tmp/skylakegrep-rg-parity.sqlite",
         "root": "/private/tmp/oss-bench/react",
         "tasks": "benchmarks/cross_repo/react.json",
     },

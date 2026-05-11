@@ -49,6 +49,7 @@ import sqlite3
 from typing import Any, Iterable, Optional
 
 from .metadata_search import classify_metadata_query
+from . import ui as ui_mod
 
 
 # ---------------------------------------------------------------------------
@@ -257,14 +258,20 @@ def render_out_of_scope_hint(hint: dict, query: str) -> str:
     before running the (likely-poor) semantic search anyway."""
 
     lines = [
-        f"💡 Heads up: \"{query}\" looks like a metadata query",
-        f"   ({hint['reason']}). skygrep is a *content* search tool;",
-        f"   the answer you probably want is:",
-        f"       {hint['suggested_command']}",
+        ui_mod.step("hint", f"\"{query}\" looks like a metadata query"),
+        ui_mod.detail(
+            f"({hint['reason']}). skygrep is a *content* search tool;"
+        ),
+        ui_mod.detail("the answer you probably want is:"),
+        ui_mod.detail(f"    {hint['suggested_command']}"),
     ]
     for alt in hint.get("alt_commands", [])[:2]:
-        lines.append(f"       or: {alt}")
-    lines.append("   Running semantic search anyway — set SKYGREP_NO_HINTS=1 to suppress.")
+        lines.append(ui_mod.detail(f"    or: {alt}"))
+    lines.append(
+        ui_mod.detail(
+            "Running semantic search anyway - set SKYGREP_NO_HINTS=1 to suppress."
+        )
+    )
     return "\n".join(lines)
 
 
@@ -326,9 +333,18 @@ def render_first_run_nudge() -> str:
     fresh project."""
 
     return (
-        "👋 First time in this project — skygrep is auto-indexing in the background.\n"
-        "   This first query falls back to rg in <1 s; semantic queries follow as the index builds.\n"
-        "   Try `skygrep doctor` for a health check, or `skygrep setup` to register with your LLM CLI."
+        ui_mod.step(
+            "setup",
+            "first time in this project - skygrep is auto-indexing in the background.",
+        )
+        + "\n"
+        + ui_mod.detail(
+            "This first query falls back to rg in <1 s; semantic queries follow as the index builds."
+        )
+        + "\n"
+        + ui_mod.detail(
+            "Try `skygrep doctor` for a health check, or `skygrep setup` to register with your LLM CLI."
+        )
     )
 
 
@@ -363,9 +379,12 @@ def assess_result_quality(
         return None
     if not results:
         return (
-            "⚠ No results. The index may not include the file you're after — "
-            "try `skygrep stats` to see what's indexed, or `skygrep doctor` "
-            "for a health check."
+            ui_mod.step(
+                "quality",
+                "No results. The index may not include the file you're after - "
+                "try `skygrep stats` to see what's indexed, or `skygrep doctor` "
+                "for a health check.",
+            )
         )
     top_score = float(results[0].get("score", 0.0))
     if top_score >= LOW_CONF_TOP1_FLOOR:
@@ -378,11 +397,21 @@ def assess_result_quality(
         return None
     # Both signals say "uncertain" — surface a recovery menu.
     return (
-        "⚠ Top-1 score is low (cosine={:.2f}) and the cascade σ-gap "
-        "is below the noise floor. Possible recoveries:\n"
-        "       skygrep \"<query>\" --agentic       # decompose into subqueries\n"
-        "       skygrep \"<query>\" --top 30        # widen the window\n"
-        "       skygrep \"<more specific tokens>\"  # rephrase with code identifiers"
+        ui_mod.step(
+            "quality",
+            "Top-1 score is low (cosine={:.2f}) and the cascade sigma-gap "
+            "is below the noise floor. Possible recoveries:",
+        )
+        + "\n"
+        + ui_mod.detail(
+            "    skygrep \"<query>\" --agentic       # decompose into subqueries"
+        )
+        + "\n"
+        + ui_mod.detail("    skygrep \"<query>\" --top 30        # widen the window")
+        + "\n"
+        + ui_mod.detail(
+            "    skygrep \"<more specific tokens>\"  # rephrase with code identifiers"
+        )
     ).format(top_score)
 
 

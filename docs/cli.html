@@ -164,6 +164,16 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  </tbody>
  </table>
  <p>
+ In 0.5.13, semantic and mixed queries also use an adaptive candidate
+ recall substrate before final cascade ranking. For agents, this means
+ <code>--json --content --detail standard</code> can return compact path
+ and evidence packs from include scope, indexed path tokens, symbols,
+ chunk text, and bounded ripgrep recall. The required contract is still
+ simple: use <code>--include</code> when the caller knows the scope, add
+ <code>--content</code> when the next step needs source text, and use
+ <code>--detail full</code> only after narrowing.
+ </p>
+ <p>
  On macOS, <code>python</code> may not exist; use <code>python3</code>.
  If the shell cannot find <code>skygrep</code> after install, inspect
  <code>python3 -m site --user-base</code>, <code>which -a skygrep</code>,
@@ -208,7 +218,7 @@ skygrep doctor</code></pre>
  <tr><td><code>--json</code></td><td>off</td><td>Emit results as a JSON array; suppresses human formatting.</td></tr>
  <tr><td><code>--answer</code></td><td>off</td><td>Synthesize an answer from retrieved snippets via Ollama.</td></tr>
  <tr><td><code>--content / --no-content</code></td><td>on</td><td>Show or hide snippet bodies in human output.</td></tr>
- <tr><td><code>--detail brief|summary|standard|full</code></td><td>standard</td><td>How much body to show. <code>full</code> extracts content from concrete filename matches; semantic-depth filename anchors may show a bounded content preview in standard human output.</td></tr>
+ <tr><td><code>--detail brief|summary|standard|full</code></td><td>standard</td><td>How much body to show. <code>full</code> extracts content from concrete filename matches; semantic-depth filename anchors may show a bounded content preview in standard human output. Bare <code>--detail "query"</code> is accepted as shorthand for <code>--detail full "query"</code>.</td></tr>
  <tr><td><code>--language</code></td><td>—</td><td>Restrict to one or more language keys; repeatable.</td></tr>
  <tr><td><code>--include</code></td><td>—</td><td>Glob; only paths matching at least one pattern are kept; repeatable.</td></tr>
  <tr><td><code>--exclude</code></td><td>—</td><td>Glob; paths matching any pattern are dropped; repeatable.</td></tr>
@@ -221,7 +231,7 @@ skygrep doctor</code></pre>
  <tr><td><code>--lazy / --no-lazy</code></td><td>on (0.5.1+)</td><td>Cold-start auto-trigger: when the index is not yet built and ripgrep alone returns a path-token-weak result, a bounded LLM-routed lazy semantic tier fires and merges. The foreground path uses a small seed set, prunes hidden/vendor/dependency-cache trees before descent, and times out slow cross-folder exploration so background indexing can continue without blocking the user. Completely off when ripgrep is strong; <code>--no-lazy</code> opts out for benchmarking pure rg cold-start.</td></tr>
  <tr><td><code>--rg-shortcut / --no-rg-shortcut</code></td><td>on</td><td>Lexical pre-gate: small clustered rg result with path/token overlap returns directly, skipping the semantic cascade. Pass <code>--no-rg-shortcut</code> to force pure cascade for benchmarking.</td></tr>
  <tr><td><code>--filename-shortcut / --no-filename-shortcut</code></td><td>on (0.13+)</td><td>Filename-lookup pre-gate: queries that look like "where is foo file" / "find package.json" route to <code>find -iname '*token*'</code> and skip both content shortcuts.</td></tr>
- <tr><td><code>--explain / -x</code></td><td>off (0.5.8+)</td><td>The concise router lane now prints by default in human output (<code>🧭 router: &lt;intent&gt; · primary_token=… · conf=… · source=…</code>). <code>--explain</code> adds the one-sentence router reason, per-result <strong><code>via:</code> lines</strong> showing which channel(s) contributed (cosine cascade · symbol RRF · filename-lookup · ripgrep) and the score, plus a <strong><code>🛤  cascade lane:</code> summary</strong> with σ-adaptive evidence (<code>gap=…, tau=…</code>). All signals read straight from existing pipeline telemetry — no extra retrieval, no model calls. Use <code>--json</code> for machine-readable output without human routing/status lines.</td></tr>
+ <tr><td><code>--explain / -x</code></td><td>off (0.5.8+)</td><td>The concise router lane now prints by default in human output (<code>├─ route      router: &lt;intent&gt; · primary_token=... · conf=... · source=...</code>). <code>--explain</code> adds the one-sentence router reason, per-result <strong><code>via:</code> lines</strong> showing which channel(s) contributed (cosine cascade · symbol RRF · filename-lookup · ripgrep) and the score, plus a <strong><code>├─ cascade   lane:</code> summary</strong> with σ-adaptive evidence (<code>gap=…, tau=…</code>). All signals read straight from existing pipeline telemetry — no extra retrieval, no model calls. Use <code>--json</code> for machine-readable output without human routing/status lines.</td></tr>
  </tbody>
  </table>
  </div>
@@ -232,6 +242,16 @@ skygrep doctor</code></pre>
  <tbody>
  <tr><td><code>SKYGREP_DB_PATH</code></td><td>—</td><td>Override the project-scoped SQLite path. When set, <code>--auto-index</code> defaults to off so curated indexes aren't auto-mutated; pass <code>--auto-index</code> explicitly to opt in.</td></tr>
  <tr><td><code>SKYGREP_PROACTIVE_DIRS</code></td><td>—</td><td>Colon-separated absolute paths the proactive enhancers and <code>lazy_explore_cross_folder</code> walk when the in-cwd answer is weak. Replaces 0.5.2's hardcoded <code>~/Downloads:~/Desktop:~/Documents</code>. Stale or missing dirs are silently dropped. Example: <code>SKYGREP_PROACTIVE_DIRS="$HOME/repos:$HOME/work:/data/projects"</code>.</td></tr>
+ <tr><td><code>SKYGREP_COLD_LAZY_TOTAL_BUDGET_S</code></td><td><code>8.0</code></td><td>Total foreground budget for cold-start lazy semantic work. Raise when you prefer waiting longer for a first semantic answer; lower when shell responsiveness matters more.</td></tr>
+ <tr><td><code>SKYGREP_COLD_LAZY_CWD_BUDGET_S</code></td><td><code>5.0</code></td><td>Foreground budget for lazy semantic exploration inside the current project root.</td></tr>
+ <tr><td><code>SKYGREP_COLD_LAZY_CROSS_BUDGET_S</code></td><td><code>2.5</code></td><td>Foreground budget for sibling / proactive cross-folder lazy exploration when cwd has no keyword or filename evidence.</td></tr>
+ <tr><td><code>SKYGREP_COLD_LAZY_SEED_BUDGET</code></td><td><code>12</code></td><td>Maximum cwd seed files embedded in the first cold lazy pass. Higher can improve recall at higher latency.</td></tr>
+ <tr><td><code>SKYGREP_COLD_CROSS_SEED_BUDGET</code></td><td><code>3</code></td><td>Maximum cross-folder seed files embedded in the foreground pass.</td></tr>
+ <tr><td><code>SKYGREP_CROSS_FOLDER_CRAWL_BUDGET_S</code></td><td><code>1.5</code></td><td>Wall-clock crawl budget for cross-folder candidate roots before embedding starts.</td></tr>
+ <tr><td><code>SKYGREP_CROSS_FOLDER_MAX_FILES_PER_ROOT</code></td><td><code>2000</code></td><td>Maximum files sampled from each proactive candidate root during foreground cross-folder exploration.</td></tr>
+ <tr><td><code>SKYGREP_UI_ICONS</code></td><td>Nerd icons in interactive terminals, plain labels otherwise</td><td>Set to <code>off</code> to disable Nerd Font glyphs, or <code>nerd</code> to force them in captured output. Icons mark every workflow step (<code>route</code>, <code>scan</code>, <code>seed</code>, <code>embed</code>, <code>done</code>) and remain separate from the particle rail.</td></tr>
+ <tr><td><code>SKYGREP_UI_RAIL</code></td><td><code>helix</code> for interactive terminals, otherwise <code>tree</code></td><td>Force the static result rail style. Use <code>tree</code> for the compact connector or <code>helix</code> to replace box connectors with a denser three-cell rotating particle field (<code>• ·</code>, <code> ·•</code>, <code>· •</code>, <code>•· </code>) plus a slim separator line that continues through progress, result cards, and the final routing footer.</td></tr>
+ <tr><td><code>SKYGREP_UI_ANIMATION</code></td><td><code>helix</code> for interactive terminals</td><td>TTY-only rotating particle flow in the narrow left rail during foreground semantic waits, colored blue/cyan/white. Set to <code>off</code> to disable. Animation stays disabled for <code>--json</code>, redirected output, logs, and agent tool calls.</td></tr>
  <tr><td><code>SKYGREP_LLM_ROUTER_MODEL</code></td><td><code>$OLLAMA_HYDE_MODEL</code> or <code>qwen2.5:3b</code></td><td>Override which Ollama model the lazy cold-start dir-router uses. Larger models (e.g. <code>qwen2.5:7b</code>) typically improve hit-rate on long natural-language queries at higher latency.</td></tr>
  <tr><td><code>OLLAMA_URL</code></td><td><code>http://localhost:11434</code></td><td>Where to reach the local Ollama daemon.</td></tr>
  <tr><td><code>OLLAMA_EMBED_MODEL</code></td><td><code>bge-m3</code></td><td>Embedder for both warm cascade and 0.5.x lazy batch-embed.</td></tr>
@@ -243,14 +263,15 @@ skygrep doctor</code></pre>
 
  <h3 id="reading-telemetry">Reading the per-query telemetry footer (0.2.2+)</h3>
  <p>
- Every search prints a one-line telemetry footer so you can see
+ Every search prints a structured workflow footer so you can see
  <em>which retrieval path</em> answered your query and <em>why</em>:
  </p>
-<pre><code>[0.42s · path=cosine-cheap · router=llm · intent=mixed (0.83)
-       · 1 filename + 0 lexical
-       · σ-gap=0.0820 ≥ τ=0.0050 (adaptive) → high-confidence early-exit
-       · index 20s ago · 36 files · L2 symbols on · graph prior on
-       · quality=BEST]</code></pre>
+<pre><code>╰─ done   0.42s · quality=BEST
+   path     : cosine-cheap (high-confidence early-exit)
+   router   : llm -&gt; intent=mixed (0.83)
+   evidence : σ-gap=0.0820 ≥ τ=0.0050 (adaptive)
+   pool     : 1 filename + 0 lexical · cascade
+   index    : 20s ago · 36 files · L2 symbols + graph prior</code></pre>
  <p>Field-by-field:</p>
  <ul>
  <li><code>path=</code> — the retrieval strategy this query took. One of: <code>cosine-cheap</code>, <code>cosine-escalated-rerank</code>, <code>rg-only</code>, <code>cascade-skipped</code>. (The symbol-channel path will appear once the 0.3.x auto-router lands.)</li>

@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.12 bounds cold semantic routing, prunes hidden and dependency-cache trees, scopes agent examples, and tightens local answer synthesis. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
+ <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.13 adds adaptive candidate recall and agent-grade support packs, giving LLM callers compact ranked evidence with far fewer tool calls and context tokens than raw grep. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.12 bounds cold semantic routing, prunes cache trees, scopes agent examples, and tightens answer synthesis. 100% local, 100+ languages." />
+ <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.13 adds adaptive candidate recall and compact agent-context evidence. 100% local, 100+ languages." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -624,7 +624,7 @@
 }
 </style>
 <section id="overview" class="hero hero-redesigned">
- <p class="eyebrow">v0.5.12 · 100% local · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.5.13 · 100% local · PolyForm Noncommercial 1.0.0</p>
  <h1>Find <span class="hero-accent">anything</span> on your machine.</h1>
  <p class="lead">
  Semantic search for code, PDFs, notes, and docs.
@@ -645,7 +645,7 @@
     <span class="tk-cmt"># swap the access cookie when the refresh JWT is still valid</span>
     <span class="tk-kw">if</span> req.cookies.get(<span class="tk-str">"rt"</span>) <span class="tk-kw">and</span> access_expired(req):
         <span class="tk-kw">return await</span> refresh_token(claims, key)</pre>
- <div class="term-footer">[sub-second warm · path=cosine-cheap · σ-gap=0.082 ≥ τ=0.005 (adaptive) → high-confidence early-exit · <span class="term-glyph">✓</span> quality=BEST]</div>
+ <div class="term-footer">╰─ done&nbsp;&nbsp; 0.5s · quality=BEST · path=cosine-cheap · high-confidence early-exit</div>
  </div>
  <!-- Frame 2: Cross-content (markdown + PDF) -->
  <div class="term-frame term-frame-2">
@@ -656,7 +656,7 @@ We replace the leaky-bucket implementation with a sliding-window
 log-based approach. <span class="tk-cmt">[[wiki-link to design-2024-Q3]]</span>
 ═══ designs/rate-limiter-2024Q3.pdf:p4<span class="term-score">  score 0.83 · pdf</span>
 Throughput projections under sustained 5k QPS load...</pre>
- <div class="term-footer">[0.7s · markdown link graph · pdf text-layer extracted · 0 cloud calls · <span class="term-glyph">✓</span> 2 files matched]</div>
+ <div class="term-footer">╰─ done&nbsp;&nbsp; 0.7s · quality=BEST · markdown link graph · pdf text-layer extracted · 0 cloud calls</div>
  </div>
  <!-- Frame 3: Multilingual + private -->
  <div class="term-frame term-frame-3">
@@ -666,7 +666,7 @@ Throughput projections under sustained 5k QPS load...</pre>
     <span class="tk-cmt"># σ-adaptive early-exit threshold (MacKay/Williams)</span>
     tau_eff = max(CASCADE_TAU_FLOOR,
                   CASCADE_K_SIGMA * sigma_topK)</pre>
- <div class="term-footer">[0.6s · multilingual via bge-m3 · zero network · <span class="term-glyph">✓</span> never left your laptop]</div>
+ <div class="term-footer">╰─ done&nbsp;&nbsp; 0.6s · quality=BEST · multilingual via bge-m3 · zero network</div>
  </div>
  <!-- Frame 4: Wrong-folder cwd · lazy auto-trigger via parallel proactive umbrella (NEW in 0.5.7) -->
  <div class="term-frame term-frame-4">
@@ -677,7 +677,7 @@ Throughput projections under sustained 5k QPS load...</pre>
     cascade_fut   = ex.submit(_run_cascade, query, db_path)
     proactive_fut = ex.submit(_run_proactive, query, db_path)
     <span class="tk-kw">return</span> _stream_first_confident(cascade_fut, proactive_fut)</pre>
- <div class="term-footer">[1.1s · cwd=/tmp/scratch (wrong project) · router → lane B (proactive umbrella) · lazy_cross_folder · <span class="term-glyph">✓</span> answered before cascade rerank · 0.5.7]</div>
+ <div class="term-footer">╰─ done&nbsp;&nbsp; 1.1s · quality=BEST · wrong-folder proactive umbrella · lazy_cross_folder</div>
  </div>
  </div>
  </div>
@@ -691,13 +691,15 @@ Throughput projections under sustained 5k QPS load...</pre>
  <p class="trust-strip">
  <strong>30 / 30</strong> public-OSS recall
  <span class="dot">·</span>
+ <strong>37.74×</strong> less agent context vs rg
+ <span class="dot">·</span>
  <strong>~1.1 s</strong> wrong-path first answer
  <span class="dot">·</span>
  <strong>~1 s</strong> warm queries
  <span class="dot">·</span>
  <strong>100 %</strong> local
  <span class="dot">·</span>
- <strong>44</strong> releases shipped
+ <strong>45</strong> releases shipped
  </p>
 </section>
 
@@ -811,8 +813,9 @@ Throughput projections under sustained 5k QPS load...</pre>
  <h3>Read more after narrowing the target.</h3>
  <p>
  Use <code>--detail full</code> only when you intentionally want a
- deeper local read. Pair it with <code>--include</code> to avoid
- dumping unrelated context.
+ deeper local read. Bare <code>--detail "query"</code> is accepted as
+ shorthand for <code>--detail full "query"</code>. Pair it with
+ <code>--include</code> to avoid dumping unrelated context.
  </p>
  <div class="scenario-demo">
  <div class="sd-prompt"><span class="term-prompt">$</span>skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"</div>
@@ -903,7 +906,8 @@ Throughput projections under sustained 5k QPS load...</pre>
  </p>
  <div class="scenario-demo">
  <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "the design doc on rate limiter rewrite"</div>
- <div class="sd-result">▾ proactive umbrella · filename glob &nbsp;[‖ cascade still searching]</div>
+ <div class="sd-result">├─ proactive umbrella · filename glob</div>
+ <div class="sd-result">│             cascade still searching</div>
  <div class="sd-result">═══ <code>docs/rate-limiter-redesign.md:1</code></div>
  <div class="sd-takeaway">Confidence-streaming: results stream as they're ready, with the route they came from. Each answer's provenance is auditable.</div>
  </div>
@@ -915,7 +919,20 @@ Throughput projections under sustained 5k QPS load...</pre>
  <h3>The active router lane is visible by default; <code>--explain</code> adds the deeper why.</h3>
  <p>
  The first human-output line now shows the active router lane
- (<code>🧭 router: semantic · primary_token=… · conf=… · source=…</code>).
+ (<code>├─ route      router: semantic · primary_token=... · conf=... · source=...</code>).
+ Foreground semantic waits use a TTY-only rotating particle flow in the
+ narrow left workflow rail by default; set
+ <code>SKYGREP_UI_ANIMATION=off</code> to disable it.
+ The result rail stays compact and copyable; set
+ <code>SKYGREP_UI_RAIL=helix</code> if you want the rail itself to use
+ a denser three-cell rotating particle field (<code>• ·</code>,
+ <code> ·•</code>, <code>· •</code>, <code>•· </code>) plus a slim
+ separator line instead of box connectors; it continues through progress,
+ result cards, and the final footer.
+ Interactive
+ terminals show Nerd Font step icons by default; set
+ <code>SKYGREP_UI_ICONS=off</code> to disable them. JSON and redirected
+ output stay stable.
  Pass <code>--explain</code> when you need the deeper audit trail:
  a one-sentence reason, per-result <strong><code>via:</code> lines</strong>
  showing which channel(s) contributed (cosine cascade · symbol
@@ -927,11 +944,11 @@ Throughput projections under sustained 5k QPS load...</pre>
  </p>
  <div class="scenario-demo">
  <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "what does Project_Report say about retries"</div>
- <div class="sd-result">🧭 router: <strong>semantic</strong> · primary_token=<code>"Project_Report"</code> · conf=0.81 · source=fast-intent</div>
- <div class="sd-result">▾ preliminary filename anchors + keyword matches (lazy semantic refinement starting…)</div>
+ <div class="sd-result">├─ route      router: <strong>semantic</strong> · primary_token=<code>"Project_Report"</code> · conf=0.81 · source=fast-intent</div>
+ <div class="sd-result">├─ seed       preliminary filename anchors + keyword matches (lazy semantic refinement starting)</div>
  <div class="sd-result">═══ <code>Project_Report.txt</code> · bounded content preview</div>
- <div class="sd-result">⚡ lazy refinement continues in the same invocation</div>
- <div class="sd-takeaway"><strong>0.5.12:</strong> scoped file discovery returns path-depth answers fast, while content/answer-depth queries keep semantic refinement alive.</div>
+ <div class="sd-result">├─ embed      lazy refinement continues in the same invocation</div>
+ <div class="sd-takeaway"><strong>0.5.13:</strong> candidate recall keeps likely files visible before cascade, while content/agent calls get compact same-file support evidence.</div>
  </div>
  </article>
  </div>
@@ -957,7 +974,7 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap"></div>
      <div class="why-cell why-self">
        <strong>skylakegrep</strong>
-       <span class="why-sub">v0.5.12</span>
+       <span class="why-sub">v0.5.13</span>
      </div>
      <div class="why-cell"><code>ripgrep</code><span class="why-sub">lexical baseline</span></div>
      <div class="why-cell"><a href="https://www.mgrep.dev/" target="_blank" rel="noopener">mgrep</a><span class="why-sub">Mixedbread · paid</span></div>
@@ -1227,16 +1244,16 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
 <!-- ============== Benchmarks summary ============== -->
 <section id="bench" class="doc-section bench-section">
  <p class="eyebrow">Performance</p>
- <h2 class="overview-h2">30 / 30 fully-indexed · 4 / 10 cold-start lazy.</h2>
+ <h2 class="overview-h2">30 / 30 fully-indexed · 31× denser agent context.</h2>
  <p class="lead">
  Reproducible against three popular codebases —
  <strong>Django</strong>, <strong>React</strong>, <strong>Tokio</strong>.
  30 hand-labelled questions, 10 per repo for the fully-indexed cascade.
- 0.5.3 adds a third tier: <strong>cold-start lazy semantic</strong> —
- a real-CLI bench on the Django oracle shows <strong>0 / 10 → 4 / 10</strong>
- hit-rate over plain <code>rg</code> cold-start on vocabulary-mismatch
- queries with no upfront <code>skygrep index .</code> ever run. Every
- number on this page is reproducible by anyone with the repos cloned.
+ 0.5.13 adds an agent tool-context benchmark that measures whether one
+ structured <code>skygrep --json --content</code> call gives the next LLM
+ enough compact evidence compared with a raw <code>rg</code> agent that
+ runs multiple term searches. Every number on this page is reproducible
+ from public commands and generic task fixtures.
  </p>
  <div class="bench-stats">
  <div class="bench-stat">
@@ -1245,18 +1262,18 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
  <div class="bench-stat-sub">vs. 28 / 30 in 0.1.0; bge-m3 substrate broke the ceiling.</div>
  </div>
  <div class="bench-stat">
- <div class="bench-stat-num">~1 s</div>
- <div class="bench-stat-label">first answer on wrong-path query (0.5.7 parallel proactive umbrella)</div>
- <div class="bench-stat-sub">cd into an empty dir, query &mdash; cross-folder + filename_extend stream a labelled answer at ≈1.1 s; cascade times out at 30 s if needed.</div>
- </div>
- <div class="bench-stat">
- <div class="bench-stat-num">60 × – 770 ×</div>
- <div class="bench-stat-label">less context vs. <code>rg</code> term-OR scan</div>
- <div class="bench-stat-sub">~10 KB JSON vs. 20 M+ tokens of haystack.</div>
+ <div class="bench-stat-num">37.74×</div>
+<div class="bench-stat-label">less context vs. raw <code>rg</code> agent baseline</div>
+ <div class="bench-stat-sub">56 K tokens from skygrep vs. 2.13 M tokens from multi-term rg on the 0.5.13 agent-context benchmark.</div>
+</div>
+<div class="bench-stat">
+ <div class="bench-stat-num">31.27×</div>
+ <div class="bench-stat-label">higher sufficiency density for LLM context</div>
+ <div class="bench-stat-sub">fewer calls and denser evidence; raw rg remains the recall ceiling when huge context is acceptable.</div>
  </div>
  </div>
  <div class="button-row">
- <a class="button primary" href="benchmarks.html">Read all 4 benchmarks →</a>
+ <a class="button primary" href="benchmarks.html">Read all 5 benchmarks →</a>
  <a class="button secondary" href="parity-benchmarks.html">Reproduce in 3 commands</a>
  </div>
 </section>
@@ -1269,9 +1286,9 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
  <ul class="limits-list">
  <li>
  <strong>Sample sizes are measurement-grade, not study-grade.</strong>
- The agent benchmark is n = 20 single-turn + 1 multi-turn;
- the multi-language benchmark is n = 30. Statistical
- significance is improving, but small.
+ The agent tool-context benchmark is 8 generic tasks × 3 effort profiles;
+ the multi-language benchmark is n = 30. Statistical significance is
+ improving, but small.
  </li>
  <li>
  <strong>Latency is honest, not hidden.</strong> bge-m3 inference
@@ -1293,8 +1310,8 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
  </li>
  </ul>
  <p class="limits-footer">
- The full bench protocol, per-task analysis, and worked example
- (one query · 1,395 × token reduction) live on
+ The full bench protocol, agent-context table, per-task analysis, and
+ worked example (one query · 1,395 × token reduction) live on
  <a href="benchmarks.html">the benchmarks page</a>.
  </p>
 </section>

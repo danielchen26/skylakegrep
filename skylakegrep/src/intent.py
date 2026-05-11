@@ -82,14 +82,14 @@ def classify_intent(query: str) -> str:
 # Tier priority by intent: lower number = higher rank
 _TIER_PRIORITY: dict[str, dict[str, int]] = {
     # Filename intent: filename matches dominate, then content
-    "filename":  {"filename-lookup": 0, "rg-shortcut": 1, "cascade": 2},
+    "filename":  {"filename-lookup": 0, "candidate-recall": 1, "rg-shortcut": 1, "cascade": 2},
     # Semantic intent: cascade dominates, content lexical second,
     # filename last (still surfaced for context)
-    "semantic":  {"cascade": 0, "rg-shortcut": 1, "filename-lookup": 2},
+    "semantic":  {"cascade": 0, "candidate-recall": 0, "rg-shortcut": 1, "filename-lookup": 2},
     # Lexical intent: rg-shortcut content match dominates
-    "lexical":   {"rg-shortcut": 0, "cascade": 1, "filename-lookup": 2},
+    "lexical":   {"rg-shortcut": 0, "candidate-recall": 0, "cascade": 1, "filename-lookup": 2},
     # Mixed: all tiers equal — tie broken by raw score
-    "mixed":     {"filename-lookup": 0, "rg-shortcut": 0, "cascade": 0},
+    "mixed":     {"filename-lookup": 0, "candidate-recall": 0, "rg-shortcut": 0, "cascade": 0},
 }
 
 

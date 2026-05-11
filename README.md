@@ -50,7 +50,9 @@ async def renew_session(req: Request):
     if req.cookies.get("rt") and access_expired(req):
         return await refresh_token(claims, key)
 
-[0.5s · path=cosine-cheap · σ-gap=0.082 ≥ τ=0.005 (adaptive) → high-confidence early-exit · ✓ quality=BEST]
+╰─ done   0.5s · quality=BEST
+   path     : cosine-cheap (high-confidence early-exit)
+   evidence : σ-gap=0.082 ≥ τ=0.005 (adaptive)
 ```
 
 [**Install in 30 s →**](#install) &nbsp;·&nbsp;
@@ -171,10 +173,13 @@ honest about what's pending.
 ```console
 $ skygrep "the design doc on rate limiter rewrite"
 
-▾ proactive umbrella · filename glob          [‖ cascade still searching]
+├─ proactive umbrella · filename glob
+│             cascade still searching
 ═══ docs/rate-limiter-redesign.md:1
 
-[0.4 s · router → mixed intent · 2 lanes dispatched]
+╰─ done   0.4s · quality=BEST
+   path   : proactive + cascade
+   router : llm -> intent=mixed
 ```
 
 > Confidence-streaming: results stream as they're ready, tagged with
@@ -194,8 +199,8 @@ calls, no extra retrieval — every signal was already in the pipeline.
 ```console
 $ skygrep -x "find pyproject.toml in this repo"
 
-🧭 router: filename · primary_token="pyproject.toml" · conf=0.95 · source=llm
-   reason: "user is looking for a specific file by name in the repo"
+├─ route      router: filename · primary_token="pyproject.toml" · conf=0.95 · source=llm
+│             reason: "user is looking for a specific file by name in the repo"
 
 ╭─ pyproject.toml ────────────────────────────────── [toml]  1.000
 │ via: filename-lookup · token "pyproject.toml" · score=1.000
@@ -203,7 +208,7 @@ $ skygrep -x "find pyproject.toml in this repo"
 │ size:  1.0 KB    modified: 2026-05-06 16:51    type: toml
 ╰──────────────────────────────────────────────────────────────────
 
-🛤  cascade lane: cosine-cheap (gap=0.037, tau=0.016)
+├─ cascade   lane: cosine-cheap (gap=0.037, tau=0.016)
 ```
 
 > Three layers answer three different "why" questions:
@@ -412,6 +417,32 @@ For the full bench protocol, per-task analysis, and worked
 example (one query · 1,395 × token reduction), see
 [`docs/parity-benchmarks.html`](docs/parity-benchmarks.html).
 
+### Agent tool-context benchmark (0.5.13)
+
+0.5.13 adds a benchmark for the exact middle-layer problem that LLM
+agents face: "How much compact, ranked evidence did the tool return
+before the agent continues reasoning?" It compares one structured
+`skygrep --json --content` call per task against a simulated raw-`rg`
+agent that runs several term searches and line-window reads.
+
+| Metric | `skygrep-agent` | raw `rg-agent` |
+| --- | ---: | ---: |
+| Tasks × effort profiles | 24 | 24 |
+| Path coverage | 81.9 % | 100.0 % |
+| Path precision | 34.9 % | 12.2 % |
+| Evidence coverage | 79.2 % | 92.7 % |
+| Sufficiency score | 80.8 % | 97.1 % |
+| Tool calls | 24 | 147 |
+| Context tokens | 56,424 | 2,129,655 |
+| Sufficiency per 1k tokens | 0.344 | 0.011 |
+
+Honest reading: raw `rg` remains the recall ceiling and can be faster
+when dumping large unranked context is acceptable. skygrep uses
+**6.12× fewer tool calls**, emits **37.74× less context**, and gives
+the downstream LLM **31.27× denser sufficiency per token**. That is the
+agent-facing win: enough evidence for the next reasoning step without
+making the model sift through a repository-sized haystack.
+
 ---
 
 ## What you can search
@@ -461,6 +492,7 @@ task needs it.
 | Locate the file or folder quickly | `skygrep "where is the project brief I edited recently?"` |
 | Show relevant source/document snippets | `skygrep --content --detail standard "what does the API migration plan say about rollback?"` |
 | Read deeper after narrowing to one path | `skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"` |
+| Quick deep-read shorthand | `skygrep --detail "show the deployment steps"` |
 | Synthesize a local answer from retrieved evidence | `skygrep --answer --content "summarize the payment retry policy"` |
 | Feed compact structured context to an LLM agent | `skygrep --json --content --detail standard --include "src/**" "where is token refresh implemented?"` |
 | Audit why a route/result was chosen | `skygrep --explain "where is token refresh implemented?"` |
@@ -475,13 +507,13 @@ bounded, but scoped queries are both faster and more accurate.
 
 ### Reading the per-query telemetry footer (0.2.2+)
 
-Every search prints a one-line footer so you can see *which*
-retrieval path answered your query and *why*:
+Every search prints a structured workflow footer so you can see *which*
+retrieval path answered your query and *why* without parsing a long line:
 
 ```
-✓ 0.42s · quality=BEST
+╰─ done   0.42s · quality=BEST
    path     : cosine-cheap (high-confidence early-exit)
-   router   : llm → intent=mixed (0.83)
+   router   : llm -> intent=mixed (0.83)
    evidence : σ-gap=0.0820 ≥ τ=0.0050 (adaptive)
    pool     : 1 filename + 0 lexical · cascade
    index    : 20s ago · 36 files · L2 symbols + graph prior
@@ -509,6 +541,53 @@ Set via environment variables. Defaults work — tune only when you
 need to. Grouped into three panels: Ollama setup, Indexing & rerank,
 Behavior toggles.
 
+Cold-start lazy semantic search is intentionally budgeted. If a first
+query says it hit the foreground budget, either scope the query
+(`--include "docs/**"` / run from the right project root) or
+raise the foreground knobs:
+
+```bash
+export SKYGREP_COLD_LAZY_TOTAL_BUDGET_S=15
+export SKYGREP_COLD_LAZY_CWD_BUDGET_S=10
+export SKYGREP_COLD_LAZY_CROSS_BUDGET_S=4
+export SKYGREP_COLD_LAZY_SEED_BUDGET=24
+```
+
+The default stays conservative so broad home-folder searches cannot
+block the terminal for minutes. Background indexing continues after the
+foreground budget expires.
+
+Interactive terminals animate only the narrow left workflow rail during
+foreground semantic waits. The rail uses a three-cell particle stream with
+blue/cyan/white coloring; captured output, `--json`, logs, and agent
+tool calls stay stable. Turn it off if you prefer fully static progress:
+
+```bash
+export SKYGREP_UI_ANIMATION=off
+```
+
+The result workflow rail stays compact and copyable by default. To force
+an alternate rail:
+
+```bash
+export SKYGREP_UI_RAIL=tree    # or: helix
+```
+
+The `helix` rail replaces box connectors with a denser three-cell rotating
+particle field (`• ·`, ` ·•`, `· •`, `•· `) plus a slim separator line, so
+the workflow itself reads like one continuous vertical particle stream
+through progress, results, and the final routing footer.
+
+Interactive terminals show Nerd Font step icons by default. Disable them
+if your terminal font does not support patched glyphs:
+
+```bash
+export SKYGREP_UI_ICONS=off
+```
+
+Captured output and agent/tool paths keep plain labels unless icons are
+explicitly requested.
+
 <p align="center">
   <img alt="skylakegrep — environment variable configuration grouped into Ollama setup, Indexing &amp; rerank, and Behavior toggles" src="docs/assets/configuration.svg" width="100%">
 </p>
@@ -520,6 +599,17 @@ Behavior toggles.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.5.13`** — Adaptive candidate recall for agent-grade context.
+    Semantic and mixed queries now get a bounded, generic recall
+    substrate before final cascade ranking: explicit include scope,
+    indexed path tokens, indexed symbols, SQLite chunk text, and a small
+    `rg -il -F` lane can all vote files into the candidate pool.
+    Content/agent calls receive a bounded same-file support pack so the
+    downstream LLM sees proof, not just paths. Module-level text,
+    constants, and long string anchors are indexed more reliably. The new
+    agent tool-context benchmark shows 6.12× fewer tool calls, 37.74× less
+    context, and 31.27× higher sufficiency density than a raw-`rg` agent
+    baseline on 24 generic depth tasks.
   - **`0.5.12`** — Bounded cold semantic routing and public example
     verification. Cold-start semantic search now enforces real
     foreground budgets for cwd and cross-folder lazy lanes, prunes
@@ -605,12 +695,12 @@ Behavior toggles.
   - **`0.5.8`** — **`--explain` / `-x`: why this matched.** Every
     retrieved chunk now carries the full retrieval provenance.
     Pass `--explain` and skygrep prints (a) a router rationale at
-    the top — `🧭 router: <intent> · primary_token=… · conf=… ·
-    source=…` plus a one-sentence reason; (b) a per-result `via:`
+    the top — `├─ route      router: <intent> · primary_token=... · conf=... ·
+    source=...` plus a one-sentence reason; (b) a per-result `via:`
     line — which channel(s) contributed (cosine cascade · symbol
     RRF · filename-lookup · ripgrep), what symbol terms matched,
-    the score; and (c) a `🛤 cascade lane:` summary at the bottom
-    with σ-adaptive evidence (`gap=… , tau=…`). Off by default —
+    the score; and (c) a `├─ cascade   lane:` summary at the bottom
+    with σ-adaptive evidence (`gap=... , tau=...`). Off by default —
     existing UX is byte-identical to 0.5.7. **Bonus:** if Ollama
     isn't running but is installed, skygrep autostarts it in the
     background and tells you. Two latent LLM-router bugs were also
@@ -683,7 +773,7 @@ source .venv/bin/activate
 pip install -e .[rerank]
 
 # Verify
-.venv/bin/python -m pytest -q tests/        # 309 / 309 should pass
+.venv/bin/python -m pytest -q tests/        # current suite should pass
 ```
 
 The release protocol is documented in
