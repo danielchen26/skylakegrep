@@ -21,6 +21,7 @@ from pathlib import Path
 
 BEGIN_MARKER = "<!-- BEGIN skylakegrep integration (managed by `skygrep setup`) -->"
 END_MARKER = "<!-- END skylakegrep integration -->"
+SNIPPET_VERSION = "agent-guidance-v3"
 
 SNIPPET_BODY = """\
 ## skylakegrep semantic search
@@ -50,17 +51,22 @@ Use the smallest command that gives enough depth:
 
   - **Call from an LLM/agent tool path**:
 
-        skygrep --json --content --detail standard --include "src/**" "where is token refresh implemented?"
+        skygrep --agent-context --include "src/**" "where is token refresh implemented?"
 
 Option playbook:
 
-  - Path/location only: `skygrep --json --no-content --top 10 --no-rerank "<query>"`.
-  - Evidence snippets, first agent pass: `skygrep --json --content --detail standard --no-rerank "<query>"`.
+  - Path/location only: `skygrep --agent-fast "<query>"`.
+    Equivalent explicit form: `skygrep --json --no-content --top 10 --no-rerank "<query>"`.
+  - Evidence snippets, first agent pass: `skygrep --agent-context "<query>"`.
+    Equivalent explicit form: `skygrep --json --content --detail standard --no-rerank "<query>"`.
   - Deep read: `skygrep --json --content --detail full --include "<known-path-or-folder>" "<query>"`.
   - Synthesized answer: `skygrep --answer --content "<query>"`.
   - Known scope: add `--include "<scope/**>"` as early as possible.
-  - Repeated tool calls: prefer `skygrep serve` + `--daemon-url`, and keep
-    path/snippet discovery calls on `--no-rerank`; rerank only when ambiguity warrants it.
+  - Repeated tool calls: run `skygrep serve --port 7878`, then use
+    `skygrep --agent-daemon --agent-fast "<query>"` or
+    `skygrep --agent-daemon --agent-context "<query>"`. Rerank only when
+    ambiguity warrants it.
+    Explicit URL form: `skygrep --daemon-url http://127.0.0.1:7878 --agent-context "<query>"`.
   - Exact regex/raw grep: use `rg` directly.
 
 Decision rules for agents:
@@ -68,10 +74,10 @@ Decision rules for agents:
   - Start with bare `skygrep "<query>"` for file-location and concept
     lookup questions.
   - For implementation-location questions where several files may be relevant,
-    prefer a path-only high-recall pass such as
-    `skygrep --json --no-content --top 10 --no-rerank "<query>"` before reading file contents.
+    prefer a path-only high-recall pass:
+    `skygrep --agent-fast "<query>"` before reading file contents.
   - For first-pass implementation snippets in an agent loop, prefer
-    `skygrep --json --content --detail standard --no-rerank "<query>"`.
+    `skygrep --agent-context "<query>"`.
     Re-run without `--no-rerank` only when the evidence is ambiguous or missing.
   - Add `--content` when the next step depends on text inside files.
   - Add `--detail full` only after narrowing with `--include`, or when
@@ -87,7 +93,7 @@ Decision rules for agents:
 
 Closed-loop policy:
 
-  1. Use one scoped `skygrep --json --content --detail standard --no-rerank` call
+  1. Use one scoped `skygrep --agent-context` call
      for the first evidence pass when the next LLM step needs context.
   2. If the result names likely files but lacks enough evidence, read the
      returned file paths directly when your agent has a file-read tool; use
@@ -109,7 +115,7 @@ Use `rg` directly only when:
 
 
 def _snippet() -> str:
-    return f"{BEGIN_MARKER}\n\n{SNIPPET_BODY}\n{END_MARKER}\n"
+    return f"{BEGIN_MARKER}\n<!-- version: {SNIPPET_VERSION} -->\n\n{SNIPPET_BODY}\n{END_MARKER}\n"
 
 
 @dataclass
@@ -139,6 +145,24 @@ class Integration:
             return BEGIN_MARKER in self.config_path.read_text(errors="ignore")
         except OSError:
             return False
+
+    def registration_status(self) -> str:
+        """Return missing, current, stale, or broken for the managed block."""
+        if not self.config_path.exists():
+            return "missing"
+        try:
+            existing = self.config_path.read_text(errors="ignore")
+        except OSError:
+            return "broken"
+        if BEGIN_MARKER not in existing:
+            return "missing"
+        start = existing.find(BEGIN_MARKER)
+        end_pos = existing.find(END_MARKER, start)
+        if end_pos < 0:
+            return "broken"
+        end = end_pos + len(END_MARKER)
+        current = existing[start:end].rstrip()
+        return "current" if current == _snippet().rstrip() else "stale"
 
     def register(self) -> bool:
         """Append or refresh the managed snippet.

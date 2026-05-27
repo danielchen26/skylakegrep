@@ -400,7 +400,7 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  <a href="parity-benchmarks.html"><code>parity-benchmarks.html</code></a>.
  </p>
 
- <h3 id="bench-agent-context">4. Closed-loop agent benchmark (0.5.14)</h3>
+ <h3 id="bench-agent-context">4. Closed-loop agent benchmark (0.5.14, gated in 0.5.15)</h3>
  <p>
  0.5.14 expands the agent benchmark from one retrieval call to the full
  loop that coding agents actually run: path discovery, evidence gathering,
@@ -448,6 +448,10 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  same sufficiency when the agent follows the path-first / evidence-second
  playbook. Reproduce with
  <code>benchmarks/universal_closed_loop_benchmark.py --repo self --repo django --repo react --repo tokio --summary-only</code>.
+ In 0.5.15, saved JSON reports can be checked by
+ <code>benchmarks/closed_loop_regression_gate.py</code>, which fails a release
+ when skygrep-first falls below configured coverage, sufficiency,
+ context-reduction, or work-quality-per-minute thresholds.
  </p>
 
  <h3 id="bench-self">5. skylakegrep self-test (regression guard)</h3>

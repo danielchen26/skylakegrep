@@ -21,6 +21,10 @@ from skylakegrep.src import config as config_module
 class BareFormRoutingTests(unittest.TestCase):
     """``skygrep "<query>"`` should route to ``search`` automatically."""
 
+    def test_main_propagates_click_exit_code(self):
+        with patch.object(cli_module, "cli", return_value=7):
+            self.assertEqual(cli_module.main(), 7)
+
     def test_unknown_first_arg_routes_to_search(self):
         # Verified by parsing args through MgrepCLI.parse_args directly: any
         # non-flag, non-subcommand first token gets prepended with ``search``.
@@ -94,7 +98,7 @@ class BareFormRoutingTests(unittest.TestCase):
         self.assertIn("Common usage", result.output)
         self.assertIn("Information depth", result.output)
         self.assertIn("--content --detail standard", result.output)
-        self.assertIn("--json --content --detail standard", result.output)
+        self.assertIn("--agent-context", result.output)
 
     def test_search_help_lists_information_depth_examples(self):
         runner = CliRunner()
@@ -102,7 +106,8 @@ class BareFormRoutingTests(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         self.assertIn("Information depth", result.output)
         self.assertIn("--detail full", result.output)
-        self.assertIn("--json --content --detail standard", result.output)
+        self.assertIn("--agent-fast", result.output)
+        self.assertIn("--agent-context", result.output)
 
     def test_version_flag_does_not_route_to_search(self):
         runner = CliRunner()

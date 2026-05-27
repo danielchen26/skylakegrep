@@ -2,10 +2,13 @@ name: Release to PyPI
 
 # On tag push (vX.Y.Z), build sdist + wheel and upload to PyPI.
 #
-# Requires the repository secret PYPI_API_TOKEN (a project-scoped PyPI API
-# token). Generate at https://pypi.org/manage/account/token/ with
-# "Scope: Project · skylakegrep". The matching ``~/.pypirc`` flow we use
-# from a developer laptop is documented in CONTRIBUTING / docs/.
+# Uses PyPI Trusted Publishing (OIDC), not a long-lived PyPI API token.
+# One-time PyPI project setup required:
+#   publisher: GitHub
+#   owner: danielchen26
+#   repository: skylakegrep
+#   workflow: release.yml
+#   environment: pypi
 #
 # This workflow does NOT trigger on master pushes. The author still
 # controls when a release happens by tagging.
@@ -18,10 +21,14 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/skylakegrep/
     steps:
       - uses: actions/checkout@v4
 
@@ -54,7 +61,4 @@ jobs:
         run: twine check dist/*
 
       - name: Publish to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: twine upload --non-interactive dist/*
+        uses: pypa/gh-action-pypi-publish@release/v1

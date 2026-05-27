@@ -66,6 +66,22 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.15 · first-class agent presets · benchmark gate · trusted publishing</div>
+ <h3>Agent-fast and daemon-first are now explicit CLI contracts</h3>
+ <p>
+ This release promotes the 0.5.14 agent playbook into first-class UX:
+ <code>--agent-fast</code> returns compact JSON path anchors,
+ <code>--agent-context</code> returns compact JSON evidence snippets, and
+ <code>--agent-daemon</code> reuses <code>skygrep serve</code> for repeated
+ LLM tool calls. <code>skygrep setup --check</code> reports stale managed
+ instruction snippets without modifying user files, and the new closed-loop
+ regression gate turns saved benchmark reports into enforceable release
+ thresholds. The release workflow now uses PyPI Trusted Publishing instead
+ of a long-lived API token.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.15.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.14 · closed-loop agent benchmark · daemon-first guidance</div>
  <h3>Agent callers now get a formal path-first, evidence-second playbook</h3>
  <p>

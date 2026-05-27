@@ -64,7 +64,7 @@ async def renew_session(req: Request):
 > **bounded wrong-path discovery** via proactive umbrella &nbsp;·&nbsp;
 > **~1 s** warm queries &nbsp;·&nbsp;
 > **100 %** local &nbsp;·&nbsp;
-> **44** releases shipped
+> **47** releases shipped
 
 ---
 
@@ -503,7 +503,9 @@ task needs it.
 | Read deeper after narrowing to one path | `skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"` |
 | Quick deep-read shorthand | `skygrep --detail "show the deployment steps"` |
 | Synthesize a local answer from retrieved evidence | `skygrep --answer --content "summarize the payment retry policy"` |
-| Feed compact structured context to an LLM agent | `skygrep --json --content --detail standard --include "src/**" "where is token refresh implemented?"` |
+| Fast path anchors for an LLM agent | `skygrep --agent-fast "where is token refresh implemented?"` |
+| Feed compact structured context to an LLM agent | `skygrep --agent-context --include "src/**" "where is token refresh implemented?"` |
+| Reuse a warm daemon for repeated agent calls | `skygrep serve --port 7878` then `skygrep --agent-daemon --agent-context "what does token refresh do?"` |
 | Audit why a route/result was chosen | `skygrep --explain "where is token refresh implemented?"` |
 
 ### Option playbook for humans and agents
@@ -514,11 +516,11 @@ enough evidence.
 
 | Problem shape | Use | Why |
 |---|---|---|
-| "Where is X?" / "Which file handles X?" | `skygrep --json --no-content --top 10 --no-rerank "where is token refresh implemented?"` | Path-only, high-recall anchors; cheap first pass for agents. |
-| "What does X say about Y?" | `skygrep --json --content --detail standard --no-rerank "what does the migration plan say about rollback?"` | Fast first-pass snippets and line ranges without dumping full files. Re-run with rerank only if evidence is ambiguous. |
+| "Where is X?" / "Which file handles X?" | `skygrep --agent-fast "where is token refresh implemented?"` | Path-only, high-recall anchors; cheap first pass for agents. |
+| "What does X say about Y?" | `skygrep --agent-context "what does the migration plan say about rollback?"` | Fast first-pass snippets and line ranges without dumping full files. Re-run without the preset only if rerank is needed for ambiguity. |
 | "Read this known file/folder deeply" | `skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"` | Full depth only after scope is known; avoids repo-wide context blowups. |
 | "Summarize / answer from local evidence" | `skygrep --answer --content "summarize the payment retry policy"` | Retrieves evidence first, then synthesizes locally through Ollama. |
-| "An LLM/agent will consume this" | `skygrep --json --content --detail standard --include "src/**" "where is token refresh implemented?"` | Machine-readable, compact, and scoped; do not scrape human terminal output. |
+| "An LLM/agent will consume this" | `skygrep --agent-context --include "src/**" "where is token refresh implemented?"` | Machine-readable, compact, and scoped; do not scrape human terminal output. |
 | "Several implementation files may matter" | `skygrep --json --no-content --top 10 --no-rerank "where is request routing assembled?"` then read returned files | Separates path discovery from file reading; improves closed-loop agent quality. |
 | "The query is broad or noisy" | Add `--include`, `--exclude`, `--language`, or run from the relevant project root | Scope is the largest latency and accuracy lever. |
 | "I need to audit routing" | `skygrep --explain "why is this policy selected?"` | Shows router intent, contributing lanes, and cascade evidence. |
@@ -526,8 +528,8 @@ enough evidence.
 
 Closed-loop agent policy:
 
-1. Start with `skygrep --json --no-content --top 10 --no-rerank "<query>"` for implementation
-   location questions, or `skygrep --json --content --detail standard --no-rerank "<query>"`
+1. Start with `skygrep --agent-fast "<query>"` for implementation
+   location questions, or `skygrep --agent-context "<query>"`
    when the next reasoning step needs source text.
 2. If the caller already knows the repo, folder, or file, add
    `--include "<scope/**>"` immediately. Scoped calls are faster and
@@ -543,9 +545,10 @@ Closed-loop agent policy:
 
 For repeated GPT / Cloud Code / Superconductor-style tool calls, keep
 the process warm with `skygrep serve --port 7878` and call
-`skygrep --daemon-url http://127.0.0.1:7878 --json ...`. Pair daemon
-path/snippet discovery calls with `--no-rerank`; enable rerank only for
-an ambiguous final evidence pass where the extra latency is worth it.
+`skygrep --agent-daemon --agent-fast ...` or
+`skygrep --agent-daemon --agent-context ...`. `--agent-daemon` uses
+`SKYGREP_DAEMON_URL` when set, otherwise `http://127.0.0.1:7878`, and
+falls back in-process if no daemon is running.
 
 Agent rule of thumb: run from the relevant project root, or pass
 `--include` / `--lexical-root` when the scope is known. Start bare for
@@ -649,6 +652,16 @@ explicitly requested.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.5.15`** — First-class agent presets, setup-status checks,
+    benchmark-gate enforcement, and PyPI Trusted Publishing workflow.
+    `--agent-fast` now expands to the documented JSON path-anchor call,
+    `--agent-context` expands to the documented compact evidence call,
+    and `--agent-daemon` makes daemon-first repeated agent calls explicit.
+    `skygrep setup --check` reports stale managed instruction snippets
+    without modifying user files, while normal `skygrep setup` and the
+    existing auto-refresh path still update only managed BEGIN/END blocks.
+    The new `benchmarks/closed_loop_regression_gate.py` turns saved
+    closed-loop benchmark reports into machine-checkable release gates.
   - **`0.5.14`** — Closed-loop agent instructions and daemon-first
     workflow. Public docs, setup snippets, and CLI help now teach agents
     to split path discovery from evidence gathering: use

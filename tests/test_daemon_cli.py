@@ -90,6 +90,78 @@ class DaemonCliTests(unittest.TestCase):
             parsed = json.loads(result.output)
             self.assertNotIn("snippet", parsed[0])
 
+    def test_agent_fast_uses_daemon_path_anchor_preset(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            payload = {
+                "results": [
+                    {
+                        "path": "src/session.py",
+                        "start_line": 1,
+                        "end_line": 3,
+                        "language": "python",
+                        "score": 0.9,
+                        "snippet": "def refresh_session(): pass",
+                    }
+                ],
+                "latency_seconds": 0.01,
+            }
+            runner = CliRunner()
+            with patch.object(cli_module.cfg_mod, "project_root", return_value=root):
+                with patch.object(cli_module, "resolve_scope_facet", return_value=None):
+                    with patch("skylakegrep.src.server.daemon_search", return_value=payload) as daemon:
+                        result = runner.invoke(
+                            cli_module.cli,
+                            [
+                                "search",
+                                "--agent-fast",
+                                "--agent-daemon",
+                                "where is session refresh implemented?",
+                            ],
+                        )
+
+            self.assertEqual(result.exit_code, 0, result.output)
+            parsed = json.loads(result.output)
+            self.assertNotIn("snippet", parsed[0])
+            kwargs = daemon.call_args.kwargs
+            self.assertEqual(kwargs["top_k"], 10)
+            self.assertFalse(kwargs["rerank"])
+
+    def test_agent_context_uses_daemon_snippet_preset(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            payload = {
+                "results": [
+                    {
+                        "path": "src/session.py",
+                        "start_line": 1,
+                        "end_line": 3,
+                        "language": "python",
+                        "score": 0.9,
+                        "snippet": "def refresh_session(): pass",
+                    }
+                ],
+                "latency_seconds": 0.01,
+            }
+            runner = CliRunner()
+            with patch.object(cli_module.cfg_mod, "project_root", return_value=root):
+                with patch.object(cli_module, "resolve_scope_facet", return_value=None):
+                    with patch("skylakegrep.src.server.daemon_search", return_value=payload) as daemon:
+                        result = runner.invoke(
+                            cli_module.cli,
+                            [
+                                "search",
+                                "--agent-context",
+                                "--agent-daemon",
+                                "what does session refresh do?",
+                            ],
+                        )
+
+            self.assertEqual(result.exit_code, 0, result.output)
+            parsed = json.loads(result.output)
+            self.assertEqual(parsed[0]["snippet"], "def refresh_session(): pass")
+            self.assertFalse(daemon.call_args.kwargs["rerank"])
+
 
 if __name__ == "__main__":
     unittest.main()

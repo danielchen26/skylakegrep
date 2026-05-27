@@ -109,11 +109,12 @@ subset:
          ranking / output mental model changed.
   5. **GitHub repo description** (`gh repo edit --description …`)
      — only if the project's one-liner positioning changed.
-  6. **PyPI upload**: `python -m build` then
-     `twine upload dist/skylakegrep-X.Y.Z*`. The CI workflow tries
-     this on tag push but currently 403s on the `PYPI_API_TOKEN`
-     secret; the manual `~/.pypirc` flow is the working path until
-     that's fixed.
+  6. **PyPI upload**: `python -m build` then `twine check dist/*`.
+     Tag pushes publish through PyPI Trusted Publishing in
+     `.github/workflows/release.yml`; no long-lived `PYPI_API_TOKEN`
+     should be required once PyPI has the trusted publisher configured
+     for owner `danielchen26`, repository `skylakegrep`, workflow
+     `release.yml`, environment `pypi`.
   7. **GitHub Release**: `gh release create vX.Y.Z --target master
      --title "vX.Y.Z — …" --notes-file docs/skylakegrep-X.Y.Z.md
      dist/skylakegrep-X.Y.Z-py3-none-any.whl
@@ -141,18 +142,14 @@ state from being visible to anyone:
                                               before the tag
                                               announces a release
 7.  git tag -a vX.Y.Z -m "vX.Y.Z — …"
-8.  git push origin vX.Y.Z                  ← CI fires; ignore the
-                                              PyPI-401 step until
-                                              the token gets fixed
-9.  twine upload --non-interactive dist/skylakegrep-X.Y.Z*
-                                            ← manual upload
-                                              (CI replacement)
-10. gh release create vX.Y.Z --target master
+8.  git push origin vX.Y.Z                  ← CI fires; Trusted
+                                              Publishing uploads to PyPI
+9.  gh release create vX.Y.Z --target master
         --title "vX.Y.Z — …"
         --notes-file docs/skylakegrep-X.Y.Z.md
         dist/skylakegrep-X.Y.Z-py3-none-any.whl
         dist/skylakegrep-X.Y.Z.tar.gz
-11. verify:
+10. verify:
         curl -s https://pypi.org/pypi/skylakegrep/json | jq .info.version
         curl -s https://pypi.org/simple/skylakegrep/ | grep X.Y.Z
         gh release list --limit 3

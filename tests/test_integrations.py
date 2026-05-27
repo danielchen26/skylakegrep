@@ -36,6 +36,9 @@ class IntegrationModelTests(unittest.TestCase):
 
     def test_registered_snippet_teaches_agent_depth_flags(self):
         content = integ.SNIPPET_BODY
+        self.assertIn("--agent-fast", content)
+        self.assertIn("--agent-context", content)
+        self.assertIn("--agent-daemon", content)
         self.assertIn("--content --detail standard", content)
         self.assertIn("--content --detail full", content)
         self.assertIn("--answer --content", content)
@@ -52,6 +55,25 @@ class IntegrationModelTests(unittest.TestCase):
         self.assertIn("Closed-loop policy", content)
         self.assertIn("final task quality", content)
         self.assertIn("project brief", content)
+
+    def test_registration_status_detects_current_stale_and_missing(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            missing = self._make(tmp, name="Missing", config_name="MISSING.md")
+            self.assertEqual(missing.registration_status(), "missing")
+
+            stale = self._make(tmp, name="Stale", config_name="STALE.md")
+            stale.config_path.write_text(
+                integ.BEGIN_MARKER
+                + "\n\nold setup guidance\n"
+                + integ.END_MARKER
+                + "\n"
+            )
+            self.assertEqual(stale.registration_status(), "stale")
+
+            current = self._make(tmp, name="Current", config_name="CURRENT.md")
+            current.register()
+            self.assertEqual(current.registration_status(), "current")
 
     def test_register_idempotent(self):
         with tempfile.TemporaryDirectory() as d:
@@ -79,6 +101,30 @@ class IntegrationModelTests(unittest.TestCase):
             self.assertIn("Keep this.", content)
             self.assertIn("--json --content --detail standard", content)
             self.assertNotIn("old setup guidance", content)
+
+    def test_setup_check_reports_stale_snippet_without_modifying(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            integration = integ.Integration(
+                name="TestAgent",
+                description="A test integration",
+                config_path=tmp / "AGENTS.md",
+                detection_paths=(tmp,),
+                detection_binaries=(),
+            )
+            integration.config_path.write_text(
+                "# User rules\n\n"
+                + integ.BEGIN_MARKER
+                + "\n\nold setup guidance\n"
+                + integ.END_MARKER
+                + "\n"
+            )
+            with patch.object(integ, "all_integrations", return_value=[integration]):
+                runner = CliRunner()
+                result = runner.invoke(cli_module.cli, ["setup", "--check"])
+            self.assertEqual(result.exit_code, 1, result.output)
+            self.assertIn("stale", result.output)
+            self.assertIn("old setup guidance", integration.config_path.read_text())
 
     def test_refresh_registered_snippets_only_touches_managed_blocks(self):
         with tempfile.TemporaryDirectory() as d:

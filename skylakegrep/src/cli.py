@@ -776,6 +776,8 @@ def render_json_results(results: list[dict], *, include_snippet: bool = True) ->
 # Subcommand names that take precedence over bare-form query routing.
 _SUBCOMMANDS = {"index", "search", "watch", "serve", "stats", "doctor", "enrich", "setup"}
 _DETAIL_CHOICES = {"brief", "standard", "full", "summary"}
+_AGENT_MODE_CHOICES = {"off", "fast", "context", "deep", "answer"}
+_DEFAULT_AGENT_DAEMON_URL = "http://127.0.0.1:7878"
 
 
 def _normalize_search_cli_args(args: list[str]) -> list[str]:
@@ -851,8 +853,8 @@ def cli(ctx):
         skygrep "where is the auth token refreshed?"      # bare query
         skygrep --content --detail standard "what says rollback?"
         skygrep --detail "show the deployment steps"      # shorthand for full
-        skygrep --json --no-content --top 10 --no-rerank "where is token refresh?"
-        skygrep --json --content --detail standard --no-rerank "what does token refresh do?"
+        skygrep --agent-fast "where is token refresh?"    # JSON path anchors
+        skygrep --agent-context "what does token refresh do?"  # JSON evidence
         skygrep doctor                                    # health check
         skygrep stats                                     # index info
         skygrep index .                                   # explicit reindex
@@ -864,8 +866,8 @@ def cli(ctx):
         snippets:  skygrep --content --detail standard "what does X say?"
         deep read: skygrep --content --detail full --include "docs/file.md" "show steps"
         answer:    skygrep --answer --content "summarize X"
-        agent path: skygrep --json --no-content --top 10 --no-rerank "where is X?"
-        agent ctx:  skygrep --json --content --detail standard --no-rerank --include "src/**" "what does X say?"
+        agent path: skygrep --agent-fast "where is X?"
+        agent ctx:  skygrep --agent-context --include "src/**" "what does X say?"
     """
 
     if ctx.invoked_subcommand is None:
@@ -962,6 +964,10 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--lexical-prefilter/--no-lexical-prefilter", default=True, help="Use ripgrep to narrow the candidate file set before cosine + rerank (default on; the high-recall fast path)")
 @click.option("--lexical-root", default=None, help="Root directory ripgrep scans for the lexical prefilter (defaults to the project root)")
 @click.option("--lexical-min-candidates", default=2, type=int, help="If ripgrep returns fewer than this many candidate files we fall back to corpus-wide cosine retrieval")
+@click.option("--agent-mode", default="off", type=click.Choice(sorted(_AGENT_MODE_CHOICES)), help="Preset output depth for LLM callers: fast=JSON path anchors, context=JSON snippets, deep=JSON full detail, answer=local synthesized answer.")
+@click.option("--agent-fast", is_flag=True, help="Shortcut for --agent-mode fast: JSON path anchors, --no-content, --top 10, --no-rerank.")
+@click.option("--agent-context", is_flag=True, help="Shortcut for --agent-mode context: JSON snippets, --content, --detail standard, --no-rerank.")
+@click.option("--agent-daemon/--no-agent-daemon", default=False, help="Daemon-first agent call: use SKYGREP_DAEMON_URL or http://127.0.0.1:7878, falling back in-process if unavailable.")
 @click.option("--daemon-url", default=None, help="If set, send the search to a running skygrep daemon instead of loading the reranker in-process (eliminates cold-load latency)")
 @click.option("--rank-by", default="chunk", type=click.Choice(["chunk", "file"]), help="Ranking strategy on the non-cascade path: 'chunk' returns top-K chunks with per-file diversity cap; 'file' returns one best chunk per file")
 @click.option("--cascade/--no-cascade", default=True, help="Confidence-gated retrieval (default on): cheap file-mean cosine first, escalate to HyDE-union only on uncertain queries. Pass --no-cascade for the chunk-only legacy path.")
@@ -995,6 +1001,10 @@ def search_cmd(
     lexical_prefilter: bool,
     lexical_root: str,
     lexical_min_candidates: int,
+    agent_mode: str,
+    agent_fast: bool,
+    agent_context: bool,
+    agent_daemon: bool,
     daemon_url: str,
     rank_by: str,
     cascade: bool,
@@ -1029,12 +1039,16 @@ def search_cmd(
           Shorthand for --detail full "show steps".
 
       \b
-      skygrep --json --no-content --top 10 --no-rerank "where is token refresh?"
+      skygrep --agent-fast "where is token refresh?"
           Fast path discovery for LLM agents.
 
       \b
-      skygrep --json --content --detail standard --no-rerank --include "src/**" "what does token refresh do?"
+      skygrep --agent-context --include "src/**" "what does token refresh do?"
           Machine-readable context for LLM agents.
+
+      \b
+      skygrep --agent-daemon --agent-context "what changed in the cache layer?"
+          Reuse a running `skygrep serve` process for repeated agent calls.
     """
     query = _normalize_query_args(query)
     _auto_refresh_setup_snippets()
@@ -1056,6 +1070,48 @@ def search_cmd(
     # runs after the hint so the user is never blocked.
 
     import os as _os
+
+    selected_agent_modes = [
+        mode
+        for mode, enabled in (
+            ("agent-mode", agent_mode != "off"),
+            ("agent-fast", agent_fast),
+            ("agent-context", agent_context),
+        )
+        if enabled
+    ]
+    if len(selected_agent_modes) > 1:
+        raise click.UsageError(
+            "Choose only one agent preset: --agent-mode, --agent-fast, or --agent-context."
+        )
+    if agent_fast:
+        agent_mode = "fast"
+    elif agent_context:
+        agent_mode = "context"
+    if agent_mode != "off":
+        json_output = True
+        rerank = False
+        if agent_mode == "fast":
+            content = False
+            detail = "brief"
+            if top == 5:
+                top = 10
+        elif agent_mode == "context":
+            content = True
+            detail = "standard"
+        elif agent_mode == "deep":
+            content = True
+            detail = "full"
+        elif agent_mode == "answer":
+            answer = True
+            content = True
+            # Synthesized answers are intentionally human-readable; keep
+            # JSON off unless the caller explicitly requested it.
+            json_output = False
+        if agent_daemon and not daemon_url and agent_mode != "answer":
+            daemon_url = _os.environ.get("SKYGREP_DAEMON_URL", _DEFAULT_AGENT_DAEMON_URL)
+    elif agent_daemon and not daemon_url:
+        daemon_url = _os.environ.get("SKYGREP_DAEMON_URL", _DEFAULT_AGENT_DAEMON_URL)
 
     config = get_config()
     if auto_index is None:
@@ -3552,10 +3608,12 @@ def doctor():
 
 @cli.command()
 @click.option("--list", "list_only", is_flag=True, help="List detected LLM CLIs and registration state, then exit.")
+@click.option("--check", is_flag=True, help="Check whether managed setup snippets are current; exits non-zero when a registered snippet is stale or broken.")
 @click.option("--uninstall", is_flag=True, help="Remove all snippets previously written by `skygrep setup`.")
 @click.option("--skip", is_flag=True, help="Mark setup as done without registering anything (suppresses the first-run banner).")
 @click.option("--yes", "-y", is_flag=True, help="Auto-confirm every detected integration without an interactive prompt.")
-def setup(list_only: bool, uninstall: bool, skip: bool, yes: bool):
+@click.pass_context
+def setup(ctx, list_only: bool, check: bool, uninstall: bool, skip: bool, yes: bool):
     """Register skylakegrep as preferred semantic search with installed LLM CLIs.
 
     Detects Claude Code, Codex, OpenCode, Gemini CLI, and Cursor on
@@ -3565,8 +3623,8 @@ def setup(list_only: bool, uninstall: bool, skip: bool, yes: bool):
     fall back to ``rg`` otherwise.
 
     Re-running ``skygrep setup`` refreshes existing managed snippets when
-    the shipped agent guidance changes. Use ``--list`` to inspect without
-    modifying. Use ``--uninstall`` to remove every snippet previously
+    the shipped agent guidance changes. Use ``--list`` or ``--check`` to
+    inspect without modifying. Use ``--uninstall`` to remove every snippet previously
     written. Use ``--skip`` to suppress the first-run banner without
     registering anything.
     """
@@ -3576,9 +3634,24 @@ def setup(list_only: bool, uninstall: bool, skip: bool, yes: bool):
         click.echo("Detected LLM CLIs (run `skygrep setup` to register):")
         for i in items:
             mark = "✓" if i.is_detected() else "·"
-            reg = " [registered]" if i.is_registered() else ""
+            status = i.registration_status()
+            reg = f" [{status}]" if i.is_registered() else ""
             click.echo(f"  {mark} {i.name:<14} {i.description}{reg}")
             click.echo(f"      config: {i.config_path}")
+        return
+
+    if check:
+        click.echo("skygrep setup instruction status:")
+        stale = False
+        for i in items:
+            status = i.registration_status()
+            if status in {"stale", "broken"}:
+                stale = True
+            mark = "✓" if status == "current" else ("!" if status in {"stale", "broken"} else "·")
+            click.echo(f"  {mark} {i.name:<14} {status:<7} {i.config_path}")
+        if stale:
+            click.echo("\nRun `skygrep setup` to refresh stale managed snippets.")
+            ctx.exit(1)
         return
 
     if uninstall:
@@ -3693,7 +3766,8 @@ def main():
     """
 
     try:
-        cli(standalone_mode=False)
+        result = cli(standalone_mode=False)
+        return result if isinstance(result, int) else 0
     except click.exceptions.NoSuchOption as exc:
         suggestion = suggest_for_unknown_option(
             exc.option_name or "", _collect_search_flag_names()
