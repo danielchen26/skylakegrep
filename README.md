@@ -335,10 +335,11 @@ skygrep "your question here"
 
 `skygrep setup` writes a short agent rule into Claude Code, Codex,
 OpenCode, Gemini CLI, and Cursor when detected. The rule tells the
-agent which depth to request: bare `skygrep` for location/concept
-lookups, `--content` for source snippets, `--detail full` only after
-narrowing, `--answer` for local synthesis, and `--json` for
-machine-readable tool calls. Re-running `skygrep setup` refreshes the
+agent which depth to request: path-only `--no-content --top 10 --no-rerank` for implementation
+anchors, first-pass `--content --detail standard --no-rerank` for source snippets,
+`--detail full` only after narrowing, `--answer` for local synthesis,
+and `--json` plus `--include` for machine-readable scoped tool calls.
+Re-running `skygrep setup` refreshes the
 managed block when these instructions improve. After an upgrade, normal
 `skygrep` searches and `skygrep doctor` also refresh already-registered
 managed blocks automatically; new integrations still require an explicit
@@ -417,31 +418,39 @@ For the full bench protocol, per-task analysis, and worked
 example (one query · 1,395 × token reduction), see
 [`docs/parity-benchmarks.html`](docs/parity-benchmarks.html).
 
-### Agent tool-context benchmark (0.5.13)
+### Closed-loop agent benchmark (0.5.14)
 
-0.5.13 adds a benchmark for the exact middle-layer problem that LLM
-agents face: "How much compact, ranked evidence did the tool return
-before the agent continues reasoning?" It compares one structured
-`skygrep --json --content` call per task against a simulated raw-`rg`
-agent that runs several term searches and line-window reads.
+0.5.14 extends the agent benchmark from one-shot context retrieval to a
+closed-loop workflow: first find likely paths, then gather enough
+evidence for the next reasoning step, then score whether the context is
+sufficient for a downstream LLM to act. It compares a skygrep-first
+policy (`--json`, scoped includes when known, path-only probes,
+`--no-rerank` for first-pass evidence, direct file reads after
+narrowing) against a raw-`rg`-only agent over 38 generic tasks across
+this repo plus Django, React, and Tokio.
 
-| Metric | `skygrep-agent` | raw `rg-agent` |
+| Metric | `skygrep-first` | raw `rg-only` |
 | --- | ---: | ---: |
-| Tasks × effort profiles | 24 | 24 |
-| Path coverage | 81.9 % | 100.0 % |
-| Path precision | 34.9 % | 12.2 % |
-| Evidence coverage | 79.2 % | 92.7 % |
-| Sufficiency score | 80.8 % | 97.1 % |
-| Tool calls | 24 | 147 |
-| Context tokens | 56,424 | 2,129,655 |
-| Sufficiency per 1k tokens | 0.344 | 0.011 |
+| Tasks | 38 | 38 |
+| Path coverage | 94.7 % | 100.0 % |
+| Path precision | 10.9 % | 3.4 % |
+| Evidence coverage | 99.1 % | 99.3 % |
+| Sufficiency score | 96.5 % | 99.7 % |
+| Completed tasks | 35 | 38 |
+| Tool calls | 322 | 337 |
+| Raw retrieval elapsed | 154.23 s | 327.73 s |
+| Estimated agent elapsed | 161.68 s | 3833.97 s |
+| Context tokens | 223,592 | 105,187,419 |
+| Work quality / minute | 12.829 | 0.561 |
 
-Honest reading: raw `rg` remains the recall ceiling and can be faster
-when dumping large unranked context is acceptable. skygrep uses
-**6.12× fewer tool calls**, emits **37.74× less context**, and gives
-the downstream LLM **31.27× denser sufficiency per token**. That is the
-agent-facing win: enough evidence for the next reasoning step without
-making the model sift through a repository-sized haystack.
+Honest reading: raw `rg` remains the recall ceiling and still wins when
+an agent can afford to inspect everything. The skygrep-first closed loop
+is the practical agent win: **470× less context**, **23.7× lower
+estimated agent elapsed**, and **22.9× higher work-quality-per-minute**
+while preserving 94.7 % path coverage and 96.5 % sufficiency. The
+remaining gap is explicit in the benchmark: a small set of ambiguous
+implementation-location tasks still needs a bounded `rg` fallback or a
+second scoped skygrep pass.
 
 ---
 
@@ -496,6 +505,47 @@ task needs it.
 | Synthesize a local answer from retrieved evidence | `skygrep --answer --content "summarize the payment retry policy"` |
 | Feed compact structured context to an LLM agent | `skygrep --json --content --detail standard --include "src/**" "where is token refresh implemented?"` |
 | Audit why a route/result was chosen | `skygrep --explain "where is token refresh implemented?"` |
+
+### Option playbook for humans and agents
+
+Choose options by the **kind of answer the next step needs**, not by
+habit. The best call is usually the shallowest call that can produce
+enough evidence.
+
+| Problem shape | Use | Why |
+|---|---|---|
+| "Where is X?" / "Which file handles X?" | `skygrep --json --no-content --top 10 --no-rerank "where is token refresh implemented?"` | Path-only, high-recall anchors; cheap first pass for agents. |
+| "What does X say about Y?" | `skygrep --json --content --detail standard --no-rerank "what does the migration plan say about rollback?"` | Fast first-pass snippets and line ranges without dumping full files. Re-run with rerank only if evidence is ambiguous. |
+| "Read this known file/folder deeply" | `skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"` | Full depth only after scope is known; avoids repo-wide context blowups. |
+| "Summarize / answer from local evidence" | `skygrep --answer --content "summarize the payment retry policy"` | Retrieves evidence first, then synthesizes locally through Ollama. |
+| "An LLM/agent will consume this" | `skygrep --json --content --detail standard --include "src/**" "where is token refresh implemented?"` | Machine-readable, compact, and scoped; do not scrape human terminal output. |
+| "Several implementation files may matter" | `skygrep --json --no-content --top 10 --no-rerank "where is request routing assembled?"` then read returned files | Separates path discovery from file reading; improves closed-loop agent quality. |
+| "The query is broad or noisy" | Add `--include`, `--exclude`, `--language`, or run from the relevant project root | Scope is the largest latency and accuracy lever. |
+| "I need to audit routing" | `skygrep --explain "why is this policy selected?"` | Shows router intent, contributing lanes, and cascade evidence. |
+| "I need exact regex output" | Use `rg` directly | `skygrep` is for natural-language search, not regex authoring. |
+
+Closed-loop agent policy:
+
+1. Start with `skygrep --json --no-content --top 10 --no-rerank "<query>"` for implementation
+   location questions, or `skygrep --json --content --detail standard --no-rerank "<query>"`
+   when the next reasoning step needs source text.
+2. If the caller already knows the repo, folder, or file, add
+   `--include "<scope/**>"` immediately. Scoped calls are faster and
+   reduce false positives.
+3. Read candidate files directly when the agent has a file-read tool.
+   Use `--detail full --include "<path>"` only when direct reads are
+   unavailable or skygrep extraction is needed for PDFs, docx, or other
+   parsed documents.
+4. Use `--answer` only when the user asked for a synthesized answer.
+   For code modification tasks, prefer source evidence over synthesis.
+5. Escalate to bounded `rg -l` / targeted `rg` only when skygrep misses
+   an expected anchor or when exact lexical/regex matching is required.
+
+For repeated GPT / Cloud Code / Superconductor-style tool calls, keep
+the process warm with `skygrep serve --port 7878` and call
+`skygrep --daemon-url http://127.0.0.1:7878 --json ...`. Pair daemon
+path/snippet discovery calls with `--no-rerank`; enable rerank only for
+an ambiguous final evidence pass where the extra latency is worth it.
 
 Agent rule of thumb: run from the relevant project root, or pass
 `--include` / `--lexical-root` when the scope is known. Start bare for
@@ -599,6 +649,19 @@ explicitly requested.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.5.14`** — Closed-loop agent instructions and daemon-first
+    workflow. Public docs, setup snippets, and CLI help now teach agents
+    to split path discovery from evidence gathering: use
+    `--json --no-content --top 10 --no-rerank` for fast anchors, use
+    `--json --content --detail standard --no-rerank` for first-pass
+    snippets, narrow with `--include`, read files directly when the
+    agent has a file-read tool, and reserve rerank / `--detail full` for
+    ambiguity or parsed documents. JSON path-only output now omits
+    snippets under `--no-content`, and repeated agent calls are documented
+    as daemon-first (`skygrep serve` + `--daemon-url`) to avoid repeated
+    process/cold-load cost. The new 38-task closed-loop benchmark shows
+    470× less context and 23.7× lower estimated agent elapsed than a raw
+    `rg`-only policy, with 94.7 % path coverage and 96.5 % sufficiency.
   - **`0.5.13`** — Adaptive candidate recall for agent-grade context.
     Semantic and mixed queries now get a bounded, generic recall
     substrate before final cascade ranking: explicit include scope,

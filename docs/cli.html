@@ -163,6 +163,51 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  <tr><td>Feed an LLM/agent structured context</td><td><code>skygrep --json --content --detail standard --include "src/**" "where is token refresh implemented?"</code></td></tr>
  </tbody>
  </table>
+ <h3 id="option-playbook">Option playbook for humans and agents</h3>
+ <p>
+ Choose options by the answer depth the next step needs. The best call is
+ usually the shallowest call that can produce enough evidence.
+ </p>
+ <table>
+ <thead><tr><th>Problem shape</th><th>Use</th><th>Why</th></tr></thead>
+ <tbody>
+ <tr><td>Where is X? / Which file handles X?</td><td><code>skygrep --json --no-content --top 10 --no-rerank "where is token refresh implemented?"</code></td><td>Path-only, high-recall anchors; cheap first pass for agents.</td></tr>
+ <tr><td>What does X say about Y?</td><td><code>skygrep --json --content --detail standard --no-rerank "what does the migration plan say about rollback?"</code></td><td>Fast first-pass snippets and line ranges without dumping full files. Re-run with rerank only if evidence is ambiguous.</td></tr>
+ <tr><td>Read this known file/folder deeply</td><td><code>skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"</code></td><td>Full depth only after scope is known; avoids repo-wide context blowups.</td></tr>
+ <tr><td>Summarize / answer from local evidence</td><td><code>skygrep --answer --content "summarize the payment retry policy"</code></td><td>Retrieves evidence first, then synthesizes locally through Ollama.</td></tr>
+ <tr><td>An LLM/agent will consume this</td><td><code>skygrep --json --content --detail standard --include "src/**" "where is token refresh implemented?"</code></td><td>Machine-readable, compact, and scoped; do not scrape human terminal output.</td></tr>
+ <tr><td>Several implementation files may matter</td><td><code>skygrep --json --no-content --top 10 --no-rerank "where is request routing assembled?"</code></td><td>Separate path discovery from file reading; then read returned candidates directly.</td></tr>
+ <tr><td>The query is broad or noisy</td><td>Add <code>--include</code>, <code>--exclude</code>, <code>--language</code>, or run from the relevant project root.</td><td>Scope is the largest latency and accuracy lever.</td></tr>
+ <tr><td>I need to audit routing</td><td><code>skygrep --explain "why is this policy selected?"</code></td><td>Shows router intent, contributing lanes, and cascade evidence.</td></tr>
+ <tr><td>I need exact regex output</td><td>Use <code>rg</code> directly.</td><td><code>skygrep</code> is for natural-language search, not regex authoring.</td></tr>
+ </tbody>
+ </table>
+ <p>
+ Closed-loop agent policy: start with a path-only
+ <code>--json --no-content --top 10 --no-rerank</code> pass for
+ implementation-location questions, use
+ <code>--json --content --detail standard --no-rerank</code> when the next reasoning step
+ needs source text, add <code>--include</code> whenever the scope is known, and
+ reserve <code>--detail full</code> for a narrowed file/folder or parsed
+ documents where direct reads are unavailable. Use <code>--answer</code> only
+ when the user asked for synthesis; use bounded <code>rg -l</code> or targeted
+ <code>rg</code> only for missing anchors or exact lexical/regex needs.
+ </p>
+ <p>
+ For repeated GPT / Cloud Code / Superconductor-style tool calls, keep the
+ process warm with <code>skygrep serve --port 7878</code> and call
+ <code>skygrep --daemon-url http://127.0.0.1:7878 --json ...</code>. Pair
+ daemon path/snippet discovery calls with <code>--no-rerank</code>; enable
+ rerank only for an ambiguous final evidence pass where the extra latency is
+ worth it.
+ </p>
+ <p>
+ In 0.5.14, this policy is the recommended agent fast path. It is a
+ documented playbook, not a separate magic classifier: path-only probes
+ return compact JSON anchors, snippet probes return bounded evidence for
+ the next LLM step, and daemon-first repeated calls avoid paying process
+ startup and model warmup on every tool invocation.
+ </p>
  <p>
  In 0.5.13, semantic and mixed queries also use an adaptive candidate
  recall substrate before final cascade ranking. For agents, this means

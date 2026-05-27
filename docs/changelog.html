@@ -66,6 +66,23 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.14 · closed-loop agent benchmark · daemon-first guidance</div>
+ <h3>Agent callers now get a formal path-first, evidence-second playbook</h3>
+ <p>
+ This release turns the agent guidance into a stricter public contract:
+ use JSON path-only probes for fast anchors, compact snippet calls for
+ first evidence, scoped full-detail reads only after narrowing, and a warm
+ <code>skygrep serve</code> daemon for repeated calls. JSON path-only output
+ now omits snippets when <code>--no-content</code> is set, so agents receive
+ clean path contracts instead of hidden context. The new 38-task
+ closed-loop benchmark across skylakegrep, Django, React, and Tokio shows
+ 470× less context and 23.7× lower estimated agent elapsed than a raw
+ <code>rg</code>-only policy, with 94.7 % path coverage and 96.5 %
+ sufficiency.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.14.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.13 · adaptive candidate recall · agent-grade context benchmark</div>
  <h3>Semantic and mixed queries now get bounded recall before cascade decides final ranking</h3>
  <p>

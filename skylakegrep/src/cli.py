@@ -743,7 +743,7 @@ def _attach_explain(results: list[dict], decision: "RouterDecision | None") -> N
             r["explain"] = _build_explain_string(r, decision)
 
 
-def render_json_results(results: list[dict]) -> str:
+def render_json_results(results: list[dict], *, include_snippet: bool = True) -> str:
     payload = []
     optional_keys = (
         "fallback",
@@ -763,8 +763,9 @@ def render_json_results(results: list[dict]) -> str:
             "end_line": r["end_line"],
             "language": r["language"],
             "score": float(r["score"]),
-            "snippet": r["snippet"],
         }
+        if include_snippet:
+            item["snippet"] = r["snippet"]
         for key in optional_keys:
             if key in r:
                 item[key] = r[key]
@@ -850,7 +851,8 @@ def cli(ctx):
         skygrep "where is the auth token refreshed?"      # bare query
         skygrep --content --detail standard "what says rollback?"
         skygrep --detail "show the deployment steps"      # shorthand for full
-        skygrep --json --content --detail standard "where is token refresh?"
+        skygrep --json --no-content --top 10 --no-rerank "where is token refresh?"
+        skygrep --json --content --detail standard --no-rerank "what does token refresh do?"
         skygrep doctor                                    # health check
         skygrep stats                                     # index info
         skygrep index .                                   # explicit reindex
@@ -862,7 +864,8 @@ def cli(ctx):
         snippets:  skygrep --content --detail standard "what does X say?"
         deep read: skygrep --content --detail full --include "docs/file.md" "show steps"
         answer:    skygrep --answer --content "summarize X"
-        agent:     skygrep --json --content --detail standard --include "src/**" "where is X?"
+        agent path: skygrep --json --no-content --top 10 --no-rerank "where is X?"
+        agent ctx:  skygrep --json --content --detail standard --no-rerank --include "src/**" "what does X say?"
     """
 
     if ctx.invoked_subcommand is None:
@@ -1026,7 +1029,11 @@ def search_cmd(
           Shorthand for --detail full "show steps".
 
       \b
-      skygrep --json --content --detail standard --include "src/**" "where is token refresh?"
+      skygrep --json --no-content --top 10 --no-rerank "where is token refresh?"
+          Fast path discovery for LLM agents.
+
+      \b
+      skygrep --json --content --detail standard --no-rerank --include "src/**" "what does token refresh do?"
           Machine-readable context for LLM agents.
     """
     query = _normalize_query_args(query)
@@ -1055,6 +1062,22 @@ def search_cmd(
         # Default policy: auto-index unless the caller has pinned the DB
         # location with SKYGREP_DB_PATH (curated index — don't auto-mutate it).
         auto_index = _os.environ.get("SKYGREP_DB_PATH") is None
+    project_root = cfg_mod.project_root()
+    scope_facet = resolve_scope_facet(query, project_root)
+    explicit_scope = scope_facet is not None
+    if scope_facet is not None:
+        project_root = scope_facet.root
+        if _os.environ.get("SKYGREP_DB_PATH") is None:
+            config["db_path"] = cfg_mod.project_db_path(project_root)
+        if not json_output:
+            click.echo(
+                _ui_step(
+                    "scope",
+                    f"{project_root} · {scope_facet.reason} "
+                    f"(conf={scope_facet.confidence:.2f})",
+                ),
+                err=True,
+            )
     if daemon_url:
         from .server import daemon_search
 
@@ -1086,7 +1109,7 @@ def search_cmd(
                 exclude_patterns=tuple(exclude_patterns),
             )
             if json_output:
-                click.echo(render_json_results(results))
+                click.echo(render_json_results(results, include_snippet=content))
                 return
             if explain:
                 _attach_explain(results, None)
@@ -1101,22 +1124,6 @@ def search_cmd(
             )
             return
 
-    project_root = cfg_mod.project_root()
-    scope_facet = resolve_scope_facet(query, project_root)
-    explicit_scope = scope_facet is not None
-    if scope_facet is not None:
-        project_root = scope_facet.root
-        if _os.environ.get("SKYGREP_DB_PATH") is None:
-            config["db_path"] = cfg_mod.project_db_path(project_root)
-        if not json_output:
-            click.echo(
-                _ui_step(
-                    "scope",
-                    f"{project_root} · {scope_facet.reason} "
-                    f"(conf={scope_facet.confidence:.2f})",
-                ),
-                err=True,
-            )
     db_path = config["db_path"]
 
     # Metadata queries ("latest files I opened", "recently modified
@@ -1136,7 +1143,7 @@ def search_cmd(
     if metadata_query is not None and (metadata_hits or not metadata_filters_active):
         elapsed = time.time() - metadata_start
         if json_output:
-            click.echo(render_json_results(metadata_hits))
+            click.echo(render_json_results(metadata_hits, include_snippet=content))
             return
         if metadata_hits:
             click.echo(
@@ -1302,7 +1309,7 @@ def search_cmd(
                     except sqlite3.Error:
                         pass
         if json_output:
-            click.echo(render_json_results(fn_results))
+            click.echo(render_json_results(fn_results, include_snippet=content))
             return
         click.echo(_ui_step("filename", "matches:"), err=True)
         for r in fn_results:
@@ -1394,7 +1401,7 @@ def search_cmd(
                     except sqlite3.Error:
                         pass
         if json_output:
-            click.echo(render_json_results(descriptor_results))
+            click.echo(render_json_results(descriptor_results, include_snippet=content))
             return
         click.echo(_ui_step("scope", "file metadata matches:"), err=True)
         for r in descriptor_results:
@@ -1562,7 +1569,7 @@ def search_cmd(
                         include_patterns=tuple(include_patterns),
                         exclude_patterns=tuple(exclude_patterns),
                     )
-                    click.echo(render_json_results(payload))
+                    click.echo(render_json_results(payload, include_snippet=content))
                     return
                 if rendered:
                     click.echo(rendered)
@@ -1672,7 +1679,7 @@ def search_cmd(
                         include_patterns=tuple(include_patterns),
                         exclude_patterns=tuple(exclude_patterns),
                     )
-                    click.echo(render_json_results(payload))
+                    click.echo(render_json_results(payload, include_snippet=content))
                     return
                 if rendered:
                     click.echo(rendered)
@@ -2096,7 +2103,7 @@ def search_cmd(
             _augment_filename_content_for_machine(
                 results, query, decision, detail=detail, ocr=ocr,
             )
-            click.echo(render_json_results(results))
+            click.echo(render_json_results(results, include_snippet=content))
             return
         # 0.2.8: try proactive enhancers in the cold-start path too.
         # 0.2.7 only ran proactive on the main cascade path, which
@@ -3049,7 +3056,7 @@ def search_cmd(
         _augment_filename_content_for_machine(
             results, query, decision, detail=detail, ocr=ocr,
         )
-        click.echo(render_json_results(results))
+        click.echo(render_json_results(results, include_snippet=content))
         return
     if answer:
         _augment_filename_content_for_machine(

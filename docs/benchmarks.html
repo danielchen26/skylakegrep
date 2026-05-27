@@ -400,47 +400,54 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  <a href="parity-benchmarks.html"><code>parity-benchmarks.html</code></a>.
  </p>
 
- <h3 id="bench-agent-context">4. Agent tool-context depth benchmark (0.5.13)</h3>
+ <h3 id="bench-agent-context">4. Closed-loop agent benchmark (0.5.14)</h3>
  <p>
- 0.5.13 adds a benchmark for the context that coding agents actually
- consume between reasoning steps. It does not call remote Claude, GPT, or
- any cloud model. Instead it compares two deterministic local policies:
- one structured <code>skygrep --json --content</code> call per task versus
- a raw <code>rg</code> agent that runs several term searches and then reads
- line-window context.
+ 0.5.14 expands the agent benchmark from one retrieval call to the full
+ loop that coding agents actually run: path discovery, evidence gathering,
+ and sufficiency scoring before the next reasoning step. It does not call
+ remote Claude, GPT, or any cloud model. Instead it compares two
+ deterministic local policies: a skygrep-first agent that uses JSON
+ path-only probes, compact snippet passes, scoped reads, and
+ <code>--no-rerank</code> first; and a raw <code>rg</code>-only agent that runs
+ repeated term searches and line-window reads.
  </p>
  <p>
- The task set covers eight generic repository-maintenance questions across
- locate, snippet, deep, and abstract levels, then runs low / medium / high
- effort profiles. The scoring model is intentionally simple:
- sufficiency = 60 % expected-path coverage + 40 % evidence-term coverage.
- Path precision and sufficiency density measure how much irrelevant
- context the next LLM turn has to filter.
+ The task set covers 38 generic maintenance questions across this repo
+ plus Django, React, and Tokio. The scoring model measures expected-path
+ coverage, path precision, evidence-term coverage, sufficiency, completed
+ tasks, tool-call count, raw retrieval elapsed time, estimated downstream
+ agent elapsed time, and context tokens. Path precision and context
+ volume measure how much irrelevant evidence the next LLM turn has to
+ filter.
  </p>
  <div class="table-wrap">
  <table>
  <thead>
- <tr><th>Metric</th><th><code>skygrep-agent</code></th><th>raw <code>rg-agent</code></th><th>Reading</th></tr>
+ <tr><th>Metric</th><th><code>skygrep-first</code></th><th>raw <code>rg-only</code></th><th>Reading</th></tr>
  </thead>
  <tbody>
- <tr><td>Tasks × effort profiles</td><td>24</td><td>24</td><td>8 generic tasks × 3 depth profiles</td></tr>
- <tr><td>Path coverage</td><td>81.9 %</td><td>100.0 %</td><td><code>rg</code> remains the recall ceiling</td></tr>
- <tr><td>Path precision</td><td>34.9 %</td><td>12.2 %</td><td>skygrep returns less irrelevant path noise</td></tr>
- <tr><td>Evidence coverage</td><td>79.2 %</td><td>92.7 %</td><td>support packs close much of the evidence gap</td></tr>
- <tr><td>Sufficiency score</td><td>80.8 %</td><td>97.1 %</td><td>weighted path + evidence score</td></tr>
- <tr><td>Tool calls</td><td>24</td><td>147</td><td>6.12× fewer calls for skygrep</td></tr>
- <tr><td>Context tokens</td><td>56,424</td><td>2,129,655</td><td>37.74× less context for skygrep</td></tr>
- <tr><td>Sufficiency per 1k tokens</td><td>0.344</td><td>0.011</td><td>31.27× denser context for skygrep</td></tr>
+ <tr><td>Tasks</td><td>38</td><td>38</td><td>self + Django + React + Tokio</td></tr>
+ <tr><td>Path coverage</td><td>94.7 %</td><td>100.0 %</td><td><code>rg</code> remains the recall ceiling</td></tr>
+ <tr><td>Path precision</td><td>10.9 %</td><td>3.4 %</td><td>skygrep returns less irrelevant path noise</td></tr>
+ <tr><td>Evidence coverage</td><td>99.1 %</td><td>99.3 %</td><td>near-parity evidence coverage</td></tr>
+ <tr><td>Sufficiency score</td><td>96.5 %</td><td>99.7 %</td><td>weighted path + evidence score</td></tr>
+ <tr><td>Completed tasks</td><td>35</td><td>38</td><td>the remaining skygrep misses are explicit follow-ups</td></tr>
+ <tr><td>Tool calls</td><td>322</td><td>337</td><td>similar call count, much less context per call</td></tr>
+ <tr><td>Raw retrieval elapsed</td><td>154.23 s</td><td>327.73 s</td><td>2.12× lower measured retrieval time</td></tr>
+ <tr><td>Estimated agent elapsed</td><td>161.68 s</td><td>3833.97 s</td><td>23.71× lower after context-read cost</td></tr>
+ <tr><td>Context tokens</td><td>223,592</td><td>105,187,419</td><td>470× less context for skygrep</td></tr>
+ <tr><td>Work quality / minute</td><td>12.829</td><td>0.561</td><td>22.87× higher closed-loop utility rate</td></tr>
  </tbody>
  </table>
  </div>
  <p>
- Honest framing: raw <code>rg</code> can still be faster at producing a
- large unranked dump, and it remains the ceiling when an agent can afford
- to inspect everything. The 0.5.13 win is agent-context efficiency:
- compact ranked evidence with far fewer tool calls and far fewer tokens.
- Reproduce with
- <code>benchmarks/agent_tool_depth_benchmark.py --summary-only</code>.
+ Honest framing: raw <code>rg</code> remains the recall ceiling, and the
+ skygrep-first policy still missed three of the 38 tasks that broad
+ lexical dumping covered. The 0.5.14 win is closed-loop agent economy:
+ much less context, lower estimated end-to-end agent time, and nearly the
+ same sufficiency when the agent follows the path-first / evidence-second
+ playbook. Reproduce with
+ <code>benchmarks/universal_closed_loop_benchmark.py --repo self --repo django --repo react --repo tokio --summary-only</code>.
  </p>
 
  <h3 id="bench-self">5. skylakegrep self-test (regression guard)</h3>
@@ -514,10 +521,10 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  reduction at equal recall on the 30-task self-test.
  </li>
  <li>
- <strong>"skygrep gives agents denser context with fewer tool calls"</strong> →
- <a href="#bench-agent-context">benchmark 4</a>: 6.12× fewer tool
- calls, 37.74× less context, and 31.27× higher sufficiency density on
- the 0.5.13 agent tool-context benchmark.
+ <strong>"skygrep gives agents much smaller context and faster closed-loop utility"</strong> →
+ <a href="#bench-agent-context">benchmark 4</a>: 470× less context,
+ 23.7× lower estimated agent elapsed, and 22.9× higher work quality per
+ minute on the 0.5.14 closed-loop agent benchmark.
  </li>
  </ul>
  <p>

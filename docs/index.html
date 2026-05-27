@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.13 adds adaptive candidate recall and agent-grade support packs, giving LLM callers compact ranked evidence with far fewer tool calls and context tokens than raw grep. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
+ <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.14 adds closed-loop agent guidance, daemon-first usage, and JSON path-discovery output that cuts context by 470× versus raw rg in the public benchmark. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.13 adds adaptive candidate recall and compact agent-context evidence. 100% local, 100+ languages." />
+ <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.14 adds closed-loop agent guidance, daemon-first calls, and compact JSON path/evidence context. 100% local, 100+ languages." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -624,7 +624,7 @@
 }
 </style>
 <section id="overview" class="hero hero-redesigned">
- <p class="eyebrow">v0.5.13 · 100% local · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.5.14 · 100% local · PolyForm Noncommercial 1.0.0</p>
  <h1>Find <span class="hero-accent">anything</span> on your machine.</h1>
  <p class="lead">
  Semantic search for code, PDFs, notes, and docs.
@@ -691,7 +691,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <p class="trust-strip">
  <strong>30 / 30</strong> public-OSS recall
  <span class="dot">·</span>
- <strong>37.74×</strong> less agent context vs rg
+ <strong>470×</strong> less agent context vs rg
  <span class="dot">·</span>
  <strong>~1.1 s</strong> wrong-path first answer
  <span class="dot">·</span>
@@ -699,7 +699,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <span class="dot">·</span>
  <strong>100 %</strong> local
  <span class="dot">·</span>
- <strong>45</strong> releases shipped
+ <strong>46</strong> releases shipped
  </p>
 </section>
 
@@ -948,7 +948,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <div class="sd-result">├─ seed       preliminary filename anchors + keyword matches (lazy semantic refinement starting)</div>
  <div class="sd-result">═══ <code>Project_Report.txt</code> · bounded content preview</div>
  <div class="sd-result">├─ embed      lazy refinement continues in the same invocation</div>
- <div class="sd-takeaway"><strong>0.5.13:</strong> candidate recall keeps likely files visible before cascade, while content/agent calls get compact same-file support evidence.</div>
+ <div class="sd-takeaway"><strong>0.5.14:</strong> agent calls now use cheap path anchors first, compact snippets second, and daemon-first repeats when the caller keeps searching.</div>
  </div>
  </article>
  </div>
@@ -974,7 +974,7 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap"></div>
      <div class="why-cell why-self">
        <strong>skylakegrep</strong>
-       <span class="why-sub">v0.5.13</span>
+       <span class="why-sub">v0.5.14</span>
      </div>
      <div class="why-cell"><code>ripgrep</code><span class="why-sub">lexical baseline</span></div>
      <div class="why-cell"><a href="https://www.mgrep.dev/" target="_blank" rel="noopener">mgrep</a><span class="why-sub">Mixedbread · paid</span></div>
@@ -1207,16 +1207,19 @@ skygrep doctor</code></pre>
  <p>
  Register agent instructions once after install. The managed snippet
  teaches Claude Code, Codex, OpenCode, Gemini CLI, and Cursor to choose
- the right depth: bare <code>skygrep</code> for location/concept lookup,
- <code>--content</code> for snippets, <code>--detail full</code> only
- after narrowing, <code>--answer</code> for local synthesis, and
- <code>--json</code> plus <code>--include</code> for machine-readable
- agent calls when the scope is known. Re-running
+ the right depth: path-only <code>--no-content --top 10 --no-rerank</code> for fast
+ implementation anchors, first-pass
+ <code>--content --detail standard --no-rerank</code> for source snippets,
+ <code>--detail full</code> only after narrowing,
+ <code>--answer</code> for local synthesis, and <code>--json</code> plus
+ <code>--include</code> for machine-readable agent calls when the scope is
+ known. Re-running
  <code>skygrep setup</code> refreshes the managed block when these
  instructions improve. After an upgrade, normal <code>skygrep</code>
  searches and <code>skygrep doctor</code> also refresh already-registered
  managed blocks automatically; new integrations still require explicit
- setup.
+ setup. The full option playbook lives in the
+ <a href="cli.html#option-playbook">CLI reference</a>.
  </p>
 <pre><code>skygrep setup</code></pre>
  </section>
@@ -1244,16 +1247,15 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
 <!-- ============== Benchmarks summary ============== -->
 <section id="bench" class="doc-section bench-section">
  <p class="eyebrow">Performance</p>
- <h2 class="overview-h2">30 / 30 fully-indexed · 31× denser agent context.</h2>
+ <h2 class="overview-h2">30 / 30 fully-indexed · 470× less agent context.</h2>
  <p class="lead">
  Reproducible against three popular codebases —
  <strong>Django</strong>, <strong>React</strong>, <strong>Tokio</strong>.
  30 hand-labelled questions, 10 per repo for the fully-indexed cascade.
- 0.5.13 adds an agent tool-context benchmark that measures whether one
- structured <code>skygrep --json --content</code> call gives the next LLM
- enough compact evidence compared with a raw <code>rg</code> agent that
- runs multiple term searches. Every number on this page is reproducible
- from public commands and generic task fixtures.
+ 0.5.14 adds a 38-task closed-loop agent benchmark that measures a full
+ path-discovery → evidence-gathering → sufficiency workflow across this
+ repo plus Django, React, and Tokio. Every number on this page is
+ reproducible from public commands and generic task fixtures.
  </p>
  <div class="bench-stats">
  <div class="bench-stat">
@@ -1262,14 +1264,14 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
  <div class="bench-stat-sub">vs. 28 / 30 in 0.1.0; bge-m3 substrate broke the ceiling.</div>
  </div>
  <div class="bench-stat">
- <div class="bench-stat-num">37.74×</div>
+ <div class="bench-stat-num">470×</div>
 <div class="bench-stat-label">less context vs. raw <code>rg</code> agent baseline</div>
- <div class="bench-stat-sub">56 K tokens from skygrep vs. 2.13 M tokens from multi-term rg on the 0.5.13 agent-context benchmark.</div>
+ <div class="bench-stat-sub">224 K tokens from skygrep-first vs. 105 M tokens from raw rg-only on the 0.5.14 closed-loop benchmark.</div>
 </div>
 <div class="bench-stat">
- <div class="bench-stat-num">31.27×</div>
- <div class="bench-stat-label">higher sufficiency density for LLM context</div>
- <div class="bench-stat-sub">fewer calls and denser evidence; raw rg remains the recall ceiling when huge context is acceptable.</div>
+ <div class="bench-stat-num">23.7×</div>
+ <div class="bench-stat-label">lower estimated agent elapsed</div>
+ <div class="bench-stat-sub">161.7 s estimated agent elapsed for skygrep-first vs. 3834.0 s for raw rg-only; raw rg remains the recall ceiling.</div>
  </div>
  </div>
  <div class="button-row">
@@ -1286,8 +1288,8 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
  <ul class="limits-list">
  <li>
  <strong>Sample sizes are measurement-grade, not study-grade.</strong>
- The agent tool-context benchmark is 8 generic tasks × 3 effort profiles;
- the multi-language benchmark is n = 30. Statistical significance is
+ The closed-loop agent benchmark is 38 generic tasks across four public
+ repositories; the multi-language benchmark is n = 30. Statistical significance is
  improving, but small.
  </li>
  <li>
@@ -1310,7 +1312,7 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
  </li>
  </ul>
  <p class="limits-footer">
- The full bench protocol, agent-context table, per-task analysis, and
+ The full bench protocol, closed-loop agent table, per-task analysis, and
  worked example (one query · 1,395 × token reduction) live on
  <a href="benchmarks.html">the benchmarks page</a>.
  </p>

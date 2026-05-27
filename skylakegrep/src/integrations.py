@@ -52,10 +52,27 @@ Use the smallest command that gives enough depth:
 
         skygrep --json --content --detail standard --include "src/**" "where is token refresh implemented?"
 
+Option playbook:
+
+  - Path/location only: `skygrep --json --no-content --top 10 --no-rerank "<query>"`.
+  - Evidence snippets, first agent pass: `skygrep --json --content --detail standard --no-rerank "<query>"`.
+  - Deep read: `skygrep --json --content --detail full --include "<known-path-or-folder>" "<query>"`.
+  - Synthesized answer: `skygrep --answer --content "<query>"`.
+  - Known scope: add `--include "<scope/**>"` as early as possible.
+  - Repeated tool calls: prefer `skygrep serve` + `--daemon-url`, and keep
+    path/snippet discovery calls on `--no-rerank`; rerank only when ambiguity warrants it.
+  - Exact regex/raw grep: use `rg` directly.
+
 Decision rules for agents:
 
   - Start with bare `skygrep "<query>"` for file-location and concept
     lookup questions.
+  - For implementation-location questions where several files may be relevant,
+    prefer a path-only high-recall pass such as
+    `skygrep --json --no-content --top 10 --no-rerank "<query>"` before reading file contents.
+  - For first-pass implementation snippets in an agent loop, prefer
+    `skygrep --json --content --detail standard --no-rerank "<query>"`.
+    Re-run without `--no-rerank` only when the evidence is ambiguous or missing.
   - Add `--content` when the next step depends on text inside files.
   - Add `--detail full` only after narrowing with `--include`, or when
     the user explicitly asks to read the document contents.
@@ -67,6 +84,22 @@ Decision rules for agents:
     knows the relevant repo, folder, or file. Scoped calls are faster
     and reduce irrelevant cross-folder evidence.
   - Add `--explain` when routing or provenance matters.
+
+Closed-loop policy:
+
+  1. Use one scoped `skygrep --json --content --detail standard --no-rerank` call
+     for the first evidence pass when the next LLM step needs context.
+  2. If the result names likely files but lacks enough evidence, read the
+     returned file paths directly when your agent has a file-read tool; use
+     `skygrep --content --detail full --include <that-file-or-folder>` when
+     direct file reads are unavailable or the file needs skygrep extraction
+     such as PDF, docx, or other parsed documents.
+  3. If skygrep confidence is low or expected evidence is still missing,
+     use a path-only probe such as `rg -l` before dumping content, then use a
+     targeted, bounded `rg` fallback inside the best known scope before
+     broadening to the whole repository.
+  4. Prefer final task quality over raw recall: a useful answer needs the
+     right path, supporting source text, and low context noise.
 
 Use `rg` directly only when:
   - You are writing a regex.

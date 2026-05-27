@@ -40,8 +40,17 @@ class IntegrationModelTests(unittest.TestCase):
         self.assertIn("--content --detail full", content)
         self.assertIn("--answer --content", content)
         self.assertIn("--json --content --detail standard", content)
+        self.assertIn("--top 10", content)
+        self.assertIn("--no-content", content)
+        self.assertIn("--no-rerank", content)
+        self.assertIn("--daemon-url", content)
+        self.assertIn("Option playbook", content)
+        self.assertIn("Path/location only", content)
+        self.assertIn("Exact regex/raw grep", content)
         self.assertIn('--include "src/**"', content)
         self.assertIn("--explain", content)
+        self.assertIn("Closed-loop policy", content)
+        self.assertIn("final task quality", content)
         self.assertIn("project brief", content)
 
     def test_register_idempotent(self):

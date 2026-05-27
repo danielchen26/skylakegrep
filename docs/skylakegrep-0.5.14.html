@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.14 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.14 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.14</p>
+<h1>skylakegrep 0.5.14 — closed-loop agent workflow and daemon-first guidance</h1>
+<p>0.5.14 turns the agent-use strategy into an explicit public contract.
+The core retrieval engine remains compatible with 0.5.13, but the CLI
+help, setup snippets, README, GitHub Pages, and benchmarks now teach a
+stricter path-first / evidence-second workflow for LLM callers.</p>
+<p>All examples and benchmark tasks below are generic repository-maintenance
+scenarios. No private prompts, filenames, folders, screenshots, local
+paths, or user-specific document categories are included.</p>
+<h2>What changed</h2>
+<ul>
+<li>Agent instructions now separate path discovery from evidence
+  gathering. Location questions should use
+  <code>skygrep --json --no-content --top 10 --no-rerank "&lt;query&gt;"</code>; first
+  source-evidence passes should use
+  <code>skygrep --json --content --detail standard --no-rerank "&lt;query&gt;"</code>.</li>
+<li>Repeated LLM tool calls are documented as daemon-first:
+  start <code>skygrep serve --port 7878</code>, then call
+  <code>skygrep --daemon-url http://127.0.0.1:7878 --json ...</code> so agents do
+  not pay fresh process and model-warmup cost for every query.</li>
+<li>JSON path-only output now obeys <code>--no-content</code> strictly. When an
+  agent asks for paths only, the result omits <code>snippet</code> instead of
+  leaking hidden text into what should be a compact anchor contract.</li>
+<li>Public setup snippets for Claude Code, Codex, OpenCode, Gemini CLI,
+  and Cursor now include the same option playbook and closed-loop policy:
+  scope early with <code>--include</code>, read returned files directly when the
+  agent has a file-read tool, use <code>--detail full</code> only after narrowing,
+  and reserve rerank for ambiguous final evidence passes.</li>
+<li>The benchmark suite now includes a universal closed-loop benchmark that
+  measures path coverage, evidence coverage, sufficiency, tool-call
+  count, context tokens, raw retrieval latency, estimated downstream
+  agent latency, and work quality per minute.</li>
+</ul>
+<h2>What "agent fast" and "daemon-first" mean</h2>
+<p>These are operating modes for how agents call skygrep; they are not a
+new separate router or a hardcoded query preset.</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Meaning</th>
+<th>Command shape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agent fast path discovery</td>
+<td>Return likely files with minimal context so the next tool can read the right files directly.</td>
+<td><code>skygrep --json --no-content --top 10 --no-rerank "where is token refresh implemented?"</code></td>
+</tr>
+<tr>
+<td>Agent fast evidence</td>
+<td>Return bounded snippets and line ranges for the next reasoning step, without expensive rerank on the first pass.</td>
+<td><code>skygrep --json --content --detail standard --no-rerank "what does the retry policy say about backoff?"</code></td>
+</tr>
+<tr>
+<td>Scoped deep read</td>
+<td>After a path is known, use skygrep extraction only where it adds value, such as PDFs, DOCX, or unavailable direct file reads.</td>
+<td><code>skygrep --json --content --detail full --include "docs/retry-policy.md" "show the rollout steps"</code></td>
+</tr>
+<tr>
+<td>Daemon-first repeated calls</td>
+<td>Keep the process warm for multi-step agent sessions.</td>
+<td><code>skygrep serve --port 7878</code> plus <code>skygrep --daemon-url http://127.0.0.1:7878 --json ...</code></td>
+</tr>
+</tbody>
+</table>
+<p>The principle is generic: minimize the first context packet, preserve
+source evidence, and deepen only when the next reasoning step actually
+needs more text.</p>
+<h2>Closed-loop agent benchmark</h2>
+<p>The 0.5.14 release gate runs
+<code>benchmarks/universal_closed_loop_benchmark.py</code> against 38 generic tasks
+across skylakegrep, Django, React, and Tokio. It compares:</p>
+<ul>
+<li><code>skygrep-first</code>: path-only JSON probes, compact snippet probes,
+  scoped includes when known, direct reads after narrowing, and
+  <code>--no-rerank</code> on first-pass agent calls.</li>
+<li><code>rg-only</code>: repeated raw <code>rg</code> term searches and line-window reads.</li>
+</ul>
+<p>Current 0.5.14 totals:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align: right;"><code>skygrep-first</code></th>
+<th style="text-align: right;">raw <code>rg-only</code></th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tasks</td>
+<td style="text-align: right;">38</td>
+<td style="text-align: right;">38</td>
+<td>self + Django + React + Tokio</td>
+</tr>
+<tr>
+<td>Path coverage</td>
+<td style="text-align: right;">94.7 %</td>
+<td style="text-align: right;">100.0 %</td>
+<td><code>rg</code> remains the recall ceiling</td>
+</tr>
+<tr>
+<td>Path precision</td>
+<td style="text-align: right;">10.9 %</td>
+<td style="text-align: right;">3.4 %</td>
+<td>skygrep returns less path noise</td>
+</tr>
+<tr>
+<td>Evidence coverage</td>
+<td style="text-align: right;">99.1 %</td>
+<td style="text-align: right;">99.3 %</td>
+<td>near-parity evidence coverage</td>
+</tr>
+<tr>
+<td>Sufficiency score</td>
+<td style="text-align: right;">96.5 %</td>
+<td style="text-align: right;">99.7 %</td>
+<td>weighted path + evidence score</td>
+</tr>
+<tr>
+<td>Completed tasks</td>
+<td style="text-align: right;">35</td>
+<td style="text-align: right;">38</td>
+<td>remaining misses are explicit follow-ups</td>
+</tr>
+<tr>
+<td>Tool calls</td>
+<td style="text-align: right;">322</td>
+<td style="text-align: right;">337</td>
+<td>similar call count, much smaller payloads</td>
+</tr>
+<tr>
+<td>Raw retrieval elapsed</td>
+<td style="text-align: right;">154.23 s</td>
+<td style="text-align: right;">327.73 s</td>
+<td>2.12× lower measured retrieval time</td>
+</tr>
+<tr>
+<td>Estimated agent elapsed</td>
+<td style="text-align: right;">161.68 s</td>
+<td style="text-align: right;">3833.97 s</td>
+<td>23.71× lower after context-read cost</td>
+</tr>
+<tr>
+<td>Context tokens</td>
+<td style="text-align: right;">223,592</td>
+<td style="text-align: right;">105,187,419</td>
+<td>470× less context for skygrep</td>
+</tr>
+<tr>
+<td>Work quality / minute</td>
+<td style="text-align: right;">12.829</td>
+<td style="text-align: right;">0.561</td>
+<td>22.87× higher closed-loop utility rate</td>
+</tr>
+</tbody>
+</table>
+<p>Honest framing: raw <code>rg</code> is still the recall ceiling, and this benchmark
+keeps the three skygrep misses visible. The 0.5.14 win is not "skygrep
+always beats grep"; it is that the skygrep-first workflow gives agents
+nearly the same usable evidence while avoiding the enormous context load
+that makes downstream LLM reasoning slow and noisy.</p>
+<h2>Compatibility</h2>
+<ul>
+<li>No existing CLI flag was removed.</li>
+<li>Existing indexes remain compatible.</li>
+<li>JSON remains backwards compatible for normal content calls. The
+  <code>--json --no-content</code> path intentionally omits <code>snippet</code>, matching the
+  caller's request for path-only output.</li>
+<li>Existing managed setup snippets refresh inside their managed block when
+  <code>skygrep setup</code> runs, and already-registered snippets are refreshed by
+  normal <code>skygrep</code> searches / <code>skygrep doctor</code> after upgrade.</li>
+</ul>
+<h2>Verification</h2>
+<ul>
+<li>Targeted tests: daemon JSON path-only output, setup snippet refresh,
+  and closed-loop benchmark helpers.</li>
+<li>Compile check over changed Python entrypoints, benchmark scripts, and
+  tests.</li>
+<li>Universal closed-loop benchmark over 38 generic tasks.</li>
+<li>Source privacy scan before build.</li>
+<li>Wheel/sdist build and <code>twine check</code> before upload.</li>
+<li>Wheel/sdist privacy scan before upload.</li>
+</ul>
+<h2>Known follow-ups</h2>
+<ul>
+<li>Consider a future explicit CLI convenience layer, such as
+  <code>--agent-fast path</code> / <code>--agent-fast context</code>, once the command shapes
+  have stayed stable across more public projects.</li>
+<li>Improve the remaining ambiguous implementation-location tasks where
+  raw <code>rg</code> still finds a path that the skygrep-first policy misses.</li>
+<li>Keep expanding the benchmark corpus before promoting these workflow
+  shortcuts to a larger 0.6 line.</li>
+</ul></article>
+</main>
+</div>
+</body></html>
