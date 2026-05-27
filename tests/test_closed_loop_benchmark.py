@@ -2,7 +2,22 @@
 
 from __future__ import annotations
 
-from benchmarks.closed_loop_agent_benchmark import _path_probe_rank, _probe_terms
+import importlib.util
+import sys
+from pathlib import Path
+
+
+_BENCHMARK_PATH = (
+    Path(__file__).resolve().parents[1] / "benchmarks" / "closed_loop_agent_benchmark.py"
+)
+_SPEC = importlib.util.spec_from_file_location("closed_loop_agent_benchmark", _BENCHMARK_PATH)
+assert _SPEC is not None
+assert _SPEC.loader is not None
+_benchmark = importlib.util.module_from_spec(_SPEC)
+sys.modules[_SPEC.name] = _benchmark
+_SPEC.loader.exec_module(_benchmark)
+_path_probe_rank = _benchmark._path_probe_rank
+_probe_terms = _benchmark._probe_terms
 
 
 def test_probe_terms_keep_short_domain_tokens_and_filter_wrappers():
