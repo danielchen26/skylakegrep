@@ -270,7 +270,11 @@ def _parse_llm_json(raw: str) -> dict | None:
         return None
 
 
-def _llm_decision(query: str) -> RouterDecision | None:
+def _llm_decision(
+    query: str,
+    *,
+    timeout: float | None = None,
+) -> RouterDecision | None:
     """Call the local LLM router. Returns ``None`` on any failure
     (caller falls back). Never raises."""
     cfg = get_config()
@@ -295,7 +299,11 @@ def _llm_decision(query: str) -> RouterDecision | None:
     if keep_alive is not None:
         payload["keep_alive"] = keep_alive
     try:
-        r = requests.post(url, json=payload, timeout=LLM_TIMEOUT_SECONDS)
+        r = requests.post(
+            url,
+            json=payload,
+            timeout=timeout if timeout is not None else LLM_TIMEOUT_SECONDS,
+        )
         r.raise_for_status()
         body = r.json()
     except (requests.RequestException, ValueError) as exc:
@@ -619,6 +627,7 @@ def route_query(
     *,
     conn: sqlite3.Connection | None = None,
     use_llm: bool = True,
+    timeout: float | None = None,
 ) -> RouterDecision:
     """Resolve a query into a structured ``RouterDecision``.
 
@@ -729,7 +738,7 @@ def route_query(
 
     if use_llm:
         try:
-            decision = _llm_decision(routing_query)
+            decision = _llm_decision(routing_query, timeout=timeout)
         except Exception as exc:  # noqa: BLE001 — never let routing crash a search
             logger.debug("LLM router unexpected error: %s", exc)
             decision = None

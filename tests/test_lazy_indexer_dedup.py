@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import unittest
 import tempfile
+import time
 from pathlib import Path
+from unittest.mock import patch
 
 from skylakegrep.src import lazy_indexer as LZ
 
@@ -59,6 +61,47 @@ class CrawlTreeTests(unittest.TestCase):
 
         self.assertIn(str(source_file.resolve()), files)
         self.assertNotIn(str(cache_file.resolve()), files)
+
+    def test_crawl_tree_budget_stops_inside_large_directory(self) -> None:
+        class _FakeEntry:
+            def __init__(self, root: Path, index: int) -> None:
+                self.name = f"file_{index}.py"
+                self.path = str(root / self.name)
+
+            def is_dir(self, follow_symlinks: bool = False) -> bool:
+                return False
+
+            def is_file(self, follow_symlinks: bool = False) -> bool:
+                time.sleep(0.005)
+                return True
+
+        class _FakeScandir:
+            def __init__(self, root: Path) -> None:
+                self.root = root
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb) -> bool:
+                return False
+
+            def __iter__(self):
+                for index in range(10_000):
+                    yield _FakeEntry(self.root, index)
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            started = time.perf_counter()
+            with patch.object(
+                LZ.os,
+                "scandir",
+                side_effect=lambda path: _FakeScandir(Path(path)),
+            ):
+                files, _ = LZ.crawl_tree(root, max_seconds=0.03)
+            elapsed = time.perf_counter() - started
+
+        self.assertLess(elapsed, 0.25)
+        self.assertLess(len(files), 50)
 
 
 class StemFamilyKeyTests(unittest.TestCase):
@@ -221,6 +264,58 @@ class ResolveImportsToPathsTests(unittest.TestCase):
             ["django.contrib.auth"], project, max_paths=5,
         )
         self.assertEqual(len(out), 5)
+
+
+class ForegroundBudgetTests(unittest.TestCase):
+    def test_lazy_cold_start_caps_router_timeout_from_total_budget(self) -> None:
+        class _Embedder:
+            request_timeout_s = None
+            batch_timeout_s = None
+            allow_per_chunk_fallback = True
+
+            def embed_batch(self, texts):
+                return [[1.0, 0.0] for _ in texts]
+
+            def embed(self, text):
+                return [1.0, 0.0]
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            target = root / "src" / "session.py"
+            target.parent.mkdir()
+            target.write_text("def refresh_session():\n    return True\n", encoding="utf-8")
+            from skylakegrep.src.storage import init_db
+
+            conn = init_db(root / "index.db")
+
+            seen_timeouts: list[float] = []
+
+            def _fake_router(*args, **kwargs):
+                timeout = float(kwargs.get("timeout", 0.5))
+                seen_timeouts.append(timeout)
+                time.sleep(timeout)
+                return []
+
+            started = time.perf_counter()
+            with patch(
+                "skylakegrep.src.llm_router.infer_candidate_paths",
+                side_effect=_fake_router,
+            ):
+                _, tele = LZ.lazy_explore_cold_start(
+                    conn,
+                    "where is session refresh",
+                    root,
+                    _Embedder(),
+                    total_budget_s=0.2,
+                    router_timeout_s=0.1,
+                )
+            elapsed = time.perf_counter() - started
+            conn.close()
+
+        self.assertLess(elapsed, 0.8)
+        self.assertTrue(seen_timeouts)
+        self.assertLessEqual(max(seen_timeouts), 0.1)
+        self.assertLessEqual(tele.get("llm_router_ms", 9999), 700)
 
 
 if __name__ == "__main__":

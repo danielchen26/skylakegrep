@@ -64,7 +64,7 @@ async def renew_session(req: Request):
 > **bounded wrong-path discovery** via proactive umbrella &nbsp;·&nbsp;
 > **~1 s** warm queries &nbsp;·&nbsp;
 > **100 %** local &nbsp;·&nbsp;
-> **47** releases shipped
+> **48** releases shipped
 
 ---
 
@@ -336,7 +336,7 @@ skygrep "your question here"
 `skygrep setup` writes a short agent rule into Claude Code, Codex,
 OpenCode, Gemini CLI, and Cursor when detected. The rule tells the
 agent which depth to request: path-only `--no-content --top 10 --no-rerank` for implementation
-anchors, first-pass `--content --detail standard --no-rerank` for source snippets,
+anchors, first-pass `--content --detail standard --top 8 --no-rerank` for source snippets,
 `--detail full` only after narrowing, `--answer` for local synthesis,
 and `--json` plus `--include` for machine-readable scoped tool calls.
 Re-running `skygrep setup` refreshes the
@@ -652,10 +652,19 @@ explicitly requested.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.5.16`** — Bounded agent latency and stronger scoped evidence.
+    Machine-readable agent calls now get explicit router/model/cascade
+    budgets, skip heavyweight foreground refresh lanes, and return a
+    top-8 compact evidence pack by default through `--agent-context`.
+    Slow local model calls degrade to fallback behavior instead of
+    blocking an LLM tool loop, low-evidence JSON candidates are filtered
+    before reaching the caller, and cold lazy indexing walks large
+    directories incrementally under the foreground budget while background
+    indexing continues.
   - **`0.5.15`** — First-class agent presets, setup-status checks,
     benchmark-gate enforcement, and PyPI Trusted Publishing workflow.
     `--agent-fast` now expands to the documented JSON path-anchor call,
-    `--agent-context` expands to the documented compact evidence call,
+    `--agent-context` expands to the documented top-8 compact evidence call,
     and `--agent-daemon` makes daemon-first repeated agent calls explicit.
     `skygrep setup --check` reports stale managed instruction snippets
     without modifying user files, while normal `skygrep setup` and the
@@ -666,7 +675,7 @@ explicitly requested.
     workflow. Public docs, setup snippets, and CLI help now teach agents
     to split path discovery from evidence gathering: use
     `--json --no-content --top 10 --no-rerank` for fast anchors, use
-    `--json --content --detail standard --no-rerank` for first-pass
+    `--json --content --detail standard --top 8 --no-rerank` for first-pass
     snippets, narrow with `--include`, read files directly when the
     agent has a file-read tool, and reserve rerank / `--detail full` for
     ambiguity or parsed documents. JSON path-only output now omits

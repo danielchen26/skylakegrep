@@ -53,6 +53,11 @@ _PROTOTYPES: dict[str, tuple[str, ...]] = {
         "explain named identifier logic",
         "explain a project report logic",
         "describe implementation logic or data flow",
+        "where is behavior implemented in the code",
+        "where is runtime logic applied in the implementation",
+        "where is timeout logic applied in code",
+        "where is the code path that handles a process",
+        "where does a policy get applied in the system",
         "how does this system decide what to do",
         "how are constraints or budgets enforced",
         "what policy governs retries limits and attempts",
@@ -304,6 +309,20 @@ def classify_fast_intent(query: str) -> FastIntent | None:
     intent, score = ranked[0]
     second = ranked[1][1] if len(ranked) > 1 else 0.0
     margin = score - second
+    pathlike_primary = best_filename_token(query)
+    pathlike_forced_filename = False
+    if (
+        pathlike_primary
+        and intent == "semantic"
+        and scores.get("filename", 0.0) >= _MIN_SCORE["filename"]
+        and len(_IDENT_RE.findall(query)) <= 4
+        and margin < 0.100
+    ):
+        intent = "filename"
+        score = scores["filename"]
+        second = scores.get("semantic", second)
+        margin = max(0.0, score - second)
+        pathlike_forced_filename = True
     if intent.startswith("metadata_"):
         best_non_metadata = max(
             (v for k, v in scores.items() if not k.startswith("metadata_")),
@@ -319,7 +338,11 @@ def classify_fast_intent(query: str) -> FastIntent | None:
         "metadata_size",
     }:
         return None
+    if intent == "semantic" and score < 0.10 and len(_IDENT_RE.findall(query)) <= 3:
+        return None
     required_margin = _MIN_MARGIN[intent]
+    if pathlike_forced_filename:
+        required_margin = 0.0
     if intent == "semantic" and any(
         any(ch in token for ch in "._-/") for token in _IDENT_RE.findall(query)
     ):
@@ -327,7 +350,7 @@ def classify_fast_intent(query: str) -> FastIntent | None:
         # metadata words (created_at, modified_time). When the semantic
         # centroid is still clearly on top, do not fall through to an LLM just
         # because the metadata centroid is also nearby.
-        required_margin = min(required_margin, 0.030)
+        required_margin = 0.0 if score >= 0.18 else min(required_margin, 0.020)
     if score < _MIN_SCORE[intent] or margin < required_margin:
         return None
 

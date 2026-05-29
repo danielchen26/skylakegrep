@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import fnmatch
+import os
 from pathlib import Path
 from tree_sitter import Language, Parser
 
@@ -130,9 +131,8 @@ def load_ignore_patterns(root: Path) -> list[str]:
     return patterns
 
 
-def is_ignored(path: Path, root: Path, patterns: list[str]) -> bool:
-    relative = path.relative_to(root).as_posix()
-    rel_parts = path.relative_to(root).parts
+def _is_ignored_parts(rel_parts: tuple[str, ...], patterns: list[str]) -> bool:
+    relative = "/".join(rel_parts)
     parts = set(rel_parts)
     if parts & DEFAULT_IGNORED_DIRS or any(part.startswith(".") for part in rel_parts):
         return True
@@ -142,25 +142,55 @@ def is_ignored(path: Path, root: Path, patterns: list[str]) -> bool:
         for suffix in DEFAULT_IGNORED_PATH_SUFFIXES
     ):
         return True
+    name = rel_parts[-1] if rel_parts else ""
     for pattern in patterns:
         normalized = pattern.strip("/")
         if pattern.endswith("/"):
             if normalized in parts or relative.startswith(f"{normalized}/"):
                 return True
-        elif fnmatch.fnmatch(relative, normalized) or fnmatch.fnmatch(path.name, normalized):
+        elif fnmatch.fnmatch(relative, normalized) or fnmatch.fnmatch(name, normalized):
             return True
     return False
+
+
+def is_ignored(path: Path, root: Path, patterns: list[str]) -> bool:
+    rel_parts = path.relative_to(root).parts
+    return _is_ignored_parts(rel_parts, patterns)
 
 
 def collect_indexable_files(path: Path) -> list[Path]:
     root = path
     resolved_root = root.resolve()
     patterns = load_ignore_patterns(root)
-    files = []
-    for ext in SUPPORTED_EXTENSIONS:
-        for candidate in root.rglob(f"*{ext}"):
-            if candidate.is_file() and not is_ignored(candidate.resolve(), resolved_root, patterns):
-                files.append(candidate)
+    files: list[Path] = []
+    stack: list[tuple[Path, tuple[str, ...]]] = [(resolved_root, ())]
+    while stack:
+        current, parent_parts = stack.pop()
+        try:
+            iterator = os.scandir(current)
+        except OSError:
+            continue
+        try:
+            with iterator as entries:
+                for entry in entries:
+                    name = entry.name
+                    rel_parts = parent_parts + (name,)
+                    if _is_ignored_parts(rel_parts, patterns):
+                        continue
+                    candidate = Path(entry.path)
+                    display_candidate = root.joinpath(*rel_parts)
+                    try:
+                        if entry.is_dir(follow_symlinks=False):
+                            stack.append((candidate, rel_parts))
+                        elif (
+                            candidate.suffix in SUPPORTED_EXTENSIONS
+                            and entry.is_file(follow_symlinks=False)
+                        ):
+                            files.append(display_candidate)
+                    except OSError:
+                        continue
+        except OSError:
+            continue
     return sorted(files)
 
 

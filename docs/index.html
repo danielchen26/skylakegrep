@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.15 adds first-class agent presets, daemon-first agent calls, setup-status checks, benchmark gates, and PyPI Trusted Publishing. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
+ <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.16 adds bounded agent latency, top-8 compact evidence, and safer fallback behavior for LLM tool loops. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.15 adds agent-fast/context presets, daemon-first calls, setup checks, and benchmark gates. 100% local, 100+ languages." />
+ <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.16 bounds agent calls, keeps compact top-8 evidence, and falls back cleanly when local model calls are slow. 100% local, 100+ languages." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -624,7 +624,7 @@
 }
 </style>
 <section id="overview" class="hero hero-redesigned">
- <p class="eyebrow">v0.5.15 · 100% local · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.5.16 · 100% local · PolyForm Noncommercial 1.0.0</p>
  <h1>Find <span class="hero-accent">anything</span> on your machine.</h1>
  <p class="lead">
  Semantic search for code, PDFs, notes, and docs.
@@ -699,7 +699,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <span class="dot">·</span>
  <strong>100 %</strong> local
  <span class="dot">·</span>
- <strong>47</strong> releases shipped
+ <strong>48</strong> releases shipped
  </p>
 </section>
 
@@ -948,7 +948,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <div class="sd-result">├─ seed       preliminary filename anchors + keyword matches (lazy semantic refinement starting)</div>
  <div class="sd-result">═══ <code>Project_Report.txt</code> · bounded content preview</div>
  <div class="sd-result">├─ embed      lazy refinement continues in the same invocation</div>
- <div class="sd-takeaway"><strong>0.5.15:</strong> agent calls can use <code>--agent-fast</code>, <code>--agent-context</code>, and <code>--agent-daemon</code> instead of memorizing long flag bundles.</div>
+ <div class="sd-takeaway"><strong>0.5.16:</strong> agent calls use bounded router/model/cascade budgets, compact top-8 evidence, and fallback behavior instead of waiting indefinitely.</div>
  </div>
  </article>
  </div>
@@ -974,7 +974,7 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap"></div>
      <div class="why-cell why-self">
        <strong>skylakegrep</strong>
-       <span class="why-sub">v0.5.15</span>
+       <span class="why-sub">v0.5.16</span>
      </div>
      <div class="why-cell"><code>ripgrep</code><span class="why-sub">lexical baseline</span></div>
      <div class="why-cell"><a href="https://www.mgrep.dev/" target="_blank" rel="noopener">mgrep</a><span class="why-sub">Mixedbread · paid</span></div>
@@ -1209,7 +1209,7 @@ skygrep doctor</code></pre>
  teaches Claude Code, Codex, OpenCode, Gemini CLI, and Cursor to choose
  the right depth: path-only <code>--no-content --top 10 --no-rerank</code> for fast
  implementation anchors, first-pass
- <code>--content --detail standard --no-rerank</code> for source snippets,
+ <code>--content --detail standard --top 8 --no-rerank</code> for source snippets,
  <code>--detail full</code> only after narrowing,
  <code>--answer</code> for local synthesis, and <code>--json</code> plus
  <code>--include</code> for machine-readable agent calls when the scope is
@@ -1275,7 +1275,7 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
  </div>
  </div>
  <div class="button-row">
- <a class="button primary" href="benchmarks.html">Read all 5 benchmarks →</a>
+ <a class="button primary" href="benchmarks.html">Read all 6 benchmarks →</a>
  <a class="button secondary" href="parity-benchmarks.html">Reproduce in 3 commands</a>
  </div>
 </section>

@@ -66,6 +66,21 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.5.16 · bounded agent latency · top-8 evidence · fallback safety</div>
+ <h3>Agent calls now return bounded structured context instead of waiting indefinitely</h3>
+ <p>
+ This release hardens the 0.5.15 agent presets at runtime:
+ <code>--agent-fast</code>, <code>--agent-context</code>, and JSON tool calls
+ now use explicit router/model/cascade budgets, skip heavyweight foreground
+ maintenance lanes, and let background indexing continue after returning
+ compact evidence. <code>--agent-context</code> now defaults to top-8 snippets,
+ JSON output filters low-evidence candidates before an LLM consumes them,
+ and slow local Ollama calls degrade to fallback behavior rather than
+ blocking an agent loop.
+ </p>
+ <a class="release-link" href="skylakegrep-0.5.16.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.15 · first-class agent presets · benchmark gate · trusted publishing</div>
  <h3>Agent-fast and daemon-first are now explicit CLI contracts</h3>
  <p>

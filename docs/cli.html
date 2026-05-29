@@ -213,6 +213,13 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  startup and model warmup on every tool invocation.
  </p>
  <p>
+ In 0.5.16, those agent presets are bounded in the runtime as well as in
+ the documentation. Machine-readable agent calls use shorter router,
+ model, and cascade budgets, skip heavyweight foreground refresh lanes,
+ keep background indexing alive, return top-8 compact evidence by default,
+ and filter low-confidence JSON candidates before an LLM consumes them.
+ </p>
+ <p>
  In 0.5.13, semantic and mixed queries also use an adaptive candidate
  recall substrate before final cascade ranking. For agents, this means
  <code>--json --content --detail standard</code> can return compact path
@@ -307,6 +314,12 @@ skygrep doctor</code></pre>
  <tr><td><code>SKYGREP_AUTOSTART_OLLAMA</code></td><td><code>1</code> (0.5.8+)</td><td>If <code>1</code> (default), <code>skygrep search</code> autostarts <code>ollama serve</code> in the background when Ollama is unreachable but the binary is on PATH, and polls until it answers (5 s budget). Set to <code>0</code> to disable and force the rule-based router fallback when Ollama is down.</td></tr>
  <tr><td><code>SKYGREP_OLLAMA_AUTOSTART_TIMEOUT</code></td><td><code>5.0</code> (0.5.8+)</td><td>Seconds to wait for the autostarted <code>ollama serve</code> to answer the <code>/api/tags</code> probe before giving up and falling back to rule-based routing.</td></tr>
  <tr><td><code>SKYGREP_LLM_ROUTER_TIMEOUT_SECONDS</code></td><td><code>8.0</code> (0.5.8+, was <code>0.5</code>)</td><td>HTTP timeout for the LLM router's <code>POST /api/generate</code> call. Bumped from 0.5 s in 0.5.8 because cold qwen2.5:3b needs ~3 s to answer with <code>format=json + num_predict=256</code>; warm calls (<code>keep_alive=-1</code> now actually working — see release notes) finish in 50–100 ms well under the new ceiling. Lower this only when running a much smaller router model.</td></tr>
+ <tr><td><code>SKYGREP_AGENT_ROUTER_TIMEOUT_S</code></td><td><code>1.5</code> (0.5.16+)</td><td>Router budget for JSON / <code>--agent-fast</code> / <code>--agent-context</code> / <code>--agent-mode deep</code> calls. If the local router model is slow, skygrep falls back instead of blocking the agent loop.</td></tr>
+ <tr><td><code>SKYGREP_AGENT_MODEL_TIMEOUT_S</code></td><td><code>3.0</code> (0.5.16+)</td><td>Per-call local-model budget for machine-readable agent contexts.</td></tr>
+ <tr><td><code>SKYGREP_AGENT_CASCADE_TIMEOUT_S</code></td><td><code>8.0</code> (0.5.16+)</td><td>Foreground cascade budget for machine-readable agent contexts. Background indexing can continue after the bounded response returns.</td></tr>
+ <tr><td><code>SKYGREP_FOREGROUND_MODEL_TIMEOUT_S</code></td><td><code>12.0</code> (0.5.16+)</td><td>Interactive human-output local-model budget. Human searches can wait longer than agent tool calls because the terminal displays progress.</td></tr>
+ <tr><td><code>SKYGREP_CASCADE_TIMEOUT_S</code></td><td><code>30.0</code> (0.5.16+)</td><td>Interactive human-output foreground cascade budget before reporting that background indexing will continue.</td></tr>
+ <tr><td><code>SKYGREP_AGENT_MIN_EVIDENCE_SCORE</code></td><td><code>0.50</code> (0.5.16+)</td><td>Minimum score for machine-readable agent results. Raise it to reduce low-confidence context; lower it only when recall matters more than context cleanliness.</td></tr>
  </tbody>
  </table>
 

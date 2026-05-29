@@ -41,7 +41,7 @@ The explicit long-form equivalents still work:
 
 ```bash
 skygrep --json --no-content --top 10 --no-rerank "<query>"
-skygrep --json --content --detail standard --no-rerank "<query>"
+skygrep --json --content --detail standard --top 8 --no-rerank "<query>"
 ```
 
 ## Setup freshness

@@ -58,7 +58,7 @@ Option playbook:
   - Path/location only: `skygrep --agent-fast "<query>"`.
     Equivalent explicit form: `skygrep --json --no-content --top 10 --no-rerank "<query>"`.
   - Evidence snippets, first agent pass: `skygrep --agent-context "<query>"`.
-    Equivalent explicit form: `skygrep --json --content --detail standard --no-rerank "<query>"`.
+    Equivalent explicit form: `skygrep --json --content --detail standard --top 8 --no-rerank "<query>"`.
   - Deep read: `skygrep --json --content --detail full --include "<known-path-or-folder>" "<query>"`.
   - Synthesized answer: `skygrep --answer --content "<query>"`.
   - Known scope: add `--include "<scope/**>"` as early as possible.

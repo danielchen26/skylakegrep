@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import requests
 
 from .config import get_config
@@ -54,6 +55,18 @@ class OllamaAnswerer:
         # pass ``model`` keep working unchanged.
         self.hyde_model = hyde_model or model
         self.keep_alive = keep_alive
+        self.request_timeout_s: float | None = None
+
+    def _timeout(self, default: float = 120.0) -> float:
+        if self.request_timeout_s is not None:
+            return max(0.5, float(self.request_timeout_s))
+        raw = os.environ.get("SKYGREP_OLLAMA_GENERATE_TIMEOUT_S")
+        if raw:
+            try:
+                return max(0.5, float(raw))
+            except ValueError:
+                pass
+        return default
 
     def _options(self) -> dict:
         opts = {"temperature": 0, "seed": 42, "num_predict": 256}
@@ -120,7 +133,7 @@ class OllamaAnswerer:
             response = requests.post(
                 f"{self.base_url}/api/generate",
                 json=self._payload(model, prompt),
-                timeout=120,
+                timeout=self._timeout(),
             )
             response.raise_for_status()
             return response.json().get("response", "").strip()
@@ -161,7 +174,7 @@ class OllamaAnswerer:
         response = requests.post(
             f"{self.base_url}/api/generate",
             json=self._payload(self.model, prompt, options={}),
-            timeout=120,
+            timeout=self._timeout(),
         )
         response.raise_for_status()
         text = response.json().get("response", "").strip()
@@ -196,7 +209,7 @@ class OllamaAnswerer:
         response = requests.post(
             f"{self.base_url}/api/generate",
             json=self._payload(self.model, prompt, options={}),
-            timeout=120,
+            timeout=self._timeout(),
         )
         response.raise_for_status()
         return response.json().get("response", "").strip()

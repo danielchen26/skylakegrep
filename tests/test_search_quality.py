@@ -403,6 +403,46 @@ class SearchQualityTests(unittest.TestCase):
         self.assertEqual(payload[0]["path"], "auth.py")
         self.assertEqual(payload[0]["start_line"], 3)
 
+    def test_machine_json_filters_low_score_results_without_query_evidence(self):
+        results = [
+            {
+                "path": "src/recovery.py",
+                "start_line": 1,
+                "end_line": 4,
+                "language": "python",
+                "score": 0.43,
+                "snippet": "background implementation loop recovery state machine",
+            }
+        ]
+
+        filtered = cli_module._filter_low_evidence_machine_results(
+            results,
+            "where is the kubernetes autoscaler reconciliation loop implemented",
+            min_score=0.50,
+        )
+
+        self.assertEqual(filtered, [])
+
+    def test_machine_json_keeps_low_score_results_with_direct_evidence(self):
+        results = [
+            {
+                "path": "src/router.py",
+                "start_line": 1,
+                "end_line": 4,
+                "language": "python",
+                "score": 0.43,
+                "snippet": "router timeout is applied before the local model call",
+            }
+        ]
+
+        filtered = cli_module._filter_low_evidence_machine_results(
+            results,
+            "where is local router timeout applied",
+            min_score=0.50,
+        )
+
+        self.assertEqual(filtered, results)
+
 
 if __name__ == "__main__":
     unittest.main()

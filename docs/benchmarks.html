@@ -454,7 +454,41 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  context-reduction, or work-quality-per-minute thresholds.
  </p>
 
- <h3 id="bench-self">5. skylakegrep self-test (regression guard)</h3>
+ <h3 id="bench-agent-latency">5. Agent bounded-latency smoke matrix (0.5.16)</h3>
+ <p>
+ 0.5.16 adds a focused release smoke matrix for the agent timeout contract:
+ scoped path anchors, compact evidence snippets, router-timeout fallback,
+ cascade-timeout fallback, setup-instruction discovery, deep known-file
+ reads, broad implementation lookup, and an absent-concept negative control.
+ The matrix is intentionally local and generic; it uses repository-maintenance
+ questions, not private user paths or document names.
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr><th>Case</th><th>Shape</th><th>Measured result</th></tr>
+ </thead>
+ <tbody>
+ <tr><td>T1</td><td>scoped path-only</td><td>1.945 s, 100 % expected-path coverage</td></tr>
+ <tr><td>T2</td><td>scoped evidence</td><td>5.117 s, 100 % coverage</td></tr>
+ <tr><td>T3</td><td>router-timeout evidence</td><td>4.840 s, 100 % coverage</td></tr>
+ <tr><td>T4</td><td>cascade-timeout evidence</td><td>4.805 s, 100 % coverage</td></tr>
+ <tr><td>T5</td><td>setup-instruction discovery</td><td>3.059 s, 100 % coverage</td></tr>
+ <tr><td>T6</td><td>deep known-file read</td><td>4.406 s, 100 % coverage</td></tr>
+ <tr><td>T7</td><td>broad implementation lookup</td><td>4.920 s, 100 % coverage</td></tr>
+ <tr><td>T8</td><td>absent-concept negative control</td><td>4.554 s, correctly returned no evidence</td></tr>
+ </tbody>
+ </table>
+ </div>
+ <p>
+ The intended reading is not "every machine will return in exactly these
+ seconds." It is that agent calls now have an enforced bounded-response
+ policy: useful compact evidence when available, fallback or an honest empty
+ result when evidence is weak, and no unbounded foreground refresh before JSON
+ returns.
+ </p>
+
+ <h3 id="bench-self">6. skylakegrep self-test (regression guard)</h3>
  <p>
  Deterministic local benchmark over 30 repository-navigation tasks
  against this very repo. Compares a single <code>skygrep search</code>
@@ -521,8 +555,14 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  </li>
  <li>
  <strong>"skygrep is more token-efficient than ripgrep when feeding LLM context"</strong> →
- <a href="#bench-self">benchmark 5</a>: ~17.7× total-token
+ <a href="#bench-self">benchmark 6</a>: ~17.7× total-token
  reduction at equal recall on the 30-task self-test.
+ </li>
+ <li>
+ <strong>"agent JSON calls are now bounded against slow foreground work"</strong> →
+ <a href="#bench-agent-latency">benchmark 5</a>: the 0.5.16 smoke matrix covers
+ scoped path, evidence, timeout fallback, deep read, broad lookup, and negative
+ controls.
  </li>
  <li>
  <strong>"skygrep gives agents much smaller context and faster closed-loop utility"</strong> →

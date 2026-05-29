@@ -122,39 +122,48 @@ def crawl_tree(
         if max_seconds is not None and max_seconds > 0
         else None
     )
-    for current, dirs, names in os.walk(root):
+    stack: list[tuple[Path, tuple[str, ...], str]] = [(root, (), ".")]
+    while stack:
         if deadline is not None and time.perf_counter() >= deadline:
             break
-
-        # Prune before descent. Path.rglob filters ignored dirs only after
-        # walking into them, which makes home-directory cold starts crawl
-        # through hidden/editor/vendor trees the user never asked to search.
+        current, parent_parts, parent_label = stack.pop()
         try:
-            rel_parent = Path(current).relative_to(root)
-        except ValueError:
+            iterator = os.scandir(current)
+        except OSError:
             continue
-        parent_parts = () if rel_parent == Path(".") else rel_parent.parts
-        dirs[:] = [
-            d for d in dirs
-            if not _should_prune_dir(parent_parts, d)
-        ]
-        parent = str(rel_parent) if rel_parent != Path(".") else "."
-        for name in names:
-            if deadline is not None and time.perf_counter() >= deadline:
-                break
-            if name.startswith("."):
-                continue
-            path = Path(current) / name
-            if path.suffix.lower() not in extensions:
-                continue
-            if not path.is_file():
-                continue
-            files.append(str(path))
-            dir_summary[parent] = dir_summary.get(parent, 0) + 1
-            if len(files) >= max_files:
-                break
-        if len(files) >= max_files:
-            break
+        try:
+            with iterator as entries:
+                for entry in entries:
+                    if deadline is not None and time.perf_counter() >= deadline:
+                        return files, dir_summary
+                    name = entry.name
+                    if name.startswith("."):
+                        continue
+                    try:
+                        if entry.is_dir(follow_symlinks=False):
+                            if _should_prune_dir(parent_parts, name):
+                                continue
+                            child_parts = parent_parts + (name,)
+                            stack.append((
+                                Path(entry.path),
+                                child_parts,
+                                "/".join(child_parts),
+                            ))
+                            continue
+                        if (
+                            Path(name).suffix.lower() in extensions
+                            and entry.is_file(follow_symlinks=False)
+                        ):
+                            files.append(str(Path(entry.path)))
+                            dir_summary[parent_label] = (
+                                dir_summary.get(parent_label, 0) + 1
+                            )
+                            if len(files) >= max_files:
+                                return files, dir_summary
+                    except OSError:
+                        continue
+        except OSError:
+            continue
     return files, dir_summary
 
 
@@ -642,6 +651,8 @@ def lazy_explore_cold_start(
     top_k: int = 5,
     seed_budget: int = 25,
     crawl_budget_s: float | None = None,
+    total_budget_s: float | None = None,
+    router_timeout_s: float | None = None,
     progress: Optional[Callable[[str], None]] = None,
 ) -> tuple[list[dict], dict]:
     """Run cold-start lazy semantic exploration on a fresh project.
@@ -666,6 +677,22 @@ def lazy_explore_cold_start(
     """
     t0 = time.perf_counter()
     tele: dict = {"path": "lazy-cold-start"}
+    deadline = (
+        t0 + total_budget_s
+        if total_budget_s is not None and total_budget_s > 0
+        else None
+    )
+
+    def _remaining() -> float | None:
+        if deadline is None:
+            return None
+        return max(0.0, deadline - time.perf_counter())
+
+    def _budget_expired(stage: str) -> tuple[list[dict], dict]:
+        tele["timed_out"] = True
+        tele["timed_out_stage"] = stage
+        tele["total_ms"] = int((time.perf_counter() - t0) * 1000)
+        return [], tele
 
     _emit_progress(progress, _progress_step("lazy", "scanning project structure"))
 
@@ -674,9 +701,16 @@ def lazy_explore_cold_start(
     t1 = time.perf_counter()
     if crawl_budget_s is None:
         crawl_budget_s = _env_float("SKYGREP_LAZY_CRAWL_BUDGET_S", 2.0)
+    remaining = _remaining()
+    if remaining is not None:
+        if remaining <= 0:
+            return _budget_expired("crawl")
+        crawl_budget_s = min(crawl_budget_s, max(0.05, remaining))
     files, dir_summary = crawl_tree(Path(root), max_seconds=crawl_budget_s)
     tele["crawled_files"] = len(files)
     tele["crawl_ms"] = int((time.perf_counter() - t1) * 1000)
+    if _remaining() == 0:
+        return _budget_expired("crawl")
 
     # Step 2 + 3 in PARALLEL: deterministic dir-token picks,
     # LLM-router dir picks, and file-level token shortcut are all
@@ -694,12 +728,25 @@ def lazy_explore_cold_start(
     router_budget = min(16, seed_budget)
     token_budget = max(seed_budget - router_budget, 0)
     tree_summary = render_tree_summary(dir_summary)
+    if router_timeout_s is None:
+        router_timeout_s = _env_float(
+            "SKYGREP_COLD_LAZY_ROUTER_TIMEOUT_S", 1.0, minimum=0.1
+        )
+    remaining = _remaining()
+    if remaining is not None:
+        if remaining <= 0:
+            return _budget_expired("router")
+        # ``infer_candidate_paths`` may do a simplified retry; keep each local
+        # LLM call inside the remaining foreground envelope.
+        router_timeout_s = min(router_timeout_s, max(0.1, remaining / 3.0))
 
     def _run_router() -> tuple[list[str], int, str]:
         try:
             from . import llm_router as LR
             t1_ = time.perf_counter()
-            picks = LR.infer_candidate_paths(query, tree_summary)
+            picks = LR.infer_candidate_paths(
+                query, tree_summary, timeout=router_timeout_s
+            )
             ms = int((time.perf_counter() - t1_) * 1000)
             return picks, ms, ""
         except Exception as exc:  # noqa: BLE001
@@ -740,6 +787,8 @@ def lazy_explore_cold_start(
     if llm_err:
         tele["llm_router_error"] = llm_err
     tele["token_seeds"] = len(token_seeds)
+    if _remaining() == 0:
+        return _budget_expired("router")
 
     # Step 4: compose the seed list — LLM router gets first 10 slots,
     # then token-shortcut backfills (deduped already).
@@ -823,6 +872,9 @@ def lazy_explore_cold_start(
         tele["seed_fallback"] = "first-N"
 
     tele["seeds_initial"] = len(seeds)
+    remaining = _remaining()
+    if remaining is not None and remaining <= 0:
+        return _budget_expired("seed-planning")
     _emit_progress(
         progress,
         _progress_step(
@@ -836,6 +888,9 @@ def lazy_explore_cold_start(
 
     # Step 5: PARALLEL preload of seed text so the diffusion step can
     # extract imports without a second disk read.
+    remaining = _remaining()
+    if remaining is not None and remaining <= 0:
+        return _budget_expired("preload")
     with ThreadPoolExecutor(max_workers=_DEFAULT_WORKERS) as pool:
         loaded = dict(zip(seeds, pool.map(_read_text_safely, seeds)))
 
@@ -863,6 +918,9 @@ def lazy_explore_cold_start(
         tele["diffusion_neighbours"] += 1
     tele["diffusion_ms"] = int((time.perf_counter() - t_diff) * 1000)
     tele["seeds_total"] = len(seeds)
+    remaining = _remaining()
+    if remaining is not None and remaining <= 0:
+        return _budget_expired("diffusion")
 
     if tele["diffusion_neighbours"]:
         _emit_progress(
@@ -876,6 +934,9 @@ def lazy_explore_cold_start(
 
     # Step 7: batch embed. Pass loaded text so we don't re-read the
     # files we already pulled into memory above.
+    remaining = _remaining()
+    if remaining is not None and remaining <= 0:
+        return _budget_expired("embed")
     _emit_progress(
         progress,
         _progress_step("embed", f"{len(seeds)} files (1 Ollama call)"),

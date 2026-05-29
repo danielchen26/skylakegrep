@@ -98,7 +98,7 @@ skygrep --agent-daemon --agent-context &quot;what does token refresh do?&quot;
 </code></pre>
 <p>The explicit long-form equivalents still work:</p>
 <pre><code class="language-bash">skygrep --json --no-content --top 10 --no-rerank &quot;&lt;query&gt;&quot;
-skygrep --json --content --detail standard --no-rerank &quot;&lt;query&gt;&quot;
+skygrep --json --content --detail standard --top 8 --no-rerank &quot;&lt;query&gt;&quot;
 </code></pre>
 <h2>Setup freshness</h2>
 <p>Existing managed setup blocks are still refreshed automatically on normal

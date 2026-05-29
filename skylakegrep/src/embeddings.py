@@ -82,6 +82,7 @@ class OllamaEmbedder:
         self.keep_alive = keep_alive
         self.request_timeout_s: float | None = None
         self.batch_timeout_s: float | None = None
+        self.allow_per_chunk_fallback: bool = True
         self._zero_dim: int | None = None
 
     def _prep(self, text: str) -> str:
@@ -150,6 +151,11 @@ class OllamaEmbedder:
                 len(texts),
                 exc,
             )
+            if not self.allow_per_chunk_fallback:
+                logger.warning(
+                    "foreground batch embed fallback disabled; substituting zero vectors"
+                )
+                return [self._zero_vector() for _ in texts]
         # Per-chunk fallback isolates failures to the offending chunk.
         return [self.embed(t) for t in texts]
 

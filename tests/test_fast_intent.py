@@ -32,6 +32,19 @@ def test_fast_intent_accepts_generic_policy_question():
     assert d.intent == "semantic"
 
 
+def test_fast_intent_accepts_generic_code_location_question():
+    d = classify_fast_intent("where is local LLM router timeout applied")
+    assert d is not None
+    assert d.intent == "semantic"
+
+
+def test_fast_intent_preserves_pathlike_filename_location():
+    d = classify_fast_intent("where is pyproject.toml")
+    assert d is not None
+    assert d.intent == "filename"
+    assert d.primary_token == "pyproject.toml"
+
+
 def test_fast_intent_accepts_mixed_language_document_question():
     d = classify_fast_intent("合同摘要 说明了什么 renewal process")
     assert d is not None

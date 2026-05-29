@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.16 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.16 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.16</p>
+<h1>skylakegrep 0.5.16 — bounded agent latency and stronger scoped evidence</h1>
+<p>0.5.16 is a reliability and agent-performance release. It keeps the 0.5.15
+agent presets, but makes their runtime contract stricter: machine-readable
+agent calls now use bounded local-model timeouts, skip heavyweight foreground
+refresh lanes, return a wider compact evidence set by default, and filter
+low-evidence JSON candidates before they reach the next LLM step.</p>
+<p>The goal is simple: when an agent calls <code>skygrep</code>, it should get useful
+structured context quickly, and if the semantic index is still warming up,
+the command should return bounded evidence or an honest empty result instead
+of making the user wait indefinitely.</p>
+<h2>What changed</h2>
+<ul>
+<li>Agent and JSON calls now use explicit bounded budgets:
+  <code>SKYGREP_AGENT_ROUTER_TIMEOUT_S</code> defaults to <code>1.5</code>,
+  <code>SKYGREP_AGENT_MODEL_TIMEOUT_S</code> defaults to <code>3.0</code>, and
+  <code>SKYGREP_AGENT_CASCADE_TIMEOUT_S</code> defaults to <code>8.0</code>.</li>
+<li>Human interactive searches still allow deeper foreground work by default:
+  <code>SKYGREP_FOREGROUND_MODEL_TIMEOUT_S</code> defaults to <code>12.0</code>, and
+  <code>SKYGREP_CASCADE_TIMEOUT_S</code> defaults to <code>30.0</code>.</li>
+<li>Local Ollama generation and router calls now pass request timeouts all the
+  way down, so a slow model call degrades to fallback behavior instead of
+  blocking the agent loop.</li>
+<li>Machine-readable agent paths no longer run expensive foreground refresh,
+  symbol, or graph-prior maintenance before returning JSON context. Background
+  indexing still continues.</li>
+<li><code>--agent-context</code> now returns top-8 compact evidence by default, matching
+  the documented long-form contract:
+  <code>--json --content --detail standard --top 8 --no-rerank</code>.</li>
+<li>JSON agent results are filtered through a configurable evidence floor
+  (<code>SKYGREP_AGENT_MIN_EVIDENCE_SCORE</code>, default <code>0.50</code>) to reduce misleading
+  low-confidence context.</li>
+<li>Cold lazy indexing walks large directories incrementally under the foreground
+  budget instead of blocking on full-tree discovery.</li>
+<li>Fast intent routing keeps pathlike phrases intact and adds more generic
+  implementation-location prototypes, improving code-location queries without
+  adding topic-specific trigger lists.</li>
+</ul>
+<h2>Agent command contract</h2>
+<p>Use the same presets introduced in 0.5.15. The difference in 0.5.16 is that
+the presets are now bounded in the runtime, not only documented:</p>
+<pre><code class="language-bash">skygrep --agent-fast &quot;where is token refresh implemented?&quot;
+skygrep --agent-context --include &quot;src/**&quot; &quot;what does token refresh do?&quot;
+skygrep serve --port 7878
+skygrep --agent-daemon --agent-context &quot;what does token refresh do?&quot;
+</code></pre>
+<p>Escalate only when the next step needs it:</p>
+<pre><code class="language-bash">skygrep --content --detail full --include &quot;docs/migration-plan.md&quot; &quot;show the deployment steps&quot;
+skygrep --answer --content &quot;summarize the retry policy&quot;
+</code></pre>
+<h2>Benchmark receipts</h2>
+<p>Release validation used only generic repository-maintenance queries and
+placeholder examples. The private local prompts and paths used during
+interactive debugging were not written into public release artifacts.</p>
+<p>Targeted 0.5.16 smoke matrix on the current repository:</p>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th style="text-align: right;">Shape</th>
+<th style="text-align: right;">Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T1</td>
+<td style="text-align: right;">scoped path-only</td>
+<td style="text-align: right;">1.945 s, 100 % expected-path coverage</td>
+</tr>
+<tr>
+<td>T2</td>
+<td style="text-align: right;">scoped evidence</td>
+<td style="text-align: right;">5.117 s, 100 % coverage</td>
+</tr>
+<tr>
+<td>T3</td>
+<td style="text-align: right;">router-timeout evidence</td>
+<td style="text-align: right;">4.840 s, 100 % coverage</td>
+</tr>
+<tr>
+<td>T4</td>
+<td style="text-align: right;">cascade-timeout evidence</td>
+<td style="text-align: right;">4.805 s, 100 % coverage</td>
+</tr>
+<tr>
+<td>T5</td>
+<td style="text-align: right;">setup-instruction discovery</td>
+<td style="text-align: right;">3.059 s, 100 % coverage</td>
+</tr>
+<tr>
+<td>T6</td>
+<td style="text-align: right;">deep known-file read</td>
+<td style="text-align: right;">4.406 s, 100 % coverage</td>
+</tr>
+<tr>
+<td>T7</td>
+<td style="text-align: right;">broad implementation lookup</td>
+<td style="text-align: right;">4.920 s, 100 % coverage</td>
+</tr>
+<tr>
+<td>T8</td>
+<td style="text-align: right;">absent-concept negative control</td>
+<td style="text-align: right;">4.554 s, correctly returned no evidence</td>
+</tr>
+</tbody>
+</table>
+<p>The top-8 <code>--agent-context</code> retest for a multi-file implementation query
+returned the expected auxiliary file that top-5 could miss before this release.</p>
+<h2>Compatibility</h2>
+<ul>
+<li>No index rebuild is required.</li>
+<li>Existing <code>skygrep setup</code> managed blocks should be refreshed so agents learn
+  the current top-8 <code>--agent-context</code> contract and daemon-first guidance.
+  <code>skygrep setup --check</code> audits that without modifying files.</li>
+<li>Users who intentionally want longer agent waits can raise the
+  <code>SKYGREP_AGENT_*_TIMEOUT_S</code> variables, but the default is optimized for
+  agent tool loops where stale or ambiguous evidence should fall back quickly.</li>
+</ul>
+<h2>Verification</h2>
+<ul>
+<li>Full test suite: <code>358 passed, 2 warnings, 20 subtests passed</code>.</li>
+<li><code>git diff --check</code>: clean.</li>
+<li><code>skygrep setup --check</code>: all managed snippets current.</li>
+<li>Source privacy scan and distribution privacy scan are required before
+  publishing.</li>
+</ul>
+<h2>Privacy</h2>
+<p>All public examples in this release use fictional placeholders such as
+<code>token refresh</code>, <code>migration-plan.md</code>, and <code>retry policy</code>. No real user
+prompt, local absolute path, private filename, screenshot, document category,
+name, or email is included in the release notes, README, docs site, wheel, or
+sdist.</p></article>
+</main>
+</div>
+</body></html>

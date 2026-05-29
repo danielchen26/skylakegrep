@@ -108,6 +108,27 @@ def _ui_rows(rows: list[tuple[str, str]]) -> str:
     return ui_mod.rows(rows)
 
 
+def _env_float(name: str, default: float, *, minimum: float = 0.1) -> float:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        return max(minimum, float(raw))
+    except ValueError:
+        return default
+
+
+def _apply_foreground_model_timeout(obj, seconds: float) -> None:
+    """Best-effort timeout contract for Ollama-backed foreground calls."""
+
+    try:
+        setattr(obj, "request_timeout_s", seconds)
+        setattr(obj, "batch_timeout_s", seconds)
+        setattr(obj, "allow_per_chunk_fallback", False)
+    except Exception:
+        pass
+
+
 def _setup_auto_refresh_enabled() -> bool:
     """Whether normal commands may refresh existing managed setup blocks."""
 
@@ -432,6 +453,53 @@ def _term_surface_variants(term: str) -> set[str]:
     if term.endswith("ing") and len(term) > 5:
         variants.add(term[:-3])
     return {v for v in variants if len(v) >= 3}
+
+
+def _filter_low_evidence_machine_results(
+    results: list[dict],
+    query: str,
+    *,
+    min_score: float,
+) -> list[dict]:
+    """Suppress low-confidence JSON false positives for agent callers.
+
+    Human search can use low-score semantic suggestions as exploratory
+    hints. Machine callers are different: a low-score result with no
+    lexical evidence is usually worse than an empty list because the agent
+    may treat it as authoritative context. This gate is evidence based:
+    keep results when either the semantic score is strong enough or any
+    distinctive query term appears in the returned path/snippet text.
+    """
+
+    if not results:
+        return results
+    try:
+        best_score = max(float(r.get("score", 0.0) or 0.0) for r in results)
+    except (TypeError, ValueError):
+        best_score = 0.0
+    if best_score >= min_score:
+        return results
+
+    search_query = strip_scope_clauses(query) or query
+    terms = auto_index.extract_query_terms(search_query, max_terms=8)
+    if not terms:
+        return results
+
+    haystack_parts: list[str] = []
+    for result in results:
+        haystack_parts.extend(
+            str(result.get(key, "") or "")
+            for key in ("path", "snippet", "chunk", "content_excerpt", "content_preview")
+        )
+    haystack = "\n".join(haystack_parts).casefold()
+    hits: set[str] = set()
+    for term in terms:
+        if any(variant in haystack for variant in _term_surface_variants(term)):
+            hits.add(term)
+    required_hits = 1 if len(terms) <= 2 else max(2, min(3, (len(terms) + 1) // 2))
+    if len(hits) >= required_hits:
+        return results
+    return []
 
 
 _QUERY_EDGE_QUOTES = "\"'“”‘’"
@@ -966,7 +1034,7 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--lexical-min-candidates", default=2, type=int, help="If ripgrep returns fewer than this many candidate files we fall back to corpus-wide cosine retrieval")
 @click.option("--agent-mode", default="off", type=click.Choice(sorted(_AGENT_MODE_CHOICES)), help="Preset output depth for LLM callers: fast=JSON path anchors, context=JSON snippets, deep=JSON full detail, answer=local synthesized answer.")
 @click.option("--agent-fast", is_flag=True, help="Shortcut for --agent-mode fast: JSON path anchors, --no-content, --top 10, --no-rerank.")
-@click.option("--agent-context", is_flag=True, help="Shortcut for --agent-mode context: JSON snippets, --content, --detail standard, --no-rerank.")
+@click.option("--agent-context", is_flag=True, help="Shortcut for --agent-mode context: JSON snippets, --content, --detail standard, --top 8, --no-rerank.")
 @click.option("--agent-daemon/--no-agent-daemon", default=False, help="Daemon-first agent call: use SKYGREP_DAEMON_URL or http://127.0.0.1:7878, falling back in-process if unavailable.")
 @click.option("--daemon-url", default=None, help="If set, send the search to a running skygrep daemon instead of loading the reranker in-process (eliminates cold-load latency)")
 @click.option("--rank-by", default="chunk", type=click.Choice(["chunk", "file"]), help="Ranking strategy on the non-cascade path: 'chunk' returns top-K chunks with per-file diversity cap; 'file' returns one best chunk per file")
@@ -1099,6 +1167,8 @@ def search_cmd(
         elif agent_mode == "context":
             content = True
             detail = "standard"
+            if top == 5:
+                top = 8
         elif agent_mode == "deep":
             content = True
             detail = "full"
@@ -1112,6 +1182,24 @@ def search_cmd(
             daemon_url = _os.environ.get("SKYGREP_DAEMON_URL", _DEFAULT_AGENT_DAEMON_URL)
     elif agent_daemon and not daemon_url:
         daemon_url = _os.environ.get("SKYGREP_DAEMON_URL", _DEFAULT_AGENT_DAEMON_URL)
+    machine_context = (agent_mode in {"fast", "context", "deep"}) or (
+        json_output and not answer
+    )
+    router_timeout_s = (
+        _env_float("SKYGREP_AGENT_ROUTER_TIMEOUT_S", 1.5, minimum=0.2)
+        if machine_context
+        else None
+    )
+    model_call_timeout_s = _env_float(
+        "SKYGREP_AGENT_MODEL_TIMEOUT_S" if machine_context else "SKYGREP_FOREGROUND_MODEL_TIMEOUT_S",
+        3.0 if machine_context else 12.0,
+        minimum=0.5,
+    )
+    cascade_timeout_s = _env_float(
+        "SKYGREP_AGENT_CASCADE_TIMEOUT_S" if machine_context else "SKYGREP_CASCADE_TIMEOUT_S",
+        8.0 if machine_context else 30.0,
+        minimum=0.5,
+    )
 
     config = get_config()
     if auto_index is None:
@@ -1276,7 +1364,10 @@ def search_cmd(
     except (OSError, sqlite3.Error):
         _router_cache_db = None
     decision: RouterDecision = route_query(
-        query, conn=_router_cache_db, use_llm=llm_router
+        query,
+        conn=_router_cache_db,
+        use_llm=llm_router,
+        timeout=router_timeout_s,
     )
     if _router_cache_db is not None:
         try:
@@ -1953,11 +2044,15 @@ def search_cmd(
             cross_embed_timeout_s = _env_float_local(
                 "SKYGREP_COLD_CROSS_EMBED_TIMEOUT_S", 2.0
             )
+            lazy_router_timeout_s = _env_float_local(
+                "SKYGREP_COLD_LAZY_ROUTER_TIMEOUT_S", 1.0
+            )
 
             def _apply_foreground_embed_timeout(embedder, seconds: float) -> None:
                 try:
                     setattr(embedder, "request_timeout_s", seconds)
                     setattr(embedder, "batch_timeout_s", seconds)
+                    setattr(embedder, "allow_per_chunk_fallback", False)
                 except Exception:
                     pass
 
@@ -1989,6 +2084,10 @@ def search_cmd(
                             _wconn, lexical_query, project_root, embedder_cwd,
                             top_k=top,
                             seed_budget=lazy_seed_budget,
+                            total_budget_s=min(
+                                cwd_lazy_budget_s, total_lazy_budget_s
+                            ),
+                            router_timeout_s=lazy_router_timeout_s,
                             progress=_progress,
                         )
                     finally:
@@ -2159,6 +2258,13 @@ def search_cmd(
             _augment_filename_content_for_machine(
                 results, query, decision, detail=detail, ocr=ocr,
             )
+            if machine_context:
+                evidence_floor = _env_float(
+                    "SKYGREP_AGENT_MIN_EVIDENCE_SCORE", 0.50, minimum=0.0
+                )
+                results = _filter_low_evidence_machine_results(
+                    results, query, min_score=evidence_floor
+                )
             click.echo(render_json_results(results, include_snippet=content))
             return
         # 0.2.8: try proactive enhancers in the cold-start path too.
@@ -2404,12 +2510,15 @@ def search_cmd(
     # plus an mtime-based incremental refresh on the way in.
     if auto_index:
         try:
+            foreground_refresh_limit = (
+                0 if machine_context else ai._foreground_refresh_limit_from_env()
+            )
             refreshed = ai.incremental_refresh(
                 conn,
                 project_root,
                 throttle_seconds=ai._refresh_throttle_from_env(),
                 quiet=json_output,
-                max_foreground_files=ai._foreground_refresh_limit_from_env(),
+                max_foreground_files=foreground_refresh_limit,
             )
             if refreshed < 0:
                 spawned = ai.spawn_background_index(project_root, db_path)
@@ -2435,7 +2544,7 @@ def search_cmd(
     # first use, best-effort so a parser failure or filesystem issue can't
     # block the search itself. Stay quiet on the JSON path so stable
     # consumers (CliRunner, scripts) keep parsing the output cleanly.
-    if not _symbols_table_populated(conn):
+    if not machine_context and not _symbols_table_populated(conn):
         try:
             if not json_output:
                 click.echo(
@@ -2455,7 +2564,7 @@ def search_cmd(
     try:
         row = conn.execute("SELECT COUNT(*) FROM file_graph").fetchone()
         graph_count = row[0] if row else 0
-        if graph_count == 0:
+        if graph_count == 0 and not machine_context:
             if not json_output:
                 click.echo(
                     _ui_step("index", "building file-export graph (one-time)"),
@@ -2687,6 +2796,8 @@ def search_cmd(
         elapsed = fn_elapsed + rg_elapsed
     else:
         embedder = get_embedder(role="query")
+        if machine_context:
+            _apply_foreground_model_timeout(embedder, model_call_timeout_s)
         # Intelligent-recovery hook (0.2.2+). Embed the user's query first
         # to get the current embedder dim — that probe gives us
         # ``current_dim`` for free since we'd embed it for the cascade
@@ -2727,6 +2838,8 @@ def search_cmd(
         start = time.time()
         if agentic:
             answerer = get_answerer()
+            if machine_context:
+                _apply_foreground_model_timeout(answerer, model_call_timeout_s)
             subqueries = answerer.decompose(query, max_queries=max_subqueries)
             for subquery in subqueries:
                 if subquery not in queries:
@@ -2735,6 +2848,8 @@ def search_cmd(
         if hyde and not cascade:
             if answerer is None:
                 answerer = get_answerer()
+                if machine_context:
+                    _apply_foreground_model_timeout(answerer, model_call_timeout_s)
             queries = [answerer.hyde(item) for item in queries]
         candidate_paths = None
         if lexical_prefilter:
@@ -2812,6 +2927,8 @@ def search_cmd(
             if cascade:
                 if answerer is None:
                     answerer = get_answerer()
+                if machine_context:
+                    _apply_foreground_model_timeout(answerer, model_call_timeout_s)
                 # 0.5.6: hard 30 s wall-clock timeout on cascade.
                 # On vocabulary-mismatch queries (the "case42" / generic
                 # filename term in a code repo case) the σ-adaptive gate flips to
@@ -2855,35 +2972,38 @@ def search_cmd(
                         except Exception:
                             pass
 
-                with _CTPE(max_workers=1) as _cpool:
-                    _cfut = _cpool.submit(_cascade_in_worker)
-                    try:
-                        cascade_results, cascade_telemetry = _cfut.result(
-                            timeout=30.0
+                _cpool = _CTPE(max_workers=1)
+                _cfut = _cpool.submit(_cascade_in_worker)
+                try:
+                    cascade_results, cascade_telemetry = _cfut.result(
+                        timeout=cascade_timeout_s
+                    )
+                except _CFT:
+                    _cfut.cancel()
+                    cascade_results = []
+                    cascade_telemetry = {
+                        "path": "cascade-timeout",
+                        "timed_out": True,
+                        "gap": 0.0,
+                        "tau": 0.0,
+                    }
+                    if not json_output:
+                        click.echo(
+                            _ui_step(
+                                "budget",
+                                f"cascade timed out at {cascade_timeout_s:g} s - "
+                                "top-K above (filename_extend / preliminary "
+                                "cascade / cross-folder) is the answer; cascade "
+                                "was in sigma-low rerank, unlikely to add value",
+                            ),
+                            err=True,
                         )
-                    except _CFT:
-                        cascade_results = []
-                        cascade_telemetry = {
-                            "path": "cascade-timeout",
-                            "timed_out": True,
-                            "gap": 0.0,
-                            "tau": 0.0,
-                        }
-                        if not json_output:
-                            click.echo(
-                                _ui_step(
-                                    "budget",
-                                    "cascade timed out at 30 s - top-K above "
-                                    "(filename_extend / preliminary cascade / "
-                                    "cross-folder) is the answer; cascade was "
-                                    "in sigma-low rerank, unlikely to add value",
-                                ),
-                                err=True,
-                            )
-                    except Exception as _cexc:  # noqa: BLE001
-                        logger.warning("cascade error in thread: %s", _cexc)
-                        cascade_results = []
-                        cascade_telemetry = None
+                except Exception as _cexc:  # noqa: BLE001
+                    logger.warning("cascade error in thread: %s", _cexc)
+                    cascade_results = []
+                    cascade_telemetry = None
+                finally:
+                    _cpool.shutdown(wait=False, cancel_futures=True)
                 result_groups.append(cascade_results)
                 continue
             result_groups.append(
@@ -3112,6 +3232,13 @@ def search_cmd(
         _augment_filename_content_for_machine(
             results, query, decision, detail=detail, ocr=ocr,
         )
+        if machine_context:
+            evidence_floor = _env_float(
+                "SKYGREP_AGENT_MIN_EVIDENCE_SCORE", 0.50, minimum=0.0
+            )
+            results = _filter_low_evidence_machine_results(
+                results, query, min_score=evidence_floor
+            )
         click.echo(render_json_results(results, include_snippet=content))
         return
     if answer:
