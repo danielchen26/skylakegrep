@@ -327,6 +327,106 @@ class BareFormRoutingTests(unittest.TestCase):
         self.assertIsNotNone(match, result.output)
         self.assertGreaterEqual(float(match.group(1)), 0.04)
 
+    def test_agent_context_skips_filename_and_refresh_slow_lanes(self):
+        from skylakegrep.src.storage import init_db, store_chunks_batch
+
+        runner = CliRunner()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = root / "src" / "worker_topology.rs"
+            target.parent.mkdir(parents=True)
+            target.write_text(
+                "struct WorkerTopologyAdaptiveHarnessProvider;\n",
+                encoding="utf-8",
+            )
+            db_path = root / "index.db"
+            conn = init_db(db_path)
+            try:
+                store_chunks_batch(
+                    conn,
+                    [{
+                        "file": str(target),
+                        "chunk": "struct WorkerTopologyAdaptiveHarnessProvider;",
+                        "language": "rust",
+                        "chunk_index": 0,
+                        "file_mtime": target.stat().st_mtime,
+                        "start_line": 1,
+                        "end_line": 1,
+                        "start_byte": 0,
+                        "end_byte": len("struct WorkerTopologyAdaptiveHarnessProvider;\n"),
+                        "embedding": [1.0, 0.0],
+                    }],
+                )
+                now = str(time.time())
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS meta "
+                    "(key TEXT PRIMARY KEY, value TEXT)"
+                )
+                conn.execute(
+                    "INSERT INTO meta(key, value) VALUES(?, ?)",
+                    ("last_full_index_at", now),
+                )
+                conn.execute(
+                    "INSERT INTO meta(key, value) VALUES(?, ?)",
+                    ("last_refresh_at", now),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+            decision = cli_module.RouterDecision(
+                intent="semantic",
+                primary_token="WorkerTopologyAdaptiveHarnessProvider",
+                skip_cascade=False,
+                skip_filename=False,
+                skip_lexical=False,
+                confidence=0.80,
+                source="fast-intent",
+                reason="semantic evidence request",
+                out_of_scope="none",
+            )
+
+            with patch.dict(
+                os.environ,
+                {"SKYGREP_DB_PATH": str(db_path), "SKYGREP_NO_HINTS": "1"},
+                clear=False,
+            ), patch.object(
+                cli_module,
+                "get_config",
+                return_value={"db_path": db_path, "rerank_pool": 50},
+            ), patch.object(
+                cli_module.cfg_mod, "project_root", return_value=root
+            ), patch.object(
+                cli_module.bootstrap, "preheat_models", return_value=None
+            ), patch.object(
+                cli_module.bootstrap, "try_autostart_ollama", return_value=False
+            ), patch.object(
+                cli_module, "route_query", return_value=decision
+            ), patch.object(
+                cli_module.auto_index,
+                "incremental_refresh",
+                side_effect=AssertionError("agent-context should skip refresh scan"),
+            ), patch.object(
+                cli_module.auto_index,
+                "filename_shortcut",
+                side_effect=AssertionError("agent-context should skip filename scan"),
+            ):
+                result = runner.invoke(
+                    cli_module.cli,
+                    [
+                        "search",
+                        "--auto-index",
+                        "--agent-context",
+                        "--include",
+                        "src/**",
+                        "WorkerTopology Adaptive Harness provider",
+                    ],
+                )
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        payload = json.loads(result.output)
+        self.assertEqual(payload[0]["path"], str(target))
+
     def test_search_accepts_query_split_by_smart_quotes(self):
         runner = CliRunner()
         with patch.object(

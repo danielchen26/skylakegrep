@@ -443,14 +443,14 @@ this repo plus Django, React, and Tokio.
 | Context tokens | 223,592 | 105,187,419 |
 | Work quality / minute | 12.829 | 0.561 |
 
-Honest reading: raw `rg` remains the recall ceiling and still wins when
-an agent can afford to inspect everything. The skygrep-first closed loop
-is the practical agent win: **470× less context**, **23.7× lower
+Honest reading: raw `rg` remains the raw-output ceiling and still wins
+when an agent truly needs every lexical match. The skygrep-first closed
+loop is the practical agent win: **470× less context**, **23.7× lower
 estimated agent elapsed**, and **22.9× higher work-quality-per-minute**
-while preserving 94.7 % path coverage and 96.5 % sufficiency. The
-remaining gap is explicit in the benchmark: a small set of ambiguous
-implementation-location tasks still needs a bounded `rg` fallback or a
-second scoped skygrep pass.
+on the saved closed-loop report. In 0.5.17, the first-pass
+`--agent-context` parity bench closes the earlier recall gap on 30
+repository-maintenance tasks by using `rg` as an internal bounded recall
+lane instead of exposing raw grep output to the LLM.
 
 ---
 
@@ -521,7 +521,7 @@ enough evidence.
 | "Read this known file/folder deeply" | `skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"` | Full depth only after scope is known; avoids repo-wide context blowups. |
 | "Summarize / answer from local evidence" | `skygrep --answer --content "summarize the payment retry policy"` | Retrieves evidence first, then synthesizes locally through Ollama. |
 | "An LLM/agent will consume this" | `skygrep --agent-context --include "src/**" "where is token refresh implemented?"` | Machine-readable, compact, and scoped; do not scrape human terminal output. |
-| "Several implementation files may matter" | `skygrep --json --no-content --top 10 --no-rerank "where is request routing assembled?"` then read returned files | Separates path discovery from file reading; improves closed-loop agent quality. |
+| "Several implementation files may matter" | `skygrep --json --no-content --top 10 --no-rerank --no-llm-router --no-cascade "where is request routing assembled?"` then read returned files | Separates path discovery from file reading; improves closed-loop agent quality without paying router/cascade model calls. |
 | "The query is broad or noisy" | Add `--include`, `--exclude`, `--language`, or run from the relevant project root | Scope is the largest latency and accuracy lever. |
 | "I need to audit routing" | `skygrep --explain "why is this policy selected?"` | Shows router intent, contributing lanes, and cascade evidence. |
 | "I need exact regex output" | Use `rg` directly | `skygrep` is for natural-language search, not regex authoring. |
@@ -530,7 +530,10 @@ Closed-loop agent policy:
 
 1. Start with `skygrep --agent-fast "<query>"` for implementation
    location questions, or `skygrep --agent-context "<query>"`
-   when the next reasoning step needs source text.
+   when the next reasoning step needs source text. Agent context now
+   automatically fuses path tokens, symbols, bounded ripgrep recall,
+   source-type priors, and compact chunk evidence; the caller does not
+   need to manually choose a fallback lane.
 2. If the caller already knows the repo, folder, or file, add
    `--include "<scope/**>"` immediately. Scoped calls are faster and
    reduce false positives.
@@ -540,8 +543,10 @@ Closed-loop agent policy:
    parsed documents.
 4. Use `--answer` only when the user asked for a synthesized answer.
    For code modification tasks, prefer source evidence over synthesis.
-5. Escalate to bounded `rg -l` / targeted `rg` only when skygrep misses
-   an expected anchor or when exact lexical/regex matching is required.
+5. Use bounded `rg -l` / targeted `rg` only when exact lexical/regex
+   matching is required or when you need raw grep output. Low-confidence
+   agent results include `agent_summary`, `why_ranked`, and a targeted
+   follow-up probe so the next step can stay scoped.
 
 For repeated GPT / Cloud Code / Superconductor-style tool calls, keep
 the process warm with `skygrep serve --port 7878` and call
@@ -549,6 +554,12 @@ the process warm with `skygrep serve --port 7878` and call
 `skygrep --agent-daemon --agent-context ...`. `--agent-daemon` uses
 `SKYGREP_DAEMON_URL` when set, otherwise `http://127.0.0.1:7878`, and
 falls back in-process if no daemon is running.
+
+Agent presets default to rule-based routing, no cascade, and confidence-aware
+first-pass evidence for bounded latency. If the compact evidence is degraded,
+`--agent-context` can add one cheap semantic file-rank pass; add
+`--llm-router`, `--cascade`, or rerank only when ambiguity is worth paying a
+local model call or deeper semantic refinement.
 
 Agent rule of thumb: run from the relevant project root, or pass
 `--include` / `--lexical-root` when the scope is known. Start bare for
@@ -652,6 +663,18 @@ explicitly requested.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.5.17`** — Hybrid agent recall, confidence bundles, and refreshed
+    LLM instructions. `--agent-context` now treats bounded `rg`, path tokens,
+    symbols, chunk text, source-type priors, and symbol anchors as one
+    automatic recall substrate, then returns compact JSON with
+    `agent_summary`, `why_ranked`, `evidence_bundle`, `source_type`, and
+    `evidence_terms`. The managed `skygrep setup` snippet is bumped to
+    `agent-guidance-v4` so Claude/Codex/OpenCode/Gemini/Cursor learn to trust
+    the automatic hybrid path, inspect confidence first, and reserve raw `rg`
+    for exact regex/raw-output needs. Fresh parity validation on 30 real
+    repository-maintenance tasks reached 30/30 hit rate vs real ripgrep while
+    using 22.28× less context, 19.61× fewer estimated total tokens, and 30
+    tool calls instead of 179.
   - **`0.5.16`** — Bounded agent latency and stronger scoped evidence.
     Machine-readable agent calls now get explicit router/model/cascade
     budgets, skip heavyweight foreground refresh lanes, and return a
@@ -674,8 +697,8 @@ explicitly requested.
   - **`0.5.14`** — Closed-loop agent instructions and daemon-first
     workflow. Public docs, setup snippets, and CLI help now teach agents
     to split path discovery from evidence gathering: use
-    `--json --no-content --top 10 --no-rerank` for fast anchors, use
-    `--json --content --detail standard --top 8 --no-rerank` for first-pass
+    `--json --no-content --top 10 --no-rerank --no-llm-router --no-cascade` for fast anchors, use
+    `--json --content --detail standard --top 8 --no-rerank --no-llm-router --no-cascade` for first-pass
     snippets, narrow with `--include`, read files directly when the
     agent has a file-read tool, and reserve rerank / `--detail full` for
     ambiguity or parsed documents. JSON path-only output now omits

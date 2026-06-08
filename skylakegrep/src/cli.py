@@ -387,6 +387,23 @@ def _apply_result_boundaries(
     )
 
 
+def _agent_lexical_scan_root(
+    project_root: Path,
+    *,
+    lexical_root: str | None,
+    include_patterns: tuple[str, ...],
+) -> Path:
+    if lexical_root:
+        root = Path(lexical_root)
+        return root if root.is_absolute() else project_root / root
+    for pattern in include_patterns:
+        head = pattern.split("*", 1)[0].rstrip("/")
+        if head and not head.startswith("!"):
+            root = Path(head)
+            return root if root.is_absolute() else project_root / root
+    return project_root
+
+
 def _lexical_evidence_satisfies_depth(
     query: str,
     results: list[dict],
@@ -520,6 +537,56 @@ def _normalize_query_args(query: str | tuple[str, ...]) -> str:
     else:
         query_s = query
     return query_s.strip().strip(_QUERY_EDGE_QUOTES).strip()
+
+
+def _click_option_explicit(name: str) -> bool:
+    """Return whether a Click option came from the command line/env.
+
+    Click preserves the parameter source at runtime, which lets us keep
+    human CLI defaults while making agent presets stricter by default.
+    """
+
+    try:
+        ctx = click.get_current_context(silent=True)
+        if ctx is None or not hasattr(ctx, "get_parameter_source"):
+            return False
+        source = ctx.get_parameter_source(name)
+        if source is None:
+            return False
+        return getattr(source, "name", "") != "DEFAULT"
+    except Exception:
+        return False
+
+
+def _effective_llm_router_for_agent_mode(
+    agent_mode: str,
+    llm_router: bool,
+    *,
+    llm_router_explicit: bool,
+) -> bool:
+    """Agent presets prioritize bounded latency over model-routed intent.
+
+    Human CLI calls keep the default LLM router. Machine-readable agent
+    presets can opt back in with explicit ``--llm-router`` when ambiguity is
+    worth the extra local-model latency.
+    """
+
+    if agent_mode in {"fast", "context", "deep"} and not llm_router_explicit:
+        return False
+    return llm_router
+
+
+def _effective_cascade_for_agent_mode(
+    agent_mode: str,
+    cascade: bool,
+    *,
+    cascade_explicit: bool,
+) -> bool:
+    """First-pass agent presets should not enter the slow semantic cascade."""
+
+    if agent_mode in {"fast", "context"} and not cascade_explicit:
+        return False
+    return cascade
 
 
 def _filename_evidence_satisfies_depth(
@@ -823,6 +890,16 @@ def render_json_results(results: list[dict], *, include_snippet: bool = True) ->
         "content_preview_truncated",
         "extracted_text_source",
         "extraction_note",
+        "candidate_recall",
+        "candidate_recall_lanes",
+        "source_type",
+        "search_intent",
+        "evidence_terms",
+        "why_ranked",
+        "evidence_bundle",
+        "supporting_chunks",
+        "confidence",
+        "agent_summary",
     )
     for r in results:
         item = {
@@ -1038,12 +1115,12 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--agent-daemon/--no-agent-daemon", default=False, help="Daemon-first agent call: use SKYGREP_DAEMON_URL or http://127.0.0.1:7878, falling back in-process if unavailable.")
 @click.option("--daemon-url", default=None, help="If set, send the search to a running skygrep daemon instead of loading the reranker in-process (eliminates cold-load latency)")
 @click.option("--rank-by", default="chunk", type=click.Choice(["chunk", "file"]), help="Ranking strategy on the non-cascade path: 'chunk' returns top-K chunks with per-file diversity cap; 'file' returns one best chunk per file")
-@click.option("--cascade/--no-cascade", default=True, help="Confidence-gated retrieval (default on): cheap file-mean cosine first, escalate to HyDE-union only on uncertain queries. Pass --no-cascade for the chunk-only legacy path.")
+@click.option("--cascade/--no-cascade", default=True, help="Confidence-gated retrieval (default on for human CLI): cheap file-mean cosine first, escalate to HyDE-union only on uncertain queries. Agent fast/context presets default to --no-cascade for bounded first-pass latency unless --cascade is passed explicitly.")
 @click.option("--cascade-tau", default=CASCADE_DEFAULT_TAU, type=float, help=f"Confidence threshold (top1 - top2 file-mean cosine) above which the cascade returns the cheap result. Default {CASCADE_DEFAULT_TAU}.")
 @click.option("--auto-index/--no-auto-index", default=None, help="Auto-build the index for this project on first query and refresh on subsequent queries. Default: on for the project-scoped DB; off when SKYGREP_DB_PATH is set externally so curated indexes are not auto-mutated.")
 @click.option("--rg-shortcut/--no-rg-shortcut", default=True, help="Lexical pre-gate: if the query is short and ripgrep returns a small, clustered, path-token-overlapping result set, return the rg result directly and skip the semantic cascade. Default on. Pass --no-rg-shortcut to force pure cascade (useful for benchmarking).")
 @click.option("--filename-shortcut/--no-filename-shortcut", default=True, help="Filename-lookup pre-gate (v0.13.0+): when the query looks like 'where is foo file' / 'find package.json', route to `find -iname '*token*'` and skip both content shortcuts. Default on. Pass --no-filename-shortcut to disable.")
-@click.option("--llm-router/--no-llm-router", default=True, help="LLM-driven query understanding (v0.15.0+). Routes queries via a small local Ollama model (default qwen2.5:3b) for generic intent classification. Falls back to v0.14.0 hand-rolled rules on any failure. Pass --no-llm-router to force the rule-based fallback.")
+@click.option("--llm-router/--no-llm-router", default=True, help="LLM-driven query understanding (v0.15.0+). Routes human CLI queries via a small local Ollama model (default qwen2.5:3b) for generic intent classification. Agent presets default to rule-based routing for bounded latency unless --llm-router is passed explicitly. Falls back to v0.14.0 hand-rolled rules on any failure.")
 @click.option("--detail", default="standard", type=click.Choice(["brief", "standard", "full", "summary"]), help="Output verbosity. `brief` = path + score one-liner. `standard` = +10 lines body (default). `full` = +full extracted PDF/docx content for filename matches. `summary` = +1-line truncated preview (first non-empty line, ≤160 chars; no LLM call). Bare `--detail \"query\"` is accepted as shorthand for `--detail full \"query\"`.")
 @click.option("--ocr", is_flag=True, help="Run tesseract OCR on scanned PDFs (slow, ~5-30s/page). Opt-in only; requires tesseract + pdftoppm on PATH.")
 @click.option("--lazy/--no-lazy", default=True, help="0.5.1+ auto-trigger: on cold-start (no index yet), if ripgrep alone returns a weak result (few hits or no path/token overlap with the query) the cold-start path also fires the lazy LLM-routed semantic tier (~5 s) and merges. When ripgrep already returns a strong keyword answer, lazy is skipped — user gets the instant rg result. Default on so the user never has to know which tier they need; pass --no-lazy to force pure rg cold-start (benchmarking).")
@@ -1184,6 +1261,16 @@ def search_cmd(
         daemon_url = _os.environ.get("SKYGREP_DAEMON_URL", _DEFAULT_AGENT_DAEMON_URL)
     machine_context = (agent_mode in {"fast", "context", "deep"}) or (
         json_output and not answer
+    )
+    llm_router = _effective_llm_router_for_agent_mode(
+        agent_mode,
+        llm_router,
+        llm_router_explicit=_click_option_explicit("llm_router"),
+    )
+    cascade = _effective_cascade_for_agent_mode(
+        agent_mode,
+        cascade,
+        cascade_explicit=_click_option_explicit("cascade"),
     )
     router_timeout_s = (
         _env_float("SKYGREP_AGENT_ROUTER_TIMEOUT_S", 1.5, minimum=0.2)
@@ -1407,7 +1494,16 @@ def search_cmd(
     # un-indexed directories (~/Downloads etc.).
     fn_results: list[dict] = []
     fn_elapsed = 0.0
-    if filename_shortcut and not decision.skip_filename and not agentic:
+    filename_shortcut_allowed = (
+        filename_shortcut and not decision.skip_filename and not agentic
+    )
+    if (
+        agent_mode in {"context", "deep"}
+        and content
+        and not _click_option_explicit("filename_shortcut")
+    ):
+        filename_shortcut_allowed = False
+    if filename_shortcut_allowed:
         fn_start = time.time()
         fn_hits = ai.filename_shortcut(
             query, project_root, top_k=top, decision=decision
@@ -2508,17 +2604,14 @@ def search_cmd(
 
     # Index is ready (or auto_index disabled): run the normal pipeline,
     # plus an mtime-based incremental refresh on the way in.
-    if auto_index:
+    if auto_index and not machine_context:
         try:
-            foreground_refresh_limit = (
-                0 if machine_context else ai._foreground_refresh_limit_from_env()
-            )
             refreshed = ai.incremental_refresh(
                 conn,
                 project_root,
                 throttle_seconds=ai._refresh_throttle_from_env(),
                 quiet=json_output,
-                max_foreground_files=foreground_refresh_limit,
+                max_foreground_files=ai._foreground_refresh_limit_from_env(),
             )
             if refreshed < 0:
                 spawned = ai.spawn_background_index(project_root, db_path)
@@ -2593,6 +2686,137 @@ def search_cmd(
             click.echo("[no indexed chunks]")
         return
 
+    if agent_mode == "context" and content:
+        from .candidate_recall import (
+            build_agent_context_results,
+            merge_agent_results,
+        )
+
+        recall_query = simplify_router_query(strip_scope_clauses(query) or query)
+        agent_scan_root = _agent_lexical_scan_root(
+            project_root,
+            lexical_root=lexical_root,
+            include_patterns=tuple(include_patterns),
+        )
+        support_per_path = 4 if detail == "full" else 2
+        pre_embed_results, pre_embed_recall_telemetry = build_agent_context_results(
+            conn,
+            recall_query,
+            agent_scan_root,
+            top_k=top,
+            languages=tuple(language),
+            include_patterns=tuple(include_patterns),
+            exclude_patterns=tuple(exclude_patterns),
+            max_paths=max(top * 8, top),
+            rg_timeout=0.75,
+            support_per_path=support_per_path,
+        )
+        if pre_embed_results:
+            for result in pre_embed_results:
+                result["fallback"] = "candidate-recall"
+                result["candidate_recall"] = True
+            summary = pre_embed_results[0].get("agent_summary", {})
+            if summary.get("quality") == "uncertain":
+                try:
+                    embedder = get_embedder(role="query")
+                    _apply_foreground_model_timeout(embedder, model_call_timeout_s)
+                    query_embedding = embedder.embed(recall_query)
+                    semantic_candidates = set(
+                        pre_embed_recall_telemetry.get("path_scores", {}).keys()
+                    )
+                    semantic_results = search(
+                        conn,
+                        query_embedding,
+                        max(top, top * 2),
+                        languages=tuple(language),
+                        include_patterns=tuple(include_patterns),
+                        exclude_patterns=tuple(exclude_patterns),
+                        query_text=recall_query,
+                        semantic_only=semantic_only,
+                        rerank=False,
+                        multi_resolution=True,
+                        file_top=max(top * 4, 30),
+                        candidate_paths=semantic_candidates or None,
+                        rank_by="file",
+                    )
+                    for result in semantic_results:
+                        result["fallback"] = "semantic-escalation"
+                        result["candidate_recall_lanes"] = ["semantic-escalation"]
+                    if semantic_results:
+                        pre_embed_results = merge_agent_results(
+                            recall_query,
+                            [pre_embed_results, semantic_results],
+                            pre_embed_recall_telemetry,
+                            top_k=top,
+                        )
+                except Exception as exc:
+                    logger.debug("agent-context semantic escalation skipped: %s", exc)
+            if json_output:
+                click.echo(render_json_results(pre_embed_results, include_snippet=True))
+                return
+            for result in pre_embed_results:
+                click.echo(
+                    render_terminal_result(
+                        result,
+                        content=True,
+                        project_root=str(project_root),
+                        detail=detail,
+                        ocr=ocr,
+                        explain=explain,
+                    )
+                )
+            quality = str(
+                pre_embed_results[0]
+                .get("agent_summary", {})
+                .get("quality", "best")
+            ).upper()
+            click.echo(_ui_done(_wall_elapsed(), quality))
+            click.echo(_ui_rows([
+                ("path", "agent-context-hybrid-recall"),
+                (
+                    "pool",
+                    f"{pre_embed_recall_telemetry.get('total_paths', 0)} recalled paths · "
+                    f"intent={pre_embed_recall_telemetry.get('intent', 'semantic')}",
+                ),
+            ]))
+            return
+        rg_context_results = ai.rg_fallback_results(
+            recall_query,
+            agent_scan_root,
+            top_k=top,
+            snippet_lines=10,
+            max_candidate_multiplier=2,
+            read_budget_s=0.75,
+        )
+        rg_context_results = _apply_result_boundaries(
+            rg_context_results,
+            project_root=project_root,
+            explicit_scope=explicit_scope,
+            include_patterns=tuple(include_patterns),
+            exclude_patterns=tuple(exclude_patterns),
+        )
+        if rg_context_results:
+            if json_output:
+                click.echo(render_json_results(rg_context_results[:top], include_snippet=True))
+                return
+            for result in rg_context_results[:top]:
+                click.echo(
+                    render_terminal_result(
+                        result,
+                        content=True,
+                        project_root=str(project_root),
+                        detail=detail,
+                        ocr=ocr,
+                        explain=explain,
+                    )
+                )
+            click.echo(_ui_done(_wall_elapsed(), "BEST"))
+            click.echo(_ui_rows([
+                ("path", "agent-context-rg-evidence"),
+                ("pool", f"{len(rg_context_results)} rg · semantic-skipped"),
+            ]))
+            return
+
     # v0.14.0 hierarchical merge: collect lexical-content shortcut
     # results without short-circuiting. The merged results from all
     # enabled tiers are ranked by intent later — borderline queries
@@ -2627,7 +2851,6 @@ def search_cmd(
         answer=answer,
         agentic=agentic,
     )
-
     # 0.5.6 warm-path streaming UX: print filename + ripgrep
     # preliminary matches *before* dispatching the cascade. The
     # cascade can spend tens of seconds on a low-σ-gap escalation

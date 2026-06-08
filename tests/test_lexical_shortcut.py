@@ -183,3 +183,27 @@ def test_shortcut_results_are_annotated_rg_shortcut(tmp_path):
         # Shape compatibility with rg_fallback_results
         for key in ("path", "chunk", "snippet", "score", "start_line"):
             assert key in r
+
+
+@pytest.mark.skipif(not _has_rg(), reason="ripgrep not installed")
+def test_rg_fallback_ranks_specific_term_hits_before_path_order(tmp_path):
+    root = _project(
+        tmp_path,
+        {
+            "aaa/provider.rs": "fn provider_harness() {}",
+            "zzz/worker_topology.rs": (
+                "struct WorkerTopologyAdaptiveHarnessProvider;\n"
+                "impl WorkerTopologyAdaptiveHarnessProvider { fn provider(&self) {} }"
+            ),
+        },
+    )
+
+    out = auto_index.rg_fallback_results(
+        "WorkerTopology Adaptive Harness provider",
+        root,
+        top_k=1,
+        snippet_lines=4,
+    )
+
+    assert out
+    assert out[0]["path"].endswith("worker_topology.rs")

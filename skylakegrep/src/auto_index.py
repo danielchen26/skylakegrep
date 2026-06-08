@@ -390,6 +390,8 @@ def rg_fallback_results(
     *,
     top_k: int,
     snippet_lines: int = 24,
+    max_candidate_multiplier: int = 8,
+    read_budget_s: float | None = None,
 ) -> list[dict]:
     """Return result dicts shaped like ``storage.search`` output, sourced
     purely from ripgrep — no embedding model, no DB.
@@ -399,7 +401,7 @@ def rg_fallback_results(
     or just the file head when no line matches.
     """
     rg = shutil.which("rg")
-    if not rg:
+    if not rg or top_k <= 0:
         return []
     terms = extract_query_terms(query)
     if not terms:
@@ -440,6 +442,7 @@ def rg_fallback_results(
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return []
 
+    max_candidate_paths = max(top_k, top_k * max(1, max_candidate_multiplier))
     paths = []
     seen_paths: set[str] = set()
     for line in r.stdout.splitlines():
@@ -448,7 +451,7 @@ def rg_fallback_results(
             continue
         seen_paths.add(line)
         paths.append(line)
-        if len(paths) >= top_k * 8:
+        if len(paths) >= max_candidate_paths:
             break
     if not paths:
         return []
@@ -457,12 +460,31 @@ def rg_fallback_results(
     term_pat = re.compile(
         "|".join(re.escape(t) for t in terms), flags=re.IGNORECASE
     ) if terms else None
+    deadline = None
+    if read_budget_s is not None:
+        deadline = time.monotonic() + max(0.0, read_budget_s)
     for path in paths:
+        if deadline is not None and time.monotonic() >= deadline:
+            break
         snippet, sl, el, lang = _read_snippet(Path(path), term_pat, snippet_lines)
         if snippet is None:
             continue
         evidence = f"{path}\n{snippet}".lower()
-        hits = {t for t in terms if t.lower() in evidence}
+        hits = {
+            t
+            for t in terms
+            if any(variant in evidence for variant in _term_surface_variants(t))
+        }
+        path_lc = path.lower()
+        path_hits = {
+            t
+            for t in terms
+            if any(variant in path_lc for variant in _term_surface_variants(t))
+        }
+        hit_ratio = float(len(hits)) / max(1, len(terms))
+        path_hit_ratio = float(len(path_hits)) / max(1, len(terms))
+        lex = storage.lexical_score(query, path, snippet)
+        score = min(1.0, (0.60 * hit_ratio) + (0.25 * lex) + (0.15 * path_hit_ratio))
         results.append(
             {
                 "path": path,
@@ -474,15 +496,26 @@ def rg_fallback_results(
                 "end_line": el,
                 "start_byte": None,
                 "end_byte": None,
-                "score": float(len(hits)) / max(1, len(terms)),
+                "score": score,
                 "semantic_score": 0.0,
-                "lexical_score": float(len(hits)) / max(1, len(terms)),
+                "lexical_score": lex,
                 "fallback": "ripgrep",
+                "_term_hit_count": len(hits),
+                "_path_hit_count": len(path_hits),
             }
         )
-        if len(results) >= top_k:
-            break
-    return results
+    results.sort(
+        key=lambda result: (
+            -float(result.get("score") or 0.0),
+            -int(result.get("_term_hit_count") or 0),
+            -int(result.get("_path_hit_count") or 0),
+            str(result.get("path") or ""),
+        )
+    )
+    for result in results:
+        result.pop("_term_hit_count", None)
+        result.pop("_path_hit_count", None)
+    return results[:top_k]
 
 
 def _read_snippet(

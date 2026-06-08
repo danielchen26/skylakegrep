@@ -23,6 +23,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from collections import Counter
 from pathlib import Path
 from typing import Iterable
 
@@ -166,6 +167,18 @@ def expected_hit(
     return any(any(c in path for path in paths) for c in candidates if c)
 
 
+def expected_rank(
+    expected: str,
+    paths: list[str],
+    alternatives: list[str] | None = None,
+) -> int | None:
+    candidates = [expected] + list(alternatives or [])
+    for index, path in enumerate(paths, start=1):
+        if any(c in path for c in candidates if c):
+            return index
+    return None
+
+
 def benchmark(args: argparse.Namespace) -> dict[str, object]:
     rg_bin = ensure_ripgrep()
     root = Path(args.root).resolve()
@@ -232,6 +245,9 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             + args.final_answer_tokens
             + int(skygrep_result["context_tokens"])
         )
+        alternatives = task.get("expected_alternatives")
+        rg_rank = expected_rank(expected, rg_result["paths"], alternatives)
+        skygrep_rank = expected_rank(expected, skygrep_result["paths"], alternatives)
         rows.append(
             {
                 "id": task["id"],
@@ -239,12 +255,16 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
                 "expected": expected,
                 "rg": {
                     **rg_result,
-                    "hit": expected_hit(expected, rg_result["paths"], task.get("expected_alternatives")),
+                    "hit": expected_hit(expected, rg_result["paths"], alternatives),
+                    "expected_rank": rg_rank,
+                    "reciprocal_rank": round(1 / rg_rank, 4) if rg_rank else 0.0,
                     "estimated_total_tokens": rg_total,
                 },
                 "skygrep": {
                     **skygrep_result,
-                    "hit": expected_hit(expected, skygrep_result["paths"], task.get("expected_alternatives")),
+                    "hit": expected_hit(expected, skygrep_result["paths"], alternatives),
+                    "expected_rank": skygrep_rank,
+                    "reciprocal_rank": round(1 / skygrep_rank, 4) if skygrep_rank else 0.0,
                     "estimated_total_tokens": mgrep_total,
                 },
                 "context_token_reduction_x": safe_ratio(
@@ -259,6 +279,9 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
     mgrep_context = sum(int(row["skygrep"]["context_tokens"]) for row in rows)
     rg_total = sum(int(row["rg"]["estimated_total_tokens"]) for row in rows)
     mgrep_total = sum(int(row["skygrep"]["estimated_total_tokens"]) for row in rows)
+    skygrep_quality_counts = Counter(
+        str(row["skygrep"].get("quality") or "unknown") for row in rows
+    )
 
     return {
         "definition": {
@@ -309,6 +332,18 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             ),
             "rg_tool_calls": sum(int(r["rg"]["tool_calls"]) for r in rows),
             "skygrep_tool_calls": sum(int(r["skygrep"]["tool_calls"]) for r in rows),
+            "rg_mrr": round(
+                sum(float(row["rg"]["reciprocal_rank"]) for row in rows) / len(rows),
+                4,
+            ),
+            "skygrep_mrr": round(
+                sum(float(row["skygrep"]["reciprocal_rank"]) for row in rows) / len(rows),
+                4,
+            ),
+            "skygrep_quality_counts": dict(sorted(skygrep_quality_counts.items())),
+            "skygrep_missing_ids": [
+                row["id"] for row in rows if not row["skygrep"]["hit"]
+            ],
         },
         "tasks": rows,
     }

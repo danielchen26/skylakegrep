@@ -58,7 +58,7 @@
  <p class="eyebrow">Evaluation · benchmarks</p>
  <h2>Empirical results across four benchmark dimensions.</h2>
  <p>
- skylakegrep ships <strong>six</strong> reproducible benchmarks. Each measures a
+ skylakegrep ships multiple reproducible benchmark families. Each measures a
  different question; quoting the right number for the right claim
  matters. The repository's
  <a href="parity-benchmarks.html"><code>parity-benchmarks.html</code></a>
@@ -454,6 +454,42 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  context-reduction, or work-quality-per-minute thresholds.
  </p>
 
+ <h3 id="bench-agent-parity-0517">4b. Hybrid agent-context parity (0.5.17)</h3>
+ <p>
+ 0.5.17 re-runs the self repository-maintenance task set against a real
+ ripgrep agent baseline after promoting bounded <code>rg</code>, path tokens,
+ symbols, chunk text, source-type priors, and symbol anchors into one
+ automatic <code>--agent-context</code> recall substrate. The purpose is
+ narrower than the 0.5.14 closed-loop benchmark: it asks whether the first
+ machine-readable evidence pass can recover every target that broad ripgrep
+ finds, while still giving the next LLM much less context to read.
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr><th>Metric</th><th>real <code>rg</code> agent</th><th><code>skygrep --agent-context</code></th><th>Reading</th></tr>
+ </thead>
+ <tbody>
+ <tr><td>Tasks</td><td>30</td><td>30</td><td>generic repo-maintenance queries</td></tr>
+ <tr><td>Hit rate</td><td><strong>30 / 30</strong></td><td><strong>30 / 30</strong></td><td>equal path-hit recall</td></tr>
+ <tr><td>Context tokens</td><td>6,049,556</td><td><strong>271,561</strong></td><td>22.28× less context for skygrep</td></tr>
+ <tr><td>Estimated total tokens</td><td>6,088,556</td><td><strong>310,561</strong></td><td>19.61× lower estimated total token load</td></tr>
+ <tr><td>Average hot-query latency</td><td>0.519 s</td><td><strong>0.376 s</strong></td><td>steady-state query reuse, not cold indexing</td></tr>
+ <tr><td>Tool calls</td><td>179</td><td><strong>30</strong></td><td>one skygrep call per task</td></tr>
+ <tr><td>MRR</td><td>0.0078</td><td><strong>0.7333</strong></td><td>expected files rank much higher for agents</td></tr>
+ </tbody>
+ </table>
+ </div>
+ <p>
+ The release reading is: for this agent-facing self benchmark, skygrep now
+ reaches the same hit-rate ceiling as real ripgrep while making recall
+ automatic inside <code>--agent-context</code>. Agents should inspect
+ <code>agent_summary</code>, <code>why_ranked</code>, and
+ <code>suggested_followup_probe</code> before manually broadening to raw
+ <code>rg</code>. Fresh indexing for this run took 192.281 s; the latency row
+ above reports hot-query reuse after the index exists.
+ </p>
+
  <h3 id="bench-agent-latency">5. Agent bounded-latency smoke matrix (0.5.16)</h3>
  <p>
  0.5.16 adds a focused release smoke matrix for the agent timeout contract:
@@ -557,6 +593,12 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  <strong>"skygrep is more token-efficient than ripgrep when feeding LLM context"</strong> →
  <a href="#bench-self">benchmark 6</a>: ~17.7× total-token
  reduction at equal recall on the 30-task self-test.
+ </li>
+ <li>
+ <strong>"agent context now matches real rg hit-rate with far less context"</strong> →
+ <a href="#bench-agent-parity-0517">benchmark 4b</a>: 30 / 30 vs real
+ <code>rg</code>, 22.28× less context, 19.61× lower estimated total tokens,
+ 30 tool calls instead of 179, and much higher MRR.
  </li>
  <li>
  <strong>"agent JSON calls are now bounded against slow foreground work"</strong> →

@@ -21,15 +21,23 @@ from pathlib import Path
 
 BEGIN_MARKER = "<!-- BEGIN skylakegrep integration (managed by `skygrep setup`) -->"
 END_MARKER = "<!-- END skylakegrep integration -->"
-SNIPPET_VERSION = "agent-guidance-v3"
+SNIPPET_VERSION = "agent-guidance-v4"
 
 SNIPPET_BODY = """\
 ## skylakegrep semantic search
 
 For natural-language code or document search, prefer `skygrep` over
 raw `rg`. skygrep is a local smart router: it decides whether a query
-should use filename lookup, ripgrep, scoped metadata, or the semantic
-cascade, then returns compact evidence instead of dumping the whole tree.
+should use filename lookup, scoped metadata, hybrid candidate recall, or
+semantic escalation, then returns compact evidence instead of dumping the
+whole tree.
+
+`--agent-context` is the best default when an LLM will consume evidence. It
+automatically fuses path tokens, symbol anchors, bounded ripgrep recall,
+SQLite chunk evidence, source-type priors, and confidence summaries. Do not
+manually fan out to broad `rg` just to recover recall; inspect skygrep's
+`agent_summary`, `why_ranked`, `evidence_terms`, and `suggested_followup_probe`
+first.
 
 Use the smallest command that gives enough depth:
 
@@ -56,12 +64,22 @@ Use the smallest command that gives enough depth:
 Option playbook:
 
   - Path/location only: `skygrep --agent-fast "<query>"`.
-    Equivalent explicit form: `skygrep --json --no-content --top 10 --no-rerank "<query>"`.
+    Equivalent explicit form: `skygrep --json --no-content --top 10 --no-rerank --no-llm-router --no-cascade "<query>"`.
   - Evidence snippets, first agent pass: `skygrep --agent-context "<query>"`.
-    Equivalent explicit form: `skygrep --json --content --detail standard --top 8 --no-rerank "<query>"`.
+    Equivalent explicit form: `skygrep --json --content --detail standard --top 8 --no-rerank --no-llm-router --no-cascade "<query>"`.
   - Deep read: `skygrep --json --content --detail full --include "<known-path-or-folder>" "<query>"`.
   - Synthesized answer: `skygrep --answer --content "<query>"`.
   - Known scope: add `--include "<scope/**>"` as early as possible.
+  - Agent presets default to rule-based routing, no cascade, and automatic
+    hybrid recall for latency. `--agent-context` returns a compact evidence
+    bundle with optional fields such as `agent_summary`, `why_ranked`,
+    `evidence_bundle`, `candidate_recall_lanes`, `source_type`, and
+    `evidence_terms`.
+  - Let skygrep handle normal uncertainty. It marks results as `quality` =
+    `best`, `degraded`, or `uncertain`; only `uncertain` should trigger a
+    follow-up probe unless the user asked for exhaustive search.
+  - Add `--llm-router`, `--cascade`, or rerank only when ambiguity is worth
+    paying a local model call or deeper semantic refinement.
   - Repeated tool calls: run `skygrep serve --port 7878`, then use
     `skygrep --agent-daemon --agent-fast "<query>"` or
     `skygrep --agent-daemon --agent-context "<query>"`. Rerank only when
@@ -74,11 +92,12 @@ Decision rules for agents:
   - Start with bare `skygrep "<query>"` for file-location and concept
     lookup questions.
   - For implementation-location questions where several files may be relevant,
-    prefer a path-only high-recall pass:
-    `skygrep --agent-fast "<query>"` before reading file contents.
+    prefer `skygrep --agent-context "<query>"` if the next step benefits from
+    snippets, or `skygrep --agent-fast "<query>"` only when paths are enough.
   - For first-pass implementation snippets in an agent loop, prefer
     `skygrep --agent-context "<query>"`.
-    Re-run without `--no-rerank` only when the evidence is ambiguous or missing.
+    Re-run without `--no-rerank` only when `agent_summary.quality` is
+    `uncertain` or the returned paths contradict known repo facts.
   - Add `--content` when the next step depends on text inside files.
   - Add `--detail full` only after narrowing with `--include`, or when
     the user explicitly asks to read the document contents.
@@ -89,22 +108,29 @@ Decision rules for agents:
   - Add `--include` or `--lexical-root` whenever the caller already
     knows the relevant repo, folder, or file. Scoped calls are faster
     and reduce irrelevant cross-folder evidence.
-  - Add `--explain` when routing or provenance matters.
+  - Add `--explain` when routing or provenance matters for human terminal
+    output. For JSON agent calls, read `why_ranked` and `agent_summary`.
 
 Closed-loop policy:
 
-  1. Use one scoped `skygrep --agent-context` call
-     for the first evidence pass when the next LLM step needs context.
-  2. If the result names likely files but lacks enough evidence, read the
+  1. Use one scoped `skygrep --agent-context` call for the first evidence pass
+     when the next LLM step needs context. Add `--include` immediately when
+     the relevant repo/folder/file is known.
+  2. Read `agent_summary.quality`:
+     - `best`: trust the returned anchors; read selected files directly if
+       implementation detail is needed.
+     - `degraded`: usually proceed, but prefer the suggested scoped follow-up
+       if the task is high-risk or the top files disagree.
+     - `uncertain`: run the suggested follow-up probe or a narrower
+       `skygrep --agent-context --include "<scope>"` call.
+  3. If the result names likely files but lacks enough evidence, read the
      returned file paths directly when your agent has a file-read tool; use
      `skygrep --content --detail full --include <that-file-or-folder>` when
      direct file reads are unavailable or the file needs skygrep extraction
      such as PDF, docx, or other parsed documents.
-  3. If skygrep confidence is low or expected evidence is still missing,
-     use a path-only probe such as `rg -l` before dumping content, then use a
-     targeted, bounded `rg` fallback inside the best known scope before
-     broadening to the whole repository.
-  4. Prefer final task quality over raw recall: a useful answer needs the
+  4. Use bounded `rg -l` / targeted `rg` only for exact lexical/regex needs,
+     raw grep output, or when skygrep is unavailable on PATH.
+  5. Prefer final task quality over raw recall: a useful answer needs the
      right path, supporting source text, and low context noise.
 
 Use `rg` directly only when:

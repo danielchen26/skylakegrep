@@ -55,7 +55,7 @@
       <rect x="296" y="-22" width="160" height="450" fill="url(#cm-self-col)"/>
       <text x="20"  y="0" font-size="13" fill="#71717a" font-family="ui-monospace, Menlo, Consolas, monospace">Capability</text>
       <text x="376" y="0" text-anchor="middle" font-size="14" fill="#a5f3fc" font-weight="700" font-family="ui-monospace, Menlo, Consolas, monospace">skylakegrep</text>
-      <text x="376" y="16" text-anchor="middle" font-size="10" fill="#a5f3fc" opacity="0.75" font-family="ui-monospace, Menlo, Consolas, monospace">v0.5.16</text>
+      <text x="376" y="16" text-anchor="middle" font-size="10" fill="#a5f3fc" opacity="0.75" font-family="ui-monospace, Menlo, Consolas, monospace">v0.5.17</text>
       <text x="528" y="0" text-anchor="middle" font-size="13" fill="#d4d4d8" font-family="ui-monospace, Menlo, Consolas, monospace">ripgrep</text>
       <text x="528" y="16" text-anchor="middle" font-size="10" fill="#71717a" opacity="0.85">lexical baseline</text>
       <text x="664" y="0" text-anchor="middle" font-size="13" fill="#d4d4d8" font-family="ui-monospace, Menlo, Consolas, monospace">mgrep</text>

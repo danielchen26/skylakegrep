@@ -245,8 +245,8 @@ class DaemonCliTests(unittest.TestCase):
                 )
 
             self.assertEqual(result.exit_code, 0, result.output)
-            self.assertEqual(seen_limits, [0])
-            spawn.assert_called_once()
+            self.assertEqual(seen_limits, [])
+            spawn.assert_not_called()
             self.assertEqual(json.loads(result.output), [])
 
 

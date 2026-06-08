@@ -189,9 +189,12 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  <code>skygrep --agent-context</code> when the next reasoning step
  needs source text, add <code>--include</code> whenever the scope is known, and
  reserve <code>--detail full</code> for a narrowed file/folder or parsed
- documents where direct reads are unavailable. Use <code>--answer</code> only
- when the user asked for synthesis; use bounded <code>rg -l</code> or targeted
- <code>rg</code> only for missing anchors or exact lexical/regex needs.
+ documents where direct reads are unavailable. <code>--agent-context</code>
+ automatically fuses path tokens, symbols, bounded ripgrep recall, source-type
+ priors, compact chunk evidence, and confidence summaries. Use
+ <code>--answer</code> only when the user asked for synthesis; use bounded
+ <code>rg -l</code> or targeted <code>rg</code> only for exact lexical/regex
+ needs or raw grep output.
  </p>
  <p>
  For repeated GPT / Cloud Code / Superconductor-style tool calls, keep the
@@ -201,6 +204,13 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  <code>--agent-daemon</code> uses <code>SKYGREP_DAEMON_URL</code> when set,
  otherwise <code>http://127.0.0.1:7878</code>, and falls back in-process if no
  daemon is running.
+ </p>
+ <p>
+ Agent presets default to rule-based routing, no cascade, and confidence-aware
+ first-pass evidence for bounded latency. Low-confidence JSON includes
+ <code>agent_summary</code>, <code>why_ranked</code>, and a scoped follow-up
+ probe. Add <code>--llm-router</code> or <code>--cascade</code> only when
+ ambiguity is worth paying a local model call or deeper semantic refinement.
  </p>
  <p>
  In 0.5.15, this policy is now first-class CLI UX rather than only a
@@ -214,10 +224,20 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  </p>
  <p>
  In 0.5.16, those agent presets are bounded in the runtime as well as in
- the documentation. Machine-readable agent calls use shorter router,
- model, and cascade budgets, skip heavyweight foreground refresh lanes,
+ the documentation. Machine-readable agent calls default away from the
+ local LLM router and cascade unless explicitly requested, use shorter model
+ budgets, skip heavyweight foreground refresh lanes,
  keep background indexing alive, return top-8 compact evidence by default,
  and filter low-confidence JSON candidates before an LLM consumes them.
+ </p>
+ <p>
+ In 0.5.17, <code>--agent-context</code> closes the old manual-fallback gap by
+ treating bounded ripgrep, path tokens, symbols, chunk text, source-type
+ priors, and symbol anchors as one hybrid recall substrate. JSON callers get
+ optional <code>agent_summary</code>, <code>why_ranked</code>,
+ <code>evidence_bundle</code>, <code>source_type</code>, and
+ <code>evidence_terms</code> fields while the top-level schema remains a list of
+ result objects for backward compatibility.
  </p>
  <p>
  In 0.5.13, semantic and mixed queries also use an adaptive candidate

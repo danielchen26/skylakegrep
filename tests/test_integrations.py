@@ -46,6 +46,8 @@ class IntegrationModelTests(unittest.TestCase):
         self.assertIn("--top 10", content)
         self.assertIn("--no-content", content)
         self.assertIn("--no-rerank", content)
+        self.assertIn("--no-llm-router", content)
+        self.assertIn("--no-cascade", content)
         self.assertIn("--daemon-url", content)
         self.assertIn("Option playbook", content)
         self.assertIn("Path/location only", content)

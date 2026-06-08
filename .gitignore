@@ -27,7 +27,12 @@ share/python-wheels/
 target/
 node_modules/
 apps/desktop/dist/
+apps/desktop/src-tauri/gen/
 apps/desktop/src-tauri/target/
+
+# Local agent/editor session state
+.sc/
+.cursor/
 
 # PyInstaller
 *.manifest

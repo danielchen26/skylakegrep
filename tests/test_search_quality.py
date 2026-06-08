@@ -9,7 +9,11 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from skylakegrep.src import cli as cli_module
-from skylakegrep.src.candidate_recall import candidate_chunk_results, recall_candidate_paths
+from skylakegrep.src.candidate_recall import (
+    build_agent_context_results,
+    candidate_chunk_results,
+    recall_candidate_paths,
+)
 from skylakegrep.src.indexer import collect_indexable_files, prepare_file_chunks
 from skylakegrep.src.intent import merge_results as merge_tiers
 from skylakegrep.src.storage import init_db, path_matches, populate_file_embeddings, search, store_chunks_batch
@@ -23,6 +27,66 @@ class StaticEmbedder:
 
 
 class SearchQualityTests(unittest.TestCase):
+    def test_agent_presets_disable_llm_router_by_default(self):
+        self.assertFalse(
+            cli_module._effective_llm_router_for_agent_mode(
+                "fast",
+                True,
+                llm_router_explicit=False,
+            )
+        )
+        self.assertFalse(
+            cli_module._effective_llm_router_for_agent_mode(
+                "context",
+                True,
+                llm_router_explicit=False,
+            )
+        )
+        self.assertTrue(
+            cli_module._effective_llm_router_for_agent_mode(
+                "context",
+                True,
+                llm_router_explicit=True,
+            )
+        )
+        self.assertTrue(
+            cli_module._effective_llm_router_for_agent_mode(
+                "off",
+                True,
+                llm_router_explicit=False,
+            )
+        )
+
+    def test_agent_fast_and_context_disable_cascade_by_default(self):
+        self.assertFalse(
+            cli_module._effective_cascade_for_agent_mode(
+                "fast",
+                True,
+                cascade_explicit=False,
+            )
+        )
+        self.assertFalse(
+            cli_module._effective_cascade_for_agent_mode(
+                "context",
+                True,
+                cascade_explicit=False,
+            )
+        )
+        self.assertTrue(
+            cli_module._effective_cascade_for_agent_mode(
+                "context",
+                True,
+                cascade_explicit=True,
+            )
+        )
+        self.assertTrue(
+            cli_module._effective_cascade_for_agent_mode(
+                "deep",
+                True,
+                cascade_explicit=False,
+            )
+        )
+
     def test_relative_include_glob_matches_absolute_index_path(self):
         path = "/tmp/project/src/auth/session.py"
 
@@ -342,6 +406,234 @@ class SearchQualityTests(unittest.TestCase):
         self.assertIn("HELIX_ROLE_FRAMES", results[0]["snippet"])
         self.assertIn("helix_frame", results[0]["snippet"])
         self.assertIn("supporting_chunks", results[0])
+
+    def test_candidate_recall_prefers_path_specific_evidence(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            harness = root / "src" / "harness_flow.rs"
+            topology = root / "src" / "worker_topology" / "architecture_control.rs"
+            harness.parent.mkdir(parents=True)
+            topology.parent.mkdir(parents=True)
+            conn = init_db(root / "index.db")
+            store_chunks_batch(
+                conn,
+                [
+                    {
+                        "file": str(harness),
+                        "chunk": (
+                            "[file: src/harness_flow.rs] [lang: rust] "
+                            "[symbol: HarnessFlowStatus]\n"
+                            "provider harness status records"
+                        ),
+                        "language": "rust",
+                        "chunk_index": 0,
+                        "file_mtime": 1.0,
+                        "start_line": 1,
+                        "end_line": 2,
+                        "start_byte": 0,
+                        "end_byte": 80,
+                        "embedding": [1.0, 0.0],
+                    },
+                    {
+                        "file": str(topology),
+                        "chunk": (
+                            "[file: src/worker_topology/architecture_control.rs] "
+                            "[lang: rust] [symbol: AdaptationTriggerDecision]\n"
+                            "adaptive harness provider architecture control"
+                        ),
+                        "language": "rust",
+                        "chunk_index": 0,
+                        "file_mtime": 1.0,
+                        "start_line": 1,
+                        "end_line": 2,
+                        "start_byte": 0,
+                        "end_byte": 110,
+                        "embedding": [0.0, 1.0],
+                    },
+                ],
+            )
+
+            results = candidate_chunk_results(
+                conn,
+                "WorkerTopology Adaptive Harness provider",
+                {str(harness), str(topology)},
+                top_k=2,
+                path_scores={
+                    str(harness): 1.4,
+                    str(topology): 1.6,
+                },
+            )
+
+        self.assertEqual(results[0]["path"], str(topology))
+
+    def test_agent_context_test_intent_prefers_tests_over_release_notes(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            test_path = root / "tests" / "test_search_quality.py"
+            doc_path = root / "docs" / "skylakegrep-0.5.0.md"
+            test_path.parent.mkdir(parents=True)
+            doc_path.parent.mkdir(parents=True)
+            conn = init_db(root / "index.db")
+            store_chunks_batch(
+                conn,
+                [
+                    {
+                        "file": str(test_path),
+                        "chunk": (
+                            "def test_stable_json_output_schema():\n"
+                            "    assert payload[0]['path']"
+                        ),
+                        "language": "python",
+                        "chunk_index": 0,
+                        "file_mtime": 1.0,
+                        "start_line": 1,
+                        "end_line": 2,
+                        "start_byte": 0,
+                        "end_byte": 80,
+                        "embedding": [1.0, 0.0],
+                    },
+                    {
+                        "file": str(doc_path),
+                        "chunk": (
+                            "JSON output schema unchanged. Stable JSON output schema "
+                            "documented in release notes."
+                        ),
+                        "language": "markdown",
+                        "chunk_index": 0,
+                        "file_mtime": 1.0,
+                        "start_line": 1,
+                        "end_line": 2,
+                        "start_byte": 0,
+                        "end_byte": 90,
+                        "embedding": [0.0, 1.0],
+                    },
+                ],
+            )
+
+            results, telemetry = build_agent_context_results(
+                conn,
+                "Which test covers stable JSON output schema?",
+                root,
+                top_k=2,
+            )
+
+        self.assertEqual(telemetry["intent"], "test_location")
+        self.assertEqual(results[0]["path"], str(test_path))
+        self.assertEqual(results[0]["source_type"], "test")
+        self.assertEqual(results[0]["agent_summary"]["quality"], "best")
+
+    def test_symbol_anchor_prefers_matching_function_body_chunk(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            indexer = root / "skylakegrep" / "src" / "indexer.py"
+            indexer.parent.mkdir(parents=True)
+            conn = init_db(root / "index.db")
+            store_chunks_batch(
+                conn,
+                [
+                    {
+                        "file": str(indexer),
+                        "chunk": "def extract_code_chunks():\n    chunks = []\n    language = 'python'",
+                        "language": "python",
+                        "chunk_index": 0,
+                        "file_mtime": 1.0,
+                        "start_line": 10,
+                        "end_line": 12,
+                        "start_byte": 0,
+                        "end_byte": 70,
+                        "embedding": [1.0, 0.0],
+                    },
+                    {
+                        "file": str(indexer),
+                        "chunk": (
+                            "for i, chunk in enumerate(chunks):\n"
+                            "    results.append({'language': lang, 'file_mtime': file_mtime})"
+                        ),
+                        "language": "python",
+                        "chunk_index": 1,
+                        "file_mtime": 1.0,
+                        "start_line": 48,
+                        "end_line": 52,
+                        "start_byte": 80,
+                        "end_byte": 180,
+                        "embedding": [0.0, 1.0],
+                    },
+                ],
+            )
+            conn.execute(
+                """
+                INSERT INTO symbols(file, name, name_lower, kind, start_line, end_line, file_mtime)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    str(indexer),
+                    "prepare_file_chunks",
+                    "prepare file chunks",
+                    "function",
+                    44,
+                    54,
+                    1.0,
+                ),
+            )
+            conn.commit()
+
+            results, _ = build_agent_context_results(
+                conn,
+                "Where are per-file chunks prepared with language and mtime metadata?",
+                root,
+                top_k=1,
+            )
+
+        self.assertEqual(results[0]["path"], str(indexer))
+        self.assertEqual(results[0]["start_line"], 48)
+        self.assertIn("prepare_file_chunks", results[0]["symbol_anchor_names"])
+
+    def test_candidate_path_recall_ignores_absolute_project_name_noise(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "skylake-code"
+            src = root / "src"
+            src.mkdir(parents=True)
+            topology = src / "worker_topology" / "architecture_control.rs"
+            conn = init_db(root / "index.db")
+            chunks = []
+            for index in range(12):
+                path = src / f"a_generic_{index:02d}.rs"
+                chunks.append({
+                    "file": str(path),
+                    "chunk": "provider harness generic",
+                    "language": "rust",
+                    "chunk_index": index,
+                    "file_mtime": 1.0,
+                    "start_line": 1,
+                    "end_line": 1,
+                    "start_byte": 0,
+                    "end_byte": 24,
+                    "embedding": [1.0, 0.0],
+                })
+            chunks.append({
+                "file": str(topology),
+                "chunk": "adaptive harness provider architecture control",
+                "language": "rust",
+                "chunk_index": 99,
+                "file_mtime": 1.0,
+                "start_line": 1,
+                "end_line": 1,
+                "start_byte": 0,
+                "end_byte": 46,
+                "embedding": [0.0, 1.0],
+            })
+            store_chunks_batch(conn, chunks)
+
+            cands, _ = recall_candidate_paths(
+                conn,
+                "Skylake WorkerTopology Adaptive Harness provider",
+                src,
+                include_patterns=("src/**",),
+                max_paths=20,
+                rg_timeout=0.001,
+            )
+
+        self.assertIn(str(topology), cands)
 
     def test_candidate_recall_ties_with_semantic_for_semantic_intent(self):
         ranked = merge_tiers(

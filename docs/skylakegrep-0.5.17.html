@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.5.17 — hybrid agent recall and refreshed LLM guidance" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.5.17 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important; max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px; letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px; color: var(--ink); font-weight: 600; letter-spacing: -0.015em; padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--code-text); border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px; border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body ul { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.5.17</p>
+<h1>skylakegrep 0.5.17 — hybrid agent recall and refreshed LLM guidance</h1>
+<p>0.5.17 is an agent-quality release. It closes the earlier gap where <code>skygrep --agent-context</code> saved a large amount of context but could still miss some implementation-location or test-location anchors that brute-force <code>rg</code> would eventually surface.</p>
+<p>The key change is architectural: bounded <code>rg</code> is now an internal recall lane, not a manual fallback that the caller has to remember. Agent context fuses path tokens, symbols, SQLite chunk evidence, bounded ripgrep recall, source-type priors, symbol anchors, and confidence summaries before the next LLM sees anything.</p>
+<h2>What changed</h2>
+<ul>
+<li><code>--agent-context</code> now builds a hybrid evidence bundle from independent lanes: path token recall, symbol recall, SQLite chunk recall, bounded ripgrep, and source-type priors.</li>
+<li>Agent JSON remains backward-compatible as a list of result objects, but results can now include <code>agent_summary</code>, <code>why_ranked</code>, <code>evidence_bundle</code>, <code>candidate_recall_lanes</code>, <code>source_type</code>, <code>search_intent</code>, and <code>evidence_terms</code>.</li>
+<li>Confidence is explicit. Top results carry <code>quality</code> as <code>best</code>, <code>degraded</code>, or <code>uncertain</code>, plus a scoped follow-up probe when the evidence is not sharp.</li>
+<li>Low-confidence semantic escalation is only used for <code>uncertain</code> cases, so normal agent calls avoid reintroducing local-model latency.</li>
+<li>File-first ranking now better handles common agent intents: test-location, config-location, indexing-rules, search-result logic, implementation location, and generic semantic evidence.</li>
+<li>Symbol anchors now bridge function/class names back to body chunks, fixing cases where tree-sitter separated a definition name from its implementation body.</li>
+<li>Managed LLM setup guidance is bumped to <code>agent-guidance-v4</code>.</li>
+</ul>
+<h2>Agent command contract</h2>
+<pre><code class="language-bash">skygrep --agent-context --include &quot;src/**&quot; &quot;where is token refresh implemented?&quot;</code></pre>
+<p>Read the returned JSON before escalating: <code>best</code> means trust the anchors, <code>degraded</code> means proceed but consider the scoped follow-up for high-risk work, and <code>uncertain</code> means run the suggested follow-up probe or a narrower <code>--include</code> call. Use raw <code>rg</code> directly only for exact regex, raw grep output, or when <code>skygrep</code> is unavailable.</p>
+<h2>Benchmark receipts</h2>
+<table><thead><tr><th>Metric</th><th>real <code>rg</code> agent</th><th><code>skygrep --agent-context</code></th></tr></thead><tbody>
+<tr><td>Hit rate</td><td>30/30</td><td>30/30</td></tr>
+<tr><td>Context tokens</td><td>6,049,556</td><td>271,561</td></tr>
+<tr><td>Context reduction</td><td>-</td><td>22.28x less</td></tr>
+<tr><td>Estimated total tokens</td><td>6,088,556</td><td>310,561</td></tr>
+<tr><td>Estimated total reduction</td><td>-</td><td>19.61x less</td></tr>
+<tr><td>Average hot-query latency</td><td>0.519 s</td><td>0.376 s</td></tr>
+<tr><td>Tool calls</td><td>179</td><td>30</td></tr>
+<tr><td>MRR</td><td>0.0078</td><td>0.7333</td></tr>
+</tbody></table>
+<p>Fresh index build for the same benchmark took 192.281 s. That is indexing and embedding cost, not steady-state query latency.</p>
+<h2>Compatibility</h2>
+<ul>
+<li>No index rebuild is required for existing users.</li>
+<li>The JSON result top level is still a list, so existing consumers continue to parse it. New fields are optional.</li>
+<li>Run <code>skygrep setup</code> or <code>skygrep setup --check</code> after upgrading so managed LLM instructions refresh to <code>agent-guidance-v4</code>.</li>
+</ul>
+<h2>Verification</h2>
+<ul>
+<li>Full test suite: <code>366 passed, 2 warnings</code>.</li>
+<li>Fresh real-ripgrep parity benchmark: <code>skygrep_hit_rate = 30/30</code>, <code>rg_hit_rate = 30/30</code>, <code>skygrep_missing_ids = []</code>.</li>
+<li>Scoped source smoke: top result correctly resolves to the intended architecture-control implementation file with a bounded <code>--agent-context</code> call.</li>
+</ul>
+<h2>Privacy</h2>
+<p>Public examples in this release use fictional placeholders such as <code>token refresh</code> and <code>src/**</code>. No private local prompt, screenshot, personal path, document title, name, or email is included in the release notes.</p>
+</article></main></div></body></html>

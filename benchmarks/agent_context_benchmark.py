@@ -356,8 +356,62 @@ def skygrep_agent_context(
             "latency_seconds": round(latency, 3),
         }
 
-    embedder = get_embedder(role="query") if "role" in get_embedder.__code__.co_varnames else get_embedder()
     started = time.perf_counter()
+    if lexical_prefilter and not rerank and not hyde:
+        from skylakegrep.src.candidate_recall import (
+            build_agent_context_results,
+            merge_agent_results,
+        )
+
+        root = lexical_root or Path(".").resolve()
+        results, telemetry = build_agent_context_results(
+            conn,
+            question,
+            root,
+            top_k=top_k,
+            max_paths=max(top_k * 8, top_k),
+            rg_timeout=0.75,
+            support_per_path=2,
+        )
+        summary = results[0].get("agent_summary", {}) if results else {}
+        if summary.get("quality") == "uncertain":
+            embedder = get_embedder(role="query") if "role" in get_embedder.__code__.co_varnames else get_embedder()
+            semantic_results = search(
+                conn,
+                embedder.embed(question),
+                top_k=max(top_k, top_k * 2),
+                query_text=question,
+                rerank=False,
+                multi_resolution=True,
+                file_top=max(top_k * 4, 30),
+                candidate_paths=set(telemetry.get("path_scores", {}).keys()) or None,
+                rank_by="file",
+            )
+            for result in semantic_results:
+                result["fallback"] = "semantic-escalation"
+                result["candidate_recall_lanes"] = ["semantic-escalation"]
+            if semantic_results:
+                results = merge_agent_results(
+                    question,
+                    [results, semantic_results],
+                    telemetry,
+                    top_k=top_k,
+                )
+        payload = render_json_results(results)
+        summary = results[0].get("agent_summary", {}) if results else {}
+        return {
+            "tool_calls": 1,
+            "paths": [result["path"] for result in results],
+            "context_chars": len(payload),
+            "context_tokens": approximate_tokens(payload, chars_per_token),
+            "latency_seconds": round(time.perf_counter() - started, 3),
+            "quality": summary.get("quality", "uncertain"),
+            "confidence": summary.get("confidence", 0.0),
+            "recall_paths": telemetry.get("total_paths", 0),
+            "intent": telemetry.get("intent", "semantic"),
+        }
+
+    embedder = get_embedder(role="query") if "role" in get_embedder.__code__.co_varnames else get_embedder()
     if hyde:
         try:
             from skylakegrep.src.answerer import get_answerer
@@ -402,6 +456,10 @@ def skygrep_agent_context(
         "context_chars": len(payload),
         "context_tokens": approximate_tokens(payload, chars_per_token),
         "latency_seconds": round(time.perf_counter() - started, 3),
+        "quality": "best" if results else "uncertain",
+        "confidence": None,
+        "recall_paths": None,
+        "intent": None,
     }
 
 
@@ -427,6 +485,13 @@ def _expected_hit(expected: str, paths: list[str]) -> bool:
     """
 
     return any(expected in path for path in paths)
+
+
+def _expected_rank(expected: str, paths: list[str]) -> int | None:
+    for index, path in enumerate(paths, start=1):
+        if expected in path:
+            return index
+    return None
 
 
 def benchmark(args: argparse.Namespace) -> dict[str, object]:
@@ -476,6 +541,8 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
         )
         grep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(grep_result["context_tokens"])
         mgrep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(skygrep_result["context_tokens"])
+        grep_rank = _expected_rank(expected, grep_result["paths"])
+        skygrep_rank = _expected_rank(expected, skygrep_result["paths"])
         rows.append(
             {
                 "id": task["id"],
@@ -484,11 +551,15 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
                 "grep": {
                     **grep_result,
                     "hit": _expected_hit(expected, grep_result["paths"]),
+                    "expected_rank": grep_rank,
+                    "reciprocal_rank": round(1 / grep_rank, 4) if grep_rank else 0.0,
                     "estimated_total_tokens": grep_total,
                 },
                 "skygrep": {
                     **skygrep_result,
                     "hit": _expected_hit(expected, skygrep_result["paths"]),
+                    "expected_rank": skygrep_rank,
+                    "reciprocal_rank": round(1 / skygrep_rank, 4) if skygrep_rank else 0.0,
                     "estimated_total_tokens": mgrep_total,
                 },
                 "context_token_reduction_x": safe_ratio(
@@ -502,6 +573,9 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
     mgrep_context = sum(int(row["skygrep"]["context_tokens"]) for row in rows)
     grep_total = sum(int(row["grep"]["estimated_total_tokens"]) for row in rows)
     mgrep_total = sum(int(row["skygrep"]["estimated_total_tokens"]) for row in rows)
+    skygrep_quality_counts = Counter(
+        str(row["skygrep"].get("quality") or "unknown") for row in rows
+    )
     return {
         "definition": {
             "benchmark_type": "deterministic context-gathering agent simulation",
@@ -543,6 +617,18 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             ),
             "grep_tool_calls": sum(int(row["grep"]["tool_calls"]) for row in rows),
             "skygrep_tool_calls": sum(int(row["skygrep"]["tool_calls"]) for row in rows),
+            "grep_mrr": round(
+                sum(float(row["grep"]["reciprocal_rank"]) for row in rows) / len(rows),
+                4,
+            ),
+            "skygrep_mrr": round(
+                sum(float(row["skygrep"]["reciprocal_rank"]) for row in rows) / len(rows),
+                4,
+            ),
+            "skygrep_quality_counts": dict(sorted(skygrep_quality_counts.items())),
+            "skygrep_missing_ids": [
+                row["id"] for row in rows if not row["skygrep"]["hit"]
+            ],
         },
         "tasks": rows,
     }
