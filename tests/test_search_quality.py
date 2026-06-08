@@ -590,7 +590,7 @@ class SearchQualityTests(unittest.TestCase):
 
     def test_candidate_path_recall_ignores_absolute_project_name_noise(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            root = Path(temp_dir) / "skylake-code"
+            root = Path(temp_dir) / "sample-code"
             src = root / "src"
             src.mkdir(parents=True)
             topology = src / "worker_topology" / "architecture_control.rs"
