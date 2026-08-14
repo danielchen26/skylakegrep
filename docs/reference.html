@@ -100,6 +100,8 @@
  <dd>Optional primary and supporting line-range anchors used to provide bounded multi-part evidence without returning a full file.</dd>
  <dt>agent_summary</dt>
  <dd>Optional top-result summary with <code>quality</code>, calibrated <code>confidence</code>, <code>confidence_basis</code> (<code>lexical-and-retrieval</code> or <code>retrieval-only</code>), likely files, missing signal, and a scoped follow-up probe. Non-lexical queries never receive lexical coverage credit they could not produce.</dd>
+ <dt>strict_verification</dt>
+ <dd>Optional 0.7.0 high-risk evidence receipt emitted by <code>--strict</code>. It contains <code>status</code> (<code>passed</code> or <code>inconclusive</code>), initial/final quality, performed checks, independent recall lanes, semantic rank/agreement, evidence presence, indexed-source existence/freshness/mtime state, and an error string. Exit code <code>2</code> or any status other than <code>passed</code> must not be treated as verified.</dd>
  <dt>query_excerpts</dt>
  <dd>List of query-focused passages extracted from the anchored text/PDF/DOCX file.</dd>
  <dt>content_excerpt</dt>

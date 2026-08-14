@@ -39,6 +39,8 @@ class IntegrationModelTests(unittest.TestCase):
         self.assertIn("--agent-fast", content)
         self.assertIn("--agent-context", content)
         self.assertIn("--agent-daemon", content)
+        self.assertIn("--strict", content)
+        self.assertIn("strict_verification", content)
         self.assertIn("--content --detail standard", content)
         self.assertIn("--content --detail full", content)
         self.assertIn("--answer --content", content)
@@ -57,6 +59,7 @@ class IntegrationModelTests(unittest.TestCase):
         self.assertIn("Closed-loop policy", content)
         self.assertIn("final task quality", content)
         self.assertIn("project brief", content)
+        self.assertEqual(integ.SNIPPET_VERSION, "agent-guidance-v5")
 
     def test_registration_status_detects_current_stale_and_missing(self):
         with tempfile.TemporaryDirectory() as d:

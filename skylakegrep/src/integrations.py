@@ -21,7 +21,7 @@ from pathlib import Path
 
 BEGIN_MARKER = "<!-- BEGIN skylakegrep integration (managed by `skygrep setup`) -->"
 END_MARKER = "<!-- END skylakegrep integration -->"
-SNIPPET_VERSION = "agent-guidance-v4"
+SNIPPET_VERSION = "agent-guidance-v5"
 
 SNIPPET_BODY = """\
 ## skylakegrep semantic search
@@ -67,6 +67,10 @@ Option playbook:
     Equivalent explicit form: `skygrep --json --no-content --top 10 --no-rerank --no-llm-router --no-cascade "<query>"`.
   - Evidence snippets, first agent pass: `skygrep --agent-context "<query>"`.
     Equivalent explicit form: `skygrep --json --content --detail standard --top 8 --no-rerank --no-llm-router --no-cascade "<query>"`.
+  - High-risk evidence gate: `skygrep --strict "<query>"`.
+    This implies `--agent-context`, adds an independent corpus-wide semantic
+    pass, validates indexed-source freshness, and exits 2 if verification is
+    still inconclusive. Read `strict_verification` before making the claim.
   - Deep read: `skygrep --json --content --detail full --include "<known-path-or-folder>" "<query>"`.
   - Synthesized answer: `skygrep --answer --content "<query>"`.
   - Known scope: add `--include "<scope/**>"` as early as possible.
@@ -85,6 +89,7 @@ Option playbook:
     `skygrep --agent-daemon --agent-context "<query>"`. Rerank only when
     ambiguity warrants it.
     Explicit URL form: `skygrep --daemon-url http://127.0.0.1:7878 --agent-context "<query>"`.
+    Direct and daemon agent-context calls share the same hybrid evidence path.
   - Exact regex/raw grep: use `rg` directly.
 
 Decision rules for agents:
@@ -110,6 +115,9 @@ Decision rules for agents:
     and reduce irrelevant cross-folder evidence.
   - Add `--explain` when routing or provenance matters for human terminal
     output. For JSON agent calls, read `why_ranked` and `agent_summary`.
+  - For security, release, legal, financial, destructive, or otherwise
+    high-risk local claims, start with `skygrep --strict "<query>"` and do not
+    treat exit 2 or `strict_verification.status=inconclusive` as verified.
 
 Closed-loop policy:
 
@@ -123,6 +131,8 @@ Closed-loop policy:
        if the task is high-risk or the top files disagree.
      - `uncertain`: run the suggested follow-up probe or a narrower
        `skygrep --agent-context --include "<scope>"` call.
+     For a high-risk task, use `--strict` regardless of first-pass quality;
+     strict mode requires hybrid/semantic agreement and a fresh indexed source.
   3. If the result names likely files but lacks enough evidence, read the
      returned file paths directly when your agent has a file-read tool; use
      `skygrep --content --detail full --include <that-file-or-folder>` when

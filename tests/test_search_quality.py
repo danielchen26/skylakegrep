@@ -11,10 +11,12 @@ from click.testing import CliRunner
 from skylakegrep.src import cli as cli_module
 from skylakegrep.src.candidate_recall import (
     _confidence_for_results,
+    _coalesce_db_path_aliases,
     _source_type_prior,
     build_agent_context_results,
     candidate_chunk_results,
     recall_candidate_paths,
+    run_agent_context_search,
 )
 from skylakegrep.src.indexer import collect_indexable_files, prepare_file_chunks
 from skylakegrep.src.intent import merge_results as merge_tiers
@@ -29,6 +31,162 @@ class StaticEmbedder:
 
 
 class SearchQualityTests(unittest.TestCase):
+    def test_recall_path_aliases_coalesce_without_double_counting_rg(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            parent = Path(temp_dir)
+            real_root = parent / "real"
+            real_root.mkdir()
+            link_root = parent / "link"
+            try:
+                link_root.symlink_to(real_root, target_is_directory=True)
+            except OSError:
+                self.skipTest("directory symlinks are unavailable")
+            target = real_root / "src" / "token_refresh.py"
+            target.parent.mkdir(parents=True)
+            target.write_text("def refresh_access_token(): pass\n", encoding="utf-8")
+            indexed_alias = str(link_root / "src" / "token_refresh.py")
+            conn = init_db(parent / "index.db")
+            store_chunks_batch(
+                conn,
+                [
+                    {
+                        "file": indexed_alias,
+                        "chunk": target.read_text(encoding="utf-8"),
+                        "language": "python",
+                        "chunk_index": 0,
+                        "file_mtime": target.stat().st_mtime,
+                        "start_line": 1,
+                        "end_line": 1,
+                        "start_byte": 0,
+                        "end_byte": target.stat().st_size,
+                        "embedding": [1.0, 0.0],
+                    }
+                ],
+            )
+            resolved = str(target.resolve())
+            scores = {indexed_alias: 2.0, resolved: 0.9, "src/token_refresh.py": 0.9}
+            lanes = {
+                indexed_alias: {"chunk", "path"},
+                resolved: {"rg"},
+                "src/token_refresh.py": {"rg"},
+            }
+
+            _coalesce_db_path_aliases(conn, real_root, scores, lanes)
+
+        self.assertEqual(scores, {indexed_alias: 2.9})
+        self.assertEqual(lanes[indexed_alias], {"chunk", "path", "rg"})
+
+    def test_strict_agent_context_requires_semantic_and_fresh_source_agreement(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = root / "src" / "token_refresh.py"
+            decoy = root / "docs" / "token_notes.md"
+            target.parent.mkdir(parents=True)
+            decoy.parent.mkdir(parents=True)
+            target.write_text(
+                "def refresh_access_token():\n    return 'fresh token'\n",
+                encoding="utf-8",
+            )
+            decoy.write_text("token history and session notes\n", encoding="utf-8")
+            conn = init_db(root / "index.db")
+            store_chunks_batch(
+                conn,
+                [
+                    {
+                        "file": str(target),
+                        "chunk": target.read_text(encoding="utf-8"),
+                        "language": "python",
+                        "chunk_index": 0,
+                        "file_mtime": target.stat().st_mtime,
+                        "start_line": 1,
+                        "end_line": 2,
+                        "start_byte": 0,
+                        "end_byte": target.stat().st_size,
+                        "embedding": [1.0, 0.0],
+                    },
+                    {
+                        "file": str(decoy),
+                        "chunk": decoy.read_text(encoding="utf-8"),
+                        "language": "markdown",
+                        "chunk_index": 0,
+                        "file_mtime": decoy.stat().st_mtime,
+                        "start_line": 1,
+                        "end_line": 1,
+                        "start_byte": 0,
+                        "end_byte": decoy.stat().st_size,
+                        "embedding": [0.0, 1.0],
+                    },
+                ],
+            )
+            populate_file_embeddings(conn)
+
+            results, _ = run_agent_context_search(
+                conn,
+                "where is access token refresh implemented?",
+                root,
+                top_k=2,
+                strict=True,
+                embedder_factory=lambda: StaticEmbedder(),
+            )
+
+        self.assertEqual(results[0]["path"], str(target))
+        verification = results[0]["strict_verification"]
+        self.assertEqual(verification["status"], "passed")
+        self.assertTrue(verification["source"]["fresh"])
+        self.assertEqual(verification["semantic_rank"], 1)
+        self.assertIn(
+            "semantic-escalation",
+            results[0]["candidate_recall_lanes"],
+        )
+
+    def test_strict_agent_context_rejects_stale_indexed_source(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = root / "src" / "token_refresh.py"
+            target.parent.mkdir(parents=True)
+            target.write_text(
+                "def refresh_access_token():\n    return 'fresh token'\n",
+                encoding="utf-8",
+            )
+            indexed_mtime = target.stat().st_mtime
+            conn = init_db(root / "index.db")
+            store_chunks_batch(
+                conn,
+                [
+                    {
+                        "file": str(target),
+                        "chunk": target.read_text(encoding="utf-8"),
+                        "language": "python",
+                        "chunk_index": 0,
+                        "file_mtime": indexed_mtime,
+                        "start_line": 1,
+                        "end_line": 2,
+                        "start_byte": 0,
+                        "end_byte": target.stat().st_size,
+                        "embedding": [1.0, 0.0],
+                    }
+                ],
+            )
+            populate_file_embeddings(conn)
+            os.utime(target, (indexed_mtime + 10, indexed_mtime + 10))
+
+            results, _ = run_agent_context_search(
+                conn,
+                "where is access token refresh implemented?",
+                root,
+                top_k=2,
+                strict=True,
+                embedder_factory=lambda: StaticEmbedder(),
+            )
+
+        verification = results[0]["strict_verification"]
+        self.assertEqual(verification["status"], "inconclusive")
+        self.assertFalse(verification["source"]["fresh"])
+        self.assertIn(
+            "stale",
+            results[0]["agent_summary"]["missing_signal"],
+        )
+
     def test_retrieval_only_confidence_does_not_penalize_non_lexical_query(self):
         results = [
             {

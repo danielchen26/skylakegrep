@@ -15,7 +15,7 @@
   &nbsp;·&nbsp;
   <a href="#three-ways-people-use-it"><b>Scenarios</b></a>
   &nbsp;·&nbsp;
-  <a href="#new-in-060-built-on-05x"><b>New in 0.6.0</b></a>
+  <a href="#new-in-070-built-on-06x"><b>New in 0.7.0</b></a>
   &nbsp;·&nbsp;
   <a href="#why-skylakegrep"><b>Why?</b></a>
   &nbsp;·&nbsp;
@@ -64,7 +64,7 @@ async def renew_session(req: Request):
 > **bounded wrong-path discovery** via proactive umbrella &nbsp;·&nbsp;
 > **~1 s** warm queries &nbsp;·&nbsp;
 > **100 %** local &nbsp;·&nbsp;
-> **49** releases shipped
+> **50** releases shipped
 
 ---
 
@@ -120,19 +120,21 @@ $ skygrep "我昨天写的 cascade 调度代码"
 
 ---
 
-## New in 0.6.0 (built on 0.5.x)
+## New in 0.7.0 (built on 0.6.x)
 
-0.6.0 makes the agent path substantially faster without relaxing its evidence
-contract. Cross-file embedding batches cut the measured fresh-index build from
-624.44 s to 74.71 s on the same repository (8.36× faster), `doctor` has a
-0.216 s median, and hot daemon `--agent-context` calls have a 0.372 s median.
+0.7.0 turns high-risk local retrieval into an explicit, fail-closed contract.
+`skygrep --strict` combines hybrid candidate recall with an independent
+corpus-wide semantic pass, verifies that the indexed source still matches the
+file on disk, emits `strict_verification`, and exits `2` when the evidence is
+still inconclusive.
 
-Accuracy work ships with the speed work. Agent summaries distinguish
-lexical-backed confidence from retrieval-only confidence, closed-loop fixtures
-now enforce path-only locate semantics, and synthesized answers prefer a
-current living policy/reference document over unrelated plans or version
-snapshots. Explicit version queries and explicitly named supporting documents
-remain available.
+Direct and daemon agent-context calls now execute the same evidence pipeline.
+The daemon validates project/index boundaries, while macOS `/var` and
+`/private/var` aliases are coalesced without double-counting lexical evidence.
+Pull-request CI runs a deterministic six-task contract benchmark: the release
+fixture preserved 100% path coverage, evidence coverage, and sufficiency while
+using about 4.05× less context and 6 tool calls instead of 99 for the modeled
+raw-`rg` workflow.
 
 The 0.5.x foundation remains: less ceremony from you, more intelligence from
 the tool.
@@ -290,7 +292,7 @@ a single-user, single-machine, zero-ops CLI for a developer asking
 their own laptop a question. Both can be called "search engines";
 they answer different problems.
 
-| | skylakegrep 0.6.0 | Elasticsearch |
+| | skylakegrep 0.7.0 | Elasticsearch |
 |---|---|---|
 | **Setup** | `python3 -m pip install --user skylakegrep`; cold-start lazy auto-trigger | JVM, cluster, mappings, ingest pipeline, dense-vector plugin, reindex |
 | **Semantic retrieval** | bge-m3 (1024-d, 100+ languages) via local Ollama, out of the box | Manual: pick embedder, pipeline, dimension, reindex |
@@ -298,6 +300,7 @@ they answer different problems.
 | **Code AST awareness** | tree-sitter symbol channel, RRF-fused with cosine | None; code is plain text |
 | **Cold-start / wrong-folder** | `lazy_cwd` + `lazy_cross_folder` 4-lane parallel umbrella, ~1.1 s | Empty index = 0 results |
 | **Why-this-matched explainability** | `--explain` shows router rationale + channel breakdown + lane evidence | BM25 highlight only |
+| **High-risk local verification** | `--strict` requires independent hybrid/semantic agreement plus indexed-source freshness; inconclusive evidence exits `2` | Application-specific validation required |
 | **Cross-file context** | reference-graph PageRank tiebreak | None |
 | **Privacy / offline** | 100 % local by design | Index can be local, but most embeddings are external API calls |
 | **Latency p95 (single repo, 50k files)** | 0.3 – 1.1 s including LLM router | ms-level *after* you've paid the operational cost |
@@ -464,6 +467,13 @@ on the saved closed-loop report. In 0.5.17, the first-pass
 repository-maintenance tasks by using `rg` as an internal bounded recall
 lane instead of exposing raw grep output to the LLM.
 
+Pull-request CI also runs `benchmarks/ci_agent_contract_benchmark.py` through
+`benchmarks/closed_loop_regression_gate.py`. The six-task, model-free fixture
+executes the real hybrid candidate-recall code and fails the build if path or
+evidence coverage, sufficiency, context reduction, estimated agent elapsed,
+or work-quality-per-minute drops below the checked thresholds. The larger
+real-repository/Ollama benchmark remains the release-scale gate.
+
 ---
 
 ## What you can search
@@ -517,6 +527,7 @@ task needs it.
 | Synthesize a local answer from retrieved evidence | `skygrep --answer --content "summarize the payment retry policy"` |
 | Fast path anchors for an LLM agent | `skygrep --agent-fast "where is token refresh implemented?"` |
 | Feed compact structured context to an LLM agent | `skygrep --agent-context --include "src/**" "where is token refresh implemented?"` |
+| Verify a high-risk local claim | `skygrep --strict "where is authorization enforced?"` — hybrid recall + an independent corpus-wide semantic pass + indexed-source freshness; exits `2` when still inconclusive. |
 | Reuse a daemon for repeated agent calls | `skygrep serve --port 7878` then `skygrep --agent-daemon --agent-context "what does token refresh do?"`; add `--warm-reranker` only when later reranked queries justify the memory/startup cost |
 | Audit why a route/result was chosen | `skygrep --explain "where is token refresh implemented?"` |
 
@@ -533,6 +544,7 @@ enough evidence.
 | "Read this known file/folder deeply" | `skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"` | Full depth only after scope is known; avoids repo-wide context blowups. |
 | "Summarize / answer from local evidence" | `skygrep --answer --content "summarize the payment retry policy"` | Retrieves evidence first, then synthesizes locally through Ollama. When a living policy/reference document leads, unrelated snapshots and planning notes are excluded unless the query names them. |
 | "An LLM/agent will consume this" | `skygrep --agent-context --include "src/**" "where is token refresh implemented?"` | Machine-readable, compact, and scoped; do not scrape human terminal output. |
+| "This local claim is high-risk" | `skygrep --strict "where is authorization enforced?"` | Implies agent context and emits `strict_verification`; exit `2` means the evidence must not be treated as verified. |
 | "Several implementation files may matter" | `skygrep --json --no-content --top 10 --no-rerank --no-llm-router --no-cascade "where is request routing assembled?"` then read returned files | Separates path discovery from file reading; improves closed-loop agent quality without paying router/cascade model calls. |
 | "The query is broad or noisy" | Add `--include`, `--exclude`, `--language`, or run from the relevant project root | Scope is the largest latency and accuracy lever. |
 | "I need to audit routing" | `skygrep --explain "why is this policy selected?"` | Shows router intent, contributing lanes, and cascade evidence. |
@@ -559,6 +571,10 @@ Closed-loop agent policy:
    matching is required or when you need raw grep output. Low-confidence
    agent results include `agent_summary`, `confidence_basis`, `why_ranked`, and a targeted
    follow-up probe so the next step can stay scoped.
+6. For security, release, legal, financial, destructive, or other high-risk
+   local claims, use `--strict` even when the first-pass quality is `best`.
+   Strict mode independently checks corpus-wide semantic agreement and source
+   freshness; only `strict_verification.status=passed` is a verified result.
 
 For repeated GPT / Cloud Code / Superconductor-style tool calls, keep
 the process available with `skygrep serve --port 7878` and call
@@ -568,7 +584,9 @@ the process available with `skygrep serve --port 7878` and call
 falls back in-process if no daemon is running. The server binds before any
 optional reranker load and does not warm that heavyweight dependency by
 default. Use `skygrep serve --warm-reranker` when the workload actually uses
-reranking and you want to pay the warmup once in the background.
+reranking and you want to pay the warmup once in the background. Direct and
+daemon `--agent-context` requests use the same hybrid evidence implementation,
+so daemon speed no longer trades away candidate-recall lanes or agent summaries.
 
 Agent presets default to rule-based routing, no cascade, and confidence-aware
 first-pass evidence for bounded latency. If the compact evidence is degraded,
@@ -683,6 +701,13 @@ explicitly requested.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.7.0`** — Fail-closed `--strict` verification for high-risk local
+    claims, a shared direct/daemon agent-context implementation, daemon
+    project-boundary validation, macOS path-alias coalescing, and a continuous
+    six-task accuracy/performance regression gate. The deterministic fixture
+    completed 6/6 tasks with 100% path, evidence, and sufficiency coverage,
+    about 4.05× less context, and 6 tool calls instead of 99 for the modeled
+    raw-`rg` workflow. Existing indexes remain compatible.
   - **`0.6.0`** — Batched indexing, bounded daemon startup, calibrated agent
     confidence, and authority-aware answer synthesis. Fresh indexing on the
     same repository dropped from 624.44 s to 74.71 s (8.36× faster), while

@@ -17,11 +17,12 @@ import logging
 import sqlite3
 import threading
 import time
+from contextlib import closing
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Optional
 
-from .config import get_config
+from .config import get_config, project_root as resolve_project_root
 from .embeddings import get_embedder
 from .storage import search
 
@@ -42,14 +43,14 @@ class _SearchHandler(BaseHTTPRequestHandler):
     Request body (JSON): ``{"query": str, "top_k": int, "rerank": bool,
     "rerank_pool": int, "multi_resolution": bool, "file_top": int,
     "hyde": bool, "languages": [str], "include": [str], "exclude": [str],
-    "snippet_chars": int}``.
+    "snippet_chars": int, "agent_mode": str, "strict": bool}``.
 
     Response body (JSON): list of result dicts with the same shape the CLI's
     JSON output uses. Snippets are truncated to ``snippet_chars`` (default
     500) so a chatty agent doesn't pull a 50-MB response on every call.
     """
 
-    server_version = "skylakegrep-daemon/0.2"
+    server_version = "skylakegrep-daemon/0.3"
 
     def log_message(self, format, *args):  # noqa: A002 - parent signature
         # Keep daemon stdout tidy. Standard library default would print a
@@ -72,6 +73,26 @@ class _SearchHandler(BaseHTTPRequestHandler):
             return
         cfg = get_config()
         snippet_chars = int(body.get("snippet_chars", 500))
+        configured_db = Path(cfg["db_path"]).expanduser().resolve()
+        requested_db = Path(body.get("db_path") or configured_db).expanduser().resolve()
+        configured_root = resolve_project_root().expanduser().resolve()
+        requested_root = Path(
+            body.get("project_root") or configured_root
+        ).expanduser().resolve()
+        lexical_root = Path(
+            body.get("lexical_root") or requested_root
+        ).expanduser().resolve()
+        try:
+            lexical_root.relative_to(configured_root)
+            lexical_root_allowed = True
+        except ValueError:
+            lexical_root_allowed = False
+        if requested_db != configured_db or requested_root != configured_root:
+            self.send_error(409, "daemon project/index does not match the client request")
+            return
+        if not lexical_root_allowed:
+            self.send_error(400, "lexical_root must stay inside the daemon project root")
+            return
         # Optional HyDE expansion runs in-thread because it's just an HTTP
         # call to the local Ollama LLM and the LLM is not held by us.
         embed_input = query
@@ -82,37 +103,76 @@ class _SearchHandler(BaseHTTPRequestHandler):
                 embed_input = get_answerer().hyde(query)
             except Exception as exc:  # pragma: no cover - best effort
                 logger.warning("HyDE expansion failed: %s", exc)
-        with _lock:
-            conn = sqlite3.connect(cfg["db_path"])
+        with _lock, closing(sqlite3.connect(configured_db)) as conn:
             embedder = get_embedder(role="query")
             started = time.perf_counter()
-            results = search(
-                conn,
-                embedder.embed(embed_input),
-                top_k=int(body.get("top_k", 10)),
-                languages=tuple(body.get("languages", []) or []),
-                include_patterns=tuple(body.get("include", []) or []),
-                exclude_patterns=tuple(body.get("exclude", []) or []),
-                query_text=query,
-                rerank=bool(body.get("rerank", True)),
-                rerank_pool=int(body.get("rerank_pool", cfg["rerank_pool"])),
-                rerank_model=body.get("rerank_model"),
-                multi_resolution=bool(body.get("multi_resolution", True)),
-                file_top=int(body.get("file_top", 30)),
-            )
+            agent_mode = str(body.get("agent_mode") or "off")
+            if agent_mode == "context":
+                from .candidate_recall import run_agent_context_search
+
+                results, _ = run_agent_context_search(
+                    conn,
+                    str(body.get("recall_query") or query),
+                    lexical_root,
+                    top_k=int(body.get("top_k", 8)),
+                    languages=tuple(body.get("languages", []) or []),
+                    include_patterns=tuple(body.get("include", []) or []),
+                    exclude_patterns=tuple(body.get("exclude", []) or []),
+                    max_paths=max(int(body.get("top_k", 8)) * 8, int(body.get("top_k", 8))),
+                    rg_timeout=float(body.get("rg_timeout", 0.75)),
+                    support_per_path=int(body.get("support_per_path", 2)),
+                    semantic_only=bool(body.get("semantic_only", False)),
+                    strict=bool(body.get("strict", False)),
+                    embedder_factory=lambda: embedder,
+                    source_root=configured_root,
+                )
+            else:
+                results = search(
+                    conn,
+                    embedder.embed(embed_input),
+                    top_k=int(body.get("top_k", 10)),
+                    languages=tuple(body.get("languages", []) or []),
+                    include_patterns=tuple(body.get("include", []) or []),
+                    exclude_patterns=tuple(body.get("exclude", []) or []),
+                    query_text=query,
+                    rerank=bool(body.get("rerank", True)),
+                    rerank_pool=int(body.get("rerank_pool", cfg["rerank_pool"])),
+                    rerank_model=body.get("rerank_model"),
+                    multi_resolution=bool(body.get("multi_resolution", True)),
+                    file_top=int(body.get("file_top", 30)),
+                )
             latency = time.perf_counter() - started
+        optional_keys = (
+            "fallback",
+            "candidate_recall",
+            "candidate_recall_lanes",
+            "source_type",
+            "search_intent",
+            "evidence_terms",
+            "why_ranked",
+            "evidence_bundle",
+            "supporting_chunks",
+            "confidence",
+            "agent_summary",
+            "strict_verification",
+        )
+        serialized_results = []
+        for result in results:
+            item = {
+                "path": result["path"],
+                "start_line": result.get("start_line"),
+                "end_line": result.get("end_line"),
+                "language": result.get("language"),
+                "score": float(result["score"]),
+                "snippet": (result.get("snippet") or "")[:snippet_chars],
+            }
+            if agent_mode == "context":
+                for key in optional_keys:
+                    if key in result:
+                        item[key] = result[key]
+            serialized_results.append(item)
         payload = {
-            "results": [
-                {
-                    "path": r["path"],
-                    "start_line": r.get("start_line"),
-                    "end_line": r.get("end_line"),
-                    "language": r.get("language"),
-                    "score": float(r["score"]),
-                    "snippet": (r.get("snippet") or "")[:snippet_chars],
-                }
-                for r in results
-            ],
+            "results": serialized_results,
             "latency_seconds": round(latency, 4),
         }
         encoded = json.dumps(payload).encode("utf-8")
@@ -201,6 +261,15 @@ def daemon_search(
     languages: tuple[str, ...] = (),
     include_patterns: tuple[str, ...] = (),
     exclude_patterns: tuple[str, ...] = (),
+    agent_mode: str = "off",
+    strict: bool = False,
+    semantic_only: bool = False,
+    project_root: str | None = None,
+    db_path: str | None = None,
+    recall_query: str | None = None,
+    lexical_root: str | None = None,
+    rg_timeout: float = 0.75,
+    support_per_path: int = 2,
     snippet_chars: int = 500,
     timeout: float = 120.0,
 ) -> dict:
@@ -224,6 +293,15 @@ def daemon_search(
         "languages": list(languages),
         "include": list(include_patterns),
         "exclude": list(exclude_patterns),
+        "agent_mode": agent_mode,
+        "strict": strict,
+        "semantic_only": semantic_only,
+        "project_root": project_root,
+        "db_path": db_path,
+        "recall_query": recall_query,
+        "lexical_root": lexical_root,
+        "rg_timeout": rg_timeout,
+        "support_per_path": support_per_path,
         "snippet_chars": snippet_chars,
     }
     response = requests.post(f"{base_url.rstrip('/')}/search", json=payload, timeout=timeout)

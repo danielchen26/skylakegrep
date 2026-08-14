@@ -66,6 +66,21 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.7.0 · strict evidence · direct/daemon parity · continuous regression gate</div>
+ <h3>High-risk local claims now have a fail-closed verification contract</h3>
+ <p>
+ <code>--strict</code> combines hybrid recall with an independent corpus-wide
+ semantic pass, verifies indexed-source freshness, and exits <code>2</code>
+ when evidence remains inconclusive. Direct and daemon agent-context calls now
+ share one implementation, daemon requests are constrained to the configured
+ project/index, and macOS path aliases no longer split or double-count recall
+ evidence. A deterministic six-task CI gate preserved 100% path, evidence,
+ and sufficiency coverage while using about 4.05× less context than the
+ modeled raw-<code>rg</code> workflow.
+ </p>
+ <a class="release-link" href="skylakegrep-0.7.0.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.6.0 · 8.36× faster indexing · calibrated confidence · authoritative answers</div>
  <h3>Agent retrieval gets faster without weakening evidence quality</h3>
  <p>

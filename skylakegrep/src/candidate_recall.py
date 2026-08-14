@@ -19,7 +19,7 @@ from typing import Any
 
 from .document_policy import is_unnamed_version_snapshot
 from .hybrid import extract_query_terms
-from .storage import lexical_score, path_matches
+from .storage import lexical_score, path_matches, search
 
 logger = logging.getLogger(__name__)
 
@@ -705,10 +705,23 @@ def merge_agent_results(
             path = str(result.get("path") or "")
             if not path:
                 continue
-            if path not in by_path or float(result.get("score") or 0.0) > float(
-                by_path[path].get("score") or 0.0
-            ):
+            existing = by_path.get(path)
+            if existing is None:
                 by_path[path] = result
+                continue
+            combined_lanes = list(
+                dict.fromkeys(
+                    list(existing.get("candidate_recall_lanes") or [])
+                    + list(result.get("candidate_recall_lanes") or [])
+                )
+            )
+            if float(result.get("score") or 0.0) > float(
+                existing.get("score") or 0.0
+            ):
+                result["candidate_recall_lanes"] = combined_lanes
+                by_path[path] = result
+            else:
+                existing["candidate_recall_lanes"] = combined_lanes
     ranked = sorted(by_path.values(), key=lambda item: float(item.get("score") or 0.0), reverse=True)[:top_k]
     return attach_agent_evidence_summary(query, ranked, telemetry)
 
@@ -1004,6 +1017,72 @@ def _source_type_recall(
     return hits
 
 
+def _coalesce_db_path_aliases(
+    conn: sqlite3.Connection,
+    root: Path,
+    scores: dict[str, float],
+    lanes: dict[str, set[str]],
+) -> None:
+    """Merge resolved/relative recall aliases onto the indexed path key.
+
+    macOS commonly exposes the same temporary directory as both ``/var`` and
+    ``/private/var``. A daemon normalizes its request root while an existing
+    SQLite index can retain the other spelling. Without coalescing, ripgrep
+    still finds the file but its ``rg`` lane is attached to a different string
+    key, creating a false direct/daemon parity difference.
+    """
+
+    if not scores:
+        return
+    try:
+        root_resolved = root.resolve()
+    except OSError:
+        root_resolved = root
+    alias_to_db: dict[str, str] = {}
+    db_paths = _db_paths(conn)
+    for raw in db_paths:
+        aliases = {raw}
+        path = Path(raw).expanduser()
+        candidate = path if path.is_absolute() else root / path
+        try:
+            resolved = candidate.resolve()
+            aliases.add(str(resolved))
+            aliases.add(resolved.relative_to(root_resolved).as_posix())
+        except (OSError, ValueError):
+            pass
+        for alias in aliases:
+            alias_to_db.setdefault(alias, raw)
+
+    grouped: dict[str, list[str]] = defaultdict(list)
+    for path in scores:
+        canonical = alias_to_db.get(path)
+        if canonical is None:
+            candidate = Path(path).expanduser()
+            if not candidate.is_absolute():
+                candidate = root / candidate
+            try:
+                canonical = alias_to_db.get(str(candidate.resolve()))
+            except OSError:
+                canonical = None
+        grouped[canonical or path].append(path)
+
+    merged_scores: dict[str, float] = {}
+    merged_lanes: dict[str, set[str]] = defaultdict(set)
+    for canonical, aliases in grouped.items():
+        base = scores.get(canonical)
+        extras = [scores[alias] for alias in aliases if alias != canonical]
+        if base is not None:
+            merged_scores[canonical] = base + (max(extras) if extras else 0.0)
+        else:
+            merged_scores[canonical] = max(scores[alias] for alias in aliases)
+        for alias in aliases:
+            merged_lanes[canonical].update(lanes.get(alias, set()))
+    scores.clear()
+    scores.update(merged_scores)
+    lanes.clear()
+    lanes.update(merged_lanes)
+
+
 def _explicit_include_recall(
     conn: sqlite3.Connection,
     *,
@@ -1116,6 +1195,8 @@ def recall_candidate_paths(
         lanes=lanes,
         max_paths=max_paths,
     )
+
+    _coalesce_db_path_aliases(conn, root, scores, lanes)
 
     for path in list(scores):
         prior = _source_type_prior(query_intent, path, query=query)
@@ -1327,3 +1408,195 @@ def build_agent_context_results(
         intent=intent,
     )
     return merge_agent_results(query, [results], telemetry, top_k=top_k), telemetry
+
+
+def _strict_source_state(
+    conn: sqlite3.Connection,
+    result: dict,
+    root: Path,
+) -> dict[str, Any]:
+    """Verify that the primary indexed source still exists and is fresh."""
+
+    raw_path = str(result.get("path") or result.get("file") or "")
+    path = Path(raw_path).expanduser()
+    source_path = path if path.is_absolute() else root / path
+    try:
+        source_path = source_path.resolve()
+    except OSError:
+        pass
+    try:
+        row = conn.execute(
+            "SELECT MAX(file_mtime) FROM chunks WHERE file = ?",
+            (raw_path,),
+        ).fetchone()
+    except sqlite3.OperationalError:
+        row = None
+    indexed_mtime = float(row[0]) if row and row[0] is not None else None
+    try:
+        current_mtime = float(source_path.stat().st_mtime)
+        exists = source_path.is_file()
+    except OSError:
+        current_mtime = None
+        exists = False
+    fresh = bool(
+        exists
+        and indexed_mtime is not None
+        and current_mtime is not None
+        and abs(current_mtime - indexed_mtime) <= 1.0
+    )
+    return {
+        "path": str(source_path),
+        "exists": exists,
+        "fresh": fresh,
+        "indexed_mtime": indexed_mtime,
+        "current_mtime": current_mtime,
+    }
+
+
+def run_agent_context_search(
+    conn: sqlite3.Connection,
+    query: str,
+    root: Path,
+    *,
+    top_k: int = 8,
+    languages: tuple[str, ...] = (),
+    include_patterns: tuple[str, ...] = (),
+    exclude_patterns: tuple[str, ...] = (),
+    max_paths: int | None = None,
+    rg_timeout: float = 0.75,
+    support_per_path: int = 2,
+    semantic_only: bool = False,
+    strict: bool = False,
+    embedder_factory=None,
+    source_root: Path | None = None,
+) -> tuple[list[dict], dict[str, Any]]:
+    """Run the shared direct/daemon agent-context retrieval contract.
+
+    The normal path preserves the bounded hybrid-first behavior and only
+    escalates an uncertain result. ``strict`` always adds an independent,
+    corpus-wide semantic pass and validates that the primary source still
+    matches the indexed mtime. The returned JSON carries a machine-readable
+    verification verdict instead of allowing a high-risk caller to infer that
+    a plausible result is proven.
+    """
+
+    results, telemetry = build_agent_context_results(
+        conn,
+        query,
+        root,
+        top_k=top_k,
+        languages=languages,
+        include_patterns=include_patterns,
+        exclude_patterns=exclude_patterns,
+        max_paths=max_paths,
+        rg_timeout=rg_timeout,
+        support_per_path=support_per_path,
+    )
+    initial_quality = (
+        str(results[0].get("agent_summary", {}).get("quality", "uncertain"))
+        if results
+        else "uncertain"
+    )
+    semantic_results: list[dict] = []
+    semantic_error = ""
+    if strict or (results and initial_quality == "uncertain"):
+        try:
+            if embedder_factory is None:
+                from .embeddings import get_embedder
+
+                embedder = get_embedder(role="query")
+            else:
+                embedder = embedder_factory()
+            query_embedding = embedder.embed(query)
+            candidate_paths = None
+            if not strict:
+                candidate_paths = set(telemetry.get("path_scores", {}).keys()) or None
+            semantic_results = search(
+                conn,
+                query_embedding,
+                max(top_k * 2, top_k),
+                languages=languages,
+                include_patterns=include_patterns,
+                exclude_patterns=exclude_patterns,
+                query_text=query,
+                semantic_only=semantic_only,
+                rerank=False,
+                multi_resolution=True,
+                file_top=max(top_k * 4, 30),
+                candidate_paths=candidate_paths,
+                rank_by="file",
+            )
+            for result in semantic_results:
+                result["fallback"] = "semantic-escalation"
+                result["candidate_recall_lanes"] = ["semantic-escalation"]
+            if semantic_results:
+                results = merge_agent_results(
+                    query,
+                    [results, semantic_results],
+                    telemetry,
+                    top_k=top_k,
+                )
+        except Exception as exc:  # pragma: no cover - runtime best effort
+            semantic_error = f"{type(exc).__name__}: {exc}"
+            logger.debug("agent-context semantic verification skipped: %s", exc)
+
+    if not strict or not results:
+        return results, telemetry
+
+    primary = results[0]
+    primary_path = str(primary.get("path") or "")
+    semantic_paths = [str(item.get("path") or "") for item in semantic_results]
+    semantic_rank = next(
+        (index + 1 for index, path in enumerate(semantic_paths) if path == primary_path),
+        None,
+    )
+    source_state = _strict_source_state(conn, primary, source_root or root)
+    lanes = list(dict.fromkeys(primary.get("candidate_recall_lanes") or []))
+    summary = primary.get("agent_summary", {})
+    final_quality = str(summary.get("quality", "uncertain"))
+    evidence_present = bool(
+        primary.get("snippet")
+        and (primary.get("evidence_terms") or not extract_query_terms(query, max_terms=12))
+    )
+    passed = bool(
+        final_quality == "best"
+        and source_state["fresh"]
+        and evidence_present
+        and len(lanes) >= 2
+        and semantic_rank is not None
+        and semantic_rank <= max(top_k, 3)
+    )
+    verification = {
+        "status": "passed" if passed else "inconclusive",
+        "initial_quality": initial_quality,
+        "final_quality": final_quality,
+        "checks": [
+            "hybrid-candidate-recall",
+            "corpus-wide-semantic",
+            "indexed-source-freshness",
+        ],
+        "independent_lanes": lanes,
+        "semantic_rank": semantic_rank,
+        "semantic_agreement": semantic_rank is not None and semantic_rank <= max(top_k, 3),
+        "evidence_present": evidence_present,
+        "source": source_state,
+        "error": semantic_error,
+    }
+    primary["strict_verification"] = verification
+    if isinstance(summary, dict):
+        summary["strict_verification"] = verification["status"]
+        if not passed:
+            reasons = []
+            if not source_state["fresh"]:
+                reasons.append("indexed source is missing or stale")
+            if not evidence_present:
+                reasons.append("primary source lacks direct query evidence")
+            if len(lanes) < 2:
+                reasons.append("fewer than two independent recall lanes agree")
+            if semantic_rank is None or semantic_rank > max(top_k, 3):
+                reasons.append("corpus-wide semantic pass did not confirm the primary source")
+            summary["missing_signal"] = "; ".join(reasons)
+            summary["suggested_followup_probe"] = (
+                f"skygrep --content --detail full --include {primary_path!r} {query!r}"
+            )
+    return results, telemetry

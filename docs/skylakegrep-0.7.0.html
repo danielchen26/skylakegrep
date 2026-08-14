@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.7.0 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.7.0 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.7.0</p>
+<h1>skylakegrep 0.7.0 — strict evidence and direct/daemon parity</h1>
+<p>0.7.0 is an accuracy-and-efficiency release for agent workflows. It adds a
+fail-closed verification mode for high-risk local claims, makes direct and
+daemon agent-context calls execute the same retrieval contract, and turns a
+deterministic accuracy/performance comparison into a pull-request CI gate.</p>
+<p>The release does not claim that fast retrieval proves external truth.
+<code>--strict</code> verifies agreement and freshness inside the indexed local corpus;
+agents must still use authoritative external sources for claims about the
+outside world.</p>
+<h2>What changed</h2>
+<ul>
+<li><code>skygrep --strict "&lt;query&gt;"</code> now implies agent context, runs the normal
+  hybrid candidate-recall path plus an independent corpus-wide semantic pass,
+  validates source/index modification-time parity, and emits a
+  <code>strict_verification</code> receipt.</li>
+<li>Strict mode exits <code>2</code> when evidence is absent, the indexed source is stale,
+  independent retrieval lanes disagree, semantic rank is insufficient, or the
+  final agent quality remains inconclusive. Only <code>status=passed</code> is verified.</li>
+<li>Direct and HTTP-daemon agent-context calls share
+  <code>run_agent_context_search</code>, including semantic escalation, evidence bundles,
+  confidence summaries, source priors, and strict verification.</li>
+<li>The daemon rejects requests that point at a different project root or index
+  database, and rejects lexical roots outside the configured project.</li>
+<li>Candidate recall coalesces equivalent macOS <code>/var</code> and <code>/private/var</code> path
+  spellings before ranking. Duplicate aliases contribute only the strongest
+  extra score, so lexical evidence is not double-counted.</li>
+<li>Duplicate results retain the union of their <code>candidate_recall_lanes</code>, making
+  the final provenance receipt reflect every contributing lane.</li>
+<li><code>agent-guidance-v5</code> teaches Claude Code, Codex, OpenCode, Gemini CLI, and
+  Cursor to require strict receipts for security, release, legal, financial,
+  destructive, and other high-risk local claims.</li>
+<li>Pull-request CI runs <code>benchmarks/ci_agent_contract_benchmark.py</code> through the
+  existing closed-loop regression gate on Python 3.12.</li>
+</ul>
+<h2>Measured performance and accuracy</h2>
+<p>The new CI fixture is deterministic and model-free. It exercises the real
+hybrid candidate-recall implementation over six generic repository tasks, then
+compares the compact skygrep-first contract with a modeled raw-ripgrep agent
+workflow. This is a regression fixture, not a universal speed claim.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align: right;">skygrep-first</th>
+<th style="text-align: right;">modeled raw-<code>rg</code> workflow</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Completed tasks</td>
+<td style="text-align: right;">6 / 6</td>
+<td style="text-align: right;">6 / 6</td>
+<td>no completion regression</td>
+</tr>
+<tr>
+<td>Path coverage</td>
+<td style="text-align: right;">100%</td>
+<td style="text-align: right;">100%</td>
+<td>target paths preserved</td>
+</tr>
+<tr>
+<td>Evidence coverage</td>
+<td style="text-align: right;">100%</td>
+<td style="text-align: right;">100%</td>
+<td>required evidence preserved</td>
+</tr>
+<tr>
+<td>Sufficiency</td>
+<td style="text-align: right;">100%</td>
+<td style="text-align: right;">100%</td>
+<td>all tasks actionable</td>
+</tr>
+<tr>
+<td>Context tokens</td>
+<td style="text-align: right;">14,689</td>
+<td style="text-align: right;">59,551</td>
+<td>4.05x less context</td>
+</tr>
+<tr>
+<td>Tool calls</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">99</td>
+<td>one skygrep call per task</td>
+</tr>
+<tr>
+<td>Estimated agent elapsed</td>
+<td style="text-align: right;">293.85 s</td>
+<td style="text-align: right;">1,191.27 s</td>
+<td>4.05x lower modeled elapsed</td>
+</tr>
+<tr>
+<td>Work quality / minute</td>
+<td style="text-align: right;">0.2042</td>
+<td style="text-align: right;">0.0504</td>
+<td>4.05x higher</td>
+</tr>
+</tbody>
+</table>
+<p>Live verification also ran the same strict query through the direct and daemon
+paths. Top-K paths, candidate-recall lanes, agent quality, and strict status
+were identical; both selected the expected implementation file and returned
+<code>strict_verification.status=passed</code>.</p>
+<h2>Accuracy and evidence boundaries</h2>
+<ul>
+<li>Strict verification requires independent hybrid and semantic agreement; it
+  does not accept first-pass confidence alone.</li>
+<li>Freshness compares the indexed source timestamp with the file currently on
+  disk. A stale source produces an inconclusive receipt and exit <code>2</code>.</li>
+<li>The receipt exposes checks, independent lanes, semantic rank, evidence
+  presence, source state, and an error string for machine-readable auditing.</li>
+<li>Direct/daemon parity is asserted by both an HTTP integration test and a live
+  local daemon comparison.</li>
+<li>Daemon project-boundary validation prevents a caller from silently using the
+  server with a different repository database.</li>
+<li>External factual claims remain outside this guarantee. Strict mode validates
+  local evidence, not the current state of a website, service, law, or market.</li>
+</ul>
+<h2>Compatibility</h2>
+<ul>
+<li>Existing 0.6.x indexes are byte-compatible; no rebuild is required.</li>
+<li>The top-level agent JSON value remains a list of result objects.
+  <code>strict_verification</code> and its summary status are optional additive fields.</li>
+<li><code>--strict</code> is incompatible with answer/agentic synthesis modes because it is
+  an evidence-verification contract, not a generation mode.</li>
+<li>Non-strict agent presets retain their existing bounded-latency defaults.</li>
+<li>Raw regular expressions and exhaustive lexical output should still use <code>rg</code>.</li>
+</ul>
+<h2>Verification</h2>
+<ul>
+<li>Full implementation suite: <code>390 passed, 20 subtests passed</code>, with two
+  existing Click deprecation warnings.</li>
+<li>Strict-mode tests cover fresh-source success and stale-source rejection.</li>
+<li>Direct/daemon tests cover shared-contract parity, successful and
+  inconclusive strict exit codes, and cross-project request rejection.</li>
+<li>macOS path-alias regression confirms coalescing without lexical score
+  double-counting.</li>
+<li>The six-task CI gate passed with 100% path coverage, evidence coverage, and
+  sufficiency; no configured threshold failed.</li>
+<li>Source compilation and <code>git diff --check</code> passed.</li>
+<li>The local index was rebuilt and independently queried as 190/190 absolute
+  indexed paths before the release candidate was prepared.</li>
+</ul>
+<h2>Privacy</h2>
+<p>Source, documentation, tests, benchmark fixtures, and the release candidate
+use only generic repository-maintenance examples. The source tree and built
+wheel/sdist are scanned before publication. No real local prompt, private
+filename or folder, absolute user path, screenshot, document category, name,
+email, credential, token, or machine-specific identifier is included.</p>
+<h2>Known follow-ups</h2>
+<ul>
+<li>The CI benchmark is deliberately small, deterministic, and model-free. The
+  larger real-repository/Ollama benchmark remains the release-scale empirical
+  check rather than a per-PR dependency.</li>
+<li>PyPI Trusted Publishing still depends on the project-side publisher matching
+  owner <code>danielchen26</code>, repository <code>skylakegrep</code>, workflow <code>release.yml</code>, and
+  environment <code>pypi</code>. If that external configuration rejects the tag job, the
+  authenticated fallback remains required before the release can be called
+  complete.</li>
+</ul></article>
+</main>
+</div>
+</body></html>

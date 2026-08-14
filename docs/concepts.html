@@ -176,6 +176,13 @@ def search(conn, query_embedding, top_k=10, …):
  same-file support evidence when <code>--content</code> is requested. See
  <a href="reference.html#json-schema">JSON schema</a>.
  </p>
+ <p>
+ In 0.7.0, <code>--strict</code> turns agent JSON into a fail-closed local
+ evidence contract. It requires hybrid recall plus an independent corpus-wide
+ semantic check, validates indexed-source freshness, and emits
+ <code>strict_verification</code>. A process exit code of <code>2</code> or
+ <code>status=inconclusive</code> means the local claim is not verified.
+ </p>
 
  <h3>Synthesized answer (<code>--answer</code>)</h3>
  <p>
