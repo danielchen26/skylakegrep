@@ -490,6 +490,35 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  above reports hot-query reuse after the index exists.
  </p>
 
+ <h3 id="bench-performance-060">4c. Indexing and closed-loop hardening (0.6.0)</h3>
+ <p>
+ 0.6.0 measures the new cross-file embedding batch path against the previous
+ per-file request pattern on the same repository, then reruns the medium
+ closed-loop agent policy after the confidence and benchmark-contract fixes.
+ These numbers are separate receipts: the indexing row measures a fresh build;
+ daemon and doctor rows measure hot operational paths; the closed-loop rows
+ measure eight generic repository tasks.
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead><tr><th>Metric</th><th>Before</th><th>0.6.0</th><th>Reading</th></tr></thead>
+ <tbody>
+ <tr><td>Fresh index elapsed</td><td>624.44 s</td><td><strong>74.71 s</strong></td><td>8.36× faster; about 88% lower elapsed time</td></tr>
+ <tr><td><code>doctor</code> median</td><td>heavy import path</td><td><strong>0.216 s</strong></td><td>dependency discovery avoids heavyweight import</td></tr>
+ <tr><td>Hot daemon agent-context median</td><td>optional reranker on startup path</td><td><strong>0.372 s</strong></td><td>server binds before optional background warm-up</td></tr>
+ <tr><td>Medium closed-loop completion</td><td>contract contained path-task mismatches</td><td><strong>8 / 8</strong></td><td>100% path coverage, evidence coverage, and sufficiency</td></tr>
+ <tr><td>Medium work quality</td><td>-</td><td><strong>95.7%</strong></td><td>no failed tasks in the final run</td></tr>
+ </tbody>
+ </table>
+ </div>
+ <p>
+ Accuracy is not inferred from speed. Regression tests separately cover
+ deterministic chunk/file ordering, explicit-version authority, stale watch
+ cleanup, retrieval-only confidence, and answer-source filtering. A live
+ release-policy answer cited only the current <code>docs/RELEASING.md</code>
+ anchor after unrelated snapshots and planning notes were removed.
+ </p>
+
  <h3 id="bench-agent-latency">5. Agent bounded-latency smoke matrix (0.5.16)</h3>
  <p>
  0.5.16 adds a focused release smoke matrix for the agent timeout contract:

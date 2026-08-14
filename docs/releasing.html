@@ -195,10 +195,14 @@ subset:</p>
 <li><strong>GitHub repo description</strong> (<code>gh repo edit --description …</code>)
      — only if the project's one-liner positioning changed.</li>
 <li><strong>PyPI upload</strong>: <code>python -m build</code> then
-     <code>twine upload dist/skylakegrep-X.Y.Z*</code>. The CI workflow tries
-     this on tag push but currently 403s on the <code>PYPI_API_TOKEN</code>
-     secret; the manual <code>~/.pypirc</code> flow is the working path until
-     that's fixed.</li>
+     <code>twine check dist/*</code>. Tag pushes publish through PyPI Trusted
+     Publishing in <code>.github/workflows/release.yml</code>. PyPI must have a
+     matching publisher for owner <code>danielchen26</code>, repository
+     <code>skylakegrep</code>, workflow <code>release.yml</code>, and environment
+     <code>pypi</code>. If the tag job returns <code>invalid-publisher</code>, the
+     release is not complete: use the existing authenticated
+     <code>twine upload</code> fallback after all artifact/privacy gates, then
+     verify PyPI JSON, the simple index, and a fresh install.</li>
 <li><strong>GitHub Release</strong>: <code>gh release create vX.Y.Z --target master
      --title "vX.Y.Z — …" --notes-file docs/skylakegrep-X.Y.Z.md
      dist/skylakegrep-X.Y.Z-py3-none-any.whl
@@ -223,12 +227,13 @@ state from being visible to anyone:</p>
                                               before the tag
                                               announces a release
 7.  git tag -a vX.Y.Z -m &quot;vX.Y.Z — …&quot;
-8.  git push origin vX.Y.Z                  ← CI fires; ignore the
-                                              PyPI-401 step until
-                                              the token gets fixed
-9.  twine upload --non-interactive dist/skylakegrep-X.Y.Z*
-                                            ← manual upload
-                                              (CI replacement)
+8.  git push origin vX.Y.Z                  ← CI fires; wait for the
+                                              PyPI upload result
+9.  if Trusted Publishing returns invalid-publisher:
+        twine upload --non-interactive dist/skylakegrep-X.Y.Z*
+                                            ← authenticated fallback;
+                                              release is still incomplete
+                                              until public verification
 10. gh release create vX.Y.Z --target master
         --title &quot;vX.Y.Z — …&quot;
         --notes-file docs/skylakegrep-X.Y.Z.md
@@ -316,6 +321,12 @@ changed.</p>
     all 403'd</strong> because the <code>PYPI_API_TOKEN</code> repo secret is unset
     or invalid. The manual <code>twine upload</code> flow has been working
     around it. <strong>Fix is tracked but separate work.</strong></li>
+<li><strong>0.5.13 through 0.5.17 tag workflows reached the publish step but
+    returned <code>invalid-publisher</code>.</strong> The GitHub OIDC claims named
+    the expected repository, workflow, and <code>pypi</code> environment, but
+    PyPI had no matching project-side publisher. Do not confuse a successful
+    build or GitHub Release with PyPI availability; configure the publisher or
+    complete and verify the authenticated <code>twine</code> fallback.</li>
 </ul>
 </article>
  </main>

@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.5.17 adds hybrid agent recall, confidence evidence bundles, refreshed setup guidance, and 30/30 real-ripgrep parity with far less context. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
+ <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.6.0 makes fresh indexing 8.36× faster, keeps daemon startup bounded, and makes agent confidence and synthesized-answer authority explicit. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.5.17 fuses path, symbol, bounded rg, source-type, and confidence evidence for LLM agent calls. 100% local, 100+ languages." />
+ <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.6.0 adds 8.36× faster fresh indexing, bounded daemon startup, calibrated agent confidence, and authority-aware local answers. 100% local, 100+ languages." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -379,7 +379,7 @@
  <a href="#overview" class="active">Overview</a>
  <a href="#scenarios">Scenarios</a>
  <a href="#depth-examples">Depth examples</a>
- <a href="#new-in-05x">New in 0.5.x</a>
+ <a href="#new-in-060">New in 0.6.0</a>
  <a href="#why-skylakegrep">Why skylakegrep?</a>
  <a href="#vs-elasticsearch">vs Elasticsearch</a>
  <a href="#how-it-works">How it works</a>
@@ -624,7 +624,7 @@
 }
 </style>
 <section id="overview" class="hero hero-redesigned">
- <p class="eyebrow">v0.5.17 · 100% local · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.6.0 · 100% local · PolyForm Noncommercial 1.0.0</p>
  <h1>Find <span class="hero-accent">anything</span> on your machine.</h1>
  <p class="lead">
  Semantic search for code, PDFs, notes, and docs.
@@ -691,6 +691,8 @@ Throughput projections under sustained 5k QPS load...</pre>
  <p class="trust-strip">
  <strong>30 / 30</strong> public-OSS recall
  <span class="dot">·</span>
+ <strong>8.36×</strong> faster fresh indexing
+ <span class="dot">·</span>
  <strong>470×</strong> less agent context vs rg
  <span class="dot">·</span>
  <strong>~1.1 s</strong> wrong-path first answer
@@ -699,7 +701,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <span class="dot">·</span>
  <strong>100 %</strong> local
  <span class="dot">·</span>
- <strong>48</strong> releases shipped
+ <strong>49</strong> releases shipped
  </p>
 </section>
 
@@ -845,14 +847,17 @@ Throughput projections under sustained 5k QPS load...</pre>
 </section>
 
 
-<!-- ============== New in 0.5.x ============== -->
-<section id="new-in-05x" class="doc-section scenarios-section">
- <p class="eyebrow">New in 0.5.x</p>
- <h2 class="overview-h2">Four qualitative leaps since 0.4.</h2>
+<!-- ============== New in 0.6.0 ============== -->
+<section id="new-in-060" class="doc-section scenarios-section">
+ <p class="eyebrow">New in 0.6.0</p>
+ <h2 class="overview-h2">Faster indexing, bounded daemon startup, stronger evidence authority.</h2>
  <p class="lead">
- The through-line: <strong>less ceremony from you, more
- intelligence from the tool.</strong> No `skygrep index .` to
- run, no need to be in the right folder, no silent stalls.
+ Cross-file embedding batches make the measured fresh build 8.36× faster;
+ agent confidence now states whether lexical evidence was available; and
+ synthesized answers stay on the current authority document unless the query
+ explicitly asks for history. The 0.5.x foundation remains: no
+ <code>skygrep index .</code> ceremony, no need to be in the right folder,
+ and no silent stalls.
  </p>
 
  <div class="scenario-grid">
@@ -948,7 +953,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <div class="sd-result">├─ seed       preliminary filename anchors + keyword matches (lazy semantic refinement starting)</div>
  <div class="sd-result">═══ <code>Project_Report.txt</code> · bounded content preview</div>
  <div class="sd-result">├─ embed      lazy refinement continues in the same invocation</div>
- <div class="sd-takeaway"><strong>0.5.17:</strong> agent context fuses path tokens, symbols, bounded ripgrep recall, source-type priors, and confidence bundles before an LLM consumes evidence.</div>
+ <div class="sd-takeaway"><strong>0.6.0:</strong> cross-file batching accelerates indexing, confidence distinguishes lexical-backed from retrieval-only evidence, and local answers stay on current authority documents unless the query names history.</div>
  </div>
  </article>
  </div>
@@ -974,7 +979,7 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap"></div>
      <div class="why-cell why-self">
        <strong>skylakegrep</strong>
-       <span class="why-sub">v0.5.17</span>
+       <span class="why-sub">v0.6.0</span>
      </div>
      <div class="why-cell"><code>ripgrep</code><span class="why-sub">lexical baseline</span></div>
      <div class="why-cell"><a href="https://www.mgrep.dev/" target="_blank" rel="noopener">mgrep</a><span class="why-sub">Mixedbread · paid</span></div>
@@ -1116,12 +1121,12 @@ Throughput projections under sustained 5k QPS load...</pre>
  <div class="themed-card why-card">
  <div class="themed-card-chrome">
  <span class="tl"></span><span class="tl tl-y"></span><span class="tl tl-g"></span>
- <span class="themed-card-title">capability matrix · skylakegrep 0.5.x vs Elasticsearch 8.x</span>
+ <span class="themed-card-title">capability matrix · skylakegrep 0.6.0 vs Elasticsearch 8.x</span>
  </div>
  <div class="themed-card-body">
  <table class="vs-table">
  <thead>
- <tr><th></th><th>skylakegrep 0.5.x</th><th>Elasticsearch</th></tr>
+ <tr><th></th><th>skylakegrep 0.6.0</th><th>Elasticsearch</th></tr>
  </thead>
  <tbody>
  <tr><td><strong>Setup</strong></td><td><code>python3 -m pip install --user skylakegrep</code>; cold-start lazy auto-trigger</td><td>JVM, cluster, mappings, ingest pipeline, dense-vector plugin, reindex</td></tr>
@@ -1252,7 +1257,7 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
 <!-- ============== Benchmarks summary ============== -->
 <section id="bench" class="doc-section bench-section">
  <p class="eyebrow">Performance</p>
- <h2 class="overview-h2">30 / 30 fully-indexed · 470× less agent context.</h2>
+ <h2 class="overview-h2">30 / 30 fully-indexed · 8.36× faster indexing · 470× less agent context.</h2>
  <p class="lead">
  Reproducible against three popular codebases —
  <strong>Django</strong>, <strong>React</strong>, <strong>Tokio</strong>.
@@ -1263,6 +1268,11 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
  reproducible from public commands and generic task fixtures.
  </p>
  <div class="bench-stats">
+ <div class="bench-stat">
+ <div class="bench-stat-num">8.36×</div>
+ <div class="bench-stat-label">faster fresh indexing on the same repository</div>
+ <div class="bench-stat-sub">74.71 s in 0.6.0 vs. 624.44 s before cross-file embedding batches.</div>
+ </div>
  <div class="bench-stat">
  <div class="bench-stat-num">30 / 30</div>
  <div class="bench-stat-label">recall on public-OSS bench (fully-indexed cascade)</div>

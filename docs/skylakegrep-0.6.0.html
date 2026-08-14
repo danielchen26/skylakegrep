@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep v0.6.0 — release notes" />
+<meta name="theme-color" content="#13192a" />
+<title>v0.6.0 · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.6.0</p>
+<h1>skylakegrep 0.6.0 — faster indexing and authoritative agent evidence</h1>
+<p>0.6.0 is a performance-and-accuracy release for agent workflows. It removes
+per-file embedding request overhead, keeps repeated daemon calls responsive,
+and makes the evidence behind agent confidence and synthesized answers more
+explicit.</p>
+<p>The speed work does not relax retrieval quality. Closed-loop fixtures now
+enforce path-only locate semantics, retrieval-only queries cannot claim
+lexical confidence they did not earn, and local answer synthesis keeps current
+policy/reference documents separate from unrelated plans or version snapshots.</p>
+<h2>What changed</h2>
+<ul>
+<li>Full, incremental, explicit-file, and watch indexing batch chunks across
+  file boundaries before requesting embeddings. The default batch is 64 and
+  is clamped to 1..512 through <code>SKYGREP_INDEX_BATCH_SIZE</code>.</li>
+<li>Watch mode refreshes file embeddings and removes stale chunks when a tracked
+  file becomes empty.</li>
+<li><code>skygrep doctor</code> checks optional dependencies without importing heavyweight
+  reranker modules.</li>
+<li><code>skygrep serve</code> binds before optional reranker initialization. Reranker
+  warming is explicit and asynchronous through <code>--warm-reranker</code>.</li>
+<li>Agent summaries expose <code>confidence_basis</code> as either
+  <code>lexical-and-retrieval</code> or <code>retrieval-only</code>; non-lexical queries receive no
+  synthetic lexical coverage credit.</li>
+<li>Candidate-recall and source-prior handling are shared across the agent path,
+  including a decisive but reversible prior against unnamed historical version
+  snapshots.</li>
+<li><code>--answer</code> filters unrelated snapshots, roadmaps, and planning notes when a
+  current living policy/reference document leads. Exact-version queries and
+  explicitly named supporting documents remain available.</li>
+<li>The closed-loop benchmark contract now represents locate tasks as path-only
+  tasks and preserves numeric fixture evidence.</li>
+<li>GitHub Actions use Node 24-compatible <code>actions/checkout@v5</code> and
+  <code>actions/setup-python@v6</code>.</li>
+</ul>
+<h2>Measured performance</h2>
+<p>All comparisons below were run on the same repository and codebase family.
+Indexing, hot CLI operations, and closed-loop agent quality are reported as
+separate receipts.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th style="text-align: right;">Previous behavior</th>
+<th style="text-align: right;">0.6.0</th>
+<th style="text-align: right;">Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fresh index elapsed</td>
+<td style="text-align: right;">624.44 s</td>
+<td style="text-align: right;">74.71 s</td>
+<td style="text-align: right;">8.36x faster, about 88% lower elapsed</td>
+</tr>
+<tr>
+<td><code>doctor</code> median</td>
+<td style="text-align: right;">heavyweight dependency import path</td>
+<td style="text-align: right;">0.216 s</td>
+<td style="text-align: right;">lightweight discovery</td>
+</tr>
+<tr>
+<td>Hot daemon <code>--agent-context</code> median</td>
+<td style="text-align: right;">optional reranker on startup path</td>
+<td style="text-align: right;">0.372 s</td>
+<td style="text-align: right;">server binds first</td>
+</tr>
+<tr>
+<td>Medium closed-loop completion</td>
+<td style="text-align: right;">contract contained path-task mismatches</td>
+<td style="text-align: right;">8 / 8</td>
+<td style="text-align: right;">no failed tasks</td>
+</tr>
+<tr>
+<td>Medium path coverage</td>
+<td style="text-align: right;">-</td>
+<td style="text-align: right;">100%</td>
+<td style="text-align: right;">all target paths recovered</td>
+</tr>
+<tr>
+<td>Medium evidence coverage</td>
+<td style="text-align: right;">-</td>
+<td style="text-align: right;">100%</td>
+<td style="text-align: right;">all evidence targets recovered</td>
+</tr>
+<tr>
+<td>Medium sufficiency</td>
+<td style="text-align: right;">-</td>
+<td style="text-align: right;">100%</td>
+<td style="text-align: right;">all tasks sufficient</td>
+</tr>
+<tr>
+<td>Medium work quality</td>
+<td style="text-align: right;">-</td>
+<td style="text-align: right;">95.7%</td>
+<td style="text-align: right;">bounded context retained</td>
+</tr>
+</tbody>
+</table>
+<p>The adaptive comparison also used 9.82x less context and had 3.34x lower
+estimated agent elapsed than the raw-<code>rg</code> policy. Raw <code>rg</code> remains the correct
+tool for exact regex and exhaustive raw lexical output.</p>
+<h2>Accuracy and evidence boundaries</h2>
+<p>The release treats speed and correctness as independent gates:</p>
+<ul>
+<li>deterministic file/chunk ordering is preserved across embedding batches;</li>
+<li>exact-version queries retain their matching historical document while other
+  versions of the same document are excluded from current-policy synthesis;</li>
+<li>historical tasks remain unchanged when no living authority leads;</li>
+<li><code>confidence_basis</code> states which evidence family supports the summary;</li>
+<li>a live release-policy answer cited only <code>docs/RELEASING.md:106-121</code> after
+  unrelated version and planning documents were filtered;</li>
+<li>original ranked sources remain visible below synthesized answers.</li>
+</ul>
+<h2>Compatibility</h2>
+<ul>
+<li>Existing indexes are byte-compatible; no rebuild is required.</li>
+<li>The top-level agent JSON value remains a list of result objects. New fields
+  are optional.</li>
+<li>Daemon startup no longer warms the optional reranker by default. Workloads
+  that rely on later reranked queries can opt in with
+  <code>skygrep serve --warm-reranker</code>.</li>
+<li>Exact regex/raw-output workflows should continue to call <code>rg</code> directly.</li>
+</ul>
+<h2>Verification</h2>
+<ul>
+<li>Full implementation suite: <code>383 passed, 20 subtests passed</code> with two existing
+  Click deprecation warnings; the isolated Python 3.9 release environment also
+  completed <code>383 passed</code> with one environment-only LibreSSL warning.</li>
+<li>Targeted answer/document-policy suite: <code>7 passed</code>; the Python 3.9 enrichment
+  lifecycle regression suite completed <code>4 passed</code>.</li>
+<li>Pull-request CI: Python 3.10, 3.11, and 3.12 all passed.</li>
+<li>Post-merge <code>master</code> CI: Python 3.10, 3.11, and 3.12 all passed.</li>
+<li>Medium closed-loop benchmark: 8/8 complete, 100% path coverage, 100%
+  evidence coverage, 100% sufficiency, no failures.</li>
+<li>Live <code>--answer</code> release query completed with the canonical release document
+  as its only source.</li>
+</ul>
+<h2>Privacy</h2>
+<p>Source, documentation, and the actual GitHub PR diff passed the privacy gate.
+Public examples use fictional paths and generic prompts. No real local prompt,
+private filename or folder, absolute local path, screenshot, document category,
+name, email, credential, token, or machine-specific identifier is included.
+Wheel and sdist artifacts are scanned again after the release build.</p>
+<h2>Known follow-ups</h2>
+<ul>
+<li>PyPI Trusted Publishing still needs the one-time project-side publisher
+  registration for owner <code>danielchen26</code>, repository <code>skylakegrep</code>, workflow
+  <code>release.yml</code>, and environment <code>pypi</code>. Until that account setting is added,
+  releases use the existing authenticated <code>twine</code> path after the same build,
+  metadata, artifact, and privacy gates. This affects automation only, not the
+  package contents or availability.</li>
+</ul></article>
+</main>
+</div>
+</body></html>

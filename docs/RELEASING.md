@@ -111,10 +111,13 @@ subset:
      — only if the project's one-liner positioning changed.
   6. **PyPI upload**: `python -m build` then `twine check dist/*`.
      Tag pushes publish through PyPI Trusted Publishing in
-     `.github/workflows/release.yml`; no long-lived `PYPI_API_TOKEN`
-     should be required once PyPI has the trusted publisher configured
-     for owner `danielchen26`, repository `skylakegrep`, workflow
-     `release.yml`, environment `pypi`.
+     `.github/workflows/release.yml`. PyPI must have a matching publisher for
+     owner `danielchen26`, repository `skylakegrep`, workflow `release.yml`,
+     and environment `pypi`. If the tag job returns `invalid-publisher`, the
+     release is not complete: use the existing authenticated `twine upload`
+     fallback after all artifact/privacy gates, then verify PyPI JSON, the
+     simple index, and a fresh install. Never call the tag job's build success
+     a published release when the upload step failed.
   7. **GitHub Release**: `gh release create vX.Y.Z --target master
      --title "vX.Y.Z — …" --notes-file docs/skylakegrep-X.Y.Z.md
      dist/skylakegrep-X.Y.Z-py3-none-any.whl
@@ -142,14 +145,19 @@ state from being visible to anyone:
                                               before the tag
                                               announces a release
 7.  git tag -a vX.Y.Z -m "vX.Y.Z — …"
-8.  git push origin vX.Y.Z                  ← CI fires; Trusted
-                                              Publishing uploads to PyPI
-9.  gh release create vX.Y.Z --target master
+8.  git push origin vX.Y.Z                  ← CI fires; wait for the
+                                              PyPI upload result
+9.  if Trusted Publishing returns invalid-publisher:
+        twine upload --non-interactive dist/skylakegrep-X.Y.Z*
+                                            ← authenticated fallback;
+                                              release is still incomplete
+                                              until public verification
+10. gh release create vX.Y.Z --target master
         --title "vX.Y.Z — …"
         --notes-file docs/skylakegrep-X.Y.Z.md
         dist/skylakegrep-X.Y.Z-py3-none-any.whl
         dist/skylakegrep-X.Y.Z.tar.gz
-10. verify:
+11. verify:
         curl -s https://pypi.org/pypi/skylakegrep/json | jq .info.version
         curl -s https://pypi.org/simple/skylakegrep/ | grep X.Y.Z
         gh release list --limit 3
@@ -235,3 +243,9 @@ changed.
     all 403'd** because the `PYPI_API_TOKEN` repo secret is unset
     or invalid. The manual `twine upload` flow has been working
     around it. **Fix is tracked but separate work.**
+  - **0.5.13 through 0.5.17 tag workflows reached the publish step but
+    returned `invalid-publisher`.** The GitHub OIDC claims named the expected
+    repository, workflow, and `pypi` environment, but PyPI had no matching
+    project-side publisher. Do not confuse a successful build or GitHub
+    Release with PyPI availability; configure the publisher or complete and
+    verify the authenticated `twine` fallback.

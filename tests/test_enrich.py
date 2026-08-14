@@ -140,29 +140,30 @@ class EnrichTests(unittest.TestCase):
                     quiet=True,
                 )
 
-        self.assertEqual(n, 3)
-        rows = conn.execute(
-            "SELECT file, description, enriched_at FROM chunks ORDER BY id"
-        ).fetchall()
-        self.assertEqual(len(rows), 3)
-        for file_path, description, enriched_at in rows:
-            self.assertIsNotNone(enriched_at, f"{file_path} not stamped")
-            self.assertIsNotNone(description, f"{file_path} missing description")
-            self.assertIn(file_path, description)
-
-        post = {
-            row[0]: row[1]
-            for row in conn.execute(
-                "SELECT id, embedding FROM vectors"
+            self.assertEqual(n, 3)
+            rows = conn.execute(
+                "SELECT file, description, enriched_at FROM chunks ORDER BY id"
             ).fetchall()
-        }
-        for chunk_id, blob in post.items():
-            self.assertNotEqual(
-                pre[chunk_id], blob, f"vector for chunk {chunk_id} was not rewritten"
-            )
+            self.assertEqual(len(rows), 3)
+            for file_path, description, enriched_at in rows:
+                self.assertIsNotNone(enriched_at, f"{file_path} not stamped")
+                self.assertIsNotNone(description, f"{file_path} missing description")
+                self.assertIn(file_path, description)
 
-        # No more candidates left — the pending set is exhausted.
-        self.assertEqual(enrich_mod.count_pending(conn), 0)
+            post = {
+                row[0]: row[1]
+                for row in conn.execute(
+                    "SELECT id, embedding FROM vectors"
+                ).fetchall()
+            }
+            for chunk_id, blob in post.items():
+                self.assertNotEqual(
+                    pre[chunk_id], blob, f"vector for chunk {chunk_id} was not rewritten"
+                )
+
+            # No more candidates left — the pending set is exhausted.
+            self.assertEqual(enrich_mod.count_pending(conn), 0)
+            conn.close()
 
     def test_resume_picks_up_remaining_chunks(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -195,6 +196,7 @@ class EnrichTests(unittest.TestCase):
             # commit-per-chunk persisted the first run's stamp.
             self.assertEqual(second, 2)
             self.assertEqual(enrich_mod.count_pending(conn), 0)
+            conn.close()
 
     def test_failed_llm_call_leaves_chunk_pending(self):
         """Resume invariant: when the LLM fails we keep ``enriched_at``
@@ -214,8 +216,9 @@ class EnrichTests(unittest.TestCase):
                     embedder=KeywordEmbedder(),
                     quiet=True,
                 )
-        self.assertEqual(n, 0)
-        self.assertEqual(enrich_mod.count_pending(conn), 3)
+            self.assertEqual(n, 0)
+            self.assertEqual(enrich_mod.count_pending(conn), 3)
+            conn.close()
 
     def test_count_enriched_progress(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -233,6 +236,7 @@ class EnrichTests(unittest.TestCase):
                     quiet=True,
                 )
             self.assertEqual(enrich_mod.count_enriched(conn), (2, 3))
+            conn.close()
 
 
 if __name__ == "__main__":

@@ -186,6 +186,14 @@ def search(conn, query_embedding, top_k=10, …):
  printed below the synthesized answer.
  </p>
  <p>
+ In 0.6.0, synthesis applies a document-authority gate after retrieval. When
+ an unversioned living policy/reference document is the leading result,
+ unrelated plans, roadmaps, and historical snapshots are excluded from answer
+ context. Exact-version queries and explicitly named supporting documents are
+ preserved, so the gate improves current-policy answers without erasing
+ historical research.
+ </p>
+ <p>
  <code>--agentic</code> precedes the search with an LLM step that
  decomposes the question into up to <code>--max-subqueries</code>
  related queries; each is searched independently and the results are

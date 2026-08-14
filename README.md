@@ -15,7 +15,7 @@
   &nbsp;·&nbsp;
   <a href="#three-ways-people-use-it"><b>Scenarios</b></a>
   &nbsp;·&nbsp;
-  <a href="#new-in-05x"><b>New in 0.5.x</b></a>
+  <a href="#new-in-060-built-on-05x"><b>New in 0.6.0</b></a>
   &nbsp;·&nbsp;
   <a href="#why-skylakegrep"><b>Why?</b></a>
   &nbsp;·&nbsp;
@@ -64,7 +64,7 @@ async def renew_session(req: Request):
 > **bounded wrong-path discovery** via proactive umbrella &nbsp;·&nbsp;
 > **~1 s** warm queries &nbsp;·&nbsp;
 > **100 %** local &nbsp;·&nbsp;
-> **48** releases shipped
+> **49** releases shipped
 
 ---
 
@@ -120,10 +120,22 @@ $ skygrep "我昨天写的 cascade 调度代码"
 
 ---
 
-## New in 0.5.x
+## New in 0.6.0 (built on 0.5.x)
 
-Four qualitative leaps since 0.4 — the through-line is **less
-ceremony from you, more intelligence from the tool.**
+0.6.0 makes the agent path substantially faster without relaxing its evidence
+contract. Cross-file embedding batches cut the measured fresh-index build from
+624.44 s to 74.71 s on the same repository (8.36× faster), `doctor` has a
+0.216 s median, and hot daemon `--agent-context` calls have a 0.372 s median.
+
+Accuracy work ships with the speed work. Agent summaries distinguish
+lexical-backed confidence from retrieval-only confidence, closed-loop fixtures
+now enforce path-only locate semantics, and synthesized answers prefer a
+current living policy/reference document over unrelated plans or version
+snapshots. Explicit version queries and explicitly named supporting documents
+remain available.
+
+The 0.5.x foundation remains: less ceremony from you, more intelligence from
+the tool.
 
 ### 🚀 Just ask — no `skygrep index .`
 
@@ -278,7 +290,7 @@ a single-user, single-machine, zero-ops CLI for a developer asking
 their own laptop a question. Both can be called "search engines";
 they answer different problems.
 
-| | skylakegrep 0.5.x | Elasticsearch |
+| | skylakegrep 0.6.0 | Elasticsearch |
 |---|---|---|
 | **Setup** | `python3 -m pip install --user skylakegrep`; cold-start lazy auto-trigger | JVM, cluster, mappings, ingest pipeline, dense-vector plugin, reindex |
 | **Semantic retrieval** | bge-m3 (1024-d, 100+ languages) via local Ollama, out of the box | Manual: pick embedder, pipeline, dimension, reindex |
@@ -671,6 +683,13 @@ explicitly requested.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.6.0`** — Batched indexing, bounded daemon startup, calibrated agent
+    confidence, and authority-aware answer synthesis. Fresh indexing on the
+    same repository dropped from 624.44 s to 74.71 s (8.36× faster), while
+    the final medium closed-loop run completed 8/8 tasks with 100% path and
+    evidence coverage and 100% sufficiency. `skygrep serve` binds before
+    optional reranker initialization; use `--warm-reranker` only when later
+    reranked queries justify it. Existing indexes remain compatible.
   - **`0.5.17`** — Hybrid agent recall, confidence bundles, and refreshed
     LLM instructions. `--agent-context` now treats bounded `rg`, path tokens,
     symbols, chunk text, source-type priors, and symbol anchors as one

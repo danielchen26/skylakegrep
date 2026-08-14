@@ -66,6 +66,19 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.6.0 · 8.36× faster indexing · calibrated confidence · authoritative answers</div>
+ <h3>Agent retrieval gets faster without weakening evidence quality</h3>
+ <p>
+ Cross-file embedding batches cut the measured fresh-index build from
+ 624.44 s to 74.71 s on the same repository. The daemon binds before optional
+ reranker warm-up, agent summaries disclose whether confidence is
+ lexical-backed or retrieval-only, and local answer synthesis excludes
+ unrelated snapshots/plans when a current living authority document leads.
+ Exact-version and explicitly named document queries remain supported.
+ </p>
+ <a class="release-link" href="skylakegrep-0.6.0.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.5.17 · hybrid agent recall · confidence bundles · guidance v4</div>
  <h3>Agent context now matches real-ripgrep recall with far less context</h3>
  <p>
@@ -508,7 +521,7 @@
  from cosine top-K. Honest framing now propagated to all GH
  surfaces. New auto-memory rule: every release MUST include real
  corpus end-to-end run before public-surface update.
- Full bench: <a href="release-0.4.0-real-corpus.html">benchmarks/release-0.4.0-real-corpus.md</a>.
+ The real-corpus benchmark findings are summarized above and in the full release notes.
  </p>
  <a class="release-link" href="skylakegrep-0.4.1.html">Full notes →</a>
  </article>

@@ -65,6 +65,14 @@
  lanes. Query time runs per call to <code>skygrep search</code>.
  </figcaption>
  </figure>
+ <p>
+ 0.6.0 batches chunks across file boundaries before embedding them. Full,
+ incremental, explicit-file, and watch indexing share the same bounded batch
+ contract (<code>SKYGREP_INDEX_BATCH_SIZE=64</code>, clamped to
+ <code>1..512</code>) while preserving deterministic file/chunk order. Watch
+ mode also refreshes file embeddings and removes stale chunks when a file
+ becomes empty.
+ </p>
  </section>
 
 
@@ -87,6 +95,14 @@
  file can also carry a small same-file support pack: related constants,
  symbol definitions, or assertion anchors that make the returned context
  sufficient without widening to a raw tree dump.
+ </p>
+ <p>
+ Agent confidence is calibrated from the evidence actually available.
+ <code>confidence_basis</code> records whether the summary used both lexical
+ and retrieval evidence or retrieval-only signals; non-lexical queries never
+ receive lexical coverage credit. For synthesized document answers, a final
+ authority policy keeps current living references separate from unnamed
+ historical snapshots.
  </p>
  </section>
 

@@ -242,6 +242,15 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  result objects for backward compatibility.
  </p>
  <p>
+ In 0.6.0, repeated agent calls get a bounded daemon lifecycle:
+ <code>skygrep serve</code> binds before optional reranker initialization and
+ only warms that heavyweight model when <code>--warm-reranker</code> is set.
+ Agent summaries expose <code>confidence_basis</code> so retrieval-only queries
+ are not credited with lexical evidence they never produced. Answer synthesis
+ also excludes unrelated version snapshots and planning notes when a current
+ living policy/reference document leads, unless the query names that history.
+ </p>
+ <p>
  In 0.5.13, semantic and mixed queries also use an adaptive candidate
  recall substrate before final cascade ranking. For agents, this means
  <code>--json --content --detail standard</code> can return compact path
@@ -314,7 +323,7 @@ skygrep doctor</code></pre>
  </table>
  </div>
 
- <h3 id="env-vars">Environment variables (0.5.x)</h3>
+ <h3 id="env-vars">Environment variables (0.6.0)</h3>
  <table class="cli-table">
  <thead><tr><th>Variable</th><th>Default</th><th>Effect</th></tr></thead>
  <tbody>
@@ -333,7 +342,7 @@ skygrep doctor</code></pre>
  <tr><td><code>SKYGREP_UI_ANIMATION</code></td><td><code>helix</code> for interactive terminals</td><td>TTY-only rotating particle flow in the narrow left rail during foreground semantic waits, colored blue/cyan/white. Set to <code>off</code> to disable. Animation stays disabled for <code>--json</code>, redirected output, logs, and agent tool calls.</td></tr>
  <tr><td><code>SKYGREP_LLM_ROUTER_MODEL</code></td><td><code>$OLLAMA_HYDE_MODEL</code> or <code>qwen2.5:3b</code></td><td>Override which Ollama model the lazy cold-start dir-router uses. Larger models (e.g. <code>qwen2.5:7b</code>) typically improve hit-rate on long natural-language queries at higher latency.</td></tr>
  <tr><td><code>OLLAMA_URL</code></td><td><code>http://localhost:11434</code></td><td>Where to reach the local Ollama daemon.</td></tr>
- <tr><td><code>OLLAMA_EMBED_MODEL</code></td><td><code>bge-m3</code></td><td>Embedder for both warm cascade and 0.5.x lazy batch-embed.</td></tr>
+ <tr><td><code>OLLAMA_EMBED_MODEL</code></td><td><code>bge-m3</code></td><td>Embedder for both warm cascade and lazy batch embedding.</td></tr>
  <tr><td><code>SKYGREP_AUTOSTART_OLLAMA</code></td><td><code>1</code> (0.5.8+)</td><td>If <code>1</code> (default), <code>skygrep search</code> autostarts <code>ollama serve</code> in the background when Ollama is unreachable but the binary is on PATH, and polls until it answers (5 s budget). Set to <code>0</code> to disable and force the rule-based router fallback when Ollama is down.</td></tr>
  <tr><td><code>SKYGREP_OLLAMA_AUTOSTART_TIMEOUT</code></td><td><code>5.0</code> (0.5.8+)</td><td>Seconds to wait for the autostarted <code>ollama serve</code> to answer the <code>/api/tags</code> probe before giving up and falling back to rule-based routing.</td></tr>
  <tr><td><code>SKYGREP_LLM_ROUTER_TIMEOUT_SECONDS</code></td><td><code>8.0</code> (0.5.8+, was <code>0.5</code>)</td><td>HTTP timeout for the LLM router's <code>POST /api/generate</code> call. Bumped from 0.5 s in 0.5.8 because cold qwen2.5:3b needs ~3 s to answer with <code>format=json + num_predict=256</code>; warm calls (<code>keep_alive=-1</code> now actually working — see release notes) finish in 50–100 ms well under the new ceiling. Lower this only when running a much smaller router model.</td></tr>
