@@ -174,7 +174,7 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  <tr><td>Where is X? / Which file handles X?</td><td><code>skygrep --agent-fast "where is token refresh implemented?"</code></td><td>Path-only, high-recall anchors; cheap first pass for agents.</td></tr>
  <tr><td>What does X say about Y?</td><td><code>skygrep --agent-context "what does the migration plan say about rollback?"</code></td><td>Fast first-pass snippets and line ranges without dumping full files. Re-run without the preset only if rerank is needed for ambiguity.</td></tr>
  <tr><td>Read this known file/folder deeply</td><td><code>skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"</code></td><td>Full depth only after scope is known; avoids repo-wide context blowups.</td></tr>
- <tr><td>Summarize / answer from local evidence</td><td><code>skygrep --answer --content "summarize the payment retry policy"</code></td><td>Retrieves evidence first, then synthesizes locally through Ollama.</td></tr>
+ <tr><td>Summarize / answer from local evidence</td><td><code>skygrep --answer --content "summarize the payment retry policy"</code></td><td>Retrieves evidence first, then synthesizes locally through Ollama. When a living policy/reference document leads, unrelated snapshots and planning notes are excluded unless the query names them.</td></tr>
  <tr><td>An LLM/agent will consume this</td><td><code>skygrep --agent-context --include "src/**" "where is token refresh implemented?"</code></td><td>Machine-readable, compact, and scoped; do not scrape human terminal output.</td></tr>
  <tr><td>Several implementation files may matter</td><td><code>skygrep --agent-fast "where is request routing assembled?"</code></td><td>Separate path discovery from file reading; then read returned candidates directly.</td></tr>
  <tr><td>The query is broad or noisy</td><td>Add <code>--include</code>, <code>--exclude</code>, <code>--language</code>, or run from the relevant project root.</td><td>Scope is the largest latency and accuracy lever.</td></tr>
@@ -210,7 +210,7 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  <p>
  Agent presets default to rule-based routing, no cascade, and confidence-aware
  first-pass evidence for bounded latency. Low-confidence JSON includes
- <code>agent_summary</code>, <code>why_ranked</code>, and a scoped follow-up
+ <code>agent_summary</code>, <code>confidence_basis</code>, <code>why_ranked</code>, and a scoped follow-up
  probe. Add <code>--llm-router</code> or <code>--cascade</code> only when
  ambiguity is worth paying a local model call or deeper semantic refinement.
  </p>

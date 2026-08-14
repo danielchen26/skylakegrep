@@ -17,6 +17,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from .document_policy import is_unnamed_version_snapshot
 from .hybrid import extract_query_terms
 from .storage import lexical_score, path_matches
 
@@ -68,12 +69,6 @@ _CODE_SEARCH_SYNONYMS = {
     "duplicates": ("dedupe", "dedup", "unique", "seen"),
     "logical": ("key", "identity"),
 }
-_VERSION_TOKEN_RE = re.compile(
-    r"(?<![A-Za-z0-9])v?(\d+\.\d+(?:\.\d+)?(?:[-+][A-Za-z0-9.-]+)?)",
-    re.IGNORECASE,
-)
-
-
 def classify_agent_query_intent(query: str) -> str:
     """Classify the retrieval job, not the user's whole natural-language intent.
 
@@ -203,19 +198,7 @@ def _version_snapshot_prior(query: str, path: str) -> float:
     while unversioned living documents get precedence for generic questions.
     """
 
-    if source_type(path) != "doc":
-        return 0.0
-    path_versions = {
-        match.group(1).lower()
-        for match in _VERSION_TOKEN_RE.finditer(Path(path).name)
-    }
-    if not path_versions:
-        return 0.0
-    query_versions = {
-        match.group(1).lower()
-        for match in _VERSION_TOKEN_RE.finditer(query)
-    }
-    if path_versions & query_versions:
+    if not is_unnamed_version_snapshot(query, path):
         return 0.0
     # A historical snapshot needs a decisive demotion because cross-encoder
     # and lexical scores commonly differ by several tenths. Exact version

@@ -73,7 +73,7 @@
 ]</code></pre>
  <dl class="def-list">
  <dt>path</dt>
- <dd>Absolute file path on the indexing host.</dd>
+ <dd>Usually a project-relative indexed path. External filename or proactive lookup results may use an absolute path.</dd>
  <dt>start_line, end_line</dt>
  <dd>Inclusive 1-based line range of the chunk within <code>path</code>.</dd>
  <dt>language</dt>
@@ -94,6 +94,12 @@
  <dd>Retrieval provenance for filename-anchor results.</dd>
  <dt>candidate_recall, candidate_recall_lanes</dt>
  <dd>Optional 0.5.13 provenance for results surfaced by the adaptive candidate recall substrate. Lanes can include include-scope, path-token, symbol, chunk-text, or bounded ripgrep recall. Treat these as explanatory metadata; the required path / line / score / snippet fields are unchanged.</dd>
+ <dt>source_type, search_intent, evidence_terms, why_ranked</dt>
+ <dd>Optional agent-context ranking evidence: source category, inferred retrieval job, covered query terms, contributing recall lanes, source prior, and final score.</dd>
+ <dt>evidence_bundle, supporting_chunks</dt>
+ <dd>Optional primary and supporting line-range anchors used to provide bounded multi-part evidence without returning a full file.</dd>
+ <dt>agent_summary</dt>
+ <dd>Optional top-result summary with <code>quality</code>, calibrated <code>confidence</code>, <code>confidence_basis</code> (<code>lexical-and-retrieval</code> or <code>retrieval-only</code>), likely files, missing signal, and a scoped follow-up probe. Non-lexical queries never receive lexical coverage credit they could not produce.</dd>
  <dt>query_excerpts</dt>
  <dd>List of query-focused passages extracted from the anchored text/PDF/DOCX file.</dd>
  <dt>content_excerpt</dt>

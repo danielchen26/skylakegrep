@@ -36,6 +36,7 @@ from . import __version__
 from . import auto_index, bootstrap, code_graph, config as cfg_mod, enrich as enrich_mod, integrations as integrations_mod, ui as ui_mod
 from .answerer import get_answerer
 from .config import get_config
+from .document_policy import prefer_living_authority_results
 from .embeddings import get_embedder
 from .indexer import (
     collect_indexable_files,
@@ -2415,6 +2416,7 @@ def search_cmd(
                 answer_results, query, decision, detail=detail, ocr=ocr,
                 for_answer=True,
             )
+            answer_results = prefer_living_authority_results(query, answer_results)
             if answerer is None:
                 answerer = get_answerer()
             synthesized = answerer.answer(query, answer_results)
@@ -3480,6 +3482,7 @@ def search_cmd(
             results, query, decision, detail=detail, ocr=ocr,
             for_answer=True,
         )
+        results = prefer_living_authority_results(query, results)
         if answerer is None:
             answerer = get_answerer()
         synthesized = answerer.answer(query, results)

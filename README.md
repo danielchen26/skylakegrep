@@ -519,7 +519,7 @@ enough evidence.
 | "Where is X?" / "Which file handles X?" | `skygrep --agent-fast "where is token refresh implemented?"` | Path-only, high-recall anchors; cheap first pass for agents. |
 | "What does X say about Y?" | `skygrep --agent-context "what does the migration plan say about rollback?"` | Fast first-pass snippets and line ranges without dumping full files. Re-run without the preset only if rerank is needed for ambiguity. |
 | "Read this known file/folder deeply" | `skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"` | Full depth only after scope is known; avoids repo-wide context blowups. |
-| "Summarize / answer from local evidence" | `skygrep --answer --content "summarize the payment retry policy"` | Retrieves evidence first, then synthesizes locally through Ollama. |
+| "Summarize / answer from local evidence" | `skygrep --answer --content "summarize the payment retry policy"` | Retrieves evidence first, then synthesizes locally through Ollama. When a living policy/reference document leads, unrelated snapshots and planning notes are excluded unless the query names them. |
 | "An LLM/agent will consume this" | `skygrep --agent-context --include "src/**" "where is token refresh implemented?"` | Machine-readable, compact, and scoped; do not scrape human terminal output. |
 | "Several implementation files may matter" | `skygrep --json --no-content --top 10 --no-rerank --no-llm-router --no-cascade "where is request routing assembled?"` then read returned files | Separates path discovery from file reading; improves closed-loop agent quality without paying router/cascade model calls. |
 | "The query is broad or noisy" | Add `--include`, `--exclude`, `--language`, or run from the relevant project root | Scope is the largest latency and accuracy lever. |
@@ -545,7 +545,7 @@ Closed-loop agent policy:
    For code modification tasks, prefer source evidence over synthesis.
 5. Use bounded `rg -l` / targeted `rg` only when exact lexical/regex
    matching is required or when you need raw grep output. Low-confidence
-   agent results include `agent_summary`, `why_ranked`, and a targeted
+   agent results include `agent_summary`, `confidence_basis`, `why_ranked`, and a targeted
    follow-up probe so the next step can stay scoped.
 
 For repeated GPT / Cloud Code / Superconductor-style tool calls, keep
