@@ -17,6 +17,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from .document_policy import is_unnamed_version_snapshot
 from .hybrid import extract_query_terms
 from .storage import lexical_score, path_matches
 
@@ -68,8 +69,6 @@ _CODE_SEARCH_SYNONYMS = {
     "duplicates": ("dedupe", "dedup", "unique", "seen"),
     "logical": ("key", "identity"),
 }
-
-
 def classify_agent_query_intent(query: str) -> str:
     """Classify the retrieval job, not the user's whole natural-language intent.
 
@@ -136,7 +135,7 @@ def source_type(path: str) -> str:
     return "source"
 
 
-def _source_type_prior(intent: str, path: str) -> float:
+def _intent_source_type_prior(intent: str, path: str) -> float:
     stype = source_type(path)
     path_lc = path.replace("\\", "/").lower()
     basename = Path(path_lc).name
@@ -189,6 +188,29 @@ def _source_type_prior(intent: str, path: str) -> float:
     if stype in {"lockfile", "generated"}:
         return -0.80
     return 0.0
+
+
+def _version_snapshot_prior(query: str, path: str) -> float:
+    """Down-rank historical document snapshots unless the query names one.
+
+    This is metadata-driven rather than project- or vocabulary-specific:
+    versioned documents remain authoritative for version-specific queries,
+    while unversioned living documents get precedence for generic questions.
+    """
+
+    if not is_unnamed_version_snapshot(query, path):
+        return 0.0
+    # A historical snapshot needs a decisive demotion because cross-encoder
+    # and lexical scores commonly differ by several tenths. Exact version
+    # questions remain untouched above.
+    return -1.0
+
+
+def _source_type_prior(intent: str, path: str, *, query: str = "") -> float:
+    return _intent_source_type_prior(intent, path) + _version_snapshot_prior(
+        query,
+        path,
+    )
 
 
 def _norm_token(value: str) -> str:
@@ -542,19 +564,38 @@ def _confidence_for_results(
     top = results[0]
     text = f"{top.get('path', '')}\n{top.get('snippet') or top.get('chunk') or ''}"
     covered = _covered_query_terms(query, text, max_terms=12)
-    coverage = len(covered) / max(1, min(len(terms), 8))
     top_score = float(top.get("score") or 0.0)
     second_score = float(results[1].get("score") or 0.0) if len(results) > 1 else 0.0
     gap = max(0.0, top_score - second_score)
     lane_count = len(top.get("candidate_recall_lanes") or [])
     lane_factor = min(1.0, lane_count / 4.0)
-    confidence = min(
-        1.0,
-        (0.18 * min(1.0, max(0.0, top_score)))
-        + (0.42 * coverage)
-        + (0.18 * lane_factor)
-        + (0.22 * min(1.0, gap)),
-    )
+    if terms:
+        coverage = len(covered) / max(1, min(len(terms), 8))
+        confidence = min(
+            1.0,
+            (0.18 * min(1.0, max(0.0, top_score)))
+            + (0.42 * coverage)
+            + (0.18 * lane_factor)
+            + (0.22 * min(1.0, gap)),
+        )
+        confidence_basis = "lexical-and-retrieval"
+    else:
+        # Some languages and abstract queries have no safe literal terms for
+        # the bounded rg lane. Do not equate that with missing evidence:
+        # calibrate from semantic score, independent-lane convergence, and
+        # top-result separation. Ambiguous single-lane results are capped at
+        # degraded so retrieval-only confidence never overclaims certainty.
+        score_strength = min(1.0, max(0.0, top_score * 2.0))
+        gap_strength = min(1.0, gap * 5.0)
+        confidence = min(
+            1.0,
+            (0.62 * score_strength)
+            + (0.20 * lane_factor)
+            + (0.18 * gap_strength),
+        )
+        if lane_count < 2 and gap < 0.05:
+            confidence = min(confidence, 0.67)
+        confidence_basis = "retrieval-only"
     if confidence >= 0.68:
         quality = "best"
         missing = ""
@@ -567,6 +608,7 @@ def _confidence_for_results(
     return {
         "quality": quality,
         "confidence": round(confidence, 3),
+        "confidence_basis": confidence_basis,
         "covered_terms": covered,
         "gap": round(gap, 4),
         "missing_signal": missing,
@@ -609,7 +651,14 @@ def attach_agent_evidence_summary(
         result["why_ranked"] = {
             "lanes": lanes,
             "source_type": stype,
-            "source_prior": round(_source_type_prior(str(result["search_intent"]), path), 3),
+            "source_prior": round(
+                _source_type_prior(
+                    str(result["search_intent"]),
+                    path,
+                    query=query,
+                ),
+                3,
+            ),
             "covered_terms": evidence_terms,
             "score": round(float(result.get("score") or 0.0), 4),
         }
@@ -625,6 +674,7 @@ def attach_agent_evidence_summary(
     results[0]["agent_summary"] = {
         "quality": summary["quality"],
         "confidence": summary["confidence"],
+        "confidence_basis": summary.get("confidence_basis", "lexical-and-retrieval"),
         "likely_files": likely_files[:8],
         "primary_anchor": likely_files[0] if likely_files else "",
         "missing_signal": summary["missing_signal"],
@@ -1068,7 +1118,7 @@ def recall_candidate_paths(
     )
 
     for path in list(scores):
-        prior = _source_type_prior(query_intent, path)
+        prior = _source_type_prior(query_intent, path, query=query)
         if prior:
             scores[path] += prior
             lanes[path].add(f"prior:{source_type(path)}")
@@ -1152,7 +1202,7 @@ def candidate_chunk_results(
         lex = chunk_lex + (0.50 * path_lex)
         if lex <= 0.0 and not include_patterns:
             continue
-        prior = _source_type_prior(query_intent, path)
+        prior = _source_type_prior(query_intent, path, query=query)
         symbol_anchor_score, symbol_anchor_names = _symbol_anchor_score(
             symbol_anchors,
             path,

@@ -9,7 +9,12 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from skylakegrep.src import cli as cli_module
-from skylakegrep.src.indexer import batch_embed, collect_indexable_files
+from skylakegrep.src.indexer import (
+    batch_embed,
+    collect_indexable_files,
+    embed_file_chunks_batched,
+    index_batch_size,
+)
 from skylakegrep.src.storage import init_db, store_chunks_batch
 
 
@@ -254,6 +259,77 @@ class ParityBatchTests(unittest.TestCase):
 
         self.assertEqual(embedder.calls, [["one", "two"], ["three"]])
         self.assertEqual([item["embedding"] for item in embedded], [[1.0, 0.0], [2.0, 0.0], [1.0, 0.0]])
+
+    def test_file_embedding_batches_cross_small_file_boundaries(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            files = []
+            for index in range(3):
+                path = root / f"module_{index}.py"
+                path.write_text(f"def function_{index}():\n    return {index}\n")
+                files.append(path)
+            embedder = BatchOnlyEmbedder()
+
+            grouped = list(
+                embed_file_chunks_batched(
+                    files,
+                    embedder,
+                    root=root,
+                    batch_size=8,
+                )
+            )
+
+        self.assertEqual([path for path, _ in grouped], files)
+        self.assertEqual(len(embedder.calls), 1)
+        self.assertEqual(len(embedder.calls[0]), 3)
+        self.assertTrue(all(chunks for _, chunks in grouped))
+
+    def test_index_batch_size_is_configurable_and_bounded(self):
+        with patch.dict(os.environ, {"SKYGREP_INDEX_BATCH_SIZE": "96"}):
+            self.assertEqual(index_batch_size(), 96)
+        with patch.dict(os.environ, {"SKYGREP_INDEX_BATCH_SIZE": "invalid"}):
+            self.assertEqual(index_batch_size(), 64)
+        self.assertEqual(index_batch_size(0), 1)
+        self.assertEqual(index_batch_size(10_000), 512)
+
+    def test_watch_batches_new_files_across_boundaries(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            db_path = root / "watch.db"
+            for index in range(2):
+                (root / f"module_{index}.py").write_text(
+                    f"def function_{index}():\n    return {index}\n"
+                )
+            embedder = BatchOnlyEmbedder()
+            runner = CliRunner()
+
+            with patch.object(
+                cli_module,
+                "get_config",
+                return_value={"db_path": db_path},
+            ):
+                with patch.object(cli_module, "get_embedder", return_value=embedder):
+                    with patch.object(
+                        cli_module.time,
+                        "sleep",
+                        side_effect=KeyboardInterrupt,
+                    ):
+                        result = runner.invoke(
+                            cli_module.cli,
+                            ["watch", str(root), "--interval", "0"],
+                        )
+
+            conn = init_db(db_path)
+            indexed = conn.execute(
+                "SELECT COUNT(DISTINCT file), COUNT(*) FROM chunks"
+            ).fetchone()
+            conn.close()
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertEqual(len(embedder.calls), 1)
+        self.assertEqual(len(embedder.calls[0]), 2)
+        self.assertEqual(indexed, (2, 2))
+        self.assertEqual(result.output.count("Added:"), 2)
 
 
 if __name__ == "__main__":

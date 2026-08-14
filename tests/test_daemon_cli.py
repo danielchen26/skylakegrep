@@ -14,6 +14,7 @@ from click.testing import CliRunner
 import skylakegrep
 from skylakegrep.src import cli as cli_module
 from skylakegrep.src import __version__ as cli_version
+from skylakegrep.src import server as server_module
 
 
 class DaemonCliTests(unittest.TestCase):
@@ -248,6 +249,77 @@ class DaemonCliTests(unittest.TestCase):
             self.assertEqual(seen_limits, [])
             spawn.assert_not_called()
             self.assertEqual(json.loads(result.output), [])
+
+    def test_serve_becomes_ready_without_loading_optional_reranker(self):
+        events: list[str] = []
+
+        class FakeServer:
+            def __init__(self, address, handler):
+                events.append("bound")
+
+            def serve_forever(self):
+                events.append("serving")
+                raise KeyboardInterrupt
+
+            def server_close(self):
+                events.append("closed")
+
+        with tempfile.TemporaryDirectory() as d:
+            cfg = {"db_path": Path(d) / "index.db"}
+            with patch.object(server_module, "get_config", return_value=cfg):
+                with patch.object(server_module, "ThreadingHTTPServer", FakeServer):
+                    with patch.object(server_module, "_start_reranker_warmup") as warm:
+                        server_module.serve(host="127.0.0.1", port=7878)
+
+        warm.assert_not_called()
+        self.assertEqual(events, ["bound", "serving", "closed"])
+
+    def test_explicit_reranker_warmup_starts_only_after_bind(self):
+        events: list[str] = []
+
+        class FakeServer:
+            def __init__(self, address, handler):
+                events.append("bound")
+
+            def serve_forever(self):
+                events.append("serving")
+                raise KeyboardInterrupt
+
+            def server_close(self):
+                events.append("closed")
+
+        with tempfile.TemporaryDirectory() as d:
+            cfg = {"db_path": Path(d) / "index.db"}
+            with patch.object(server_module, "get_config", return_value=cfg):
+                with patch.object(server_module, "ThreadingHTTPServer", FakeServer):
+                    with patch.object(
+                        server_module,
+                        "_start_reranker_warmup",
+                        side_effect=lambda: events.append("warm"),
+                    ) as warm:
+                        server_module.serve(
+                            host="127.0.0.1",
+                            port=7878,
+                            warm_reranker=True,
+                        )
+
+        warm.assert_called_once_with()
+        self.assertEqual(events, ["bound", "warm", "serving", "closed"])
+
+    def test_serve_cli_forwards_warm_reranker_option(self):
+        runner = CliRunner()
+        with patch.object(server_module, "serve") as serve:
+            result = runner.invoke(
+                cli_module.cli,
+                ["serve", "--port", "7979", "--warm-reranker"],
+            )
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        serve.assert_called_once_with(
+            host="127.0.0.1",
+            port=7979,
+            warm_reranker=True,
+        )
 
 
 if __name__ == "__main__":

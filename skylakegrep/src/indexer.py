@@ -708,7 +708,32 @@ def extract_file_symbols(file: Path, root: Path) -> list[dict]:
     return rows
 
 
+DEFAULT_INDEX_BATCH_SIZE = 64
+MAX_INDEX_BATCH_SIZE = 512
+
+
+def index_batch_size(value: int | None = None) -> int:
+    """Resolve the bounded cross-file embedding batch size.
+
+    SKYGREP_INDEX_BATCH_SIZE lets users tune for their local Ollama runtime.
+    The upper bound prevents an accidental environment value from constructing
+    an unbounded request on memory-constrained machines.
+    """
+
+    if value is None:
+        raw = os.environ.get(
+            "SKYGREP_INDEX_BATCH_SIZE",
+            str(DEFAULT_INDEX_BATCH_SIZE),
+        )
+        try:
+            value = int(raw)
+        except ValueError:
+            value = DEFAULT_INDEX_BATCH_SIZE
+    return max(1, min(int(value), MAX_INDEX_BATCH_SIZE))
+
+
 def batch_embed(chunks: list[dict], embedder, batch_size: int = 10) -> list[dict]:
+    batch_size = max(1, int(batch_size))
     results = []
     for i in range(0, len(chunks), batch_size):
         batch = chunks[i:i+batch_size]
@@ -721,3 +746,75 @@ def batch_embed(chunks: list[dict], embedder, batch_size: int = 10) -> list[dict
             chunk["embedding"] = embedding
             results.append(chunk)
     return results
+
+
+def embed_file_chunks_batched(
+    files: list[Path],
+    embedder,
+    *,
+    root: Path,
+    batch_size: int | None = None,
+):
+    """Prepare and embed files in bounded batches across file boundaries.
+
+    The old index loop called batch_embed once per file. Repositories with
+    many short files therefore issued one Ollama request per file even when
+    most requests contained only a handful of chunks. This generator packs
+    complete small files into one request while keeping each file's chunks
+    grouped for atomic replacement by the caller. Files larger than the batch
+    target retain bounded intra-file batching.
+    """
+
+    resolved_batch_size = index_batch_size(batch_size)
+    pending: list[tuple[Path, list[dict]]] = []
+    pending_chunk_count = 0
+
+    def flush_pending() -> list[tuple[Path, list[dict]]]:
+        nonlocal pending, pending_chunk_count
+        if not pending:
+            return []
+        flat_chunks = [
+            chunk
+            for _, file_chunks in pending
+            for chunk in file_chunks
+        ]
+        embedded = batch_embed(
+            flat_chunks,
+            embedder,
+            batch_size=resolved_batch_size,
+        )
+        grouped: list[tuple[Path, list[dict]]] = []
+        offset = 0
+        for file, file_chunks in pending:
+            end = offset + len(file_chunks)
+            grouped.append((file, embedded[offset:end]))
+            offset = end
+        pending = []
+        pending_chunk_count = 0
+        return grouped
+
+    for file in files:
+        chunks = prepare_file_chunks(file, root=root)
+        if (
+            pending
+            and chunks
+            and pending_chunk_count + len(chunks) > resolved_batch_size
+        ):
+            yield from flush_pending()
+
+        if len(chunks) >= resolved_batch_size:
+            yield from flush_pending()
+            yield (
+                file,
+                batch_embed(
+                    chunks,
+                    embedder,
+                    batch_size=resolved_batch_size,
+                ),
+            )
+            continue
+
+        pending.append((file, chunks))
+        pending_chunk_count += len(chunks)
+
+    yield from flush_pending()

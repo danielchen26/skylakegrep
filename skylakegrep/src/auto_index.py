@@ -40,7 +40,10 @@ from .fast_intent import (
     is_pathlike_candidate,
 )
 from .hybrid import extract_query_terms, lexical_candidate_paths
-from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
+from .indexer import (
+    collect_indexable_files,
+    embed_file_chunks_batched,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -131,12 +134,12 @@ def first_time_index(
 
     total_chunks = 0
     t0 = time.time()
-    for i, f in enumerate(files, start=1):
-        chunks = prepare_file_chunks(f, root=root)
+    for i, (f, chunks) in enumerate(
+        embed_file_chunks_batched(files, embedder, root=root),
+        start=1,
+    ):
+        storage.delete_file_chunks(conn, str(f))
         if chunks:
-            chunks = batch_embed(chunks, embedder, batch_size=10)
-            for c in chunks:
-                storage.delete_file_chunks(conn, c["file"])
             storage.store_chunks_batch(conn, chunks)
             total_chunks += len(chunks)
         if not quiet and (i % 25 == 0 or i == n_files):
@@ -220,19 +223,19 @@ def incremental_refresh(
             )
         return -pending
 
-    embedder = None
     refreshed = 0
     deleted_files = storage.delete_missing_files(conn, current_paths, root)
-    for f in files_to_refresh:
+    embedder = get_embedder() if files_to_refresh else None
+    for f, chunks in embed_file_chunks_batched(
+        files_to_refresh,
+        embedder,
+        root=root,
+    ):
         f_str = str(f)
-        if embedder is None:
-            embedder = get_embedder()
-        chunks = prepare_file_chunks(f, root=root)
+        storage.delete_file_chunks(conn, f_str)
         if chunks:
-            chunks = batch_embed(chunks, embedder, batch_size=10)
-            storage.delete_file_chunks(conn, f_str)
             storage.store_chunks_batch(conn, chunks)
-            refreshed += 1
+        refreshed += 1
     if refreshed or deleted_files:
         storage.populate_file_embeddings(conn)
     _meta_set(conn, "last_refresh_at", str(now))

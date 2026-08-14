@@ -190,14 +190,35 @@ class OllamaAnswerer:
         return unique[:max_queries]
 
     def answer(self, query: str, results: list[dict]) -> str:
-        context = "\n\n".join(
-            f"[{index}] {result['path']}:{result.get('start_line')}-{result.get('end_line')}\n"
-            f"{result['snippet']}"
-            for index, result in enumerate(results, start=1)
-        )
+        context_sections = []
+        for index, result in enumerate(results, start=1):
+            path = result["path"]
+            context_sections.append(
+                f"[{index}] {path}:{result.get('start_line')}-{result.get('end_line')}\n"
+                f"{result.get('snippet') or result.get('chunk') or ''}"
+            )
+            for support_index, support in enumerate(
+                result.get("supporting_chunks") or (),
+                start=1,
+            ):
+                support_path = support.get("path") or path
+                support_text = support.get("snippet") or support.get("chunk") or ""
+                context_sections.append(
+                    f"[{index}.{support_index}] {support_path}:"
+                    f"{support.get('start_line')}-{support.get('end_line')}\n"
+                    f"{support_text}"
+                )
+        context = "\n\n".join(context_sections)
         prompt = (
             "You are answering a code search question using only local search results. "
-            "Be concise and cite file paths and line ranges. If one or more results "
+            "First silently inventory every distinct fact or step supported by the "
+            "results, then write the answer. Be concise and cite file paths and line "
+            "ranges. For procedures, checklists, or multi-part questions, include every "
+            "distinct supported item; do not collapse or omit items merely to be brief. "
+            "Cite each bullet or tightly related group of bullets. If results conflict in "
+            "freshness, use an unversioned living policy or reference document "
+            "for a generic question; use a historical version snapshot only when the question "
+            "names that version. If one or more results "
             "directly answer the question, answer from those results and do not add "
             "a caveat that the answer is missing. Say the answer is not present only "
             "when none of the provided results contain direct evidence. Do not ask "
@@ -208,7 +229,11 @@ class OllamaAnswerer:
         )
         response = requests.post(
             f"{self.base_url}/api/generate",
-            json=self._payload(self.model, prompt, options={}),
+            json=self._payload(
+                self.model,
+                prompt,
+                options={"temperature": 0, "seed": 42, "num_predict": 512},
+            ),
             timeout=self._timeout(),
         )
         response.raise_for_status()
