@@ -10,6 +10,8 @@ from click.testing import CliRunner
 
 from skylakegrep.src import cli as cli_module
 from skylakegrep.src.candidate_recall import (
+    _confidence_for_results,
+    _source_type_prior,
     build_agent_context_results,
     candidate_chunk_results,
     recall_candidate_paths,
@@ -27,6 +29,69 @@ class StaticEmbedder:
 
 
 class SearchQualityTests(unittest.TestCase):
+    def test_retrieval_only_confidence_does_not_penalize_non_lexical_query(self):
+        results = [
+            {
+                "path": "src/auto_index.py",
+                "score": 0.50,
+                "snippet": "def ensure_indexed(): pass",
+                "candidate_recall_lanes": ["semantic-escalation"],
+            },
+            {
+                "path": "src/cli.py",
+                "score": 0.48,
+                "snippet": "def index(): pass",
+                "candidate_recall_lanes": ["semantic-escalation"],
+            },
+        ]
+
+        summary = _confidence_for_results(
+            "哪里实现了首次查询自动创建或刷新索引",
+            results,
+            {"total_paths": 2},
+        )
+
+        self.assertEqual(summary["confidence_basis"], "retrieval-only")
+        self.assertEqual(summary["quality"], "degraded")
+        self.assertGreaterEqual(summary["confidence"], 0.45)
+
+    def test_retrieval_only_confidence_keeps_weak_results_uncertain(self):
+        summary = _confidence_for_results(
+            "抽象检索问题",
+            [
+                {
+                    "path": "src/unrelated.py",
+                    "score": 0.10,
+                    "snippet": "pass",
+                    "candidate_recall_lanes": ["semantic-escalation"],
+                }
+            ],
+            {"total_paths": 1},
+        )
+
+        self.assertEqual(summary["quality"], "uncertain")
+
+    def test_versioned_document_prior_prefers_living_doc_generically(self):
+        living = _source_type_prior(
+            "semantic",
+            "docs/RELEASING.md",
+            query="summarize the required release verification steps",
+        )
+        snapshot = _source_type_prior(
+            "semantic",
+            "docs/tool-1.2.3.md",
+            query="summarize the required release verification steps",
+        )
+        named_snapshot = _source_type_prior(
+            "semantic",
+            "docs/tool-1.2.3.md",
+            query="what changed in tool 1.2.3",
+        )
+
+        self.assertGreater(living, snapshot)
+        self.assertEqual(snapshot, -1.0)
+        self.assertEqual(named_snapshot, living)
+
     def test_agent_presets_disable_llm_router_by_default(self):
         self.assertFalse(
             cli_module._effective_llm_router_for_agent_mode(

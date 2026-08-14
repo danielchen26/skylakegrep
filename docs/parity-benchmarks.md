@@ -228,10 +228,12 @@ the rerank pool. Two changes lifted React to **10 / 10**:
 
 The benchmark cold-loads the cross-encoder reranker once per process
 (~30 s) and runs each query through the cascade including the HyDE
-escalation path on uncertain queries. In `skygrep serve` daemon mode
-the reranker stays warm in memory, and warm queries land in the
-~0.5 – 2 s band. The 11–20 s/q numbers here are an honest CLI-from-
-cold-start measurement, not a daemon throughput claim.
+escalation path on uncertain queries. `skygrep serve` now binds before
+the optional heavyweight reranker is imported. Pass `--warm-reranker`
+to load it once in the background for a rerank-heavy daemon workload;
+agent-fast/context queries do not need it. The 11–20 s/q numbers here
+remain an honest CLI-from-cold-start measurement, not a daemon
+throughput claim.
 
 For an AI agent the relevant cost is *the LLM round-trip after the
 search*, which scales with **token count of the context** — and

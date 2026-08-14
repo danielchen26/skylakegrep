@@ -111,9 +111,9 @@
  <td><code>skygrep watch .</code> · <code>skygrep watch . -i 2</code></td>
  </tr>
  <tr>
- <td><code>skygrep serve [--host H] [--port P]</code></td>
- <td>Daemon mode. Keeps the cross-encoder reranker and Ollama session warm in memory so warm queries land in 0.5–2 s.</td>
- <td><code>skygrep serve --port 7878</code></td>
+ <td><code>skygrep serve [--host H] [--port P] [--warm-reranker]</code></td>
+ <td>Daemon mode. Binds immediately without importing the optional heavyweight reranker. Add <code>--warm-reranker</code> to load it in the background when later queries will request reranking.</td>
+ <td><code>skygrep serve --port 7878</code> · <code>skygrep serve --warm-reranker</code></td>
  </tr>
  <tr>
  <td><code>skygrep enrich</code></td>
@@ -203,7 +203,9 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  <code>skygrep --agent-daemon --agent-context ...</code>.
  <code>--agent-daemon</code> uses <code>SKYGREP_DAEMON_URL</code> when set,
  otherwise <code>http://127.0.0.1:7878</code>, and falls back in-process if no
- daemon is running.
+ daemon is running. The daemon starts accepting requests before any optional
+ reranker warmup; pass <code>--warm-reranker</code> only for workloads that use
+ reranked search.
  </p>
  <p>
  Agent presets default to rule-based routing, no cascade, and confidence-aware
@@ -317,6 +319,7 @@ skygrep doctor</code></pre>
  <thead><tr><th>Variable</th><th>Default</th><th>Effect</th></tr></thead>
  <tbody>
  <tr><td><code>SKYGREP_DB_PATH</code></td><td>—</td><td>Override the project-scoped SQLite path. When set, <code>--auto-index</code> defaults to off so curated indexes aren't auto-mutated; pass <code>--auto-index</code> explicitly to opt in.</td></tr>
+ <tr><td><code>SKYGREP_INDEX_BATCH_SIZE</code></td><td><code>64</code></td><td>Chunks per bounded embedding request during full and incremental indexing. Small files share cross-file batches; values are clamped to <code>1..512</code>.</td></tr>
  <tr><td><code>SKYGREP_PROACTIVE_DIRS</code></td><td>—</td><td>Colon-separated absolute paths the proactive enhancers and <code>lazy_explore_cross_folder</code> walk when the in-cwd answer is weak. Replaces 0.5.2's hardcoded <code>~/Downloads:~/Desktop:~/Documents</code>. Stale or missing dirs are silently dropped. Example: <code>SKYGREP_PROACTIVE_DIRS="$HOME/repos:$HOME/work:/data/projects"</code>.</td></tr>
  <tr><td><code>SKYGREP_COLD_LAZY_TOTAL_BUDGET_S</code></td><td><code>8.0</code></td><td>Total foreground budget for cold-start lazy semantic work. Raise when you prefer waiting longer for a first semantic answer; lower when shell responsiveness matters more.</td></tr>
  <tr><td><code>SKYGREP_COLD_LAZY_CWD_BUDGET_S</code></td><td><code>5.0</code></td><td>Foreground budget for lazy semantic exploration inside the current project root.</td></tr>
@@ -398,6 +401,11 @@ skygrep doctor</code></pre>
  <td><code>SKYGREP_DB_PATH</code></td>
  <td><code>~/.skylakegrep/index.db</code></td>
  <td>SQLite index location. Use distinct paths to keep per-project indexes.</td>
+ </tr>
+ <tr>
+ <td><code>SKYGREP_INDEX_BATCH_SIZE</code></td>
+ <td><code>64</code></td>
+ <td>Bounded cross-file embedding batch size for indexing; clamped to <code>1..512</code>.</td>
  </tr>
  </tbody>
  </table>

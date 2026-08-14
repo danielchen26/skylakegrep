@@ -135,12 +135,12 @@ LOW_VALUE_PATH_PARTS = (
 COMPLETION_CONTRACTS: dict[str, dict[str, Any]] = {
     "locate-cli-entrypoint": {
         "deliverable": "path_decision",
-        "quality_terms": ["skylakegrep/src/cli.py", "click.group", "search"],
+        "quality_terms": [],
         "min_paths": 1,
     },
     "locate-terminal-ui": {
         "deliverable": "path_decision",
-        "quality_terms": ["skylakegrep/src/ui.py", "HELIX_ROLE_FRAMES", "helix_frame"],
+        "quality_terms": [],
         "min_paths": 1,
     },
     "snippet-agent-instructions": {
@@ -169,7 +169,9 @@ COMPLETION_CONTRACTS: dict[str, dict[str, Any]] = {
     },
     "abstract-result-wrap": {
         "deliverable": "architecture_mapping",
-        "quality_terms": ["available_content_columns", "helix_result_header", "0.534"],
+        # Require the score-rendering concept, not one arbitrary numeric value
+        # from a test fixture. Fixture literals are not architectural evidence.
+        "quality_terms": ["available_content_columns", "helix_result_header", "score"],
         "min_paths": 2,
     },
     "abstract-agent-json": {
@@ -632,7 +634,15 @@ def _missing_path_groups(expected_groups: list[list[str]], paths: list[str]) -> 
 def _score_context_for_task(task: dict[str, Any], payloads: list[str], paths: list[str]) -> dict[str, Any]:
     expected_groups = task.get("expected_path_groups")
     payload = _lower_payload(payloads)
-    evidence_terms = task.get("evidence_terms", [])
+    contract = COMPLETION_CONTRACTS.get(task.get("id", ""), {})
+    deliverable = contract.get(
+        "deliverable",
+        task.get("deliverable", task.get("abstract_level", "generic")),
+    )
+    # A locate task asks for a path decision. Requiring body-level symbols in
+    # its stopping score contradicts the path-only agent-fast contract and
+    # forces needless file reads after the correct path is already known.
+    evidence_terms = [] if deliverable == "path_decision" else task.get("evidence_terms", [])
     if expected_groups:
         path_coverage = _path_group_fraction(expected_groups, paths)
         evidence_coverage = _term_fraction(evidence_terms, payload)
@@ -677,7 +687,11 @@ def _completion_quality(
     payload = _lower_payload(payloads)
     expected_paths = task.get("expected_paths", [])
     expected_groups = task.get("expected_path_groups")
-    quality_terms = list(contract.get("quality_terms") or task.get("quality_terms") or task.get("evidence_terms", []))
+    quality_terms = list(
+        contract["quality_terms"]
+        if "quality_terms" in contract
+        else task.get("quality_terms") or task.get("evidence_terms", [])
+    )
     required_path_count = int(contract.get("min_paths", task.get("min_paths", max(1, len(expected_groups or expected_paths)))))
 
     path_score = (

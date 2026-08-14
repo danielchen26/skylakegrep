@@ -505,7 +505,7 @@ task needs it.
 | Synthesize a local answer from retrieved evidence | `skygrep --answer --content "summarize the payment retry policy"` |
 | Fast path anchors for an LLM agent | `skygrep --agent-fast "where is token refresh implemented?"` |
 | Feed compact structured context to an LLM agent | `skygrep --agent-context --include "src/**" "where is token refresh implemented?"` |
-| Reuse a warm daemon for repeated agent calls | `skygrep serve --port 7878` then `skygrep --agent-daemon --agent-context "what does token refresh do?"` |
+| Reuse a daemon for repeated agent calls | `skygrep serve --port 7878` then `skygrep --agent-daemon --agent-context "what does token refresh do?"`; add `--warm-reranker` only when later reranked queries justify the memory/startup cost |
 | Audit why a route/result was chosen | `skygrep --explain "where is token refresh implemented?"` |
 
 ### Option playbook for humans and agents
@@ -549,11 +549,14 @@ Closed-loop agent policy:
    follow-up probe so the next step can stay scoped.
 
 For repeated GPT / Cloud Code / Superconductor-style tool calls, keep
-the process warm with `skygrep serve --port 7878` and call
+the process available with `skygrep serve --port 7878` and call
 `skygrep --agent-daemon --agent-fast ...` or
 `skygrep --agent-daemon --agent-context ...`. `--agent-daemon` uses
 `SKYGREP_DAEMON_URL` when set, otherwise `http://127.0.0.1:7878`, and
-falls back in-process if no daemon is running.
+falls back in-process if no daemon is running. The server binds before any
+optional reranker load and does not warm that heavyweight dependency by
+default. Use `skygrep serve --warm-reranker` when the workload actually uses
+reranking and you want to pay the warmup once in the background.
 
 Agent presets default to rule-based routing, no cascade, and confidence-aware
 first-pass evidence for bounded latency. If the compact evidence is degraded,
@@ -620,6 +623,11 @@ export SKYGREP_COLD_LAZY_SEED_BUDGET=24
 The default stays conservative so broad home-folder searches cannot
 block the terminal for minutes. Background indexing continues after the
 foreground budget expires.
+
+Full and incremental indexing batch chunks across file boundaries so small
+files share embedding requests. `SKYGREP_INDEX_BATCH_SIZE` controls the bounded
+batch size (default `64`, clamped to `1..512`) for unusual local-model or memory
+constraints.
 
 Interactive terminals animate only the narrow left workflow rail during
 foreground semantic waits. The rail uses a three-cell particle stream with

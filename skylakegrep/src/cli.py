@@ -18,6 +18,7 @@ metrics"`` searches; ``skygrep stats`` runs the subcommand.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import logging
 import os
@@ -36,7 +37,10 @@ from . import auto_index, bootstrap, code_graph, config as cfg_mod, enrich as en
 from .answerer import get_answerer
 from .config import get_config
 from .embeddings import get_embedder
-from .indexer import batch_embed, collect_indexable_files, prepare_file_chunks
+from .indexer import (
+    collect_indexable_files,
+    embed_file_chunks_batched,
+)
 from .intent import classify_intent, merge_results as merge_tiers
 from .llm_router import RouterDecision, route_query, simplify_router_query
 from .metadata_search import (
@@ -1066,12 +1070,13 @@ def index(path: str, reset: bool, incremental: bool):
 
     click.echo(f"Indexing {len(files_to_process)} files...")
     total_chunks = 0
-    for f in files_to_process:
-        chunks = prepare_file_chunks(f, root=root)
+    for f, chunks in embed_file_chunks_batched(
+        files_to_process,
+        embedder,
+        root=root,
+    ):
+        delete_file_chunks(conn, str(f))
         if chunks:
-            chunks = batch_embed(chunks, embedder, batch_size=10)
-            for c in chunks:
-                delete_file_chunks(conn, c["file"])
             store_chunks_batch(conn, chunks)
             total_chunks += len(chunks)
             click.echo(f"  Indexed: {f} ({len(chunks)} chunks)")
@@ -1259,6 +1264,12 @@ def search_cmd(
             daemon_url = _os.environ.get("SKYGREP_DAEMON_URL", _DEFAULT_AGENT_DAEMON_URL)
     elif agent_daemon and not daemon_url:
         daemon_url = _os.environ.get("SKYGREP_DAEMON_URL", _DEFAULT_AGENT_DAEMON_URL)
+    # Answer synthesis needs enough independent evidence to enumerate
+    # checklists and multi-part procedures completely. Keep explicit user
+    # limits authoritative while making the default answer context as rich as
+    # the agent-context preset.
+    if answer and top == 5 and not _click_option_explicit("top"):
+        top = 8
     machine_context = (agent_mode in {"fast", "context", "deep"}) or (
         json_output and not answer
     )
@@ -3099,7 +3110,7 @@ def search_cmd(
             if cands:
                 recall_support_per_path = 0
                 if content or answer:
-                    if detail == "full":
+                    if answer or detail == "full":
                         recall_support_per_path = 4
                     elif detail == "standard":
                         recall_support_per_path = 2
@@ -3787,26 +3798,36 @@ def watch(path: str, interval: int):
             for deleted_file in deleted_files:
                 indexed_files.pop(deleted_file, None)
                 click.echo(f"  Deleted: {deleted_file}")
+            files_to_refresh: list[Path] = []
+            refresh_kinds: dict[str, str] = {}
+            refresh_mtimes: dict[str, float] = {}
             for f in files:
                 f_str = str(f)
                 current_mtime = f.stat().st_mtime
                 if f_str in indexed_files:
                     if current_mtime > indexed_files[f_str]:
-                        chunks = prepare_file_chunks(f, root=root)
-                        if chunks:
-                            chunks = batch_embed(chunks, embedder, batch_size=10)
-                            for c in chunks:
-                                delete_file_chunks(conn, c["file"])
-                            store_chunks_batch(conn, chunks)
-                            indexed_files[f_str] = current_mtime
-                            click.echo(f"  Updated: {f}")
+                        files_to_refresh.append(f)
+                        refresh_kinds[f_str] = "Updated"
+                        refresh_mtimes[f_str] = current_mtime
                 else:
-                    chunks = prepare_file_chunks(f, root=root)
-                    if chunks:
-                        chunks = batch_embed(chunks, embedder, batch_size=10)
-                        store_chunks_batch(conn, chunks)
-                        indexed_files[f_str] = current_mtime
-                        click.echo(f"  Added: {f}")
+                    files_to_refresh.append(f)
+                    refresh_kinds[f_str] = "Added"
+                    refresh_mtimes[f_str] = current_mtime
+            for f, chunks in embed_file_chunks_batched(
+                files_to_refresh,
+                embedder,
+                root=root,
+            ):
+                f_str = str(f)
+                # Delete once even when the updated file is now empty, or the
+                # previous chunks would remain searchable forever.
+                delete_file_chunks(conn, f_str)
+                if chunks:
+                    store_chunks_batch(conn, chunks)
+                indexed_files[f_str] = refresh_mtimes[f_str]
+                click.echo(f"  {refresh_kinds[f_str]}: {f}")
+            if deleted_files or files_to_refresh:
+                populate_file_embeddings(conn)
             time.sleep(interval)
         except KeyboardInterrupt:
             click.echo("\nStopping watch mode")
@@ -3816,12 +3837,17 @@ def watch(path: str, interval: int):
 @cli.command()
 @click.option("--host", default="127.0.0.1", help="Host to bind the daemon on")
 @click.option("--port", default=7878, type=int, help="Port to bind the daemon on")
-def serve(host: str, port: int):
-    """Run a long-running daemon that holds the reranker + embedder warm."""
+@click.option(
+    "--warm-reranker/--no-warm-reranker",
+    default=False,
+    help="Warm the optional cross-encoder in the background after the daemon is ready",
+)
+def serve(host: str, port: int, warm_reranker: bool):
+    """Run a low-latency local search daemon."""
 
     from .server import serve as _serve
 
-    _serve(host=host, port=port)
+    _serve(host=host, port=port, warm_reranker=warm_reranker)
 
 
 @cli.command()
@@ -3937,12 +3963,12 @@ def doctor():
     else:
         click.echo(f"{pad('Project index')}× not yet built — run a query to auto-index, or `skygrep index .`")
         click.echo(f"{pad('Would write to')}{db_path}")
-    # Reranker presence is a soft check.
-    try:
-        import sentence_transformers  # noqa: F401
-
+    # Reranker presence is a soft check. Do not import the package here:
+    # importing sentence-transformers also imports PyTorch and can turn a
+    # lightweight health check into a multi-minute runtime startup.
+    if importlib.util.find_spec("sentence_transformers") is not None:
         click.echo(f"{pad('Reranker (optional)')}✓ sentence-transformers installed")
-    except ImportError:
+    else:
         click.echo(f"{pad('Reranker (optional)')}— install: pip install 'skylakegrep[rerank]'")
     click.echo(f"{pad('Project root')}{cfg_mod.project_root()}")
     # LLM-CLI integrations registered via ``skygrep setup``.

@@ -101,7 +101,7 @@ DEFAULT_TASKS: list[dict[str, Any]] = [
         "abstract_level": "abstract",
         "query": "which code keeps terminal result cards from wrapping scores into the left workflow rail?",
         "expected_paths": ["skylakegrep/src/render.py", "tests/test_terminal_ui.py"],
-        "evidence_terms": ["available_content_columns", "helix_result_header", "0.534"],
+        "evidence_terms": ["available_content_columns", "helix_result_header", "score"],
         "include": ["skylakegrep/src/**", "tests/**"],
     },
     {

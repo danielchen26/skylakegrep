@@ -101,10 +101,11 @@ richer `.gitignore` / `.skygrepignore` precedence rules.
 
 ### Daemon mode hardening
 
-`skygrep serve` exists but does not pool embedder/reranker model
-instances optimally for concurrent requests. A production-grade
-daemon would amortise model warm-load across all queries on the
-host.
+`skygrep serve` now accepts requests before any optional reranker
+warmup, and `--warm-reranker` can amortise that load in the
+background. It still does not pool embedder/reranker model instances
+optimally for concurrent requests; production-grade concurrent
+scheduling remains future work.
 
 ## Not on the roadmap
 

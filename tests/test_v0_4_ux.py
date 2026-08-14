@@ -486,8 +486,14 @@ class DoctorTests(unittest.TestCase):
                 "skylakegrep.src.bootstrap.list_local_models",
                 return_value=["bge-m3:latest", "qwen2.5:3b"],
             ):
-                result = runner.invoke(cli_module.cli, ["doctor"])
+                with patch(
+                    "skylakegrep.src.cli.importlib.util.find_spec",
+                    return_value=object(),
+                ) as find_spec:
+                    result = runner.invoke(cli_module.cli, ["doctor"])
         self.assertEqual(result.exit_code, 0, result.output)
+        find_spec.assert_called_once_with("sentence_transformers")
+        self.assertIn("sentence-transformers installed", result.output)
         # The current default embed model is bge-m3 (BAAI's content-agnostic
         # general-purpose embedder); doctor output must reflect it.
         self.assertIn("bge-m3", result.output)

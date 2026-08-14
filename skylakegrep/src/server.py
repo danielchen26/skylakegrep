@@ -123,23 +123,15 @@ class _SearchHandler(BaseHTTPRequestHandler):
         self.wfile.write(encoded)
 
 
-def serve(host: str = DEFAULT_DAEMON_HOST, port: int = DEFAULT_DAEMON_PORT) -> None:
-    """Block forever, serving search requests on ``host:port``.
+def _warm_reranker() -> None:
+    """Best-effort reranker warmup for an already-listening daemon.
 
-    The reranker is warmed eagerly so the first request after the daemon
-    starts does not pay the cold load. The embedder is warmed implicitly
-    on first ``embed`` call but it is fast enough that we don't bother
-    pre-warming.
+    Importing ``sentence_transformers`` also imports PyTorch and may take a
+    long time (or block on a broken optional installation). Keep that work
+    out of the daemon readiness path so optional acceleration cannot prevent
+    lightweight no-rerank requests from being served.
     """
 
-    cfg = get_config()
-    db_path: Path = cfg["db_path"]
-    if not db_path.exists():
-        logger.warning(
-            "DB not found at %s — start the daemon after running `skygrep index <path>`",
-            db_path,
-        )
-    # Pre-warm the cross-encoder so the first request is fast.
     try:
         from .reranker import get_reranker
 
@@ -149,13 +141,50 @@ def serve(host: str = DEFAULT_DAEMON_HOST, port: int = DEFAULT_DAEMON_PORT) -> N
             logger.info("reranker pre-warmed")
     except Exception as exc:  # pragma: no cover - best effort
         logger.warning("reranker warmup failed: %s", exc)
+
+
+def _start_reranker_warmup() -> threading.Thread:
+    """Start optional reranker warmup without delaying daemon readiness."""
+
+    thread = threading.Thread(
+        target=_warm_reranker,
+        name="skygrep-reranker-warmup",
+        daemon=True,
+    )
+    thread.start()
+    return thread
+
+
+def serve(
+    host: str = DEFAULT_DAEMON_HOST,
+    port: int = DEFAULT_DAEMON_PORT,
+    *,
+    warm_reranker: bool = False,
+) -> None:
+    """Block forever, serving search requests on ``host:port``.
+
+    Readiness never depends on optional ML imports. Callers may explicitly
+    request a background reranker warmup; the default serves agent presets
+    immediately and lets reranked requests load lazily.
+    """
+
+    cfg = get_config()
+    db_path: Path = cfg["db_path"]
+    if not db_path.exists():
+        logger.warning(
+            "DB not found at %s — start the daemon after running `skygrep index <path>`",
+            db_path,
+        )
     server = ThreadingHTTPServer((host, port), _SearchHandler)
     logger.info("skylakegrep daemon ready at http://%s:%d", host, port)
     print(f"skylakegrep daemon ready at http://{host}:{port}", flush=True)
+    if warm_reranker:
+        _start_reranker_warmup()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         print("\nshutting down")
+    finally:
         server.server_close()
 
 
