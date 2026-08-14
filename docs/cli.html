@@ -176,6 +176,7 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  <tr><td>Read this known file/folder deeply</td><td><code>skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"</code></td><td>Full depth only after scope is known; avoids repo-wide context blowups.</td></tr>
  <tr><td>Summarize / answer from local evidence</td><td><code>skygrep --answer --content "summarize the payment retry policy"</code></td><td>Retrieves evidence first, then synthesizes locally through Ollama. When a living policy/reference document leads, unrelated snapshots and planning notes are excluded unless the query names them.</td></tr>
  <tr><td>An LLM/agent will consume this</td><td><code>skygrep --agent-context --include "src/**" "where is token refresh implemented?"</code></td><td>Machine-readable, compact, and scoped; do not scrape human terminal output.</td></tr>
+ <tr><td>A local claim is high-risk</td><td><code>skygrep --strict "where is authorization enforced?"</code></td><td>Requires hybrid and corpus-wide semantic agreement, validates indexed-source freshness, and exits 2 if evidence remains inconclusive.</td></tr>
  <tr><td>Several implementation files may matter</td><td><code>skygrep --agent-fast "where is request routing assembled?"</code></td><td>Separate path discovery from file reading; then read returned candidates directly.</td></tr>
  <tr><td>The query is broad or noisy</td><td>Add <code>--include</code>, <code>--exclude</code>, <code>--language</code>, or run from the relevant project root.</td><td>Scope is the largest latency and accuracy lever.</td></tr>
  <tr><td>I need to audit routing</td><td><code>skygrep --explain "why is this policy selected?"</code></td><td>Shows router intent, contributing lanes, and cascade evidence.</td></tr>
@@ -194,7 +195,10 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  priors, compact chunk evidence, and confidence summaries. Use
  <code>--answer</code> only when the user asked for synthesis; use bounded
  <code>rg -l</code> or targeted <code>rg</code> only for exact lexical/regex
- needs or raw grep output.
+ needs or raw grep output. For security, release, legal, financial,
+ destructive, or other high-risk local claims, use <code>--strict</code> and
+ require <code>strict_verification.status=passed</code> before treating the
+ result as verified.
  </p>
  <p>
  For repeated GPT / Cloud Code / Superconductor-style tool calls, keep the
@@ -205,7 +209,8 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  otherwise <code>http://127.0.0.1:7878</code>, and falls back in-process if no
  daemon is running. The daemon starts accepting requests before any optional
  reranker warmup; pass <code>--warm-reranker</code> only for workloads that use
- reranked search.
+ reranked search. Direct and daemon agent-context requests use the same hybrid
+ evidence implementation.
  </p>
  <p>
  Agent presets default to rule-based routing, no cascade, and confidence-aware
@@ -311,6 +316,7 @@ skygrep doctor</code></pre>
  <tr><td><code>--exclude</code></td><td>—</td><td>Glob; paths matching any pattern are dropped; repeatable.</td></tr>
  <tr><td><code>--semantic-only</code></td><td>off</td><td>Skip lexical reranking; rank by cosine similarity alone.</td></tr>
  <tr><td><code>--agentic</code></td><td>off</td><td>Decompose the query into subqueries via Ollama before search.</td></tr>
+ <tr><td><code>--strict / --no-strict</code></td><td>off</td><td>High-risk agent evidence gate. Implies <code>--agent-context</code>, adds an independent corpus-wide semantic pass, validates source/index mtime parity, and exits 2 when verification is inconclusive.</td></tr>
  <tr><td><code>--max-subqueries</code></td><td>3</td><td>Upper bound on agentic subqueries.</td></tr>
  <tr><td><code>--hyde</code></td><td>off (cascade handles internally)</td><td>Force HyDE query rewriting (rarely needed; cascade escalation already uses HyDE for low-σ queries).</td></tr>
  <tr><td><code>--rerank</code></td><td>auto</td><td>Force or skip the cross-encoder rerank step.</td></tr>

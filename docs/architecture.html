@@ -104,6 +104,16 @@
  authority policy keeps current living references separate from unnamed
  historical snapshots.
  </p>
+ <p>
+ In 0.7.0, direct and daemon agent-context requests call the same
+ <code>run_agent_context_search</code> implementation. Strict requests add an
+ independent corpus-wide semantic pass and a source/index timestamp check;
+ inconclusive evidence is returned explicitly rather than being upgraded from
+ first-pass confidence. The daemon also validates that the requested project,
+ database, and lexical scope stay inside the server's configured boundary.
+ Equivalent macOS <code>/var</code> and <code>/private/var</code> paths are
+ coalesced before source priors and final ranking.
+ </p>
  </section>
 
 

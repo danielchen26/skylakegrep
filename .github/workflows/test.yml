@@ -47,3 +47,9 @@ jobs:
           # touches the runtime patches it. Set a non-default URL so
           # any accidental real call fails fast and visibly.
           OLLAMA_URL: http://127.0.0.1:0
+
+      - name: Run deterministic agent benchmark gate
+        if: matrix.python-version == '3.12'
+        run: |
+          python benchmarks/ci_agent_contract_benchmark.py > /tmp/skygrep-agent-contract.json
+          python benchmarks/closed_loop_regression_gate.py /tmp/skygrep-agent-contract.json

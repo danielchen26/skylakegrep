@@ -519,6 +519,35 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  anchor after unrelated snapshots and planning notes were removed.
  </p>
 
+ <h3 id="bench-strict-ci-070">4d. Strict evidence and CI contract gate (0.7.0)</h3>
+ <p>
+ 0.7.0 adds a deterministic, model-free six-task fixture that executes the
+ real hybrid candidate-recall implementation and feeds its report through the
+ closed-loop regression gate on every pull request. The raw-<code>rg</code>
+ side models the repeated exact-search calls and returned context an agent
+ would need for the same evidence contract. This fixture is a stable regression
+ check, not a universal runtime claim.
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead><tr><th>Metric</th><th>skygrep-first</th><th>modeled raw <code>rg</code></th><th>Reading</th></tr></thead>
+ <tbody>
+ <tr><td>Completed tasks</td><td><strong>6 / 6</strong></td><td>6 / 6</td><td>no completion regression</td></tr>
+ <tr><td>Path / evidence / sufficiency</td><td><strong>100% / 100% / 100%</strong></td><td>100% / 100% / 100%</td><td>accuracy gates remain equal</td></tr>
+ <tr><td>Context tokens</td><td><strong>14,689</strong></td><td>59,551</td><td>4.05× less context</td></tr>
+ <tr><td>Tool calls</td><td><strong>6</strong></td><td>99</td><td>one bounded skygrep call per task</td></tr>
+ <tr><td>Estimated agent elapsed</td><td><strong>293.85 s</strong></td><td>1,191.27 s</td><td>4.05× lower modeled elapsed</td></tr>
+ <tr><td>Work quality / minute</td><td><strong>0.2042</strong></td><td>0.0504</td><td>4.05× higher</td></tr>
+ </tbody>
+ </table>
+ </div>
+ <p>
+ Separate unit and HTTP integration tests enforce strict fresh/stale behavior,
+ exit-code semantics, direct/daemon Top-K and provenance parity, daemon
+ project-boundary rejection, and macOS path-alias coalescing without lexical
+ score double-counting.
+ </p>
+
  <h3 id="bench-agent-latency">5. Agent bounded-latency smoke matrix (0.5.16)</h3>
  <p>
  0.5.16 adds a focused release smoke matrix for the agent timeout contract:

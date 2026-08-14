@@ -905,6 +905,7 @@ def render_json_results(results: list[dict], *, include_snippet: bool = True) ->
         "supporting_chunks",
         "confidence",
         "agent_summary",
+        "strict_verification",
     )
     for r in results:
         item = {
@@ -1118,6 +1119,7 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--agent-mode", default="off", type=click.Choice(sorted(_AGENT_MODE_CHOICES)), help="Preset output depth for LLM callers: fast=JSON path anchors, context=JSON snippets, deep=JSON full detail, answer=local synthesized answer.")
 @click.option("--agent-fast", is_flag=True, help="Shortcut for --agent-mode fast: JSON path anchors, --no-content, --top 10, --no-rerank.")
 @click.option("--agent-context", is_flag=True, help="Shortcut for --agent-mode context: JSON snippets, --content, --detail standard, --top 8, --no-rerank.")
+@click.option("--strict/--no-strict", default=False, help="High-risk agent verification: force hybrid + corpus-wide semantic agreement, validate index freshness, and exit 2 when evidence remains inconclusive. Implies --agent-context.")
 @click.option("--agent-daemon/--no-agent-daemon", default=False, help="Daemon-first agent call: use SKYGREP_DAEMON_URL or http://127.0.0.1:7878, falling back in-process if unavailable.")
 @click.option("--daemon-url", default=None, help="If set, send the search to a running skygrep daemon instead of loading the reranker in-process (eliminates cold-load latency)")
 @click.option("--rank-by", default="chunk", type=click.Choice(["chunk", "file"]), help="Ranking strategy on the non-cascade path: 'chunk' returns top-K chunks with per-file diversity cap; 'file' returns one best chunk per file")
@@ -1155,6 +1157,7 @@ def search_cmd(
     agent_mode: str,
     agent_fast: bool,
     agent_context: bool,
+    strict: bool,
     agent_daemon: bool,
     daemon_url: str,
     rank_by: str,
@@ -1198,6 +1201,10 @@ def search_cmd(
           Machine-readable context for LLM agents.
 
       \b
+      skygrep --strict "where is authorization enforced?"
+          Require independent retrieval agreement and a fresh source index.
+
+      \b
       skygrep --agent-daemon --agent-context "what changed in the cache layer?"
           Reuse a running `skygrep serve` process for repeated agent calls.
     """
@@ -1239,6 +1246,18 @@ def search_cmd(
         agent_mode = "fast"
     elif agent_context:
         agent_mode = "context"
+    if strict:
+        if answer or agentic:
+            raise click.UsageError(
+                "--strict verifies agent evidence and cannot be combined with "
+                "--answer or --agentic. Run the strict evidence pass first."
+            )
+        if agent_mode == "off":
+            agent_mode = "context"
+        elif agent_mode != "context":
+            raise click.UsageError(
+                "--strict requires --agent-context (or no agent preset)."
+            )
     if agent_mode != "off":
         json_output = True
         rerank = False
@@ -1338,6 +1357,22 @@ def search_cmd(
                 languages=tuple(language),
                 include_patterns=tuple(include_patterns),
                 exclude_patterns=tuple(exclude_patterns),
+                agent_mode=agent_mode,
+                strict=strict,
+                semantic_only=semantic_only,
+                project_root=str(project_root),
+                db_path=str(config["db_path"]),
+                recall_query=simplify_router_query(strip_scope_clauses(query) or query),
+                lexical_root=str(
+                    _agent_lexical_scan_root(
+                        project_root,
+                        lexical_root=lexical_root,
+                        include_patterns=tuple(include_patterns),
+                    )
+                ),
+                rg_timeout=0.75,
+                support_per_path=4 if detail == "full" else 2,
+                snippet_chars=2000 if agent_mode == "context" else 500,
             )
         except Exception as exc:
             click.echo(f"daemon error: {exc}; falling back to in-process search", err=True)
@@ -1353,6 +1388,14 @@ def search_cmd(
             )
             if json_output:
                 click.echo(render_json_results(results, include_snippet=content))
+                if strict and (
+                    not results
+                    or results[0]
+                    .get("strict_verification", {})
+                    .get("status")
+                    != "passed"
+                ):
+                    raise click.exceptions.Exit(2)
                 return
             if explain:
                 _attach_explain(results, None)
@@ -2700,10 +2743,7 @@ def search_cmd(
         return
 
     if agent_mode == "context" and content:
-        from .candidate_recall import (
-            build_agent_context_results,
-            merge_agent_results,
-        )
+        from .candidate_recall import run_agent_context_search
 
         recall_query = simplify_router_query(strip_scope_clauses(query) or query)
         agent_scan_root = _agent_lexical_scan_root(
@@ -2712,7 +2752,13 @@ def search_cmd(
             include_patterns=tuple(include_patterns),
         )
         support_per_path = 4 if detail == "full" else 2
-        pre_embed_results, pre_embed_recall_telemetry = build_agent_context_results(
+
+        def _agent_context_embedder():
+            embedder = get_embedder(role="query")
+            _apply_foreground_model_timeout(embedder, model_call_timeout_s)
+            return embedder
+
+        pre_embed_results, pre_embed_recall_telemetry = run_agent_context_search(
             conn,
             recall_query,
             agent_scan_root,
@@ -2723,49 +2769,24 @@ def search_cmd(
             max_paths=max(top * 8, top),
             rg_timeout=0.75,
             support_per_path=support_per_path,
+            semantic_only=semantic_only,
+            strict=strict,
+            embedder_factory=_agent_context_embedder,
+            source_root=project_root,
         )
         if pre_embed_results:
             for result in pre_embed_results:
                 result["fallback"] = "candidate-recall"
                 result["candidate_recall"] = True
-            summary = pre_embed_results[0].get("agent_summary", {})
-            if summary.get("quality") == "uncertain":
-                try:
-                    embedder = get_embedder(role="query")
-                    _apply_foreground_model_timeout(embedder, model_call_timeout_s)
-                    query_embedding = embedder.embed(recall_query)
-                    semantic_candidates = set(
-                        pre_embed_recall_telemetry.get("path_scores", {}).keys()
-                    )
-                    semantic_results = search(
-                        conn,
-                        query_embedding,
-                        max(top, top * 2),
-                        languages=tuple(language),
-                        include_patterns=tuple(include_patterns),
-                        exclude_patterns=tuple(exclude_patterns),
-                        query_text=recall_query,
-                        semantic_only=semantic_only,
-                        rerank=False,
-                        multi_resolution=True,
-                        file_top=max(top * 4, 30),
-                        candidate_paths=semantic_candidates or None,
-                        rank_by="file",
-                    )
-                    for result in semantic_results:
-                        result["fallback"] = "semantic-escalation"
-                        result["candidate_recall_lanes"] = ["semantic-escalation"]
-                    if semantic_results:
-                        pre_embed_results = merge_agent_results(
-                            recall_query,
-                            [pre_embed_results, semantic_results],
-                            pre_embed_recall_telemetry,
-                            top_k=top,
-                        )
-                except Exception as exc:
-                    logger.debug("agent-context semantic escalation skipped: %s", exc)
             if json_output:
                 click.echo(render_json_results(pre_embed_results, include_snippet=True))
+                if strict and (
+                    pre_embed_results[0]
+                    .get("strict_verification", {})
+                    .get("status")
+                    != "passed"
+                ):
+                    raise click.exceptions.Exit(2)
                 return
             for result in pre_embed_results:
                 click.echo(
@@ -2793,6 +2814,10 @@ def search_cmd(
                 ),
             ]))
             return
+        if strict:
+            if json_output:
+                click.echo(render_json_results([]))
+            raise click.exceptions.Exit(2)
         rg_context_results = ai.rg_fallback_results(
             recall_query,
             agent_scan_root,

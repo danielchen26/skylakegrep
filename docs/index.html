@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.6.0 makes fresh indexing 8.36× faster, keeps daemon startup bounded, and makes agent confidence and synthesized-answer authority explicit. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
+ <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.7.0 adds fail-closed strict evidence, direct/daemon agent parity, and a continuous accuracy/performance regression gate. Content-agnostic retrieval, 100+ languages, PolyForm Noncommercial 1.0.0, powered by local Ollama." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.6.0 adds 8.36× faster fresh indexing, bounded daemon startup, calibrated agent confidence, and authority-aware local answers. 100% local, 100+ languages." />
+ <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.7.0 adds fail-closed strict evidence, direct/daemon agent parity, and a continuous accuracy/performance regression gate. 100% local, 100+ languages." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -379,7 +379,7 @@
  <a href="#overview" class="active">Overview</a>
  <a href="#scenarios">Scenarios</a>
  <a href="#depth-examples">Depth examples</a>
- <a href="#new-in-060">New in 0.6.0</a>
+ <a href="#new-in-070">New in 0.7.0</a>
  <a href="#why-skylakegrep">Why skylakegrep?</a>
  <a href="#vs-elasticsearch">vs Elasticsearch</a>
  <a href="#how-it-works">How it works</a>
@@ -624,7 +624,7 @@
 }
 </style>
 <section id="overview" class="hero hero-redesigned">
- <p class="eyebrow">v0.6.0 · 100% local · PolyForm Noncommercial 1.0.0</p>
+ <p class="eyebrow">v0.7.0 · 100% local · PolyForm Noncommercial 1.0.0</p>
  <h1>Find <span class="hero-accent">anything</span> on your machine.</h1>
  <p class="lead">
  Semantic search for code, PDFs, notes, and docs.
@@ -701,7 +701,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <span class="dot">·</span>
  <strong>100 %</strong> local
  <span class="dot">·</span>
- <strong>49</strong> releases shipped
+ <strong>50</strong> releases shipped
  </p>
 </section>
 
@@ -847,113 +847,78 @@ Throughput projections under sustained 5k QPS load...</pre>
 </section>
 
 
-<!-- ============== New in 0.6.0 ============== -->
-<section id="new-in-060" class="doc-section scenarios-section">
- <p class="eyebrow">New in 0.6.0</p>
- <h2 class="overview-h2">Faster indexing, bounded daemon startup, stronger evidence authority.</h2>
+<!-- ============== New in 0.7.0 ============== -->
+<section id="new-in-070" class="doc-section scenarios-section">
+ <p class="eyebrow">New in 0.7.0</p>
+ <h2 class="overview-h2">Fail-closed evidence, direct/daemon parity, continuous quality gates.</h2>
  <p class="lead">
- Cross-file embedding batches make the measured fresh build 8.36× faster;
- agent confidence now states whether lexical evidence was available; and
- synthesized answers stay on the current authority document unless the query
- explicitly asks for history. The 0.5.x foundation remains: no
- <code>skygrep index .</code> ceremony, no need to be in the right folder,
- and no silent stalls.
+ <code>--strict</code> verifies high-risk local claims through independent
+ retrieval paths and indexed-source freshness. Direct and daemon agent calls
+ now share one evidence implementation, and pull-request CI rejects accuracy,
+ sufficiency, or efficiency regressions. Existing indexes remain compatible.
  </p>
 
  <div class="scenario-grid">
- <!-- Card 1: No setup needed -->
  <article class="scenario-card">
- <div class="scenario-tag">🚀 NO SETUP NEEDED</div>
- <h3>Just ask — no <code>skygrep index .</code>.</h3>
+ <div class="scenario-tag">🛡 STRICT EVIDENCE</div>
+ <h3>High-risk local claims fail closed.</h3>
  <p>
- The first query in any fresh repo works. A background process
- builds the semantic index while a <code>rg</code> fallback
- handles your first turn; from the second query on, the full
- cascade is online.
+ <code>--strict</code> requires hybrid candidate recall, an independent
+ corpus-wide semantic pass, supporting evidence, and a fresh indexed source.
+ A confident first pass is not enough by itself.
  </p>
  <div class="scenario-demo">
- <div class="sd-prompt"><span class="term-prompt">$</span>cd /path/to/brand-new-project</div>
- <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "how does auth handle expired tokens?"</div>
- <div class="sd-result">→ <code>src/auth/token.py:140</code> · <code>refresh_or_redirect()</code></div>
- <div class="sd-takeaway">Cold-start vocabulary-mismatch hit-rate <strong>0/10 → 4/10</strong> over plain <code>rg</code> on the Django oracle bench (0.5.3, real-CLI verified).</div>
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep --strict "where is authorization enforced?"</div>
+ <div class="sd-result">→ <code>src/auth/policy.py:42</code> · quality=best</div>
+ <div class="sd-result">→ <code>strict_verification.status=passed</code></div>
+ <div class="sd-takeaway">Exit <code>2</code> or <code>status=inconclusive</code> means the claim is not verified.</div>
  </div>
  </article>
 
- <!-- Card 2: Smart from the wrong folder -->
  <article class="scenario-card">
- <div class="scenario-tag">🧭 WRONG FOLDER · NO PROBLEM</div>
- <h3>Smart from the wrong folder.</h3>
+ <div class="scenario-tag">⚡ DIRECT = DAEMON</div>
+ <h3>Warm reuse no longer changes the evidence contract.</h3>
  <p>
- Run skygrep from <code>/tmp</code> and ask about a real
- project. The router dispatches <strong>two retrieval lanes
- in parallel</strong>; a proactive umbrella that searches
- sibling roots in <code>SKYGREP_PROACTIVE_DIRS</code> can answer
- before the cascade has time to run its first rerank.
+ Direct and daemon agent-context requests execute the same search helper,
+ including semantic escalation, provenance lanes, evidence bundles, source
+ priors, and strict verification.
  </p>
  <div class="scenario-demo">
- <div class="sd-prompt"><span class="term-prompt">$</span>cd /tmp/scratch</div>
- <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "where does the parallel umbrella dispatch?"</div>
- <div class="sd-result">→ <code>~/code/skylakegrep/src/cli.py:912</code> · cascade ‖ proactive umbrella</div>
- <div class="sd-takeaway">Wrong-cwd discovery is bounded; use <code>SKYGREP_PROACTIVE_DIRS</code> or an explicit scope when an agent knows where to look.</div>
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep serve --port 7878</div>
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep --agent-daemon --strict "where is authorization enforced?"</div>
+ <div class="sd-result">→ same Top-K paths · same lanes · same quality · same strict status</div>
+ <div class="sd-takeaway">Daemon requests are constrained to the configured project and index.</div>
  </div>
  </article>
 
- <!-- Card 3: Streaming intelligent routing -->
  <article class="scenario-card">
- <div class="scenario-tag">🧠 STREAMING ROUTING</div>
- <h3>Honest about what's pending.</h3>
+ <div class="scenario-tag">📏 CONTINUOUS QUALITY GATE</div>
+ <h3>Efficiency cannot silently trade away accuracy.</h3>
  <p>
- Each query is classified by a local LLM router
- (<code>qwen2.5:3b</code>) for intent / scope / primary token,
- then dispatched to multiple lanes in parallel. Results land
- tagged with the route they came from and the still-searching
- status of the others — never silent.
+ Pull-request CI runs a deterministic six-task fixture through the existing
+ closed-loop regression gate and fails on path, evidence, sufficiency,
+ context, elapsed, or work-quality regressions.
  </p>
  <div class="scenario-demo">
- <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "the design doc on rate limiter rewrite"</div>
- <div class="sd-result">├─ proactive umbrella · filename glob</div>
- <div class="sd-result">│             cascade still searching</div>
- <div class="sd-result">═══ <code>docs/rate-limiter-redesign.md:1</code></div>
- <div class="sd-takeaway">Confidence-streaming: results stream as they're ready, with the route they came from. Each answer's provenance is auditable.</div>
+ <div class="sd-result">6 / 6 completed · path 100% · evidence 100% · sufficiency 100%</div>
+ <div class="sd-result">14,689 vs 59,551 context tokens · 6 vs 99 tool calls</div>
+ <div class="sd-takeaway">Measured fixture: about <strong>4.05×</strong> less context with equal checked coverage.</div>
  </div>
  </article>
 
- <!-- Card 4: Routing transparency + why this matched (0.5.8+) -->
  <article class="scenario-card">
- <div class="scenario-tag">🔍 ROUTING TRANSPARENCY · 0.5.8+</div>
- <h3>The active router lane is visible by default; <code>--explain</code> adds the deeper why.</h3>
+ <div class="scenario-tag">🔍 CLEAN PROVENANCE · GUIDANCE V5</div>
+ <h3>Agents see every contributing lane without duplicate aliases.</h3>
  <p>
- The first human-output line now shows the active router lane
- (<code>├─ route      router: semantic · primary_token=... · conf=... · source=...</code>).
- Foreground semantic waits use a TTY-only rotating particle flow in the
- narrow left workflow rail by default; set
- <code>SKYGREP_UI_ANIMATION=off</code> to disable it.
- The result rail stays compact and copyable; set
- <code>SKYGREP_UI_RAIL=helix</code> if you want the rail itself to use
- a denser three-cell rotating particle field (<code>• ·</code>,
- <code> ·•</code>, <code>· •</code>, <code>•· </code>) plus a slim
- separator line instead of box connectors; it continues through progress,
- result cards, and the final footer.
- Interactive
- terminals show Nerd Font step icons by default; set
- <code>SKYGREP_UI_ICONS=off</code> to disable them. JSON and redirected
- output stay stable.
- Pass <code>--explain</code> when you need the deeper audit trail:
- a one-sentence reason, per-result <strong><code>via:</code> lines</strong>
- showing which channel(s) contributed (cosine cascade · symbol
- RRF · filename-lookup · ripgrep) and the score, and a
- <strong>cascade-lane summary</strong> at the bottom with the
- σ-adaptive evidence (<code>gap=…, tau=…</code>). No new model
- calls, no extra retrieval — every signal was already in the
- pipeline.
+ Equivalent macOS <code>/var</code> and <code>/private/var</code> paths are
+ coalesced without double-counting lexical scores. Duplicate results preserve
+ the union of their recall lanes, and managed agent guidance requires strict
+ receipts for high-risk local claims.
  </p>
  <div class="scenario-demo">
- <div class="sd-prompt"><span class="term-prompt">$</span>skygrep "what does Project_Report say about retries"</div>
- <div class="sd-result">├─ route      router: <strong>semantic</strong> · primary_token=<code>"Project_Report"</code> · conf=0.81 · source=fast-intent</div>
- <div class="sd-result">├─ seed       preliminary filename anchors + keyword matches (lazy semantic refinement starting)</div>
- <div class="sd-result">═══ <code>Project_Report.txt</code> · bounded content preview</div>
- <div class="sd-result">├─ embed      lazy refinement continues in the same invocation</div>
- <div class="sd-takeaway"><strong>0.6.0:</strong> cross-file batching accelerates indexing, confidence distinguishes lexical-backed from retrieval-only evidence, and local answers stay on current authority documents unless the query names history.</div>
+ <div class="sd-result">→ hybrid · rg · semantic-escalation · source prior</div>
+ <div class="sd-result">→ one canonical path · one auditable receipt</div>
+ <div class="sd-takeaway"><strong>0.7.0:</strong> faster agent workflows stay bounded by explicit accuracy and freshness checks.</div>
  </div>
  </article>
  </div>
@@ -979,7 +944,7 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap"></div>
      <div class="why-cell why-self">
        <strong>skylakegrep</strong>
-       <span class="why-sub">v0.6.0</span>
+       <span class="why-sub">v0.7.0</span>
      </div>
      <div class="why-cell"><code>ripgrep</code><span class="why-sub">lexical baseline</span></div>
      <div class="why-cell"><a href="https://www.mgrep.dev/" target="_blank" rel="noopener">mgrep</a><span class="why-sub">Mixedbread · paid</span></div>
@@ -1121,12 +1086,12 @@ Throughput projections under sustained 5k QPS load...</pre>
  <div class="themed-card why-card">
  <div class="themed-card-chrome">
  <span class="tl"></span><span class="tl tl-y"></span><span class="tl tl-g"></span>
- <span class="themed-card-title">capability matrix · skylakegrep 0.6.0 vs Elasticsearch 8.x</span>
+ <span class="themed-card-title">capability matrix · skylakegrep 0.7.0 vs Elasticsearch 8.x</span>
  </div>
  <div class="themed-card-body">
  <table class="vs-table">
  <thead>
- <tr><th></th><th>skylakegrep 0.6.0</th><th>Elasticsearch</th></tr>
+ <tr><th></th><th>skylakegrep 0.7.0</th><th>Elasticsearch</th></tr>
  </thead>
  <tbody>
  <tr><td><strong>Setup</strong></td><td><code>python3 -m pip install --user skylakegrep</code>; cold-start lazy auto-trigger</td><td>JVM, cluster, mappings, ingest pipeline, dense-vector plugin, reindex</td></tr>
@@ -1135,6 +1100,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <tr><td><strong>Code AST awareness</strong></td><td>tree-sitter symbol channel, RRF-fused with cosine</td><td>None; code is plain text</td></tr>
  <tr><td><strong>Cold-start / wrong-folder</strong></td><td>lazy_cwd + lazy_cross_folder 4-lane parallel umbrella, ~1.1 s</td><td>Empty index = 0 results</td></tr>
  <tr><td><strong>Why-this-matched explainability</strong></td><td><code>--explain</code> shows router rationale + channel breakdown + lane evidence</td><td>BM25 highlight only</td></tr>
+ <tr><td><strong>High-risk local verification</strong></td><td><code>--strict</code> requires independent hybrid/semantic agreement plus indexed-source freshness; inconclusive evidence exits <code>2</code></td><td>application-specific validation required</td></tr>
  <tr><td><strong>Cross-file context</strong></td><td>reference-graph PageRank tiebreak</td><td>None</td></tr>
  <tr><td><strong>Privacy / offline</strong></td><td>100 % local by design</td><td>Index can be local, but most embeddings are external API calls</td></tr>
  <tr><td><strong>Latency p95</strong> (50k-file repo)</td><td>0.3 – 1.1 s including LLM router</td><td>ms-level <em>after</em> you've paid the operational cost</td></tr>

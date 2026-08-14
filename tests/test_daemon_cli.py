@@ -5,6 +5,7 @@ from __future__ import annotations
 from contextlib import ExitStack
 import json
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -15,6 +16,13 @@ import skylakegrep
 from skylakegrep.src import cli as cli_module
 from skylakegrep.src import __version__ as cli_version
 from skylakegrep.src import server as server_module
+from skylakegrep.src.candidate_recall import run_agent_context_search
+from skylakegrep.src.storage import init_db, populate_file_embeddings, store_chunks_batch
+
+
+class _StaticEmbedder:
+    def embed(self, text: str) -> list[float]:
+        return [1.0, 0.0] if "token" in text.lower() else [0.0, 1.0]
 
 
 class DaemonCliTests(unittest.TestCase):
@@ -164,6 +172,219 @@ class DaemonCliTests(unittest.TestCase):
             self.assertEqual(parsed[0]["snippet"], "def refresh_session(): pass")
             self.assertEqual(daemon.call_args.kwargs["top_k"], 8)
             self.assertFalse(daemon.call_args.kwargs["rerank"])
+
+    def test_strict_daemon_result_exits_two_when_verification_is_inconclusive(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            payload = {
+                "results": [
+                    {
+                        "path": "src/session.py",
+                        "start_line": 1,
+                        "end_line": 3,
+                        "language": "python",
+                        "score": 0.9,
+                        "snippet": "def refresh_session(): pass",
+                        "strict_verification": {"status": "inconclusive"},
+                    }
+                ],
+                "latency_seconds": 0.01,
+            }
+            runner = CliRunner()
+            with patch.object(cli_module.cfg_mod, "project_root", return_value=root):
+                with patch.object(cli_module, "resolve_scope_facet", return_value=None):
+                    with patch(
+                        "skylakegrep.src.server.daemon_search",
+                        return_value=payload,
+                    ) as daemon:
+                        result = runner.invoke(
+                            cli_module.cli,
+                            [
+                                "search",
+                                "--strict",
+                                "--agent-daemon",
+                                "where is session refresh implemented?",
+                            ],
+                        )
+
+            self.assertEqual(result.exit_code, 2, result.output)
+            parsed = json.loads(result.output)
+            self.assertEqual(
+                parsed[0]["strict_verification"]["status"],
+                "inconclusive",
+            )
+            self.assertEqual(daemon.call_args.kwargs["agent_mode"], "context")
+            self.assertTrue(daemon.call_args.kwargs["strict"])
+
+    def test_strict_daemon_result_succeeds_when_verification_passes(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            payload = {
+                "results": [
+                    {
+                        "path": "src/session.py",
+                        "start_line": 1,
+                        "end_line": 3,
+                        "language": "python",
+                        "score": 0.9,
+                        "snippet": "def refresh_session(): pass",
+                        "strict_verification": {"status": "passed"},
+                    }
+                ],
+                "latency_seconds": 0.01,
+            }
+            runner = CliRunner()
+            with patch.object(cli_module.cfg_mod, "project_root", return_value=root):
+                with patch.object(cli_module, "resolve_scope_facet", return_value=None):
+                    with patch(
+                        "skylakegrep.src.server.daemon_search",
+                        return_value=payload,
+                    ):
+                        result = runner.invoke(
+                            cli_module.cli,
+                            [
+                                "search",
+                                "--strict",
+                                "--agent-daemon",
+                                "where is session refresh implemented?",
+                            ],
+                        )
+
+            self.assertEqual(result.exit_code, 0, result.output)
+            self.assertEqual(
+                json.loads(result.output)[0]["strict_verification"]["status"],
+                "passed",
+            )
+
+    def test_daemon_agent_context_matches_shared_direct_contract(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            target = root / "src" / "token_refresh.py"
+            target.parent.mkdir(parents=True)
+            target.write_text(
+                "def refresh_access_token():\n    return 'fresh token'\n",
+                encoding="utf-8",
+            )
+            db_path = root / "index.db"
+            conn = init_db(db_path)
+            store_chunks_batch(
+                conn,
+                [
+                    {
+                        "file": str(target),
+                        "chunk": target.read_text(encoding="utf-8"),
+                        "language": "python",
+                        "chunk_index": 0,
+                        "file_mtime": target.stat().st_mtime,
+                        "start_line": 1,
+                        "end_line": 2,
+                        "start_byte": 0,
+                        "end_byte": target.stat().st_size,
+                        "embedding": [1.0, 0.0],
+                    }
+                ],
+            )
+            populate_file_embeddings(conn)
+            direct, _ = run_agent_context_search(
+                conn,
+                "where is access token refresh implemented?",
+                root,
+                top_k=4,
+                strict=True,
+                embedder_factory=lambda: _StaticEmbedder(),
+            )
+            conn.close()
+
+            httpd = server_module.ThreadingHTTPServer(
+                ("127.0.0.1", 0),
+                server_module._SearchHandler,
+            )
+            port = httpd.server_address[1]
+            thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+            with patch.object(
+                server_module,
+                "get_config",
+                return_value={"db_path": db_path, "rerank_pool": 50},
+            ):
+                with patch.object(server_module, "resolve_project_root", return_value=root):
+                    with patch.object(
+                        server_module,
+                        "get_embedder",
+                        return_value=_StaticEmbedder(),
+                    ):
+                        thread.start()
+                        daemon = server_module.daemon_search(
+                            f"http://127.0.0.1:{port}",
+                            "where is access token refresh implemented?",
+                            top_k=4,
+                            agent_mode="context",
+                            strict=True,
+                            project_root=str(root),
+                            lexical_root=str(root),
+                            db_path=str(db_path),
+                            recall_query="where is access token refresh implemented?",
+                        )
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join(timeout=2)
+
+        daemon_results = daemon["results"]
+        self.assertEqual(
+            [item["path"] for item in daemon_results],
+            [item["path"] for item in direct],
+        )
+        self.assertEqual(
+            daemon_results[0]["candidate_recall_lanes"],
+            direct[0]["candidate_recall_lanes"],
+        )
+        self.assertEqual(
+            daemon_results[0]["agent_summary"],
+            direct[0]["agent_summary"],
+        )
+        self.assertEqual(
+            daemon_results[0]["strict_verification"]["status"],
+            "passed",
+        )
+
+    def test_daemon_rejects_cross_project_index_requests(self):
+        import requests
+
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            db_path = root / "index.db"
+            init_db(db_path).close()
+            httpd = server_module.ThreadingHTTPServer(
+                ("127.0.0.1", 0),
+                server_module._SearchHandler,
+            )
+            port = httpd.server_address[1]
+            thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+            try:
+                with patch.object(
+                    server_module,
+                    "get_config",
+                    return_value={"db_path": db_path, "rerank_pool": 50},
+                ):
+                    with patch.object(
+                        server_module,
+                        "resolve_project_root",
+                        return_value=root,
+                    ):
+                        thread.start()
+                        with self.assertRaises(requests.HTTPError) as raised:
+                            server_module.daemon_search(
+                                f"http://127.0.0.1:{port}",
+                                "where is session refresh implemented?",
+                                agent_mode="context",
+                                project_root=str(root / "other-project"),
+                                lexical_root=str(root / "other-project"),
+                                db_path=str(root / "other.db"),
+                            )
+                self.assertEqual(raised.exception.response.status_code, 409)
+            finally:
+                httpd.shutdown()
+                httpd.server_close()
+                thread.join(timeout=2)
 
     def test_agent_context_defers_foreground_refresh_work(self):
         with tempfile.TemporaryDirectory() as d:
