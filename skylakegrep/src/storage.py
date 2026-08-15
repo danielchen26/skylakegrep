@@ -597,11 +597,21 @@ def delete_file_chunks(conn, file: str):
         conn.execute("DELETE FROM chunks WHERE file = ?", (file,))
         conn.commit()
 
-def delete_missing_files(conn, current_files: set[str], root: Path) -> list[str]:
+def delete_missing_files(
+    conn, current_files: set[str], root: Path, resolve_base: Path | None = None
+) -> list[str]:
     root_path = root.resolve()
+    # Older releases stored ``chunks.file`` relative to the project root;
+    # resolve such rows against the project root (``resolve_base``), never
+    # against the process CWD, or rows written by ``skygrep index .`` become
+    # unreachable when the command later runs from a different directory.
+    base_path = resolve_base.resolve() if resolve_base is not None else root_path
     deleted = []
     for file_path in get_indexed_files(conn):
-        indexed_path = Path(file_path).resolve()
+        indexed_path = Path(file_path)
+        if not indexed_path.is_absolute():
+            indexed_path = base_path / indexed_path
+        indexed_path = indexed_path.resolve()
         try:
             indexed_path.relative_to(root_path)
         except ValueError:
