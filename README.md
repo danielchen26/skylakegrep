@@ -418,6 +418,16 @@ quality gates, measured retrieval latency, and repository-aware confidence
 intervals. It publishes an efficiency multiplier only after skygrep is
 non-inferior to `rg-only` on completion and retrieved-context quality.
 
+The 2026-08-15 clean-source receipt passed those gates. Across the 53 / 60
+unique tasks where both policies met the same quality floor, `skygrep-first`
+returned **17.982× less tool context at the median** (repository-aware 95% CI:
+**5.202×–94.127×**) while retrieval-context quality was 92.5% versus 88.4%.
+This is a paired retrieval-context result, not a universal runtime claim:
+skygrep used more tool calls overall, and the quality-eligible median task was
+slower in the measured harness even though all-row aggregate elapsed favored
+skygrep. See the [full result and boundaries](docs/general-performance.md) and
+the [immutable raw receipt](benchmarks/reports/general-v2-2026-08-15.json).
+
 Two older results remain useful for regression history, but are not general
 performance claims:
 

@@ -689,15 +689,13 @@ Throughput projections under sustained 5k QPS load...</pre>
  </div>
 
  <p class="trust-strip">
- <strong>30 / 30</strong> public-OSS recall
+ <strong>17.982×</strong> median eligible context reduction
  <span class="dot">·</span>
- <strong>8.36×</strong> faster fresh indexing
+ <strong>53 / 60</strong> quality-eligible public tasks
  <span class="dot">·</span>
- <strong>60</strong> pinned public source-evidence tasks
+ <strong>92.5 %</strong> retrieval-context quality
  <span class="dot">·</span>
  <strong>~1.1 s</strong> wrong-path first answer
- <span class="dot">·</span>
- <strong>~1 s</strong> warm queries
  <span class="dot">·</span>
  <strong>100 %</strong> local
  <span class="dot">·</span>
@@ -1230,35 +1228,37 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
  <strong>Spring Framework</strong>, <strong>Tokio</strong>, and
  <strong>Vite</strong>. Its 60 hand-validated tasks require both the accepted
  source path and literal source evidence. Efficiency is reported only for
- paired tasks where both policies pass the same quality floor; repository-
- level distributions and a hierarchical-bootstrap confidence interval prevent
- one favorable project from becoming a universal claim.
+ paired tasks where both policies pass the same quality floor; repository-level
+ distributions and a hierarchical-bootstrap confidence interval prevent one
+ favorable project from becoming a universal claim. The 2026-08-15
+ clean-source receipt passed those gates, while also showing that tool calls and the
+ median eligible-task latency did not improve.
  </p>
  <div class="bench-stats">
  <div class="bench-stat">
- <div class="bench-stat-num">8.36×</div>
- <div class="bench-stat-label">faster fresh indexing on the same repository</div>
- <div class="bench-stat-sub">74.71 s in 0.6.0 vs. 624.44 s before cross-file embedding batches.</div>
+ <div class="bench-stat-num">17.982×</div>
+ <div class="bench-stat-label">median tool-context reduction</div>
+ <div class="bench-stat-sub">Only the 53 / 60 unique tasks where both policies passed quality ≥ 0.85.</div>
  </div>
  <div class="bench-stat">
- <div class="bench-stat-num">30 / 30</div>
- <div class="bench-stat-label">recall on public-OSS bench (fully-indexed cascade)</div>
- <div class="bench-stat-sub">vs. 28 / 30 in 0.1.0; bge-m3 substrate broke the ceiling.</div>
+ <div class="bench-stat-num">5.202×–94.127×</div>
+ <div class="bench-stat-label">repository-aware 95% interval</div>
+ <div class="bench-stat-sub">Hierarchical bootstrap over repositories and unique tasks after combining three trials.</div>
  </div>
  <div class="bench-stat">
- <div class="bench-stat-num">60</div>
-<div class="bench-stat-label">public source-evidence tasks at exact commits</div>
- <div class="bench-stat-sub">10 tasks each across Go, Python, JavaScript/Flow, Java, Rust, and TypeScript repositories.</div>
-</div>
-<div class="bench-stat">
- <div class="bench-stat-num">≥ 0.85</div>
- <div class="bench-stat-label">paired task-quality floor before efficiency</div>
- <div class="bench-stat-sub">A multiplier is non-reportable unless quality, completion, minimum sample, and cross-repository gates pass.</div>
+ <div class="bench-stat-num">92.5% vs. 88.4%</div>
+ <div class="bench-stat-label">retrieval-context quality</div>
+ <div class="bench-stat-sub">skygrep-first completed 180 / 180 observations; rg-only completed 159 / 180.</div>
+ </div>
+ <div class="bench-stat">
+ <div class="bench-stat-num">0.929×</div>
+ <div class="bench-stat-label">paired median tool-call ratio</div>
+ <div class="bench-stat-sub">rg calls / skygrep calls: no tool-call reduction claim.</div>
  </div>
  </div>
  <div class="button-row">
- <a class="button primary" href="benchmarks.html">Read all 6 benchmarks →</a>
- <a class="button secondary" href="parity-benchmarks.html">Historical parity receipt</a>
+ <a class="button primary" href="general-performance.html">Read the full result →</a>
+ <a class="button secondary" href="benchmarks.html">All benchmarks</a>
  </div>
 </section>
 
@@ -1269,34 +1269,32 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
  <h2 class="overview-h2">What the data does and does NOT show.</h2>
  <ul class="limits-list">
  <li>
- <strong>Sample sizes are measurement-grade, not study-grade.</strong>
- The closed-loop agent benchmark is 38 generic tasks across four public
- repositories; the multi-language benchmark is n = 30. Statistical significance is
- improving, but small.
+ <strong>It is a pinned retrieval benchmark, not a universal multiplier.</strong>
+ The result covers 60 hand-validated source-evidence tasks across six exact
+ public commits. Your repositories, queries, and hardware can differ.
  </li>
  <li>
- <strong>Latency is honest, not hidden.</strong> bge-m3 inference
- is slower than mxbai on Tokio (+57 % per-query); the three-repo
- average is still −19 %. Tokio is the worst case, not the
- average.
+ <strong>Context reduction did not imply a typical-task speed win.</strong>
+ The eligible-task median <code>rg / skygrep</code> harness-elapsed ratio was
+ 0.561, so the median skygrep task was slower. Large outliers made the all-row
+ aggregate ratio 2.41 in skygrep's favor; neither is a universal latency claim.
  </li>
  <li>
- <strong>The published benchmark is not your benchmark.</strong>
- 30 hand-labelled queries on three public repos isn't your
- codebase, your queries, your hardware. Reproduce locally.
+ <strong>Tool calls were not reduced.</strong>
+ The paired median <code>rg / skygrep</code> call ratio was 0.929, and skygrep
+ used 2,014 calls versus 1,743 across all observations.
  </li>
  <li>
- <strong>Some queries are out of scope.</strong> Metadata
- questions ("recent files", "largest files", "all files") get
- routed to a hint suggesting <code>git log</code> /
- <code>find</code>. skygrep is content search, not file
- management.
+ <strong>Quality is a retrieved-context proxy.</strong>
+ The gate verifies accepted paths, literal source evidence, noise control,
+ sufficiency, and stopping. It does not grade a downstream model's final answer
+ or include hidden reasoning and provider billing tokens.
  </li>
  </ul>
  <p class="limits-footer">
- The full bench protocol, closed-loop agent table, per-task analysis, and
- worked example (one query · 1,395 × token reduction) live on
- <a href="benchmarks.html">the benchmarks page</a>.
+ The full receipt, distributions, protocol, reproduction commands, and exact
+ claim boundary live on <a href="general-performance.html">the General
+ Benchmark v2 page</a>.
  </p>
 </section>
 

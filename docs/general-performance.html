@@ -40,6 +40,21 @@
   <blockquote>Across pinned public repositories, how much retrieval context and tool work does a skygrep-first agent policy use relative to an <code>rg</code>-only policy, after both meet the same task-quality floor?</blockquote>
   <p>The older 4.05× result remains a deterministic six-task CI receipt. It is not a general multiplier. General Benchmark v2 separates correctness, context efficiency, and measured retrieval latency so none can hide a regression in another dimension.</p>
 
+  <h2>Published result · 2026-08-15</h2>
+  <p>The first release-scale receipt passed every General v2 gate. It was produced from clean source commit <code>e47e7f7b100bd1fcf30f28ea509703a1d2d1f17a</code> on Darwin arm64 with Python 3.13.7, local <code>bge-m3</code> embeddings, batch size 64, exact <code>tiktoken:cl100k_base</code> counting, six fresh/reset indexes, and three trials per policy and task.</p>
+  <table><thead><tr><th>Metric</th><th>skygrep-first</th><th>rg-only</th></tr></thead><tbody>
+   <tr><td>Completed observations</td><td><strong>180 / 180</strong></td><td>159 / 180</td></tr>
+   <tr><td>Retrieval-context quality</td><td><strong>92.5%</strong></td><td>88.4%</td></tr>
+   <tr><td>Evidence coverage</td><td><strong>100.0%</strong></td><td>93.3%</td></tr>
+   <tr><td>Quality-eligible unique tasks</td><td colspan="2"><strong>53 / 60</strong> (88.3%)</td></tr>
+   <tr><td>Tool-context tokens, all observations</td><td><strong>10,143,277</strong></td><td>780,955,041</td></tr>
+   <tr><td>Tool calls, all observations</td><td>2,014</td><td><strong>1,743</strong></td></tr>
+  </tbody></table>
+  <blockquote><strong>Reportable headline:</strong> 17.982× median reduction in returned tool-context tokens on the 53 quality-eligible paired tasks; repository-aware 95% hierarchical-bootstrap interval: <strong>5.202×–94.127×</strong>.</blockquote>
+  <p>The eligible-task P25 / median / P75 is 5.998× / 17.982× / 93.141×; the eligible ratio of token sums is 83.181×. The median is the headline so each unique task contributes one observation after its three trials are combined.</p>
+  <p><strong>No universal speed or tool-call claim:</strong> the paired median <code>rg elapsed / skygrep elapsed</code> ratio was 0.561, so the median eligible skygrep task took longer even though the all-row aggregate elapsed ratio was 2.41 in skygrep's favor. The paired median tool-call ratio was 0.929, and skygrep used more calls overall. Large-repository outliers make aggregate totals useful capacity readings, not typical-task latency claims.</p>
+  <p><a href="https://github.com/danielchen26/skylakegrep/blob/master/benchmarks/reports/general-v2-2026-08-15.json">Read the immutable raw receipt</a> · <a href="https://github.com/danielchen26/skylakegrep/tree/master/benchmarks/reports">capacity receipts and provenance</a></p>
+
   <h2>Public matrix</h2>
   <table><thead><tr><th>Repository</th><th>Ecosystem</th><th>Tasks</th></tr></thead><tbody>
    <tr><td>Cobra</td><td>Go</td><td>10</td></tr><tr><td>Django</td><td>Python</td><td>10</td></tr><tr><td>React</td><td>JavaScript / Flow</td><td>10</td></tr><tr><td>Spring Framework</td><td>Java</td><td>10</td></tr><tr><td>Tokio</td><td>Rust</td><td>10</td></tr><tr><td>Vite</td><td>TypeScript</td><td>10</td></tr>

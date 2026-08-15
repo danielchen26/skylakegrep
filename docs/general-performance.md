@@ -12,6 +12,54 @@ general multiplier. General Benchmark v2 separates correctness, context
 efficiency, and measured retrieval latency so none can hide a regression in
 another dimension.
 
+## Published result — 2026-08-15
+
+The first release-scale General Benchmark v2 receipt is **reportable** under
+the gates below. It was produced from clean benchmark source commit
+`e47e7f7b100bd1fcf30f28ea509703a1d2d1f17a` on Darwin arm64 with Python
+3.13.7, local `bge-m3` embeddings, index batch size 64, and exact
+`tiktoken:cl100k_base` counting. All six indexes were rebuilt with
+`--refresh-index --reset-index` before three paired trials per task.
+
+| Gate or metric | `skygrep-first` | `rg-only` | Reading |
+| --- | ---: | ---: | --- |
+| Unique public tasks | 60 | 60 | Six pinned repositories, 10 tasks each |
+| Completed observations | 180 / 180 | 159 / 180 | 3 trials per policy and task |
+| Retrieval-context quality | 92.5% | 88.4% | skygrep +4.1 percentage points |
+| Evidence coverage | 100.0% | 93.3% | Deterministic literal-source gate |
+| Quality-eligible unique tasks | 53 / 60 | 53 / 60 | 88.3%; above the 80% gate |
+| Tool-context tokens, all observations | 10,143,277 | 780,955,041 | Ratio of sums: 76.99× |
+| Tool calls, all observations | 2,014 | 1,743 | skygrep used more calls overall |
+| Harness elapsed, all observations | 687.752 s | 1,658.038 s | Aggregate only; distribution is skewed |
+
+The reportable headline is:
+
+> **17.982× median reduction in returned tool-context tokens** on the 53
+> quality-eligible paired tasks, with a repository-aware 95%
+> hierarchical-bootstrap interval of **5.202×–94.127×**.
+
+The paired task distribution has P25 / median / P75 of
+5.998× / 17.982× / 93.141×. The ratio of token sums on the eligible pairs is
+83.181×. The median is the headline because it gives each unique task one
+observation after combining its three trials; the ratio of sums is retained to
+show total context volume rather than substituted for the typical-task result.
+
+This result is **not** a universal speed or tool-call win. On the same eligible
+tasks, the median `rg elapsed / skygrep elapsed` ratio was 0.561, so the median
+skygrep task took longer in the measured harness even though the all-row
+aggregate ratio was 2.41 in skygrep's favor. The paired median tool-call ratio
+was 0.929 (`rg calls / skygrep calls`), and skygrep used 2,014 calls versus
+1,743 overall. Large-repository outliers make aggregate elapsed and context
+totals useful capacity readings, but not typical-task latency claims.
+
+The complete immutable receipt is
+[`../benchmarks/reports/general-v2-2026-08-15.json`](../benchmarks/reports/general-v2-2026-08-15.json).
+The independent fresh-Cobra
+[`capacity reference`](../benchmarks/reports/general-v2-2026-08-15-cobra-capacity.json)
+and the resulting
+[`capacity gate`](../benchmarks/reports/general-v2-2026-08-15-capacity.json)
+are published separately because runner capacity is not retrieval efficiency.
+
 ## Public matrix
 
 The checked-in registry [`../benchmarks/public_repos.json`](../benchmarks/public_repos.json)

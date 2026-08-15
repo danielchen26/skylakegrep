@@ -572,6 +572,26 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  source-evidence tasks. Every task requires an accepted path plus literal
  evidence from that source; empty path-only evidence contracts are rejected.
  </p>
+ <p>
+ The 2026-08-15 clean-source receipt is <strong>reportable</strong>. On the
+ 53 / 60 unique tasks where both policies met quality ≥ 0.85,
+ <code>skygrep-first</code> returned <strong>17.982× less tool context at the
+ median</strong>. The repository-aware 95% hierarchical-bootstrap interval is
+ <strong>5.202×–94.127×</strong>. Retrieval-context quality was 92.5% for
+ skygrep versus 88.4% for <code>rg-only</code>; completion was 180 / 180 versus
+ 159 / 180 observations.
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead><tr><th>Published metric</th><th>Result</th><th>Claim boundary</th></tr></thead>
+ <tbody>
+ <tr><td>Eligible-task context reduction</td><td><strong>17.982× median</strong></td><td>P25 5.998× · P75 93.141× · 95% CI 5.202×–94.127×</td></tr>
+ <tr><td>Quality gate</td><td><strong>92.5% vs. 88.4%</strong></td><td>Deterministic retrieved-context proxy, not final-answer grading</td></tr>
+ <tr><td>Tool calls</td><td>0.929× paired median <code>rg / skygrep</code></td><td>No tool-call reduction claim; skygrep used 2,014 vs. 1,743 overall</td></tr>
+ <tr><td>Measured harness elapsed</td><td>0.561× paired median <code>rg / skygrep</code></td><td>Median eligible skygrep task was slower; no universal speed claim</td></tr>
+ </tbody>
+ </table>
+ </div>
  <div class="table-wrap">
  <table>
  <thead><tr><th>Contract</th><th>Requirement</th><th>Why it matters</th></tr></thead>
@@ -590,8 +610,10 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  This remains a retrieval-workflow benchmark: context-token counts exclude
  hidden model reasoning, final-answer output, provider caching, billing, and
  price. See <a href="general-performance.html">the full methodology and
- reproduction commands</a>. The older 4.05× six-task result remains useful as
- a deterministic CI regression receipt, not as a general multiplier.
+ reproduction commands</a> or
+ <a href="https://github.com/danielchen26/skylakegrep/blob/master/benchmarks/reports/general-v2-2026-08-15.json">inspect the immutable raw receipt</a>.
+ The older 4.05× six-task result remains useful as a deterministic CI
+ regression receipt, not as a general multiplier.
  </p>
 
  <h3 id="bench-agent-latency">5. Agent bounded-latency smoke matrix (0.5.16)</h3>

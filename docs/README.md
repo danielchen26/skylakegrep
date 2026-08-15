@@ -12,7 +12,7 @@ The Markdown files here are reference companions to that site.
 | [`skylakegrep-0.1.0.md`](skylakegrep-0.1.0.md) | First public release notes — full description of capabilities, three-tier routing, semantic cascade, PDF/docx extraction, CLI flags, environment variables, license terms. |
 | [`token-benchmarking.md`](token-benchmarking.md) | Methodology and full results for the deterministic context-gathering benchmark. |
 | [`parity-benchmarks.md`](parity-benchmarks.md) | Historical three-repository parity receipt and its original engineering analysis. |
-| [`general-performance.md`](general-performance.md) | Six-repository, 60-task paired benchmark with pinned commits, real tokenization, quality gates, and confidence intervals. |
+| [`general-performance.md`](general-performance.md) | Published six-repository, 60-task paired result with pinned commits, real tokenization, quality gates, confidence intervals, and claim boundaries. |
 | [`skylakegrep-0.5.14.md`](skylakegrep-0.5.14.md) | Closed-loop agent workflow release notes, daemon-first guidance, and benchmark summary. |
 | [`roadmap.md`](roadmap.md) | What's planned for future versions. |
 | [`assets/`](assets) | SVG figures referenced by the site and the project README. |
@@ -53,3 +53,8 @@ cross-repository methodology and [`token-benchmarking.md`](token-benchmarking.md
 for historical definitions, result tables, and explicit limitations.
 See [`benchmarks.html`](benchmarks.html) for the 0.5.14 closed-loop agent
 benchmark framing.
+
+Published, privacy-scanned raw receipts live in
+[`../benchmarks/reports/`](../benchmarks/reports/). The 2026-08-15 General v2
+receipt is the current release-scale performance evidence; historical pages
+remain engineering records rather than current multipliers.
