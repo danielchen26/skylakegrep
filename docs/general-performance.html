@@ -52,8 +52,8 @@
   <p>Only after these gates pass does the report calculate context-token and tool-call reduction, measured harness-wall and retrieval-tool elapsed ratios, cross-task and per-repository distributions after taking each task's median across trials, ratio-of-sums, and a 95% hierarchical-bootstrap interval over repositories and unique tasks. Harness wall time includes deterministic scoring and token counting; retrieval tool time is captured before token counting.</p>
 
   <h2>Run cadence</h2>
-  <table><thead><tr><th>Gate</th><th>Cadence</th><th>Cost</th></tr></thead><tbody><tr><td>Deterministic six-task contract</td><td>Every pull request</td><td>Seconds; model-free</td></tr><tr><td>General Benchmark v2</td><td>Weekly, before a performance release, or on explicit request</td><td>Six full public indexes plus paired trials</td></tr></tbody></table>
-  <p>The scheduled general run parallelizes repositories. Local reruns reuse completed indexes unless the index format, embedding model, or pinned source changes.</p>
+  <table><thead><tr><th>Gate</th><th>Cadence</th><th>Cost</th></tr></thead><tbody><tr><td>Deterministic six-task contract</td><td>Every pull request</td><td>Seconds; model-free</td></tr><tr><td>General v2 protocol gate</td><td>Weekly and on explicit request</td><td>Public pins, fixtures, statistics, merge/source/capacity gates; model-free</td></tr><tr><td>Full General Benchmark v2</td><td>Before a performance release or on explicit request</td><td>Accelerator required; six full public indexes plus paired trials</td></tr></tbody></table>
+  <p>The scheduled GitHub workflow validates the protocol on a standard hosted runner; it does not mint a new performance receipt. The full workflow is a manual dispatch targeting a self-hosted runner labeled <code>skygrep-benchmark</code>. It first fresh-indexes Cobra and projects the other five workloads from exact chunk and capped-model-input counts, stopping before the large indexes if any projection exceeds the index timeout. Local reruns reuse completed indexes unless the index format, embedding model, or pinned source changes.</p>
 
   <h2>Reproduce</h2>
   <pre><code>python -m pip install -e ".[benchmark]"
@@ -61,13 +61,13 @@ python benchmarks/validate_public_fixtures.py \
   --oss-root /tmp/skygrep-general-v2-repos --prepare
 python benchmarks/universal_closed_loop_benchmark.py \
   --oss-root /tmp/skygrep-general-v2-repos --prepare \
-  --refresh-index --reset-index --index-timeout 7200 --trials 3 \
+  --refresh-index --reset-index --index-timeout 18000 --trials 3 \
   --tokenizer tiktoken --report /tmp/skygrep-general-v2.json \
   --summary-only
 python benchmarks/closed_loop_regression_gate.py \
   /tmp/skygrep-general-v2.json --require-general-reportable</code></pre>
   <p>The first run builds six complete semantic indexes and can take hours on a CPU-only or memory-constrained machine. Index elapsed is recorded separately and never enters the retrieval-efficiency headline. Omit <code>--refresh-index --reset-index</code> on later query-only repetitions.</p>
-  <p>The weekly GitHub workflow parallelizes the six repository runs, then merges compact rows and recomputes one aggregate quality gate and confidence interval. Both per-repository and merged receipts are retained as artifacts.</p>
+  <p>The manual accelerated workflow runs the six repositories after the capacity gate, then merges compact rows and recomputes one aggregate quality gate and confidence interval. Capacity, per-repository, and merged receipts are retained as artifacts. The weekly protocol workflow validates pins and benchmark logic without presenting protocol validation as a fresh performance result.</p>
 
   <h2>Claim boundary</h2>
   <p>This is a retrieval-workflow benchmark. Its quality gate scores retrieved source support rather than a model-generated final answer. Token counts cover tool context, not hidden model reasoning, final-answer output, cache billing, or provider pricing. A provider end-to-end claim additionally requires the same model, prompt, temperature, agent loop, and provider usage receipts in both conditions.</p>

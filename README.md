@@ -438,6 +438,7 @@ Reproduce the current pinned fixture and methodology with:
 .venv/bin/python benchmarks/universal_closed_loop_benchmark.py \
   --oss-root /tmp/skygrep-general-v2-repos \
   --prepare --refresh-index --reset-index \
+  --index-timeout 18000 \
   --trials 3 --tokenizer tiktoken \
   --report /tmp/skygrep-general-v2.json --summary-only
 ```

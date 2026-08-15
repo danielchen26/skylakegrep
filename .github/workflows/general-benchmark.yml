@@ -1,9 +1,7 @@
-name: General Benchmark v2
+name: General Benchmark v2 (accelerated)
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "17 8 * * 1"
 
 permissions:
   contents: read
@@ -12,14 +10,14 @@ concurrency:
   group: general-benchmark-v2
   cancel-in-progress: false
 
+# The full six-index run deliberately targets an explicitly provisioned
+# accelerator. Standard GitHub-hosted CPU runners are covered by the separate
+# weekly protocol workflow; they cannot finish the pinned bge-m3 corpus inside
+# the benchmark timeout.
 jobs:
-  repo-benchmark:
-    runs-on: ubuntu-latest
-    timeout-minutes: 360
-    strategy:
-      fail-fast: false
-      matrix:
-        repo: [cobra, django, react, spring-framework, tokio, vite]
+  capacity-cobra:
+    runs-on: [self-hosted, skygrep-benchmark]
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
 
@@ -29,27 +27,122 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
-      - name: Install ripgrep and Ollama
+      - name: Verify benchmark runner prerequisites
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ripgrep
-          curl -fsSL https://ollama.com/install.sh | sh
+          command -v rg
+          command -v ollama
+          curl --version
 
       - name: Install benchmark dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[benchmark]"
 
-      - name: Cache bge-m3 model
-        uses: actions/cache@v6
+      - name: Start local embedding service
+        run: |
+          if ! curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then
+            ollama serve > /tmp/skygrep-ollama-cobra.log 2>&1 &
+          else
+            : > /tmp/skygrep-ollama-cobra.log
+          fi
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then
+              break
+            fi
+            echo "waiting for Ollama (${attempt}/30)"
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull bge-m3
+
+      - name: Run fresh Cobra capacity reference
+        run: |
+          python benchmarks/universal_closed_loop_benchmark.py \
+            --repo cobra \
+            --oss-root /tmp/skygrep-general-v2-repos \
+            --prepare \
+            --refresh-index \
+            --reset-index \
+            --index-timeout 18000 \
+            --trials 3 \
+            --tokenizer tiktoken \
+            --report /tmp/general-cobra.json \
+            > /tmp/general-cobra.stdout.txt
+
+      - name: Project full-matrix runner capacity
+        run: |
+          python benchmarks/general_capacity_preflight.py \
+            --cobra-receipt /tmp/general-cobra.json \
+            --oss-root /tmp/skygrep-general-v2-repos \
+            --prepare \
+            --max-index-seconds 18000 \
+            --report /tmp/general-capacity.json \
+            > /tmp/general-capacity.stdout.json
+
+      - name: Scan capacity artifacts for private material
+        id: privacy_scan
+        if: always()
+        run: |
+          python scripts/privacy_release_scan.py \
+            /tmp/general-cobra.json \
+            /tmp/general-cobra.stdout.txt \
+            /tmp/general-capacity.json \
+            /tmp/general-capacity.stdout.json \
+            /tmp/skygrep-ollama-cobra.log
+
+      - name: Upload Cobra and capacity receipts
+        if: ${{ always() && steps.privacy_scan.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
         with:
-          path: ~/.ollama/models
-          key: ollama-bge-m3-${{ runner.os }}-v1
+          name: general-v2-cobra
+          path: |
+            /tmp/general-cobra.json
+            /tmp/general-cobra.stdout.txt
+            /tmp/general-capacity.json
+            /tmp/general-capacity.stdout.json
+            /tmp/skygrep-ollama-cobra.log
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Enforce runner capacity before the five large indexes
+        run: jq -e '.capacity_gate.passed == true' /tmp/general-capacity.json
+
+  repo-benchmark:
+    needs: capacity-cobra
+    runs-on: [self-hosted, skygrep-benchmark]
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        repo: [django, react, spring-framework, tokio, vite]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Verify benchmark runner prerequisites
+        run: |
+          command -v rg
+          command -v ollama
+          curl --version
+
+      - name: Install benchmark dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[benchmark]"
 
       - name: Start local embedding service
         run: |
-          ollama serve > "/tmp/skygrep-ollama-${{ matrix.repo }}.log" 2>&1 &
-          for attempt in $(seq 1 30); do
+          if ! curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then
+            ollama serve > "/tmp/skygrep-ollama-${{ matrix.repo }}.log" 2>&1 &
+          else
+            : > "/tmp/skygrep-ollama-${{ matrix.repo }}.log"
+          fi
+          for attempt in {1..30}; do
             if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then
               break
             fi
@@ -102,7 +195,7 @@ jobs:
           retention-days: 30
 
   aggregate:
-    needs: repo-benchmark
+    needs: [capacity-cobra, repo-benchmark]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -127,7 +220,12 @@ jobs:
       - name: Merge paired receipts
         run: |
           python benchmarks/merge_general_reports.py \
-            /tmp/general-inputs/general-*.json \
+            /tmp/general-inputs/general-cobra.json \
+            /tmp/general-inputs/general-django.json \
+            /tmp/general-inputs/general-react.json \
+            /tmp/general-inputs/general-spring-framework.json \
+            /tmp/general-inputs/general-tokio.json \
+            /tmp/general-inputs/general-vite.json \
             --output /tmp/skygrep-general-v2.json \
             > /tmp/skygrep-general-v2.stdout.json
 
