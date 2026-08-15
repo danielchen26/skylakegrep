@@ -7,6 +7,7 @@ import subprocess
 
 import pytest
 
+from benchmarks.general_capacity_preflight import capacity_report
 from benchmarks.general_stats import paired_efficiency
 from benchmarks.merge_general_reports import merge_reports
 from benchmarks.public_fixtures import RepoSpec, load_registry, prepare_repo, validate_repo_fixture
@@ -44,6 +45,29 @@ def _row(
     }
 
 
+def _cobra_capacity_receipt(*, elapsed: float = 10.0, chunks: int = 10):
+    return {
+        "schema_version": 2,
+        "environment": {
+            "benchmark_source_commit": "1" * 40,
+            "benchmark_source_tracked_clean": "true",
+        },
+        "generalization": {"source_gate": {"passed": True}},
+        "sections": [
+            {
+                "repo": "cobra",
+                "index": {
+                    "refreshed": True,
+                    "reset": True,
+                    "integrity": "ok",
+                    "chunks": chunks,
+                    "elapsed_seconds": elapsed,
+                },
+            }
+        ],
+    }
+
+
 def test_public_registry_has_six_pinned_repos_and_sixty_evidence_tasks():
     registry = load_registry()
     assert set(registry) == {"cobra", "django", "react", "spring-framework", "tokio", "vite"}
@@ -55,6 +79,43 @@ def test_public_registry_has_six_pinned_repos_and_sixty_evidence_tasks():
             assert task["deliverable"] == "source_evidence"
             assert len(task["evidence_terms"]) >= 2
             assert len(task["quality_terms"]) >= 2
+
+
+def test_capacity_preflight_uses_conservative_chunk_or_character_ratio():
+    workloads = {
+        repo: {"files": 1, "chunks": 10, "model_chars": 1_000}
+        for repo in load_registry()
+    }
+    workloads["django"] = {"files": 20, "chunks": 20, "model_chars": 5_000}
+    workloads["react"] = {"files": 30, "chunks": 40, "model_chars": 2_000}
+    report = capacity_report(
+        workloads,
+        _cobra_capacity_receipt(),
+        max_index_seconds=45.0,
+    )
+    assert report["repositories"]["django"]["capacity_load_ratio"] == 5.0
+    assert report["repositories"]["django"]["projected_index_seconds"] == 50.0
+    assert report["repositories"]["react"]["capacity_load_ratio"] == 4.0
+    assert report["capacity_gate"] == {
+        "passed": False,
+        "limiting_repo": "django",
+        "largest_projected_index_seconds": 50.0,
+    }
+
+
+def test_capacity_preflight_rejects_stale_or_mismatched_cobra_receipt():
+    workloads = {
+        repo: {"files": 1, "chunks": 10, "model_chars": 1_000}
+        for repo in load_registry()
+    }
+    dirty = _cobra_capacity_receipt()
+    dirty["environment"]["benchmark_source_tracked_clean"] = "false"
+    with pytest.raises(ValueError, match="clean, source-gated"):
+        capacity_report(workloads, dirty, max_index_seconds=100.0)
+
+    mismatched = _cobra_capacity_receipt(chunks=9)
+    with pytest.raises(ValueError, match="chunk count"):
+        capacity_report(workloads, mismatched, max_index_seconds=100.0)
 
 
 def test_public_fixture_validation_requires_origin_pin_and_clean_tracked_tree(tmp_path):

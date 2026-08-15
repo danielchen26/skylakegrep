@@ -90,11 +90,17 @@ This is deliberately not the per-change inner loop:
 | Gate | Cadence | Cost |
 | --- | --- | --- |
 | Deterministic six-task contract | Every pull request | Seconds; model-free |
-| General Benchmark v2 | Weekly, before a performance release, or on explicit request | Six full public indexes plus paired trials |
+| General v2 protocol gate | Weekly and on explicit request | Public pins, fixtures, statistics, merge/source/capacity gates; model-free |
+| Full General Benchmark v2 | Before a performance release or on explicit request | Accelerator required; six full public indexes plus paired trials |
 
-The scheduled General Benchmark runs repositories in parallel. Local reruns
-reuse completed indexes unless the index format, embedding model, or pinned
-source changes.
+The scheduled GitHub workflow validates the protocol on a standard hosted
+runner; it does **not** mint a new performance receipt. The full workflow is a
+manual dispatch targeting a self-hosted runner labeled `skygrep-benchmark`.
+It first fresh-indexes Cobra, projects the other five workloads from exact
+chunk and capped-model-input counts, and stops before the large indexes if any
+projection exceeds the index timeout. After that capacity gate, independent
+runners may execute repositories in parallel. Local reruns reuse completed
+indexes unless the index format, embedding model, or pinned source changes.
 
 ## Reproduce
 
@@ -110,7 +116,7 @@ python benchmarks/universal_closed_loop_benchmark.py \
   --prepare \
   --refresh-index \
   --reset-index \
-  --index-timeout 7200 \
+  --index-timeout 18000 \
   --trials 3 \
   --tokenizer tiktoken \
   --report /tmp/skygrep-general-v2.json \
@@ -127,11 +133,12 @@ separately and does not enter the retrieval-efficiency headline. Once the pins
 are fully indexed, omit `--refresh-index --reset-index` to repeat query trials
 without rebuilding them.
 
-The weekly `General Benchmark v2` GitHub workflow runs the six pinned
-repositories as independent parallel jobs with local `bge-m3` embedding
-services, then merges their compact rows and recomputes one quality gate and
-confidence interval. It uploads both per-repository receipts and the final
-merged JSON receipt.
+The manual `General Benchmark v2 (accelerated)` workflow runs the six pinned
+repositories with local `bge-m3` embedding services, then merges their compact
+rows and recomputes one quality gate and confidence interval. It uploads the
+capacity receipt, per-repository receipts, and final merged JSON receipt. The
+weekly `General Benchmark v2 Protocol` workflow validates pins and benchmark
+logic without presenting protocol validation as a fresh performance result.
 
 ## What this still does not measure
 
