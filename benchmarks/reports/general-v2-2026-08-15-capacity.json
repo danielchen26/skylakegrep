@@ -1,0 +1,82 @@
+{
+  "benchmark_source_commit": "e47e7f7b100bd1fcf30f28ea509703a1d2d1f17a",
+  "benchmark_source_tracked_clean": true,
+  "capacity_gate": {
+    "largest_projected_index_seconds": 4289.699,
+    "limiting_repo": "react",
+    "passed": true
+  },
+  "max_index_seconds": 18000.0,
+  "projection_method": "fresh Cobra elapsed multiplied by the larger of each repository's chunk-count ratio and capped model-input-character ratio",
+  "purpose": "runner capacity gate; not a retrieval-efficiency claim",
+  "reference": {
+    "chunks": 406,
+    "elapsed_seconds": 29.469,
+    "files": 54,
+    "model_chars": 639888,
+    "repo": "cobra"
+  },
+  "repositories": {
+    "cobra": {
+      "capacity_load_ratio": 1.0,
+      "chunk_ratio_vs_cobra": 1.0,
+      "chunks": 406,
+      "files": 54,
+      "model_char_ratio_vs_cobra": 1.0,
+      "model_chars": 639888,
+      "projected_index_seconds": 29.469,
+      "within_index_timeout": true
+    },
+    "django": {
+      "capacity_load_ratio": 115.527,
+      "chunk_ratio_vs_cobra": 115.527,
+      "chunks": 46904,
+      "files": 3703,
+      "model_char_ratio_vs_cobra": 46.673,
+      "model_chars": 29865754,
+      "projected_index_seconds": 3404.468,
+      "within_index_timeout": true
+    },
+    "react": {
+      "capacity_load_ratio": 145.567,
+      "chunk_ratio_vs_cobra": 145.567,
+      "chunks": 59100,
+      "files": 6522,
+      "model_char_ratio_vs_cobra": 54.344,
+      "model_chars": 34773798,
+      "projected_index_seconds": 4289.699,
+      "within_index_timeout": true
+    },
+    "spring-framework": {
+      "capacity_load_ratio": 92.208,
+      "chunk_ratio_vs_cobra": 82.788,
+      "chunks": 33612,
+      "files": 9628,
+      "model_char_ratio_vs_cobra": 92.208,
+      "model_chars": 59002914,
+      "projected_index_seconds": 2717.283,
+      "within_index_timeout": true
+    },
+    "tokio": {
+      "capacity_load_ratio": 9.708,
+      "chunk_ratio_vs_cobra": 8.901,
+      "chunks": 3614,
+      "files": 818,
+      "model_char_ratio_vs_cobra": 9.708,
+      "model_chars": 6212113,
+      "projected_index_seconds": 286.089,
+      "within_index_timeout": true
+    },
+    "vite": {
+      "capacity_load_ratio": 23.118,
+      "chunk_ratio_vs_cobra": 23.118,
+      "chunks": 9386,
+      "files": 1597,
+      "model_char_ratio_vs_cobra": 7.64,
+      "model_chars": 4888540,
+      "projected_index_seconds": 681.271,
+      "within_index_timeout": true
+    }
+  },
+  "schema_version": 1
+}
