@@ -45,6 +45,9 @@ PROBE_STOPWORDS = {
     "about",
     "after",
     "against",
+    "answer",
+    "anchor",
+    "anchors",
     "and",
     "are",
     "as",
@@ -55,24 +58,42 @@ PROBE_STOPWORDS = {
     "by",
     "can",
     "could",
+    "code",
     "does",
+    "entry",
     "for",
     "from",
+    "function",
+    "functions",
     "has",
     "have",
     "handle",
     "how",
+    "identify",
+    "identifies",
     "if",
     "incom",
     "incoming",
+    "implementation",
+    "implemented",
     "in",
     "is",
     "it",
     "into",
+    "method",
     "of",
     "on",
     "or",
+    "point",
+    "prove",
+    "proves",
+    "responsibility",
+    "routine",
+    "routines",
     "should",
+    "source",
+    "symbol",
+    "symbols",
     "that",
     "the",
     "this",
@@ -81,6 +102,7 @@ PROBE_STOPWORDS = {
     "turned",
     "turning",
     "turns",
+    "type",
     "what",
     "when",
     "where",
@@ -112,6 +134,27 @@ SOURCE_SUFFIXES = {
     ".ts",
     ".tsx",
 }
+
+SYMBOL_DECLARATION_RE = re.compile(
+    r"^\s*(?:(?:export|pub(?:\([^)]*\))?|public|protected|private|static|final|abstract|async)\s+)*"
+    r"(?:def|class|func|function|fn|struct|enum|trait|interface|type|macro_rules!)\b",
+    re.IGNORECASE,
+)
+JAVA_METHOD_RE = re.compile(
+    r"^\s*(?:public|protected|private)\s+"
+    r"(?:@\w+(?:\([^)]*\))?\s+)*"
+    r"[\w<>,?.\[\]]+\s+[A-Za-z_$][\w$]*\s*\(",
+)
+CONTROL_FLOW_PREFIXES = (
+    "catch ",
+    "else ",
+    "for ",
+    "if ",
+    "match ",
+    "return ",
+    "switch ",
+    "while ",
+)
 
 LOW_VALUE_PATH_PARTS = (
     "/.git/",
@@ -218,13 +261,15 @@ def _run(
 
 
 def _safe_rel(root: Path, raw_path: str) -> str:
+    root = root.resolve()
+    path = Path(raw_path)
+    candidate = path.resolve() if path.is_absolute() else (root / path).resolve()
     try:
-        return Path(raw_path).resolve().relative_to(root.resolve()).as_posix()
+        return candidate.relative_to(root).as_posix()
     except (OSError, ValueError):
-        path = Path(raw_path)
         if path.is_absolute():
             return f"<outside-benchmark-root>/{path.name}"
-        return raw_path
+        return path.as_posix()
 
 
 def _dedupe(seq: list[str]) -> list[str]:
@@ -252,8 +297,17 @@ def _probe_terms(query: str, max_terms: int) -> list[str]:
         if len(lowered) < 2 or lowered in PROBE_STOPWORDS:
             continue
         raw_terms.append(lowered)
+        raw_terms.extend(
+            part
+            for part in re.split(r"[-+]", lowered)
+            if len(part) >= 3 and part != lowered
+        )
         if len(lowered) > 3 and lowered.endswith("s"):
             raw_terms.append(lowered[:-1])
+        if len(lowered) > 5 and lowered.endswith("ing"):
+            raw_terms.append(lowered[:-3])
+        if len(lowered) > 4 and lowered.endswith("ed"):
+            raw_terms.append(lowered[:-2])
     semantic_terms = [
         term.lower()
         for term in extract_terms(query, max_terms=max_terms)
@@ -386,7 +440,7 @@ def _skygrep_step(
     if isinstance(parsed, list):
         for item in parsed:
             if isinstance(item, dict) and item.get("path"):
-                paths.append(str(item["path"]))
+                paths.append(_safe_rel(root, str(item["path"])))
     return StepResult(
         name=name,
         tool_calls=1,
@@ -552,6 +606,114 @@ def _rg_path_probe_step(
     )
 
 
+def _path_word_match_score(term: str, word: str) -> int:
+    if len(term) < 3 or len(word) < 3:
+        return 0
+    if term == word:
+        return len(term) + 1
+    if term in word or word in term:
+        return min(len(term), len(word))
+    common = 0
+    for left, right in zip(term, word):
+        if left != right:
+            break
+        common += 1
+    return common if common >= 4 else 0
+
+
+def _path_words(value: str) -> list[str]:
+    expanded = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", value)
+    return [word for word in re.findall(r"[a-z0-9]+", expanded.lower()) if len(word) >= 3]
+
+
+def _filename_probe_step(
+    root: Path,
+    query: str,
+    *,
+    max_paths: int,
+    name: str,
+) -> StepResult:
+    """Recall source paths whose filename or directory tokens match the query."""
+
+    started = time.perf_counter()
+    root = root.resolve()
+    terms = _selected_probe_terms(root, query, max_terms=12)
+    ranked: list[tuple[int, int, int, int, str, set[str]]] = []
+    try:
+        candidates = root.rglob("*")
+        for target in candidates:
+            if not target.is_file() or target.suffix.lower() not in SOURCE_SUFFIXES:
+                continue
+            try:
+                rel = target.relative_to(root).as_posix()
+            except ValueError:
+                continue
+            path_words = _path_words(rel)
+            filename_words = _path_words(target.stem)
+            matched: set[str] = set()
+            total_score = 0
+            query_parts: set[str] = set()
+            for term in terms:
+                term_parts = [
+                    part for part in re.findall(r"[a-z0-9]+", term.lower()) if len(part) >= 3
+                ] or [term.lower()]
+                query_parts.update(term_parts)
+                best_path = max(
+                    (_path_word_match_score(part, word) for part in term_parts for word in path_words),
+                    default=0,
+                )
+                if best_path <= 0:
+                    continue
+                matched.add(term)
+                total_score += best_path
+            if not matched:
+                continue
+            filename_score = sum(
+                max(
+                    (_path_word_match_score(part, word) for part in query_parts),
+                    default=0,
+                )
+                for word in set(filename_words)
+            )
+            lower = f"/{rel.lower()}"
+            low_value_penalty = sum(1 for part in LOW_VALUE_PATH_PARTS if part in lower)
+            adjusted_total_score = total_score - (8 * low_value_penalty)
+            adjusted_filename_score = filename_score - (8 * low_value_penalty)
+            ranked.append(
+                (
+                    -adjusted_filename_score,
+                    -adjusted_total_score,
+                    -len(matched),
+                    low_value_penalty,
+                    rel,
+                    matched,
+                )
+            )
+    except OSError:
+        ranked = []
+    ranked.sort(key=lambda item: item[:5])
+    selected = ranked[:max_paths]
+    paths = [item[4] for item in selected]
+    payload = (
+        "\n".join(
+            f"{path}\tterms={','.join(sorted(item[5]))}"
+            for item, path in zip(selected, paths)
+        )
+        if selected
+        else "NO_FILENAME_MATCHES"
+    )
+    elapsed = time.perf_counter() - started
+    return StepResult(
+        name=name,
+        tool_calls=1,
+        elapsed_seconds=elapsed,
+        context_tokens=approximate_tokens(payload, 4),
+        paths=paths,
+        payload=payload,
+        returncode=0,
+    )
+
+
 def _read_paths_step(
     root: Path,
     paths: list[str],
@@ -561,10 +723,12 @@ def _read_paths_step(
     name: str,
 ) -> StepResult:
     started = time.perf_counter()
+    root = root.resolve()
     sections: list[str] = []
     read_paths: list[str] = []
     for rel in _dedupe(paths)[:max_files]:
-        target = (root / rel).resolve()
+        raw_path = Path(rel)
+        target = raw_path.resolve() if raw_path.is_absolute() else (root / raw_path).resolve()
         try:
             target.relative_to(root)
         except ValueError:
@@ -588,6 +752,172 @@ def _read_paths_step(
         payload=payload,
         returncode=0,
     )
+
+
+def _symbol_declaration_priority(line: str) -> int:
+    """Rank source declarations across the benchmark language matrix."""
+
+    stripped = line.strip()
+    lowered = stripped.lower()
+    if SYMBOL_DECLARATION_RE.search(line) or JAVA_METHOD_RE.search(line):
+        return 2
+    if not stripped or lowered.startswith(CONTROL_FLOW_PREFIXES):
+        return 0
+    # Java/Kotlin/C#/Swift methods do not use a dedicated function keyword.
+    # A bounded signature-shaped line is useful here; query-term filtering in
+    # _read_symbol_paths_step keeps ordinary calls out of the final payload.
+    return int(
+        "(" in stripped
+        and ")" in stripped
+        and len(stripped) <= 300
+        and (stripped.endswith("{") or stripped.endswith(";") or " throws " in lowered)
+        and "=" not in stripped.split("(", 1)[0]
+    )
+
+
+def _looks_like_symbol_declaration(line: str) -> bool:
+    return _symbol_declaration_priority(line) > 0
+
+
+def _read_symbol_paths_step(
+    root: Path,
+    paths: list[str],
+    query: str,
+    *,
+    max_files: int,
+    max_chars_per_file: int,
+    name: str,
+) -> StepResult:
+    """Read a bounded symbol inventory from candidate source files.
+
+    File heads are a poor proxy for implementation evidence in large modules:
+    the relevant function may sit thousands of lines below the imports. This
+    pass scans only already-recalled candidate files, keeps declarations that
+    share natural-language query terms, and returns compact line anchors. It
+    never uses fixture answers or hidden evidence terms.
+    """
+
+    started = time.perf_counter()
+    root = root.resolve()
+    terms = _selected_probe_terms(root, query, max_terms=12)
+    sections: list[str] = []
+    read_paths: list[str] = []
+    for rel in _dedupe(paths)[:max_files]:
+        raw_path = Path(rel)
+        target = raw_path.resolve() if raw_path.is_absolute() else (root / raw_path).resolve()
+        try:
+            target.relative_to(root)
+        except ValueError:
+            continue
+        if not target.is_file() or target.suffix.lower() not in SOURCE_SUFFIXES:
+            continue
+        try:
+            lines = target.read_text(errors="ignore").splitlines()
+        except OSError:
+            continue
+        candidates: list[tuple[int, int, int, str]] = []
+        for line_number, line in enumerate(lines, start=1):
+            lowered = line.lower()
+            hits = sum(1 for term in terms if term and term in lowered)
+            strict_declaration = bool(
+                SYMBOL_DECLARATION_RE.search(line) or JAVA_METHOD_RE.search(line)
+            )
+            if hits <= 0 and not strict_declaration:
+                continue
+            declaration_priority = _symbol_declaration_priority(line)
+            # Query-matching declarations are most useful, but retain a
+            # bounded inventory of strict declarations too. Natural-language
+            # descriptions do not always reveal implementation names such as
+            # updateSlot or Tx; an agent reading the candidate file still sees
+            # those declarations without knowing fixture evidence in advance.
+            priority = declaration_priority + (1 if hits > 0 else 0)
+            candidates.append((-priority, -hits, line_number, line.rstrip()))
+        rendered: list[str] = []
+        used_chars = 0
+        for _, _, line_number, line in sorted(candidates):
+            item = f"{line_number}:{line}"
+            if used_chars + len(item) + 1 > max_chars_per_file:
+                continue
+            rendered.append(item)
+            used_chars += len(item) + 1
+        if not rendered:
+            continue
+        sections.append(f"## relevant symbols: {rel}\n" + "\n".join(rendered))
+        read_paths.append(rel)
+    payload = "\n\n".join(sections) if sections else "NO_RELEVANT_SYMBOLS"
+    elapsed = time.perf_counter() - started
+    return StepResult(
+        name=name,
+        tool_calls=1 if read_paths else 0,
+        elapsed_seconds=elapsed,
+        context_tokens=approximate_tokens(payload, 4),
+        paths=read_paths,
+        payload=payload,
+        returncode=0,
+    )
+
+
+def _candidate_scope_source_paths(
+    root: Path,
+    paths: list[str],
+    query: str,
+    *,
+    max_scopes: int,
+    max_files: int,
+) -> list[str]:
+    """Expand strong candidate directories to bounded immediate source siblings."""
+
+    root = root.resolve()
+    terms = _selected_probe_terms(root, query, max_terms=12)
+    scope_stats: dict[str, dict[str, int]] = {}
+    for rel in _dedupe(paths):
+        raw_path = Path(rel)
+        target = raw_path.resolve() if raw_path.is_absolute() else (root / raw_path).resolve()
+        try:
+            relative = target.relative_to(root)
+        except ValueError:
+            continue
+        parent = relative.parent
+        for hops in range(2):
+            scope = parent.as_posix()
+            stats = scope_stats.setdefault(
+                scope,
+                {
+                    "term_hits": sum(1 for term in terms if term and term in scope.lower()),
+                    "candidate_count": 0,
+                    "hops": hops,
+                    "depth": len(parent.parts),
+                },
+            )
+            stats["candidate_count"] += 1
+            stats["hops"] = min(stats["hops"], hops)
+            if parent == Path(".") or parent.parent == parent:
+                break
+            parent = parent.parent
+    ranked_scopes = sorted(
+        scope_stats,
+        key=lambda scope: (
+            -scope_stats[scope]["term_hits"],
+            -scope_stats[scope]["candidate_count"],
+            scope_stats[scope]["hops"],
+            -scope_stats[scope]["depth"],
+            scope,
+        ),
+    )[:max_scopes]
+    siblings: list[str] = []
+    for scope in ranked_scopes:
+        directory = root if scope == "." else root / scope
+        try:
+            children = sorted(directory.iterdir(), key=lambda path: path.name)
+        except OSError:
+            continue
+        for child in children:
+            if not child.is_file() or child.suffix.lower() not in SOURCE_SUFFIXES:
+                continue
+            siblings.append(child.relative_to(root).as_posix())
+            if len(_dedupe(siblings)) >= max_files:
+                return _dedupe(siblings)
+    return _dedupe(siblings)
 
 
 def _current_score(task: dict[str, Any], payloads: list[str], paths: list[str]) -> dict[str, Any]:
@@ -847,6 +1177,8 @@ def _closed_loop(
     initial_needs_content = task.get("abstract_level") != "locate"
 
     if policy == "skygrep-first":
+        probe_paths: list[str] = []
+        filename_paths: list[str] = []
         score = add_step(
             _skygrep_step(
                 root,
@@ -895,17 +1227,21 @@ def _closed_loop(
                 )
             if enough(score) and stop_reason == "budget_exhausted":
                 stop_reason = "sufficient_after_focused_extraction"
-            if stop_reason == "budget_exhausted" and float(score["path_coverage"]) < 1.0:
+            if stop_reason == "budget_exhausted" and (
+                float(score["path_coverage"]) < 1.0
+                or float(score["evidence_coverage"]) < 1.0
+            ):
                 probe_scope = known_scope
                 probe = _rg_path_probe_step(
                     root,
                     task["query"],
                     timeout=timeout,
                     terms=max(3, int(effort["rg_terms"])),
-                    max_paths=max(8, int(effort["top"]) * 3),
+                    max_paths=max(15, int(effort["top"]) * 5),
                     includes=probe_scope,
                     name="fallback:rg_path_probe",
                 )
+                probe_paths = probe.paths
                 score = add_step(probe)
                 if probe.paths:
                     score = add_step(
@@ -919,8 +1255,56 @@ def _closed_loop(
                     )
                 if enough(score):
                     stop_reason = "sufficient_after_path_probe"
+            if stop_reason == "budget_exhausted" and initial_needs_content:
+                filename_probe = _filename_probe_step(
+                    root,
+                    task["query"],
+                    max_paths=max(30, int(effort["top"]) * 10),
+                    name="fallback:filename_probe",
+                )
+                filename_paths = filename_probe.paths
+                score = add_step(filename_probe)
+                if enough(score):
+                    stop_reason = "sufficient_after_filename_probe"
+            if stop_reason == "budget_exhausted" and paths and initial_needs_content:
+                symbol_candidates = _dedupe([*paths, *probe_paths, *filename_paths])
+                score = add_step(
+                    _read_symbol_paths_step(
+                        root,
+                        symbol_candidates,
+                        task["query"],
+                        max_files=max(50, int(effort["top"]) * 16),
+                        max_chars_per_file=max(8_000, read_chars * 2),
+                        name="fallback:read_candidate_symbols",
+                    )
+                )
+                if enough(score):
+                    stop_reason = "sufficient_after_candidate_symbol_reads"
+            if stop_reason == "budget_exhausted" and paths and initial_needs_content:
+                sibling_candidates = _candidate_scope_source_paths(
+                    root,
+                    [*paths, *probe_paths, *filename_paths],
+                    task["query"],
+                    max_scopes=5,
+                    max_files=80,
+                )
+                score = add_step(
+                    _read_symbol_paths_step(
+                        root,
+                        sibling_candidates,
+                        task["query"],
+                        max_files=80,
+                        max_chars_per_file=4_000,
+                        name="fallback:read_scoped_sibling_symbols",
+                    )
+                )
+                if enough(score):
+                    stop_reason = "sufficient_after_scoped_sibling_symbols"
             if stop_reason == "budget_exhausted":
-                fallback_scope = known_scope or _candidate_globs(paths)
+                fallback_scope = known_scope or _candidate_globs(
+                    [*paths, *probe_paths, *filename_paths],
+                    max_paths=max(5, int(effort["top"]) * 2),
+                )
                 score = add_step(
                     _rg_step(
                         root,
