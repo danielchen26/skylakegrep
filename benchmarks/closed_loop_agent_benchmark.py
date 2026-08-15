@@ -221,6 +221,9 @@ def _safe_rel(root: Path, raw_path: str) -> str:
     try:
         return Path(raw_path).resolve().relative_to(root.resolve()).as_posix()
     except (OSError, ValueError):
+        path = Path(raw_path)
+        if path.is_absolute():
+            return f"<outside-benchmark-root>/{path.name}"
         return raw_path
 
 
@@ -311,6 +314,13 @@ class StepResult:
     error: str = ""
 
     def compact(self) -> dict[str, Any]:
+        error_summary = ""
+        if self.error:
+            error_summary = (
+                self.error.strip()
+                if self.error.strip().lower().startswith("timeout after")
+                else "tool emitted stderr; inspect the private runner log"
+            )
         return {
             "name": self.name,
             "tool_calls": self.tool_calls,
@@ -318,7 +328,7 @@ class StepResult:
             "context_tokens": self.context_tokens,
             "paths": len(self.paths),
             "returncode": self.returncode,
-            **({"error": self.error[-180:]} if self.error else {}),
+            **({"error": error_summary} if error_summary else {}),
         }
 
 

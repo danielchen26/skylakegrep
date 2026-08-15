@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+ <head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <meta name="description" content="General Benchmark v2: pinned public repositories, source-evidence quality gates, paired statistics, and honest claim boundaries." />
+ <meta name="theme-color" content="#0a0d12" />
+ <title>General Benchmark v2 · skylakegrep</title>
+ <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+ <link rel="preconnect" href="https://rsms.me/" />
+ <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+ <link rel="stylesheet" href="styles.css?v=3.2.0" />
+ <style>
+  .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important; max-width: 1500px !important; }
+  .content { width: 100% !important; max-width: 100% !important; }
+  .md-body { max-width: 920px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+  .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px; letter-spacing: -0.02em; color: var(--ink); }
+  .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px; color: var(--ink); padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+  .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+  .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--code-border); }
+  .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px; border: 1px solid var(--code-border); overflow-x: auto; }
+  .md-body pre code { background: transparent; padding: 0; border: 0; }
+  .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+  .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+  .md-body th { color: var(--ink); background: var(--panel); }
+  .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 6px; }
+  .eyebrow-local { font: 11px var(--mono); letter-spacing: .18em; color: rgba(165,243,252,.65); text-transform: uppercase; }
+ </style>
+ </head>
+ <body>
+ <header class="topbar">
+  <a class="brand" href="index.html" aria-label="skylakegrep documentation"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="10" cy="10" r="6"/><line x1="14" y1="14" x2="20" y2="20"/></svg></span><span class="brand-text">skylakegrep</span><span class="version">General Benchmark v2</span></a>
+  <nav class="topnav" aria-label="External links"><a href="https://pypi.org/project/skylakegrep/">PyPI</a><a href="https://github.com/danielchen26/skylakegrep">GitHub</a><a class="topnav-cta" href="index.html#install">Install</a></nav>
+ </header>
+ <div class="docs-shell">
+ <aside class="sidebar" aria-label="Documentation navigation"><div class="sidebar-title">skylakegrep</div><nav><div class="nav-section"><p>Pages</p><a href="index.html">Home</a><a href="concepts.html">Concepts</a><a href="architecture.html">Architecture</a><a href="cli.html">CLI reference</a><a href="reference.html">JSON schema</a><a href="benchmarks.html" class="active">Benchmarks</a><a href="changelog.html">Release notes</a></div><div class="nav-section"><p>Project</p><a href="https://github.com/danielchen26/skylakegrep">GitHub</a><a href="https://pypi.org/project/skylakegrep/">PyPI</a><a href="principles.html">Principles</a></div></nav></aside>
+ <main class="content subpage-content"><article class="md-body">
+  <p class="eyebrow-local">Evaluation contract</p>
+  <h1>General Performance Benchmark v2</h1>
+  <blockquote>Across pinned public repositories, how much retrieval context and tool work does a skygrep-first agent policy use relative to an <code>rg</code>-only policy, after both meet the same task-quality floor?</blockquote>
+  <p>The older 4.05× result remains a deterministic six-task CI receipt. It is not a general multiplier. General Benchmark v2 separates correctness, context efficiency, and measured retrieval latency so none can hide a regression in another dimension.</p>
+
+  <h2>Public matrix</h2>
+  <table><thead><tr><th>Repository</th><th>Ecosystem</th><th>Tasks</th></tr></thead><tbody>
+   <tr><td>Cobra</td><td>Go</td><td>10</td></tr><tr><td>Django</td><td>Python</td><td>10</td></tr><tr><td>React</td><td>JavaScript / Flow</td><td>10</td></tr><tr><td>Spring Framework</td><td>Java</td><td>10</td></tr><tr><td>Tokio</td><td>Rust</td><td>10</td></tr><tr><td>Vite</td><td>TypeScript</td><td>10</td></tr>
+  </tbody></table>
+  <p>Every task has a canonical path, optional accepted alternatives, at least two literal evidence terms, at least two quality terms, and a public ground-truth note. Validation fails if a commit, origin, tracked worktree, accepted path, or evidence term drifts. Each report also records the benchmark source commit and whether its tracked worktree was clean.</p>
+
+  <h2>Quality before efficiency</h2>
+  <ul><li>Both policies must complete the paired task and achieve quality ≥ 0.85.</li><li>skygrep must remain within two percentage points of <code>rg</code> for aggregate quality and completion.</li><li>A general claim needs at least 30 unique eligible tasks across three repositories and at least 80% eligible paired observations.</li><li>Repeated trials stabilize measurement but do not increase the unique-task count.</li><li>The benchmark source must be one full Git commit with a clean tracked worktree; all six parallel receipts must use that same commit.</li></ul>
+  <p>The quality score is a deterministic, auditable retrieval-context proxy based on accepted paths, literal source facts, noise control, sufficiency, and stopping behavior. It does not claim that an unobserved downstream model wrote a correct final answer.</p>
+  <p>Only after these gates pass does the report calculate context-token and tool-call reduction, measured harness-wall and retrieval-tool elapsed ratios, cross-task and per-repository distributions after taking each task's median across trials, ratio-of-sums, and a 95% hierarchical-bootstrap interval over repositories and unique tasks. Harness wall time includes deterministic scoring and token counting; retrieval tool time is captured before token counting.</p>
+
+  <h2>Run cadence</h2>
+  <table><thead><tr><th>Gate</th><th>Cadence</th><th>Cost</th></tr></thead><tbody><tr><td>Deterministic six-task contract</td><td>Every pull request</td><td>Seconds; model-free</td></tr><tr><td>General Benchmark v2</td><td>Weekly, before a performance release, or on explicit request</td><td>Six full public indexes plus paired trials</td></tr></tbody></table>
+  <p>The scheduled general run parallelizes repositories. Local reruns reuse completed indexes unless the index format, embedding model, or pinned source changes.</p>
+
+  <h2>Reproduce</h2>
+  <pre><code>python -m pip install -e ".[benchmark]"
+python benchmarks/validate_public_fixtures.py \
+  --oss-root /tmp/skygrep-general-v2-repos --prepare
+python benchmarks/universal_closed_loop_benchmark.py \
+  --oss-root /tmp/skygrep-general-v2-repos --prepare \
+  --refresh-index --reset-index --index-timeout 7200 --trials 3 \
+  --tokenizer tiktoken --report /tmp/skygrep-general-v2.json \
+  --summary-only
+python benchmarks/closed_loop_regression_gate.py \
+  /tmp/skygrep-general-v2.json --require-general-reportable</code></pre>
+  <p>The first run builds six complete semantic indexes and can take hours on a CPU-only or memory-constrained machine. Index elapsed is recorded separately and never enters the retrieval-efficiency headline. Omit <code>--refresh-index --reset-index</code> on later query-only repetitions.</p>
+  <p>The weekly GitHub workflow parallelizes the six repository runs, then merges compact rows and recomputes one aggregate quality gate and confidence interval. Both per-repository and merged receipts are retained as artifacts.</p>
+
+  <h2>Claim boundary</h2>
+  <p>This is a retrieval-workflow benchmark. Its quality gate scores retrieved source support rather than a model-generated final answer. Token counts cover tool context, not hidden model reasoning, final-answer output, cache billing, or provider pricing. A provider end-to-end claim additionally requires the same model, prompt, temperature, agent loop, and provider usage receipts in both conditions.</p>
+  <p><a href="benchmarks.html">← Back to all benchmarks</a></p>
+ </article></main></div>
+ </body>
+</html>

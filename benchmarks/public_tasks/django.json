@@ -1,0 +1,122 @@
+[
+  {
+    "id": "url-dispatch",
+    "question": "Where does Django turn an incoming URL into the view function that should handle it, and what source evidence identifies that resolver?",
+    "expected": "django/urls/resolvers.py",
+    "expected_alternatives": ["django/urls/base.py", "django/core/handlers/base.py"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["ResolverMatch", "def resolve"],
+    "quality_terms": ["ResolverMatch", "def resolve"],
+    "ground_truth_note": "URLResolver.resolve returns the ResolverMatch used for dispatch."
+  },
+  {
+    "id": "orm-sql-builder",
+    "question": "Where is the ORM query representation that turns QuerySet operations into SQL compiler work, and which source symbols prove it?",
+    "expected": "django/db/models/sql/query.py",
+    "expected_alternatives": ["django/db/models/sql/compiler.py"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["class Query", "get_compiler"],
+    "quality_terms": ["class Query", "get_compiler"],
+    "ground_truth_note": "Query owns the ORM query state and delegates SQL generation through get_compiler."
+  },
+  {
+    "id": "migration-runner",
+    "question": "Where does Django plan and apply pending schema migrations, and which implementation names demonstrate that responsibility?",
+    "expected": "django/db/migrations/executor.py",
+    "expected_alternatives": ["django/db/migrations/migration.py"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["MigrationExecutor", "def migrate"],
+    "quality_terms": ["MigrationExecutor", "def migrate"],
+    "ground_truth_note": "MigrationExecutor builds the plan and runs migrate."
+  },
+  {
+    "id": "auth-backend",
+    "question": "Where is database-backed username and password authentication implemented, and what class and method anchor the answer?",
+    "expected": "django/contrib/auth/backends.py",
+    "expected_alternatives": ["django/contrib/auth/__init__.py"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["class ModelBackend", "def authenticate"],
+    "quality_terms": ["class ModelBackend", "def authenticate"],
+    "ground_truth_note": "ModelBackend.authenticate checks credentials against the configured user model."
+  },
+  {
+    "id": "template-rendering",
+    "question": "Where does the template engine turn a named template and context into rendered text, and what source anchors show the rendering entry point?",
+    "expected": "django/template/engine.py",
+    "expected_alternatives": ["django/template/base.py", "django/template/loader.py"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["class Engine", "render_to_string"],
+    "quality_terms": ["class Engine", "render_to_string"],
+    "ground_truth_note": "Engine.render_to_string is the engine-level named-template rendering path."
+  },
+  {
+    "id": "csrf-token",
+    "question": "Where does the CSRF middleware issue and compare anti-forgery tokens, and which source routines support the answer?",
+    "expected": "django/middleware/csrf.py",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["get_token", "_does_token_match"],
+    "quality_terms": ["get_token", "_does_token_match"],
+    "ground_truth_note": "The module owns token creation, masking, comparison, and CsrfViewMiddleware."
+  },
+  {
+    "id": "middleware-chain",
+    "question": "Where is Django's request middleware chain assembled before requests are handled, and which implementation details prove it?",
+    "expected": "django/core/handlers/base.py",
+    "expected_alternatives": ["django/core/handlers/exception.py"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["load_middleware", "_middleware_chain"],
+    "quality_terms": ["load_middleware", "_middleware_chain"],
+    "ground_truth_note": "BaseHandler.load_middleware constructs and stores the middleware chain."
+  },
+  {
+    "id": "upload-handler",
+    "question": "Where does Django stream uploaded request bodies into temporary files, and what source names identify that path?",
+    "expected": "django/core/files/uploadhandler.py",
+    "expected_alternatives": ["django/http/multipartparser.py"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["TemporaryFileUploadHandler", "receive_data_chunk"],
+    "quality_terms": ["TemporaryFileUploadHandler", "receive_data_chunk"],
+    "ground_truth_note": "TemporaryFileUploadHandler receives chunks and writes them to disk."
+  },
+  {
+    "id": "connection-lifecycle",
+    "question": "Where does Django decide whether a database connection remains reusable or must be reopened, and what methods anchor that lifecycle?",
+    "expected": "django/db/backends/base/base.py",
+    "expected_alternatives": ["django/db/__init__.py"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["def connect", "close_if_unusable_or_obsolete"],
+    "quality_terms": ["def connect", "close_if_unusable_or_obsolete"],
+    "ground_truth_note": "BaseDatabaseWrapper connects and closes stale or unusable connections."
+  },
+  {
+    "id": "form-cleaning",
+    "question": "Where does Django run per-field form cleaning hooks and aggregate validation errors, and which source routine demonstrates it?",
+    "expected": "django/forms/forms.py",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["def _clean_fields", "clean_%s"],
+    "quality_terms": ["def _clean_fields", "clean_%s"],
+    "ground_truth_note": "BaseForm._clean_fields invokes clean_<field> hooks during full_clean."
+  }
+]

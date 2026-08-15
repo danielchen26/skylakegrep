@@ -1,0 +1,122 @@
+[
+  {
+    "id": "use-state-storage",
+    "question": "Where does React retain and update hook state between renders, and which implementation symbols establish the answer?",
+    "expected": "packages/react-reconciler/src/ReactFiberHooks.js",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["mountState", "dispatchSetState"],
+    "quality_terms": ["mountState", "dispatchSetState"],
+    "ground_truth_note": "ReactFiberHooks mounts hook state and dispatches updates."
+  },
+  {
+    "id": "fiber-work-loop",
+    "question": "Where does React walk units of fiber work during rendering, and what functions prove that control loop?",
+    "expected": "packages/react-reconciler/src/ReactFiberWorkLoop.js",
+    "expected_alternatives": ["packages/react-reconciler/src/ReactFiberBeginWork.js"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["workLoopSync", "performUnitOfWork"],
+    "quality_terms": ["workLoopSync", "performUnitOfWork"],
+    "ground_truth_note": "ReactFiberWorkLoop owns synchronous and concurrent unit-of-work traversal."
+  },
+  {
+    "id": "synthetic-events",
+    "question": "Where are native browser events collected and dispatched through React's plugin event system, and what routines anchor that path?",
+    "expected": "packages/react-dom-bindings/src/events/DOMPluginEventSystem.js",
+    "expected_alternatives": ["packages/react-dom-bindings/src/events/SyntheticEvent.js"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["extractEvents", "dispatchEventForPluginEventSystem"],
+    "quality_terms": ["extractEvents", "dispatchEventForPluginEventSystem"],
+    "ground_truth_note": "DOMPluginEventSystem extracts plugin events and dispatches them for the target fiber."
+  },
+  {
+    "id": "scheduler-priority",
+    "question": "Where does React's scheduler advance timers and choose the next callback to execute, and which source functions demonstrate the loop?",
+    "expected": "packages/scheduler/src/forks/Scheduler.js",
+    "expected_alternatives": ["packages/react-reconciler/src/ReactFiberLane.js"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["advanceTimers", "function workLoop"],
+    "quality_terms": ["advanceTimers", "function workLoop"],
+    "ground_truth_note": "The scheduler fork advances delayed work and runs the callback work loop."
+  },
+  {
+    "id": "suspense-throw",
+    "question": "Where does React handle a thrown thenable during render and locate the Suspense boundary that should capture it, and what code anchors prove it?",
+    "expected": "packages/react-reconciler/src/ReactFiberThrow.js",
+    "expected_alternatives": ["packages/react-reconciler/src/ReactFiberSuspenseComponent.js", "packages/react-reconciler/src/ReactFiberUnwindWork.js"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["throwException", "SuspenseComponent"],
+    "quality_terms": ["throwException", "SuspenseComponent"],
+    "ground_truth_note": "ReactFiberThrow handles thrown values and searches for a Suspense boundary."
+  },
+  {
+    "id": "child-reconciliation",
+    "question": "Where does React compare keyed children and decide which fibers to reuse, insert, or discard, and what routines identify the algorithm?",
+    "expected": "packages/react-reconciler/src/ReactChildFiber.js",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["reconcileChildrenArray", "updateSlot"],
+    "quality_terms": ["reconcileChildrenArray", "updateSlot"],
+    "ground_truth_note": "ReactChildFiber performs keyed child reconciliation."
+  },
+  {
+    "id": "create-element",
+    "question": "Where is the element-construction path used by React.createElement, and which functions show the public call and internal element creation?",
+    "expected": "packages/react/src/jsx/ReactJSXElement.js",
+    "expected_alternatives": ["packages/react/src/ReactElement.js"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["createElement", "ReactElement"],
+    "quality_terms": ["createElement", "ReactElement"],
+    "ground_truth_note": "ReactJSXElement exports createElement and constructs ReactElement objects."
+  },
+  {
+    "id": "context-propagation",
+    "question": "Where does React push provider values and propagate changed context through the fiber tree, and what routines prove the mechanism?",
+    "expected": "packages/react-reconciler/src/ReactFiberNewContext.js",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["pushProvider", "propagateContextChanges"],
+    "quality_terms": ["pushProvider", "propagateContextChanges"],
+    "ground_truth_note": "ReactFiberNewContext owns provider stack changes and context propagation."
+  },
+  {
+    "id": "passive-effects",
+    "question": "Where does React flush passive hook effects after commit, and which source functions anchor the scheduling and mounting work?",
+    "expected": "packages/react-reconciler/src/ReactFiberWorkLoop.js",
+    "expected_alternatives": ["packages/react-reconciler/src/ReactFiberCommitWork.js", "packages/react-reconciler/src/ReactFiberCommitEffects.js"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["flushPassiveEffects", "flushPassiveEffectsImpl"],
+    "quality_terms": ["flushPassiveEffects", "flushPassiveEffectsImpl"],
+    "ground_truth_note": "The work loop flushes passive effects and commit code mounts passive hook effects."
+  },
+  {
+    "id": "profiler-timer",
+    "question": "Where does the reconciler start and stop render timers used for Profiler measurements, and what source names identify that instrumentation?",
+    "expected": "packages/react-reconciler/src/ReactProfilerTimer.js",
+    "expected_alternatives": ["packages/react/src/ReactProfiler.js"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["startProfilerTimer", "stopProfilerTimerIfRunning"],
+    "quality_terms": ["startProfilerTimer", "stopProfilerTimerIfRunning"],
+    "ground_truth_note": "ReactProfilerTimer implements render-duration timing helpers."
+  }
+]

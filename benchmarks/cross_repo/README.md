@@ -19,6 +19,13 @@ the published benchmarks you must build your own task set against
 your own repositories. The schema below is the only stable
 contract.
 
+Public, pinned, release-grade fixtures live separately in
+[`../public_tasks/`](../public_tasks/) and are safe to commit because they
+describe only named public open-source repositories. Do not move private
+fixtures into that directory. The public registry records exact commits in
+[`../public_repos.json`](../public_repos.json), and validation fails when a
+commit, path, or evidence term drifts.
+
 ## Schema
 
 ```json

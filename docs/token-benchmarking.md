@@ -3,9 +3,10 @@
 This document defines what the included benchmarks measure, how they are run,
 and what they explicitly do not measure.
 
-> **See also:** [`docs/parity-benchmarks.md`](parity-benchmarks.md) consolidates
-> the headline numbers, including the real-ripgrep comparison and the
-> cross-repo (Rust workspace) results, in a single table.
+> **Current protocol:** [`general-performance.md`](general-performance.md)
+> defines the pinned, quality-gated General Benchmark v2. The
+> [`parity-benchmarks.md`](parity-benchmarks.md) page preserves an older
+> three-repository receipt and is not the current general claim.
 
 The benchmarks live in `benchmarks/` in the project root:
 
@@ -17,7 +18,7 @@ The benchmarks live in `benchmarks/` in the project root:
 - `benchmarks/parity_vs_mixedbread.py` — Mixedbread cloud parity harness;
   requires interactive `skygrep login` and is not run by CI.
 
-## Headline result
+## Historical deterministic result
 
 ![skylakegrep benchmark](assets/benchmark.svg)
 
@@ -33,8 +34,10 @@ skygrep tool calls:                      30
 grep-agent tool calls:                 227
 ```
 
-The result is reproducible from a fresh clone. It is not an end-to-end
-provider billing measurement; see [Limitations](#limitations) below.
+The result is reproducible from a fresh clone of the matching historical
+fixture. It is a repository-specific regression receipt, not the current
+cross-repository headline and not an end-to-end provider billing measurement;
+see [Limitations](#limitations) below.
 
 ## What is measured
 
@@ -134,6 +137,11 @@ The numbers above support narrow claims only.
 
 ## Conditions for an end-to-end claim
 
+General Benchmark v2 now implements the public pinned-fixture, real-tokenizer,
+paired quality-gate, and measured retrieval-latency portions of this plan; see
+[`general-performance.md`](general-performance.md). It deliberately labels its
+scope as retrieval workflow rather than provider end-to-end usage.
+
 A future end-to-end benchmark, suitable for the broader claim that
 `skylakegrep` reduces token usage in real coding-agent sessions, requires
 the following:
@@ -156,7 +164,8 @@ the following:
    reported alongside the rubric quality score on each side. A workflow
    that uses fewer tokens but produces a worse answer is worse, not better.
 
-Until that benchmark is run, the claim from this repository is the narrower
-one stated at the top of this document: equal recall at top-k 10 with about
-a 2× estimated total-token reduction in a deterministic local
-context-gathering benchmark on this codebase.
+Until a provider-receipt benchmark is run, this repository does not claim a
+general end-to-end token or speed multiplier. The historical result above is
+limited to its deterministic local fixture; General Benchmark v2 separately
+measures a pinned cross-repository retrieval workflow and publishes a
+multiplier only after its quality and sample gates pass.

@@ -3,11 +3,11 @@
  <head>
  <meta charset="utf-8" />
  <meta name="viewport" content="width=device-width, initial-scale=1" />
- <meta name="description" content="Full parity benchmark protocol: clone three OSS repos, run the bench script, compare against rg." />
+ <meta name="description" content="Historical three-repository parity receipt, with links to the current pinned General Benchmark v2 protocol." />
  <meta name="theme-color" content="#13192a" />
  <meta property="og:type" content="article" />
  <meta property="og:title" content="Parity benchmarks · skylakegrep" />
- <meta property="og:description" content="Full parity benchmark protocol: clone three OSS repos, run the bench script, compare against rg." />
+ <meta property="og:description" content="Historical three-repository parity receipt, with links to the current pinned General Benchmark v2 protocol." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <title>Parity benchmarks · skylakegrep</title>
  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
@@ -92,13 +92,16 @@
  <main class="content subpage-content">
  <article class="md-body">
  <p class="md-eyebrow">Reproducible bench protocol</p>
-<h1>Parity benchmarks</h1>
-<p>Reproducible head-to-head comparisons of <code>skygrep</code> against real
-<code>ripgrep</code>, run on three popular open-source codebases. Anyone with
-the repos cloned can rerun in a few minutes and verify every number
-on this page.</p>
+<h1>Parity benchmarks — historical receipt</h1>
+<p>This page preserves the earlier three-repository benchmark as an engineering
+record. Its 30/30 recall and 60×–770× context figures used moving repository
+tips, <code>chars / 4</code> token estimates, and a deliberately broad term-OR
+<code>rg</code> dump. They are <strong>not the current general-performance
+claim</strong> and should not be expected to reproduce byte-for-byte on today's
+sources. See <a href="general-performance.html">General Benchmark v2</a> for
+the current pinned, quality-gated protocol.</p>
 <blockquote>
-<p><strong>Headline:</strong> <code>skygrep</code> matches <code>rg</code> exactly across all three
+<p><strong>Historical result:</strong> <code>skygrep</code> matched <code>rg</code> across all three
 codebases (<strong>10 / 10 each</strong> on Django · Tokio · React,
 <strong>30 / 30 aggregate</strong>). React reached 10 / 10 after the
 Option-C substrate upgrade (<code>bge-m3</code> 1024-d symmetric
@@ -106,27 +109,25 @@ embedder + a content-agnostic non-canonical-path filter); the
 two original React misses (<code>react-007</code>, <code>react-010</code>) and how
 they were resolved are documented below as the engineering
 record, not erased.</p>
-<p><code>skygrep</code> returns <strong>60×–770× less context tokens</strong> than <code>rg</code>'s
-term-OR scan, so a downstream agent loop that consumes the
-context pays dramatically less even when recall is the same.</p>
+<p>In that historical run, <code>skygrep</code> returned <strong>60×–770× less estimated
+context</strong> than <code>rg</code>'s term-OR scan. This is the archived result, not a
+current general multiplier.</p>
 </blockquote>
-<h2>Setup</h2>
-<pre><code class="language-bash">git clone --depth=1 https://github.com/django/django   /tmp/oss-bench/django
-git clone --depth=1 https://github.com/facebook/react  /tmp/oss-bench/react
-git clone --depth=1 https://github.com/tokio-rs/tokio  /tmp/oss-bench/tokio
-
-cd skylakegrep
-.venv/bin/python benchmarks/public_oss_bench.py
+<h2>Current pinned reproduction</h2>
+<pre><code class="language-bash">cd skylakegrep
+.venv/bin/python benchmarks/public_oss_bench.py \
+  --prepare --tokenizer tiktoken \
+  --oss-root /tmp/skygrep-general-v2-repos
 </code></pre>
 <p>The runner:</p>
 <ol>
 <li>Reads each fixture from
-     <a href="../benchmarks/cross_repo/"><code>benchmarks/cross_repo/{django,react,tokio}.json</code></a>
-     — 10 hand-labeled questions per repo, each with a canonical
+     <a href="https://github.com/danielchen26/skylakegrep/tree/master/benchmarks/public_tasks"><code>benchmarks/public_tasks/</code></a>
+     — 10 source-evidence questions per pinned repo, each with a canonical
      expected file plus zero or more <code>expected_alternatives</code> for
      queries with multiple legitimate answers.</li>
-<li>Indexes the OSS repo into a tmp SQLite DB (5–10 min one-time
-     per repo).</li>
+<li>Validates the public origin, exact commit, clean tracked tree, accepted
+     paths, and literal evidence before running either policy.</li>
 <li>For each task, runs both:<ul>
 <li><code>rg</code>: term-OR over up to 8 extracted query terms × 20 matches
    per term × 2-line context window (the real ripgrep agent
@@ -137,7 +138,7 @@ cd skylakegrep
 <li>Reports per-task hit / miss + average latency + total context
      tokens emitted.</li>
 </ol>
-<h2>Aggregate result</h2>
+<h2>Historical aggregate result</h2>
 <table>
 <thead>
 <tr>
@@ -200,10 +201,10 @@ cd skylakegrep
 </tbody>
 </table>
 <h2>Worked example — <code>django-001</code> (one query, real numbers)</h2>
-<p>Reproduce locally to verify every number. Cloned at the same commit
-the headline table was measured against, against the actual Django
-repo (524 K LOC). This is one of the 30 tasks aggregated into the
-table above.</p>
+<p>This worked example preserves the original measured values from one of the 30
+legacy tasks. The old page did not pin the source commit, so the values are an
+engineering receipt rather than a promise of byte-identical reproduction.
+Run the current pinned protocol above to produce a new identified receipt.</p>
 <blockquote>
 <p><strong>Query</strong>: "Where does Django turn an incoming URL into the view
 function that should handle it?"
@@ -363,7 +364,7 @@ high-signal terms in the query)</strong>. <code>skygrep</code> output is
 <p>Tokio is the floor (small repo, focused vocabulary). Django and
 React both blow up because <code>django</code> / <code>react</code> saturate term-OR scans
 across mid-sized monorepos.</p>
-<h3>Reproduce yourself (3 commands)</h3>
+<h3>Inspect the legacy calculation (not an exact reproduction)</h3>
 <pre><code class="language-bash"># rg side — counts bytes from term-OR scan
 cd /tmp/oss-bench/django
 for term in function incoming incom django handle should into that; do
@@ -376,8 +377,10 @@ skygrep &quot;Where does Django turn an incoming URL into the view function that
 
 # divide chars by 4 to approximate tokens
 </code></pre>
-<p>Numbers will land within ± 5 % of the table above (variance from
-your Django clone's commit and rg minor-version output formatting).</p>
+<p>The original source commit was not pinned, so a current clone is not expected
+to reproduce the table within a fixed tolerance. These commands only expose
+the historical <code>chars / 4</code> calculation; use the pinned runner above to create
+a new receipt.</p>
 <h2>How to read these numbers</h2>
 <h3>"rg recall = 100 %" looks impressive but isn't apples-to-apples</h3>
 <p>The <code>rg</code> agent in this benchmark is the ripgrep equivalent of "search
@@ -443,9 +446,9 @@ escalation path on uncertain queries. In <code>skygrep serve</code> daemon mode
 the reranker stays warm in memory, and warm queries land in the
 ~0.5 – 2 s band. The 11–20 s/q numbers here are an honest CLI-from-
 cold-start measurement, not a daemon throughput claim.</p>
-<p>For an AI agent the relevant cost is <em>the LLM round-trip after the
-search</em>, which scales with <strong>token count of the context</strong> — and
-that is where skygrep's 60–770× reduction lives.</p>
+<p>For an AI agent, context volume can affect the downstream LLM round-trip. The
+60–770× range above is the result recorded by this historical approximation;
+current claims must use the pinned General Benchmark v2 protocol.</p>
 <h2>Per-task detail</h2>
 <p>Run the benchmark without <code>--summary-only</code> to get every task's
 expected path, returned top-10, and per-tier hit / miss:</p>

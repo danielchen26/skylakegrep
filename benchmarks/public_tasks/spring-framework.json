@@ -1,0 +1,122 @@
+[
+  {
+    "id": "mvc-dispatch",
+    "question": "Where does Spring MVC select a handler and dispatch an HTTP request through the servlet pipeline, and which source anchors prove it?",
+    "expected": "spring-webmvc/src/main/java/org/springframework/web/servlet/DispatcherServlet.java",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["class DispatcherServlet", "doDispatch"],
+    "quality_terms": ["class DispatcherServlet", "doDispatch"],
+    "ground_truth_note": "DispatcherServlet.doDispatch performs handler lookup and request dispatch."
+  },
+  {
+    "id": "dependency-resolution",
+    "question": "Where does Spring's bean factory resolve an injection dependency against registered candidates, and what class and method anchor that logic?",
+    "expected": "spring-beans/src/main/java/org/springframework/beans/factory/support/DefaultListableBeanFactory.java",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["class DefaultListableBeanFactory", "resolveDependency"],
+    "quality_terms": ["class DefaultListableBeanFactory", "resolveDependency"],
+    "ground_truth_note": "DefaultListableBeanFactory resolves DependencyDescriptor instances."
+  },
+  {
+    "id": "context-refresh",
+    "question": "Where is the application-context refresh lifecycle orchestrated, and which implementation class and method establish the answer?",
+    "expected": "spring-context/src/main/java/org/springframework/context/support/AbstractApplicationContext.java",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["class AbstractApplicationContext", "void refresh"],
+    "quality_terms": ["class AbstractApplicationContext", "void refresh"],
+    "ground_truth_note": "AbstractApplicationContext.refresh coordinates the full context lifecycle."
+  },
+  {
+    "id": "transaction-interceptor",
+    "question": "Where does Spring wrap an advised method invocation in transaction begin, commit, or rollback behavior, and what source routine anchors it?",
+    "expected": "spring-tx/src/main/java/org/springframework/transaction/interceptor/TransactionAspectSupport.java",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["class TransactionAspectSupport", "invokeWithinTransaction"],
+    "quality_terms": ["class TransactionAspectSupport", "invokeWithinTransaction"],
+    "ground_truth_note": "TransactionAspectSupport.invokeWithinTransaction implements imperative and reactive transaction wrapping."
+  },
+  {
+    "id": "rest-client-execution",
+    "question": "Where does Spring's synchronous HTTP client create and execute a request and extract its response, and which source method proves it?",
+    "expected": "spring-web/src/main/java/org/springframework/web/client/RestTemplate.java",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["class RestTemplate", "doExecute"],
+    "quality_terms": ["class RestTemplate", "doExecute"],
+    "ground_truth_note": "RestTemplate.doExecute owns request creation, exchange, and response extraction."
+  },
+  {
+    "id": "resource-loading",
+    "question": "Where does Spring translate a location string into classpath, URL, or filesystem resources, and which source anchors identify the loader?",
+    "expected": "spring-core/src/main/java/org/springframework/core/io/DefaultResourceLoader.java",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["class DefaultResourceLoader", "getResource"],
+    "quality_terms": ["class DefaultResourceLoader", "getResource"],
+    "ground_truth_note": "DefaultResourceLoader.getResource chooses a resource representation from the location."
+  },
+  {
+    "id": "aop-proxy-choice",
+    "question": "Where does Spring decide between interface-based and class-based AOP proxies, and which class and factory method prove it?",
+    "expected": "spring-aop/src/main/java/org/springframework/aop/framework/DefaultAopProxyFactory.java",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["class DefaultAopProxyFactory", "createAopProxy"],
+    "quality_terms": ["class DefaultAopProxyFactory", "createAopProxy"],
+    "ground_truth_note": "DefaultAopProxyFactory.createAopProxy selects the concrete proxy implementation."
+  },
+  {
+    "id": "jdbc-query",
+    "question": "Where does Spring JDBC execute SQL queries while managing statements, result extraction, and exception translation, and what source anchors prove it?",
+    "expected": "spring-jdbc/src/main/java/org/springframework/jdbc/core/JdbcTemplate.java",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["class JdbcTemplate", "ResultSetExtractor"],
+    "quality_terms": ["class JdbcTemplate", "ResultSetExtractor"],
+    "ground_truth_note": "JdbcTemplate query overloads execute SQL and delegate result extraction."
+  },
+  {
+    "id": "mock-mvc-perform",
+    "question": "Where does Spring's server-side MVC test API perform a mock request and return result actions, and which source names anchor it?",
+    "expected": "spring-test/src/main/java/org/springframework/test/web/servlet/MockMvc.java",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["class MockMvc", "ResultActions perform"],
+    "quality_terms": ["class MockMvc", "ResultActions perform"],
+    "ground_truth_note": "MockMvc.perform executes a request through the mock servlet setup."
+  },
+  {
+    "id": "stomp-message-handler",
+    "question": "Where does Spring map messaging destinations to annotated controller methods for STOMP-style application messages, and what source anchors prove it?",
+    "expected": "spring-messaging/src/main/java/org/springframework/messaging/simp/annotation/support/SimpAnnotationMethodMessageHandler.java",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["class SimpAnnotationMethodMessageHandler", "handleMatch"],
+    "quality_terms": ["class SimpAnnotationMethodMessageHandler", "handleMatch"],
+    "ground_truth_note": "SimpAnnotationMethodMessageHandler maps destinations and handles matched annotated methods."
+  }
+]

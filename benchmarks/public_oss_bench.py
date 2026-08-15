@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Public, reproducible cross-repo benchmark for skylakegrep.
 
-Runs `benchmarks/parity_vs_ripgrep.py` against three pinned OSS
-codebases (Django · React · Tokio), each with a hand-labeled question
-set in ``benchmarks/cross_repo/``. Reports hit-rate and latency for
+Runs `benchmarks/parity_vs_ripgrep.py` against six pinned OSS
+codebases, each with a checked-in public question and evidence set in
+``benchmarks/public_tasks/``. Reports hit-rate and latency for
 skygrep and a real ripgrep run side-by-side, so anyone can verify the
 "skygrep is no worse than rg" floor and the "skygrep wins on
 vocabulary mismatch" claim.
@@ -11,11 +11,10 @@ vocabulary mismatch" claim.
 Reproduction
 ------------
 
-    git clone --depth=1 https://github.com/django/django   /tmp/oss-bench/django
-    git clone --depth=1 https://github.com/facebook/react  /tmp/oss-bench/react
-    git clone --depth=1 https://github.com/tokio-rs/tokio  /tmp/oss-bench/tokio
+    .venv/bin/python benchmarks/public_oss_bench.py --prepare --tokenizer tiktoken
 
-    .venv/bin/python benchmarks/public_oss_bench.py
+The checked-in registry clones and checks out the exact six public commits;
+moving branch tips are not accepted benchmark inputs.
 """
 from __future__ import annotations
 
@@ -26,31 +25,27 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Optional
+
+if str(Path(__file__).resolve().parents[1]) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from benchmarks.public_fixtures import load_registry, prepare_repo, validate_repo_fixture
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OSS_ROOT = Path("/tmp/oss-bench")
-
-FIXTURES: list[tuple[str, str, str]] = [
-    # (label,           fixture file,                          oss subdir)
-    ("Django (Python)", "benchmarks/cross_repo/django.json",   "django"),
-    ("React (JS+TS)",   "benchmarks/cross_repo/react.json",    "react"),
-    ("Tokio (Rust)",    "benchmarks/cross_repo/tokio.json",    "tokio"),
-]
+DEFAULT_OSS_ROOT = Path("/tmp/skygrep-general-v2-repos")
+PUBLIC_REPOS = load_registry()
 
 
-def run_one(label: str, fixture: Path, repo: Path, top_k: int) -> Optional[dict]:
+def run_one(label: str, fixture: Path, repo: Path, top_k: int, tokenizer: str) -> dict:
     """Run parity_vs_ripgrep on a single (fixture, repo) pair, return summary."""
     if not repo.exists():
-        print(f"  ⚠️  {label}: repo not found at {repo}, skipping")
-        return None
+        raise RuntimeError(f"{label}: repository is missing at {repo}")
     if not fixture.exists():
-        print(f"  ⚠️  {label}: fixture {fixture} missing, skipping")
-        return None
+        raise RuntimeError(f"{label}: fixture is missing at {fixture}")
 
     print(f"\n=== {label} ===")
-    print(f"  repo:    {repo}")
-    print(f"  tasks:   {fixture}")
+    print(f"  repo:    <oss-root>/{repo.name}")
+    print(f"  tasks:   benchmarks/public_tasks/{fixture.name}")
     print(f"  top-k:   {top_k}")
 
     started = time.time()
@@ -60,27 +55,24 @@ def run_one(label: str, fixture: Path, repo: Path, top_k: int) -> Optional[dict]
         "--root", str(repo),
         "--tasks", str(fixture),
         "--top-k", str(top_k),
+        "--tokenizer", tokenizer,
         "--summary-only",
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True, env={**os.environ})
     elapsed = time.time() - started
 
     if proc.returncode != 0:
-        print(f"  ✗ runner failed (exit {proc.returncode})")
-        print(f"  stderr (tail): {proc.stderr.strip()[-400:]}")
-        return None
+        raise RuntimeError(f"{label}: runner failed ({proc.returncode}): {proc.stderr.strip()[-400:]}")
 
     try:
         result = json.loads(proc.stdout)
     except json.JSONDecodeError as e:
-        print(f"  ✗ could not parse JSON output: {e}")
-        print(f"  stdout (tail): {proc.stdout.strip()[-400:]}")
-        return None
+        raise RuntimeError(f"{label}: could not parse JSON output: {e}") from e
 
     summary = result.get("summary", {})
     summary["_label"] = label
     summary["_wall_seconds"] = round(elapsed, 1)
-    summary["_repo"] = str(repo)
+    summary["_repo"] = f"<oss-root>/{repo.name}"
     return summary
 
 
@@ -133,19 +125,25 @@ def main() -> int:
                    help="Directory containing the cloned OSS repos. "
                         "Each repo is expected at <oss-root>/<name>.")
     p.add_argument("--top-k", type=int, default=10)
+    p.add_argument("--tokenizer", choices=["chars", "auto", "tiktoken"], default="chars")
+    p.add_argument("--prepare", action="store_true", help="Clone and check out each exact public pin.")
     p.add_argument("--only", default=None,
-                   help="Run only one fixture (django|react|tokio).")
+                   help="Run only one public repository key.")
     args = p.parse_args()
 
     summaries: list[dict] = []
-    for label, fixture_rel, oss_subdir in FIXTURES:
-        if args.only and args.only != oss_subdir:
+    for key, spec in PUBLIC_REPOS.items():
+        if args.only and args.only != key:
             continue
-        fixture = REPO_ROOT / fixture_rel
-        repo = args.oss_root / oss_subdir
-        s = run_one(label, fixture, repo, args.top_k)
-        if s is not None:
-            summaries.append(s)
+        repo = (
+            prepare_repo(spec, args.oss_root)
+            if args.prepare
+            else args.oss_root / spec.subdir
+        )
+        failures = validate_repo_fixture(repo, spec) if repo.is_dir() else ["repository missing"]
+        if failures:
+            raise RuntimeError(f"{key}: public fixture validation failed: {'; '.join(failures[:10])}")
+        summaries.append(run_one(spec.label, spec.fixture, repo, args.top_k, args.tokenizer))
 
     print_table(summaries)
     return 0

@@ -1,0 +1,122 @@
+[
+  {
+    "id": "spawn-task",
+    "question": "Where does Tokio launch a future as a runtime task, and which source functions establish the spawning path?",
+    "expected": "tokio/src/task/spawn.rs",
+    "expected_alternatives": ["tokio/src/runtime/task/mod.rs", "tokio/src/runtime/handle.rs"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["pub fn spawn", "spawn_inner"],
+    "quality_terms": ["pub fn spawn", "spawn_inner"],
+    "ground_truth_note": "task::spawn delegates to spawn_inner inside the active runtime context."
+  },
+  {
+    "id": "io-reactor",
+    "question": "Where is Tokio's operating-system I/O driver that waits for readiness events, and what implementation names prove the answer?",
+    "expected": "tokio/src/runtime/io/driver.rs",
+    "expected_alternatives": ["tokio/src/io/poll_evented.rs"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["struct Driver", "fn turn"],
+    "quality_terms": ["struct Driver", "fn turn"],
+    "ground_truth_note": "The runtime I/O Driver turns the readiness poller."
+  },
+  {
+    "id": "mpsc-channel",
+    "question": "Where is the shared channel core behind Tokio's bounded and unbounded multi-producer queues, and what source symbols anchor it?",
+    "expected": "tokio/src/sync/mpsc/chan.rs",
+    "expected_alternatives": ["tokio/src/sync/mpsc/bounded.rs", "tokio/src/sync/mpsc/unbounded.rs"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["struct Tx", "fn channel"],
+    "quality_terms": ["struct Tx", "fn channel"],
+    "ground_truth_note": "chan.rs defines the common Tx/Rx core and channel constructor."
+  },
+  {
+    "id": "async-mutex",
+    "question": "Where does Tokio implement its fair asynchronous mutex and acquire permits without blocking a thread, and which symbols support the answer?",
+    "expected": "tokio/src/sync/mutex.rs",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["pub struct Mutex", "pub async fn lock"],
+    "quality_terms": ["pub struct Mutex", "pub async fn lock"],
+    "ground_truth_note": "sync::Mutex exposes the async lock acquisition path."
+  },
+  {
+    "id": "sleep-timer",
+    "question": "Where is Tokio's sleep future connected to the runtime timer, and what source fields or polling routine prove it?",
+    "expected": "tokio/src/time/sleep.rs",
+    "expected_alternatives": ["tokio/src/runtime/time/wheel/mod.rs", "tokio/src/time/driver/mod.rs"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["pub struct Sleep", "poll_elapsed"],
+    "quality_terms": ["pub struct Sleep", "poll_elapsed"],
+    "ground_truth_note": "Sleep is the public future and poll_elapsed drives its timer state."
+  },
+  {
+    "id": "work-stealing",
+    "question": "Where does Tokio's multi-threaded scheduler run worker cores and steal queued work, and which source routines identify the worker loop?",
+    "expected": "tokio/src/runtime/scheduler/multi_thread/worker.rs",
+    "expected_alternatives": ["tokio/src/runtime/scheduler/multi_thread/mod.rs", "tokio/src/runtime/scheduler/multi_thread/queue.rs"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["struct Core", "steal_into"],
+    "quality_terms": ["struct Core", "steal_into"],
+    "ground_truth_note": "worker.rs owns the core run queue and work-stealing loop."
+  },
+  {
+    "id": "join-set",
+    "question": "Where does Tokio track a dynamic set of spawned tasks and await whichever finishes next, and which source symbols demonstrate it?",
+    "expected": "tokio/src/task/join_set.rs",
+    "expected_alternatives": ["tokio/src/task/join_handle.rs"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["pub struct JoinSet", "join_next"],
+    "quality_terms": ["pub struct JoinSet", "join_next"],
+    "ground_truth_note": "JoinSet stores task handles and provides join_next."
+  },
+  {
+    "id": "notify",
+    "question": "Where is Tokio's permit-based task notification primitive implemented, and what type and waiting method anchor the answer?",
+    "expected": "tokio/src/sync/notify.rs",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["pub struct Notify", "pub fn notified"],
+    "quality_terms": ["pub struct Notify", "pub fn notified"],
+    "ground_truth_note": "Notify stores permits and produces the Notified future."
+  },
+  {
+    "id": "ctrl-c",
+    "question": "Where is the asynchronous Ctrl-C notification entry point exposed by Tokio, and which function signature proves it?",
+    "expected": "tokio/src/signal/ctrl_c.rs",
+    "expected_alternatives": ["tokio/src/signal/unix.rs", "tokio/src/signal/windows.rs"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["pub async fn ctrl_c", "os_impl::ctrl_c"],
+    "quality_terms": ["pub async fn ctrl_c", "os_impl::ctrl_c"],
+    "ground_truth_note": "ctrl_c.rs exposes the platform-independent async Ctrl-C future."
+  },
+  {
+    "id": "select-macro",
+    "question": "Where is Tokio's macro for polling several asynchronous branches and choosing the first ready branch, and what source macro anchors it?",
+    "expected": "tokio/src/macros/select.rs",
+    "expected_alternatives": ["tokio-macros/src/select.rs"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["macro_rules! select", "select_variant"],
+    "quality_terms": ["macro_rules! select", "select_variant"],
+    "ground_truth_note": "select.rs contains the select macro and branch variant machinery."
+  }
+]

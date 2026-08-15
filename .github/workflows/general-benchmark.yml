@@ -1,0 +1,167 @@
+name: General Benchmark v2
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 8 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: general-benchmark-v2
+  cancel-in-progress: false
+
+jobs:
+  repo-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        repo: [cobra, django, react, spring-framework, tokio, vite]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install ripgrep and Ollama
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+          curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Install benchmark dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[benchmark]"
+
+      - name: Cache bge-m3 model
+        uses: actions/cache@v6
+        with:
+          path: ~/.ollama/models
+          key: ollama-bge-m3-${{ runner.os }}-v1
+
+      - name: Start local embedding service
+        run: |
+          ollama serve > "/tmp/skygrep-ollama-${{ matrix.repo }}.log" 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then
+              break
+            fi
+            echo "waiting for Ollama (${attempt}/30)"
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull bge-m3
+
+      - name: Validate pinned public fixture
+        run: |
+          python benchmarks/validate_public_fixtures.py \
+            --oss-root /tmp/skygrep-general-v2-repos \
+            --repo "${{ matrix.repo }}" \
+            --prepare
+
+      - name: Run paired repository benchmark
+        run: |
+          python benchmarks/universal_closed_loop_benchmark.py \
+            --repo "${{ matrix.repo }}" \
+            --oss-root /tmp/skygrep-general-v2-repos \
+            --prepare \
+            --refresh-index \
+            --reset-index \
+            --index-timeout 18000 \
+            --trials 3 \
+            --tokenizer tiktoken \
+            --report "/tmp/general-${{ matrix.repo }}.json" \
+            > "/tmp/general-${{ matrix.repo }}.stdout.txt"
+
+      - name: Scan repository artifacts for private material
+        id: privacy_scan
+        if: always()
+        run: |
+          python scripts/privacy_release_scan.py \
+            "/tmp/general-${{ matrix.repo }}.json" \
+            "/tmp/general-${{ matrix.repo }}.stdout.txt" \
+            "/tmp/skygrep-ollama-${{ matrix.repo }}.log"
+
+      - name: Upload repository receipt
+        if: ${{ always() && steps.privacy_scan.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: "general-v2-${{ matrix.repo }}"
+          path: |
+            /tmp/general-${{ matrix.repo }}.json
+            /tmp/general-${{ matrix.repo }}.stdout.txt
+            /tmp/skygrep-ollama-${{ matrix.repo }}.log
+          if-no-files-found: warn
+          retention-days: 30
+
+  aggregate:
+    needs: repo-benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install benchmark dependencies
+        run: pip install -e ".[benchmark]"
+
+      - name: Download repository receipts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: general-v2-*
+          path: /tmp/general-inputs
+          merge-multiple: true
+
+      - name: Merge paired receipts
+        run: |
+          python benchmarks/merge_general_reports.py \
+            /tmp/general-inputs/general-*.json \
+            --output /tmp/skygrep-general-v2.json \
+            > /tmp/skygrep-general-v2.stdout.json
+
+      - name: Enforce quality before efficiency
+        run: |
+          python benchmarks/closed_loop_regression_gate.py \
+            /tmp/skygrep-general-v2.json \
+            --require-general-reportable \
+            --min-skygrep-path-coverage 0 \
+            --min-skygrep-evidence-coverage 0 \
+            --min-skygrep-sufficiency 0 \
+            --min-context-reduction 0 \
+            --min-estimated-agent-elapsed-reduction 0 \
+            --min-work-quality-per-minute-ratio 0 \
+            --max-completed-task-regression 999 \
+            --min-general-eligible-fraction 0.80 \
+            --min-general-median-context-reduction 1.0 \
+            --min-general-context-ci-low 1.0
+
+      - name: Scan merged artifacts for private material
+        id: privacy_scan
+        if: always()
+        run: |
+          python scripts/privacy_release_scan.py \
+            /tmp/skygrep-general-v2.json \
+            /tmp/skygrep-general-v2.stdout.json
+
+      - name: Upload merged benchmark receipt
+        if: ${{ always() && steps.privacy_scan.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: skygrep-general-benchmark-v2
+          path: |
+            /tmp/skygrep-general-v2.json
+            /tmp/skygrep-general-v2.stdout.json
+          if-no-files-found: warn
+          retention-days: 30
