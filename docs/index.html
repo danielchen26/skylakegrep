@@ -693,7 +693,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <span class="dot">·</span>
  <strong>8.36×</strong> faster fresh indexing
  <span class="dot">·</span>
- <strong>470×</strong> less agent context vs rg
+ <strong>60</strong> pinned public source-evidence tasks
  <span class="dot">·</span>
  <strong>~1.1 s</strong> wrong-path first answer
  <span class="dot">·</span>
@@ -902,7 +902,7 @@ Throughput projections under sustained 5k QPS load...</pre>
  <div class="scenario-demo">
  <div class="sd-result">6 / 6 completed · path 100% · evidence 100% · sufficiency 100%</div>
  <div class="sd-result">14,689 vs 59,551 context tokens · 6 vs 99 tool calls</div>
- <div class="sd-takeaway">Measured fixture: about <strong>4.05×</strong> less context with equal checked coverage.</div>
+ <div class="sd-takeaway">Fixed CI receipt: about <strong>4.05×</strong> less context with equal checked coverage; not a general multiplier.</div>
  </div>
  </article>
 
@@ -1223,15 +1223,16 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
 <!-- ============== Benchmarks summary ============== -->
 <section id="bench" class="doc-section bench-section">
  <p class="eyebrow">Performance</p>
- <h2 class="overview-h2">30 / 30 fully-indexed · 8.36× faster indexing · 470× less agent context.</h2>
+ <h2 class="overview-h2">60 pinned public tasks · source-evidence quality gates · paired efficiency statistics.</h2>
  <p class="lead">
- Reproducible against three popular codebases —
- <strong>Django</strong>, <strong>React</strong>, <strong>Tokio</strong>.
- 30 hand-labelled questions, 10 per repo for the fully-indexed cascade.
- 0.5.14 adds a 38-task closed-loop agent benchmark that measures a full
- path-discovery → evidence-gathering → sufficiency workflow across this
- repo plus Django, React, and Tokio. Every number on this page is
- reproducible from public commands and generic task fixtures.
+ General Benchmark v2 is reproducible against six exact public commits:
+ <strong>Cobra</strong>, <strong>Django</strong>, <strong>React</strong>,
+ <strong>Spring Framework</strong>, <strong>Tokio</strong>, and
+ <strong>Vite</strong>. Its 60 hand-validated tasks require both the accepted
+ source path and literal source evidence. Efficiency is reported only for
+ paired tasks where both policies pass the same quality floor; repository-
+ level distributions and a hierarchical-bootstrap confidence interval prevent
+ one favorable project from becoming a universal claim.
  </p>
  <div class="bench-stats">
  <div class="bench-stat">
@@ -1245,19 +1246,19 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
  <div class="bench-stat-sub">vs. 28 / 30 in 0.1.0; bge-m3 substrate broke the ceiling.</div>
  </div>
  <div class="bench-stat">
- <div class="bench-stat-num">470×</div>
-<div class="bench-stat-label">less context vs. raw <code>rg</code> agent baseline</div>
- <div class="bench-stat-sub">224 K tokens from skygrep-first vs. 105 M tokens from raw rg-only on the 0.5.14 closed-loop benchmark.</div>
+ <div class="bench-stat-num">60</div>
+<div class="bench-stat-label">public source-evidence tasks at exact commits</div>
+ <div class="bench-stat-sub">10 tasks each across Go, Python, JavaScript/Flow, Java, Rust, and TypeScript repositories.</div>
 </div>
 <div class="bench-stat">
- <div class="bench-stat-num">23.7×</div>
- <div class="bench-stat-label">lower estimated agent elapsed</div>
- <div class="bench-stat-sub">161.7 s estimated agent elapsed for skygrep-first vs. 3834.0 s for raw rg-only; raw rg remains the recall ceiling.</div>
+ <div class="bench-stat-num">≥ 0.85</div>
+ <div class="bench-stat-label">paired task-quality floor before efficiency</div>
+ <div class="bench-stat-sub">A multiplier is non-reportable unless quality, completion, minimum sample, and cross-repository gates pass.</div>
  </div>
  </div>
  <div class="button-row">
  <a class="button primary" href="benchmarks.html">Read all 6 benchmarks →</a>
- <a class="button secondary" href="parity-benchmarks.html">Reproduce in 3 commands</a>
+ <a class="button secondary" href="parity-benchmarks.html">Historical parity receipt</a>
  </div>
 </section>
 

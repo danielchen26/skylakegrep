@@ -93,6 +93,44 @@ def evaluate(report: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]
             f"{rg_completed - sky_completed} exceeds allowed {max_regression}"
         )
 
+    general = report.get("generalization", {})
+    require_general = bool(getattr(args, "require_general_reportable", False))
+    if require_general:
+        if general.get("claim_status") != "reportable":
+            failures.append(
+                f"general claim_status={general.get('claim_status', 'missing')} is not reportable"
+            )
+        quality_gate = general.get("quality_gate", {})
+        if not quality_gate.get("passed", False):
+            failures.append("general quality noninferiority gate did not pass")
+        sample_gate = general.get("sample_gate", {})
+        if not sample_gate.get("passed", False):
+            failures.append("general minimum sample gate did not pass")
+        source_gate = general.get("source_gate", {})
+        if not source_gate.get("passed", False):
+            failures.append("general benchmark source gate did not pass")
+        eligible_fraction = _metric(general, "quality_eligible_fraction")
+        minimum_eligible = float(getattr(args, "min_general_eligible_fraction", 0.8))
+        if eligible_fraction < minimum_eligible:
+            failures.append(
+                f"general quality_eligible_fraction={eligible_fraction} below required {minimum_eligible}"
+            )
+        context_distribution = general.get("paired_distributions", {}).get(
+            "context_token_reduction_x", {}
+        )
+        median_reduction = _metric(context_distribution, "median")
+        minimum_median = float(getattr(args, "min_general_median_context_reduction", 1.0))
+        if median_reduction < minimum_median:
+            failures.append(
+                f"general median context reduction={median_reduction} below required {minimum_median}"
+            )
+        ci_low = _metric(general.get("context_token_median_95pct_ci", {}), "low")
+        minimum_ci_low = float(getattr(args, "min_general_context_ci_low", 1.0))
+        if ci_low < minimum_ci_low:
+            failures.append(
+                f"general context reduction CI low={ci_low} below required {minimum_ci_low}"
+            )
+
     return {
         "ok": not failures,
         "failures": failures,
@@ -107,6 +145,16 @@ def evaluate(report: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]
             "min_estimated_agent_elapsed_reduction": args.min_estimated_agent_elapsed_reduction,
             "min_work_quality_per_minute_ratio": args.min_work_quality_per_minute_ratio,
             "max_completed_task_regression": max_regression,
+            "require_general_reportable": require_general,
+            "min_general_eligible_fraction": float(
+                getattr(args, "min_general_eligible_fraction", 0.8)
+            ),
+            "min_general_median_context_reduction": float(
+                getattr(args, "min_general_median_context_reduction", 1.0)
+            ),
+            "min_general_context_ci_low": float(
+                getattr(args, "min_general_context_ci_low", 1.0)
+            ),
         },
     }
 
@@ -121,6 +169,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--min-estimated-agent-elapsed-reduction", type=float, default=1.0)
     parser.add_argument("--min-work-quality-per-minute-ratio", type=float, default=1.0)
     parser.add_argument("--max-completed-task-regression", type=int, default=5)
+    parser.add_argument("--require-general-reportable", action="store_true")
+    parser.add_argument("--min-general-eligible-fraction", type=float, default=0.8)
+    parser.add_argument("--min-general-median-context-reduction", type=float, default=1.0)
+    parser.add_argument("--min-general-context-ci-low", type=float, default=1.0)
     return parser.parse_args(argv)
 
 

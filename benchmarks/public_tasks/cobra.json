@@ -1,0 +1,122 @@
+[
+  {
+    "id": "command-execution",
+    "question": "Where does Cobra parse a command invocation and execute the selected command, and which source methods anchor that control flow?",
+    "expected": "command.go",
+    "expected_alternatives": ["cobra.go"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["func (c *Command) ExecuteC", "func (c *Command) execute"],
+    "quality_terms": ["func (c *Command) ExecuteC", "func (c *Command) execute"],
+    "ground_truth_note": "Command.ExecuteC resolves arguments and delegates execution to the selected command."
+  },
+  {
+    "id": "argument-validation",
+    "question": "Where are Cobra's reusable positional-argument count validators implemented, and which validators demonstrate the contract?",
+    "expected": "args.go",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["MinimumNArgs", "ExactArgs"],
+    "quality_terms": ["MinimumNArgs", "ExactArgs"],
+    "ground_truth_note": "args.go defines the public PositionalArgs validators."
+  },
+  {
+    "id": "completion-routing",
+    "question": "Where does Cobra collect dynamic completions and return shell behavior directives, and which source names show that route?",
+    "expected": "completions.go",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["getCompletions", "ShellCompDirective"],
+    "quality_terms": ["getCompletions", "ShellCompDirective"],
+    "ground_truth_note": "completions.go gathers candidate completions and emits directives."
+  },
+  {
+    "id": "bash-completion",
+    "question": "Where does Cobra generate a Bash completion script, and what exported methods prove the answer?",
+    "expected": "bash_completions.go",
+    "expected_alternatives": ["bash_completionsV2.go"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["GenBashCompletion", "GenBashCompletionFile"],
+    "quality_terms": ["GenBashCompletion", "GenBashCompletionFile"],
+    "ground_truth_note": "bash_completions.go owns Bash script generation."
+  },
+  {
+    "id": "zsh-completion",
+    "question": "Where does Cobra produce Z shell completions with optional descriptions, and what methods identify that implementation?",
+    "expected": "zsh_completions.go",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["GenZshCompletion", "GenZshCompletionNoDesc"],
+    "quality_terms": ["GenZshCompletion", "GenZshCompletionNoDesc"],
+    "ground_truth_note": "zsh_completions.go renders described and no-description Zsh completions."
+  },
+  {
+    "id": "fish-completion",
+    "question": "Where does Cobra generate Fish shell completions, and which source methods anchor the writer and file paths?",
+    "expected": "fish_completions.go",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["GenFishCompletion", "GenFishCompletionFile"],
+    "quality_terms": ["GenFishCompletion", "GenFishCompletionFile"],
+    "ground_truth_note": "fish_completions.go writes Fish completions to a writer or file."
+  },
+  {
+    "id": "powershell-completion",
+    "question": "Where does Cobra generate PowerShell completion scripts, and which exported methods provide the evidence?",
+    "expected": "powershell_completions.go",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["GenPowerShellCompletion", "GenPowerShellCompletionWithDesc"],
+    "quality_terms": ["GenPowerShellCompletion", "GenPowerShellCompletionWithDesc"],
+    "ground_truth_note": "powershell_completions.go owns described and no-description script generation."
+  },
+  {
+    "id": "active-help",
+    "question": "Where does Cobra read the environment-controlled active-help configuration for a command, and what source identifiers prove it?",
+    "expected": "active_help.go",
+    "expected_alternatives": ["completions.go"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["GetActiveHelpConfig", "activeHelpEnvVar"],
+    "quality_terms": ["GetActiveHelpConfig", "activeHelpEnvVar"],
+    "ground_truth_note": "active_help.go derives and reads the active-help environment variable."
+  },
+  {
+    "id": "flag-groups",
+    "question": "Where does Cobra define and validate relationships among required or mutually exclusive flags, and which methods anchor the behavior?",
+    "expected": "flag_groups.go",
+    "expected_alternatives": ["command.go"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["MarkFlagsRequiredTogether", "ValidateFlagGroups"],
+    "quality_terms": ["MarkFlagsRequiredTogether", "ValidateFlagGroups"],
+    "ground_truth_note": "flag_groups.go annotates and validates grouped flag constraints."
+  },
+  {
+    "id": "markdown-docs",
+    "question": "Where does Cobra recursively generate Markdown reference pages for a command tree, and which functions prove that responsibility?",
+    "expected": "doc/md_docs.go",
+    "expected_alternatives": ["doc/util.go"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["GenMarkdownTree", "GenMarkdownCustom"],
+    "quality_terms": ["GenMarkdownTree", "GenMarkdownCustom"],
+    "ground_truth_note": "md_docs.go generates individual and recursive Markdown documentation."
+  }
+]

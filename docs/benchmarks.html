@@ -3,11 +3,11 @@
  <head>
  <meta charset="utf-8" />
  <meta name="viewport" content="width=device-width, initial-scale=1" />
- <meta name="description" content="skylakegrep benchmarks — 30/30 public-OSS recall on Django + React + Tokio at 60×–770× less context than rg." />
+ <meta name="description" content="skylakegrep benchmarks — pinned public fixtures, source-evidence quality gates, paired statistics, and explicit claim boundaries." />
  <meta name="theme-color" content="#0a0d12" />
  <meta property="og:type" content="article" />
  <meta property="og:title" content="Benchmarks · skylakegrep" />
- <meta property="og:description" content="skylakegrep benchmarks — 30/30 public-OSS recall on Django + React + Tokio at 60×–770× less context than rg." />
+ <meta property="og:description" content="skylakegrep benchmarks — pinned public fixtures, source-evidence quality gates, paired statistics, and explicit claim boundaries." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <title>Benchmarks · skylakegrep</title>
  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
@@ -231,11 +231,18 @@
  </p>
 
  <h3 id="bench-multilang">2. Public OSS recall (Django · React · Tokio)</h3>
+ <p><strong>Historical receipt:</strong> this section preserves an earlier
+ three-repository run that used moving repository tips, approximate
+ <code>chars / 4</code> token counts, and a deliberately broad term-OR
+ <code>rg</code> dump. Its 30/30 recall and 60×–770× range are not the current
+ general-performance claim. The current pinned, quality-gated protocol is
+ <a href="#bench-general-v2">General Benchmark v2</a>.</p>
  <p>
- 30 hand-labelled questions across three popular open-source
- codebases. Anyone can clone the repos and rerun
+ This table records 30 hand-labelled questions across three popular
+ open-source codebases under the legacy protocol. The current runner
  <a href="https://github.com/danielchen26/skylakegrep/blob/master/benchmarks/public_oss_bench.py"><code>benchmarks/public_oss_bench.py</code></a>
- to reproduce every number below.
+ now uses exact public pins and emits a new receipt rather than promising
+ byte-identical reproduction of these historical numbers.
  </p>
  <div class="table-wrap">
  <table>
@@ -259,11 +266,12 @@
  </table>
  </div>
  <p>
- Honest framing: <code>rg</code>'s 100 % is a recall-ceiling
- baseline — it returns 20 M+ tokens of term-OR scan output per
- query, so the answer is in there but the agent has to read the
- whole haystack. <strong>skygrep returns the right file ranked
- top-10 in 30 / 30 cases while emitting 60×–770× less context.</strong>
+ Historical reading: in that run, <code>rg</code>'s 100 % was a recall-ceiling
+ baseline — it returned 20 M+ legacy-estimated tokens of term-OR scan output
+ per query, so the answer was in the dump but the agent had to read the whole
+ haystack. <strong>Under that historical protocol, skygrep ranked the right
+ file in the top 10 for 30 / 30 cases while emitting 60×–770× less
+ estimated context.</strong>
  React reached 10 / 10 after the Option-C substrate upgrade
  (<code>bge-m3</code> embedder + content-agnostic
  non-canonical-path filter); the original failure modes on
@@ -273,11 +281,12 @@
  as the engineering record, not erased.
  </p>
 
- <h3 id="bench-worked-example">3. Worked example — <code>django-001</code> (one query, real numbers)</h3>
+ <h3 id="bench-worked-example">3. Worked example — <code>django-001</code> (archived calculation)</h3>
  <p>
- Reproduce locally to verify every number. One of the 30 tasks
- aggregated into the public-OSS recall table above, run against
- the actual Django source tree (524 K LOC).
+ Historical worked example from one of the 30 tasks aggregated into the
+ public-OSS table above. The values remain visible as the original receipt;
+ rerunning the current pinned protocol produces a new, separately identified
+ measurement.
  </p>
  <blockquote style="border-left: 3px solid #67e8f9; padding-left: 12px; margin: 16px 0; color: #cbd5e1;">
  <strong>Query:</strong> "Where does Django turn an incoming URL
@@ -289,7 +298,7 @@
  grep-as-search collapses on.
  </blockquote>
 
- <h4>Side A — <code>rg</code> term-OR scan</h4>
+ <h4>Historical side A — <code>rg</code> term-OR scan</h4>
  <p>
  The rg-agent extracts up to 8 terms (TF-IDF-ish stopword filter),
  runs <code>rg -i -F --max-count=20 -C2</code> per term,
@@ -305,7 +314,8 @@
  for <code>function</code>, <code>django</code>, <code>that</code>
  instead.
  </p>
- <p>Real measured output volumes per <code>rg</code> invocation:</p>
+ <p>Archived <code>chars / 4</code> estimates derived from measured output
+ volumes per <code>rg</code> invocation:</p>
 
  <!-- Inline horizontal bar chart — token volume per term -->
  <div style="background: #0a0d12; border: 1px solid #1f2937; border-radius: 8px; padding: 16px; margin: 16px 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px;">
@@ -322,14 +332,15 @@
  </div>
 
  <p>
- <code>django</code> alone is <strong>1.4 million tokens</strong>
+ Under the legacy approximation, <code>django</code> alone is
+ <strong>1.4 million estimated tokens</strong>
  because the term matches in basically every file of the Django
- source tree. <code>that</code> is <strong>840 K tokens</strong>
+ source tree. <code>that</code> is <strong>840 K estimated tokens</strong>
  for the same reason — high-frequency words that the stopword
  filter let through.
  </p>
 
- <h4>Side B — <code>skygrep --top 10 --json</code></h4>
+ <h4>Historical side B — <code>skygrep --top 10 --json</code></h4>
 <pre><code>$ skygrep "Where does Django turn an incoming URL into the view function that should handle it?" \
     --json --top 10
 $ wc -c   # 10,430 chars ≈ 2,607 tokens</code></pre>
@@ -351,13 +362,14 @@ $ wc -c   # 10,430 chars ≈ 2,607 tokens</code></pre>
  </div>
 
  <p>
- <strong>1,395 × is higher than the 60 × – 770 × headline range</strong>
+ <strong>The historical 1,395 × estimate is higher than that receipt's
+ 60 × – 770 × range</strong>
  because vocab-mismatch queries are the worst case for <code>rg</code>
  (stopwords flood the output) and the best case for <code>skygrep</code>
  (the embedder bridges "URL into view" → <code>resolve()</code>).
  </p>
 
- <h4>Why the headline is 60 × – 770 ×, not a single number</h4>
+ <h4>Why the historical receipt used a 60 × – 770 × range</h4>
  <p>
  <code>rg</code> output scales with
  <strong>(repo LOC) × (term-frequency of high-signal terms)</strong>.
@@ -381,7 +393,7 @@ $ wc -c   # 10,430 chars ≈ 2,607 tokens</code></pre>
  saturate term-OR scans across mid-sized monorepos.
  </p>
 
- <h4>Reproduce yourself (3 commands)</h4>
+ <h4>Inspect the legacy calculation (not an exact reproduction)</h4>
 <pre><code># rg side — counts bytes from term-OR scan
 cd /tmp/oss-bench/django
 for term in function incoming incom django handle should into that; do
@@ -394,15 +406,17 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
 
 # divide chars by 4 to approximate tokens</code></pre>
  <p>
- Numbers will land within ± 5 % of the ones above (variance from
- your Django clone's commit and rg minor-version output formatting).
- Per-task analysis for all 30 queries lives in
+ The original page did not pin the Django source commit, so a current clone is
+ not expected to reproduce these values within a fixed tolerance. The commands
+ illustrate the old <code>chars / 4</code> calculation only; the current pinned
+ runner produces a new, versioned receipt with exact tokenization. Per-task
+ analysis for all 30 historical queries lives in
  <a href="parity-benchmarks.html"><code>parity-benchmarks.html</code></a>.
  </p>
 
  <h3 id="bench-agent-context">4. Closed-loop agent benchmark (0.5.14, gated in 0.5.15)</h3>
  <p>
- 0.5.14 expands the agent benchmark from one retrieval call to the full
+ The historical 0.5.14 fixture expanded the agent benchmark from one retrieval call to the full
  loop that coding agents actually run: path discovery, evidence gathering,
  and sufficiency scoring before the next reasoning step. It does not call
  remote Claude, GPT, or any cloud model. Instead it compares two
@@ -441,12 +455,14 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  </table>
  </div>
  <p>
- Honest framing: raw <code>rg</code> remains the recall ceiling, and the
+ Historical framing: raw <code>rg</code> remains the recall ceiling, and the
  skygrep-first policy still missed three of the 38 tasks that broad
- lexical dumping covered. The 0.5.14 win is closed-loop agent economy:
- much less context, lower estimated end-to-end agent time, and nearly the
- same sufficiency when the agent follows the path-first / evidence-second
- playbook. Reproduce with
+ lexical dumping covered. Many public tasks in this 0.5.14 fixture were
+ path-only and carried no literal evidence terms, while the agent elapsed row
+ is modeled rather than measured. Keep these numbers as a historical receipt,
+ not a current general multiplier. General Benchmark v2 uses pinned public
+ commits, non-empty source evidence, exact tokenization, paired quality gates,
+ and confidence intervals. Reproduce the legacy receipt with
  <code>benchmarks/universal_closed_loop_benchmark.py --repo self --repo django --repo react --repo tokio --summary-only</code>.
  In 0.5.15, saved JSON reports can be checked by
  <code>benchmarks/closed_loop_regression_gate.py</code>, which fails a release
@@ -548,6 +564,36 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  score double-counting.
  </p>
 
+ <h3 id="bench-general-v2">4e. General Benchmark v2</h3>
+ <p>
+ General Benchmark v2 replaces a single headline multiplier with a paired,
+ quality-gated cross-repository protocol. It pins exact commits of Cobra,
+ Django, React, Spring Framework, Tokio, and Vite and evaluates 60 public
+ source-evidence tasks. Every task requires an accepted path plus literal
+ evidence from that source; empty path-only evidence contracts are rejected.
+ </p>
+ <div class="table-wrap">
+ <table>
+ <thead><tr><th>Contract</th><th>Requirement</th><th>Why it matters</th></tr></thead>
+ <tbody>
+ <tr><td>Quality floor</td><td>Both policies ≥ 0.85 and completed</td><td>Efficiency cannot hide a worse answer</td></tr>
+ <tr><td>Non-inferiority</td><td>skygrep within 2 percentage points of <code>rg</code></td><td>Aggregate accuracy is a hard gate</td></tr>
+ <tr><td>General sample</td><td>≥ 30 unique eligible tasks, ≥ 3 repositories, ≥ 80% eligible observations</td><td>Repeated trials cannot inflate task count</td></tr>
+ <tr><td>Benchmark source</td><td>One full Git commit, clean tracked worktree, identical across jobs</td><td>Mixed or local-WIP receipts cannot become a public claim</td></tr>
+ <tr><td>Token counting</td><td><code>tiktoken</code> <code>cl100k_base</code></td><td>No unlabeled chars-per-token estimate</td></tr>
+ <tr><td>Uncertainty</td><td>Repository → task hierarchical bootstrap</td><td>One favorable repository cannot dominate the interval</td></tr>
+ <tr><td>Latency</td><td>Measured wall and tool elapsed reported separately</td><td>No modeled context-reading time presented as speed</td></tr>
+ </tbody>
+ </table>
+ </div>
+ <p>
+ This remains a retrieval-workflow benchmark: context-token counts exclude
+ hidden model reasoning, final-answer output, provider caching, billing, and
+ price. See <a href="general-performance.html">the full methodology and
+ reproduction commands</a>. The older 4.05× six-task result remains useful as
+ a deterministic CI regression receipt, not as a general multiplier.
+ </p>
+
  <h3 id="bench-agent-latency">5. Agent bounded-latency smoke matrix (0.5.16)</h3>
  <p>
  0.5.16 adds a focused release smoke matrix for the agent timeout contract:
@@ -626,56 +672,61 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  for definitions and limitations.
  </p>
 
- <h3 id="bench-honest-framing">Which number to cite for which claim</h3>
+ <h3 id="bench-honest-framing">How to scope the historical receipts</h3>
+ <p>The examples below are versioned engineering records, not current general
+ performance claims. Cite them only with the named fixture and method. General
+ Benchmark v2 does not publish a multiplier until its quality, sample, source,
+ and confidence gates pass.</p>
  <ul>
  <li>
- <strong>"skygrep cuts agent tool calls"</strong> →
+ <strong>Historical single-turn and multi-turn agent fixtures</strong> →
  <a href="#bench-e2e">benchmark 1</a>: −37.6 % single-turn,
  −82 % multi-turn (real Claude Code sub-agents, 20 + 1
  hand-labelled tasks).
  </li>
  <li>
- <strong>"skygrep matches rg on hit-rate while emitting 60×–770× less context"</strong> →
+ <strong>Historical 0.2 public-OSS parity fixture</strong> →
  <a href="#bench-multilang">benchmark 2</a>: 30 / 30 (100 %)
  across Django + React + Tokio public OSS, vs rg's 30 / 30 baseline
- (which dumps 20 M+ tokens per query for the agent to filter).
+ (which emitted 20 M+ legacy-estimated tokens per query).
  </li>
  <li>
- <strong>"this is what one query actually looks like"</strong> →
+ <strong>Historical <code>django-001</code> worked example</strong> →
  <a href="#bench-worked-example">benchmark 3</a>:
- <code>django-001</code> worked example with real measured volumes
+ <code>django-001</code> worked example with archived <code>chars / 4</code> estimates
  — <code>rg</code> 3.6 M tokens vs <code>skygrep</code> 2.6 K
  tokens (≈ 1,395 ×) on a single vocab-mismatch query.
  </li>
  <li>
- <strong>"skygrep is more token-efficient than ripgrep when feeding LLM context"</strong> →
+ <strong>Historical 30-task self-test</strong> →
  <a href="#bench-self">benchmark 6</a>: ~17.7× total-token
  reduction at equal recall on the 30-task self-test.
  </li>
  <li>
- <strong>"agent context now matches real rg hit-rate with far less context"</strong> →
+ <strong>Historical 0.5.17 agent-parity fixture</strong> →
  <a href="#bench-agent-parity-0517">benchmark 4b</a>: 30 / 30 vs real
  <code>rg</code>, 22.28× less context, 19.61× lower estimated total tokens,
  30 tool calls instead of 179, and much higher MRR.
  </li>
  <li>
- <strong>"agent JSON calls are now bounded against slow foreground work"</strong> →
+ <strong>Historical 0.5.16 bounded-latency smoke matrix</strong> →
  <a href="#bench-agent-latency">benchmark 5</a>: the 0.5.16 smoke matrix covers
  scoped path, evidence, timeout fallback, deep read, broad lookup, and negative
  controls.
  </li>
  <li>
- <strong>"skygrep gives agents much smaller context and faster closed-loop utility"</strong> →
+ <strong>"the legacy 0.5.14 fixture reported smaller context and modeled closed-loop utility"</strong> →
  <a href="#bench-agent-context">benchmark 4</a>: 470× less context,
- 23.7× lower estimated agent elapsed, and 22.9× higher work quality per
- minute on the 0.5.14 closed-loop agent benchmark.
+ 23.7× lower modeled agent elapsed, and 22.9× higher modeled work quality per
+ minute. These are historical fixture figures, not a current general claim.
  </li>
  </ul>
  <p>
- Don't combine these into a single number; they answer different
- questions. The honest framing is in
+ Don't combine these into a single number or detach them from their release
+ and fixture labels; they answer different questions. The historical protocol is in
  <a href="parity-benchmarks.html"><code>parity-benchmarks.html</code></a>'s
- "Strongest claims" section.
+ archived methodology section, while the current claim contract is
+ <a href="general-performance.html">General Benchmark v2</a>.
  </p>
  </section>
 

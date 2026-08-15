@@ -14,7 +14,9 @@ such an agent benchmark can build on.
 from __future__ import annotations
 
 import argparse
+import functools
 import json
+import os
 import sqlite3
 import tempfile
 import time
@@ -72,7 +74,49 @@ DEFAULT_IGNORED_PARTS = {
 }
 
 
+@functools.lru_cache(maxsize=8)
+def _resolve_tokenizer(requested: str, encoding_name: str):
+    if requested == "chars":
+        return None, "chars-per-token", False
+    try:
+        import tiktoken  # type: ignore
+
+        return tiktoken.get_encoding(encoding_name), f"tiktoken:{encoding_name}", True
+    except (ImportError, ValueError) as exc:
+        if requested == "tiktoken":
+            raise RuntimeError(
+                "tiktoken token counting was requested but is unavailable; "
+                "install the benchmark extra with `pip install -e '.[benchmark]'`"
+            ) from exc
+        return None, "chars-per-token-fallback", False
+
+
+def tokenizer_metadata() -> dict[str, object]:
+    requested = os.environ.get("SKYGREP_BENCH_TOKENIZER", "chars").strip().lower()
+    if requested not in {"chars", "auto", "tiktoken"}:
+        raise ValueError(f"unknown benchmark tokenizer: {requested}")
+    encoding_name = os.environ.get("SKYGREP_BENCH_TIKTOKEN_ENCODING", "cl100k_base")
+    _, actual, exact = _resolve_tokenizer(requested, encoding_name)
+    return {
+        "requested": requested,
+        "actual": actual,
+        "exact_tokenizer": exact,
+        "encoding": encoding_name if exact else None,
+    }
+
+
 def approximate_tokens(text: str, chars_per_token: int) -> int:
+    """Count tokens with the configured real tokenizer or documented fallback.
+
+    The historical function name is retained for benchmark compatibility.
+    Set ``SKYGREP_BENCH_TOKENIZER=tiktoken`` to require exact tokenization or
+    ``auto`` to prefer it and fall back to ``chars_per_token``.
+    """
+
+    metadata = tokenizer_metadata()
+    if metadata["exact_tokenizer"]:
+        encoder, _, _ = _resolve_tokenizer(str(metadata["requested"]), str(metadata["encoding"]))
+        return max(1, len(encoder.encode(text, disallowed_special=())))
     return max(1, len(text) // chars_per_token)
 
 
@@ -84,15 +128,17 @@ def count_files(files: Iterable[Path], chars_per_token: int) -> dict[str, int]:
     paths = list(files)
     chars = 0
     lines = 0
+    tokens = 0
     for path in paths:
         text = read_text(path)
         chars += len(text)
         lines += text.count("\n") + 1
+        tokens += approximate_tokens(text, chars_per_token)
     return {
         "files": len(paths),
         "lines": lines,
         "chars": chars,
-        "approx_tokens": max(1, chars // chars_per_token),
+        "approx_tokens": max(1, tokens),
     }
 
 
@@ -269,12 +315,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top-k", type=int, default=5, help="Number of retrieved snippets per query")
     parser.add_argument("--batch-size", type=int, default=10, help="Embedding batch size for indexing")
     parser.add_argument("--chars-per-token", type=int, default=4, help="Approximate token conversion")
+    parser.add_argument("--tokenizer", choices=["chars", "auto", "tiktoken"], default="chars")
     parser.add_argument("--queries", type=Path, help="JSON file with [{'query': ..., 'expected': ...}] entries")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    os.environ["SKYGREP_BENCH_TOKENIZER"] = args.tokenizer
     root = Path(args.root).resolve()
     db_path = Path(args.db_path) if args.db_path else Path(tempfile.gettempdir()) / "skylakegrep-token-benchmark.sqlite"
 
@@ -290,10 +338,11 @@ def main() -> None:
 
     report = {
         "definition": {
-            "indexed_context_reduction_x": "indexed corpus approx tokens / retrieved JSON approx tokens",
-            "source_doc_context_reduction_x": "source+docs corpus approx tokens / retrieved JSON approx tokens",
+            "indexed_context_reduction_x": "indexed corpus tokens / retrieved JSON tokens",
+            "source_doc_context_reduction_x": "source+docs corpus tokens / retrieved JSON tokens",
             "note": "This measures retrieval-layer context compression, not full agent token usage.",
         },
+        "tokenizer": tokenizer_metadata(),
         "index": {
             "seconds": round(index_seconds, 3),
             "db_path": str(db_path),

@@ -133,8 +133,10 @@ The daemon validates project/index boundaries, while macOS `/var` and
 `/private/var` aliases are coalesced without double-counting lexical evidence.
 Pull-request CI runs a deterministic six-task contract benchmark: the release
 fixture preserved 100% path coverage, evidence coverage, and sufficiency while
-using about 4.05× less context and 6 tool calls instead of 99 for the modeled
-raw-`rg` workflow.
+using about 4.05× less context and 6 tool calls instead of 99 for that fixed,
+modeled raw-`rg` fixture. It is a regression receipt, not a general multiplier;
+the pinned six-repository methodology lives in
+[`docs/general-performance.md`](docs/general-performance.md).
 
 The 0.5.x foundation remains: less ceremony from you, more intelligence from
 the tool.
@@ -409,29 +411,40 @@ cascade with the local LLM kept warm in memory.
 
 ## Performance
 
-Public-OSS reproducible benchmark across three popular codebases
-(Django · React · Tokio · 30 hand-labelled questions, 10 each):
+The current release-scale performance contract is
+[General Benchmark v2](docs/general-performance.md): six public repositories
+at exact commits, 60 source-evidence tasks, real `tiktoken` counting, paired
+quality gates, measured retrieval latency, and repository-aware confidence
+intervals. It publishes an efficiency multiplier only after skygrep is
+non-inferior to `rg-only` on completion and retrieved-context quality.
 
-<p align="center">
-  <img alt="skylakegrep — public-OSS benchmark performance (30/30 recall on Django + Tokio + React)" src="docs/assets/performance-matrix.svg" width="100%">
-</p>
+Two older results remain useful for regression history, but are not general
+performance claims:
 
+- The 0.7.0 deterministic six-task CI fixture reported 4.05× less context than
+  a modeled raw-`rg` loop with equal checked path/evidence coverage. It is a
+  fast per-PR contract, not a cross-repository multiplier.
+- The earlier Django/React/Tokio parity page reported 30/30 top-10 recall and a
+  60×–770× context range against a deliberately broad term-OR dump. It used a
+  legacy tokenizer/task protocol and moving repository tips, so the figures are
+  retained only as a historical engineering receipt.
 
-Honest reading:
+Reproduce the current pinned fixture and methodology with:
 
-  - `rg`'s 100 % is a recall-ceiling baseline — it returns 20 M+
-    tokens per query (term-OR scan with 2-line context windows).
-    Yes, the answer is in the dump; no, the agent has to read all
-    of it to find it.
-  - **skygrep returns the right file ranked top-10 in 30 / 30 cases**
-    while emitting 60 × – 770 × less context for the agent's LLM
-    round-trip downstream. That's the user-facing number.
-  - Reproduce: `git clone` Django + React + Tokio at any commit,
-    run `benchmarks/public_oss_bench.py`. Numbers within ±5 %.
+```bash
+.venv/bin/python benchmarks/validate_public_fixtures.py \
+  --oss-root /tmp/skygrep-general-v2-repos --prepare
 
-For the full bench protocol, per-task analysis, and worked
-example (one query · 1,395 × token reduction), see
-[`docs/parity-benchmarks.html`](docs/parity-benchmarks.html).
+.venv/bin/python benchmarks/universal_closed_loop_benchmark.py \
+  --oss-root /tmp/skygrep-general-v2-repos \
+  --prepare --refresh-index --reset-index \
+  --trials 3 --tokenizer tiktoken \
+  --report /tmp/skygrep-general-v2.json --summary-only
+```
+
+See the [current methodology](docs/general-performance.md) and the
+[historical parity receipt](docs/parity-benchmarks.md) for their distinct
+claim boundaries.
 
 ### Closed-loop agent benchmark (0.5.14)
 
@@ -458,11 +471,15 @@ this repo plus Django, React, and Tokio.
 | Context tokens | 223,592 | 105,187,419 |
 | Work quality / minute | 12.829 | 0.561 |
 
-Honest reading: raw `rg` remains the raw-output ceiling and still wins
-when an agent truly needs every lexical match. The skygrep-first closed
-loop is the practical agent win: **470× less context**, **23.7× lower
-estimated agent elapsed**, and **22.9× higher work-quality-per-minute**
-on the saved closed-loop report. In 0.5.17, the first-pass
+Historical reading: this 0.5.14 self + three-repository fixture reported
+**470× less context**, **23.7× lower modeled agent elapsed**, and **22.9×
+higher modeled work-quality-per-minute**. Those figures used a legacy task
+contract in which many public path-only tasks had no literal evidence terms;
+they are retained as a historical receipt, not as a current general claim.
+Raw `rg` remains the raw-output ceiling when an agent truly needs every
+lexical match. General Benchmark v2 replaces this headline with pinned public
+fixtures, non-empty source evidence, exact tokenization, paired quality gates,
+and confidence intervals. In 0.5.17, the first-pass
 `--agent-context` parity bench closes the earlier recall gap on 30
 repository-maintenance tasks by using `rg` as an internal bounded recall
 lane instead of exposing raw grep output to the LLM.
@@ -706,8 +723,9 @@ explicitly requested.
     project-boundary validation, macOS path-alias coalescing, and a continuous
     six-task accuracy/performance regression gate. The deterministic fixture
     completed 6/6 tasks with 100% path, evidence, and sufficiency coverage,
-    about 4.05× less context, and 6 tool calls instead of 99 for the modeled
-    raw-`rg` workflow. Existing indexes remain compatible.
+    about 4.05× less context, and 6 tool calls instead of 99 for that fixed
+    modeled raw-`rg` fixture. General Benchmark v2 now keeps this CI receipt
+    separate from cross-repository claims. Existing indexes remain compatible.
   - **`0.6.0`** — Batched indexing, bounded daemon startup, calibrated agent
     confidence, and authority-aware answer synthesis. Fresh indexing on the
     same repository dropped from 624.44 s to 74.71 s (8.36× faster), while
@@ -756,9 +774,11 @@ explicitly requested.
     ambiguity or parsed documents. JSON path-only output now omits
     snippets under `--no-content`, and repeated agent calls are documented
     as daemon-first (`skygrep serve` + `--daemon-url`) to avoid repeated
-    process/cold-load cost. The new 38-task closed-loop benchmark shows
-    470× less context and 23.7× lower estimated agent elapsed than a raw
-    `rg`-only policy, with 94.7 % path coverage and 96.5 % sufficiency.
+    process/cold-load cost. The historical 0.5.14 38-task fixture reported
+    470× less context and 23.7× lower modeled agent elapsed than a raw
+    `rg`-only policy, with 94.7 % path coverage and 96.5 % sufficiency. This
+    is a historical fixture result; General Benchmark v2 is the current
+    cross-repository claim boundary.
   - **`0.5.13`** — Adaptive candidate recall for agent-grade context.
     Semantic and mixed queries now get a bounded, generic recall
     substrate before final cascade ranking: explicit include scope,

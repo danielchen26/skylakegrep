@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "repos": {
+    "cobra": {
+      "label": "Cobra (Go)",
+      "url": "https://github.com/spf13/cobra.git",
+      "subdir": "cobra",
+      "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "fixture": "benchmarks/public_tasks/cobra.json"
+    },
+    "django": {
+      "label": "Django (Python)",
+      "url": "https://github.com/django/django.git",
+      "subdir": "django",
+      "commit": "4ee04972e7f9163dbdf5a7c36330e3379187e187",
+      "fixture": "benchmarks/public_tasks/django.json"
+    },
+    "react": {
+      "label": "React (JavaScript/Flow)",
+      "url": "https://github.com/facebook/react.git",
+      "subdir": "react",
+      "commit": "eb8feb71096eec5c885b2a4c7d8d030d3622f265",
+      "fixture": "benchmarks/public_tasks/react.json"
+    },
+    "spring-framework": {
+      "label": "Spring Framework (Java)",
+      "url": "https://github.com/spring-projects/spring-framework.git",
+      "subdir": "spring-framework",
+      "commit": "c7712052ce953722448967dc9c780fa959a08d48",
+      "fixture": "benchmarks/public_tasks/spring-framework.json"
+    },
+    "tokio": {
+      "label": "Tokio (Rust)",
+      "url": "https://github.com/tokio-rs/tokio.git",
+      "subdir": "tokio",
+      "commit": "625954f365727668cb02d04172b34f1149637728",
+      "fixture": "benchmarks/public_tasks/tokio.json"
+    },
+    "vite": {
+      "label": "Vite (TypeScript)",
+      "url": "https://github.com/vitejs/vite.git",
+      "subdir": "vite",
+      "commit": "dcf88bd2ad2b1a8845f9029587cc8c825e382d42",
+      "fixture": "benchmarks/public_tasks/vite.json"
+    }
+  }
+}

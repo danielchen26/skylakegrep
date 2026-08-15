@@ -1,0 +1,122 @@
+[
+  {
+    "id": "dev-server",
+    "question": "Where does Vite construct and start the development server, and which source entry point proves that responsibility?",
+    "expected": "packages/vite/src/node/server/index.ts",
+    "expected_alternatives": ["packages/vite/src/node/cli.ts"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["_createServer", "ViteDevServer"],
+    "quality_terms": ["_createServer", "ViteDevServer"],
+    "ground_truth_note": "server/index.ts constructs the ViteDevServer implementation."
+  },
+  {
+    "id": "config-resolution",
+    "question": "Where does Vite load a user configuration file and merge it into resolved runtime configuration, and what source functions anchor that path?",
+    "expected": "packages/vite/src/node/config.ts",
+    "expected_alternatives": ["packages/vite/src/node/cli.ts"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["resolveConfig", "loadConfigFromFile"],
+    "quality_terms": ["resolveConfig", "loadConfigFromFile"],
+    "ground_truth_note": "config.ts loads the config file and resolves final configuration."
+  },
+  {
+    "id": "hot-module-reload",
+    "question": "Where does Vite process a changed file and propagate hot-update boundaries to connected clients, and which source routines prove it?",
+    "expected": "packages/vite/src/node/server/hmr.ts",
+    "expected_alternatives": ["packages/vite/src/node/server/index.ts"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["handleHMRUpdate", "updateModules"],
+    "quality_terms": ["handleHMRUpdate", "updateModules"],
+    "ground_truth_note": "hmr.ts discovers affected modules and sends update payloads."
+  },
+  {
+    "id": "module-graph",
+    "question": "Where does Vite maintain the development server's module dependency graph and look up modules by resolved identifier, and what source symbols anchor it?",
+    "expected": "packages/vite/src/node/server/moduleGraph.ts",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["EnvironmentModuleGraph", "getModuleById"],
+    "quality_terms": ["EnvironmentModuleGraph", "getModuleById"],
+    "ground_truth_note": "EnvironmentModuleGraph stores URL and id mappings for development modules."
+  },
+  {
+    "id": "transform-request",
+    "question": "Where does Vite transform a requested module through the plugin pipeline and cache the result, and which source functions demonstrate the flow?",
+    "expected": "packages/vite/src/node/server/transformRequest.ts",
+    "expected_alternatives": ["packages/vite/src/node/server/pluginContainer.ts"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["transformRequest", "doTransform"],
+    "quality_terms": ["transformRequest", "doTransform"],
+    "ground_truth_note": "transformRequest deduplicates and delegates the module transform to doTransform."
+  },
+  {
+    "id": "dependency-optimizer",
+    "question": "Where does Vite create the dependency optimizer that scans and prebundles third-party packages, and which source function anchors it?",
+    "expected": "packages/vite/src/node/optimizer/optimizer.ts",
+    "expected_alternatives": ["packages/vite/src/node/optimizer/index.ts", "packages/vite/src/node/optimizer/scan.ts"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["createDepsOptimizer", "initDepsOptimizerMetadata"],
+    "quality_terms": ["createDepsOptimizer", "initDepsOptimizerMetadata"],
+    "ground_truth_note": "optimizer.ts creates the environment dependency optimizer and its metadata."
+  },
+  {
+    "id": "css-pipeline",
+    "question": "Where does Vite compile CSS and run configured preprocessors before returning transformed styles, and which source routines prove it?",
+    "expected": "packages/vite/src/node/plugins/css.ts",
+    "expected_alternatives": [],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["cssPlugin", "compileCSS"],
+    "quality_terms": ["cssPlugin", "compileCSS"],
+    "ground_truth_note": "The CSS plugin calls compileCSS and the preprocessor pipeline."
+  },
+  {
+    "id": "module-resolution",
+    "question": "Where does Vite's resolver plugin translate package and source import identifiers into concrete files, and which source symbols anchor that behavior?",
+    "expected": "packages/vite/src/node/plugins/resolve.ts",
+    "expected_alternatives": ["packages/vite/src/node/nodeResolve.ts", "packages/vite/src/node/idResolver.ts"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["oxcResolvePlugin", "tryNodeResolve"],
+    "quality_terms": ["oxcResolvePlugin", "tryNodeResolve"],
+    "ground_truth_note": "resolve.ts constructs the resolver plugin and contains package resolution helpers."
+  },
+  {
+    "id": "html-transforms",
+    "question": "Where does Vite apply plugin-provided transformations and tag injection to an HTML entry document, and what source functions identify the pipeline?",
+    "expected": "packages/vite/src/node/plugins/html.ts",
+    "expected_alternatives": ["packages/vite/src/node/server/middlewares/indexHtml.ts"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["htmlInlineProxyPlugin", "applyHtmlTransforms"],
+    "quality_terms": ["htmlInlineProxyPlugin", "applyHtmlTransforms"],
+    "ground_truth_note": "html.ts applies index HTML hooks and injects transformed tags."
+  },
+  {
+    "id": "production-build",
+    "question": "Where does Vite create the production builder and execute an application build, and which exported functions prove it?",
+    "expected": "packages/vite/src/node/build.ts",
+    "expected_alternatives": ["packages/vite/src/node/cli.ts"],
+    "difficulty": "medium",
+    "abstract_level": "snippet",
+    "deliverable": "source_evidence",
+    "evidence_terms": ["export async function build", "createBuilder"],
+    "quality_terms": ["export async function build", "createBuilder"],
+    "ground_truth_note": "build.ts exposes build and creates the builder used for environments."
+  }
+]

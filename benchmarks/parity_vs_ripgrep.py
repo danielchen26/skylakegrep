@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -45,6 +46,7 @@ from benchmarks.token_savings import (
     collect_source_doc_files,
     count_files,
     is_benchmark_ignored,
+    tokenizer_metadata,
 )
 
 
@@ -180,6 +182,7 @@ def expected_rank(
 
 
 def benchmark(args: argparse.Namespace) -> dict[str, object]:
+    os.environ["SKYGREP_BENCH_TOKENIZER"] = getattr(args, "tokenizer", "chars")
     rg_bin = ensure_ripgrep()
     root = Path(args.root).resolve()
     db_path = (
@@ -288,7 +291,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             "benchmark_type": "real-ripgrep agent context vs skylakegrep top-k",
             "rg_agent": "one `rg --json -F -i -C 2 TERM ROOT` invocation per extracted query term",
             "mgrep_agent": "one semantic skylakegrep top-k search per task",
-            "token_note": "tokens approximate as chars/4; estimated totals add fixed prompt and final-answer overhead",
+            "token_note": "context uses the recorded tokenizer; estimated totals still add fixed prompt and final-answer overhead",
         },
         "tooling": {
             "rg_path": rg_bin,
@@ -306,6 +309,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             "final_answer_tokens": args.final_answer_tokens,
             "rerank": getattr(args, "rerank", True),
             "rerank_pool": getattr(args, "rerank_pool", 50),
+            "tokenizer": tokenizer_metadata(),
         },
         "index": {
             "seconds": round(index_seconds, 3),
@@ -359,6 +363,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top-k", type=int, default=10)
     parser.add_argument("--batch-size", type=int, default=10)
     parser.add_argument("--chars-per-token", type=int, default=4)
+    parser.add_argument("--tokenizer", choices=["chars", "auto", "tiktoken"], default="chars")
     parser.add_argument("--rg-max-terms", type=int, default=8)
     parser.add_argument("--rg-max-matches-per-term", type=int, default=20)
     parser.add_argument("--rg-context-lines", type=int, default=2)
