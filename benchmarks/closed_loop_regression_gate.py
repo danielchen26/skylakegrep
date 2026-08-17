@@ -130,6 +130,37 @@ def evaluate(report: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]
             failures.append(
                 f"general context reduction CI low={ci_low} below required {minimum_ci_low}"
             )
+        paired_distributions = general.get("paired_distributions", {})
+        elapsed_ratio_raw = paired_distributions.get(
+            "measured_elapsed_ratio_x", {}
+        ).get("median")
+        elapsed_delta_raw = paired_distributions.get(
+            "measured_elapsed_delta_seconds", {}
+        ).get("median")
+        elapsed_ratio = _metric({"median": elapsed_ratio_raw}, "median")
+        elapsed_delta = _metric({"median": elapsed_delta_raw}, "median")
+        minimum_elapsed_ratio = float(
+            getattr(args, "min_general_median_measured_elapsed_ratio", 0.8)
+        )
+        maximum_elapsed_delta = float(
+            getattr(args, "max_general_median_elapsed_delta_seconds", 1.0)
+        )
+        if elapsed_ratio_raw is None:
+            failures.append("general measured elapsed ratio is missing")
+        if elapsed_delta_raw is None:
+            failures.append("general measured elapsed delta is missing")
+        if (
+            elapsed_ratio_raw is not None
+            and elapsed_delta_raw is not None
+            and elapsed_ratio < minimum_elapsed_ratio
+            and elapsed_delta > maximum_elapsed_delta
+        ):
+            failures.append(
+                "general median measured elapsed ratio rg/skygrep="
+                f"{elapsed_ratio} below required {minimum_elapsed_ratio} and "
+                "median skygrep-rg delta="
+                f"{elapsed_delta}s exceeds allowed {maximum_elapsed_delta}s"
+            )
 
     return {
         "ok": not failures,
@@ -155,6 +186,12 @@ def evaluate(report: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]
             "min_general_context_ci_low": float(
                 getattr(args, "min_general_context_ci_low", 1.0)
             ),
+            "min_general_median_measured_elapsed_ratio": float(
+                getattr(args, "min_general_median_measured_elapsed_ratio", 0.8)
+            ),
+            "max_general_median_elapsed_delta_seconds": float(
+                getattr(args, "max_general_median_elapsed_delta_seconds", 1.0)
+            ),
         },
     }
 
@@ -173,6 +210,24 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--min-general-eligible-fraction", type=float, default=0.8)
     parser.add_argument("--min-general-median-context-reduction", type=float, default=1.0)
     parser.add_argument("--min-general-context-ci-low", type=float, default=1.0)
+    parser.add_argument(
+        "--min-general-median-measured-elapsed-ratio",
+        type=float,
+        default=0.8,
+        help=(
+            "Relative side of the combined latency guard: fail when median rg/skygrep is "
+            "below this value and the absolute median gap also exceeds its limit."
+        ),
+    )
+    parser.add_argument(
+        "--max-general-median-elapsed-delta-seconds",
+        type=float,
+        default=1.0,
+        help=(
+            "Absolute side of the combined latency guard: fail when median skygrep-minus-rg "
+            "exceeds this value and the relative ratio also misses its limit."
+        ),
+    )
     return parser.parse_args(argv)
 
 
