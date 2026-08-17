@@ -47,7 +47,7 @@ def _row(
 
 def _cobra_capacity_receipt(*, elapsed: float = 10.0, chunks: int = 10):
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "environment": {
             "benchmark_source_commit": "1" * 40,
             "benchmark_source_tracked_clean": "true",
@@ -243,6 +243,9 @@ def test_paired_efficiency_reports_distribution_only_after_quality_gate():
     assert report["quality_eligible_pairs"] == 2
     assert report["paired_distributions"]["context_token_reduction_x"]["median"] == 4.0
     assert report["paired_distributions"]["tool_call_reduction_x"]["median"] == 8.0
+    assert report["paired_distributions"]["measured_elapsed_ratio_x"]["median"] == 2.0
+    assert report["paired_distributions"]["measured_elapsed_delta_seconds"]["median"] == -2.0
+    assert report["by_repo"]["one"]["measured_elapsed_ratio_x"]["median"] == 2.0
     assert report["context_token_median_95pct_ci"]["low"] == 4.0
     assert report["context_token_median_95pct_ci"]["high"] == 4.0
 
@@ -328,7 +331,7 @@ def test_parallel_repo_receipts_merge_before_general_gate():
             )
         reports.append(
             {
-                "schema_version": 2,
+                "schema_version": 3,
                 "definition": {
                     "policies": ["skygrep-first", "rg-only"],
                     "mode": "adaptive-only",

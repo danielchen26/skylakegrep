@@ -25,6 +25,7 @@ rerank = [
 ]
 benchmark = [
     "tiktoken>=0.7",
+    "pytest>=8.0,<9",
 ]
 
 [build-system]

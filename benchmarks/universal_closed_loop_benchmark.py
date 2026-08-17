@@ -423,7 +423,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         environment,
     )
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "definition": {
             "benchmark": "General Benchmark v2: universal closed-loop retrieval workflow",
             "scope": (
@@ -440,6 +440,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 "are reported; the benchmark is designed to expose misses rather than force a win"
             ),
             "policies": policies,
+            "skygrep_first_path": (
+                "production agent presets: agent-fast for path decisions, agent-context for "
+                "first-pass evidence, and bounded deep extraction only after files are known"
+            ),
             "mode": "full-matrix low/medium/high" if args.full_matrix else "adaptive-only",
             "privacy": "public OSS tasks use public repository paths only; absolute roots are redacted",
             "headline_rule": (
@@ -456,6 +460,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 "tool_elapsed_seconds measures retrieval subprocess/file-read time before token "
                 "counting; estimated_agent_elapsed_seconds is modelled and never used for the "
                 "General Benchmark headline"
+            ),
+            "latency_gate_note": (
+                "release validation requires measured latency fields; it fails only when the "
+                "quality-eligible median is both more than 25 percent slower than rg and more "
+                "than one second slower in absolute wall time"
             ),
             "token_note": (
                 "context tokens cover retrieval tool payloads, not model reasoning or provider "
