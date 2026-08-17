@@ -7,6 +7,7 @@ import subprocess
 
 import pytest
 
+from benchmarks import universal_closed_loop_benchmark as _universal
 from benchmarks.general_capacity_preflight import capacity_report
 from benchmarks.general_stats import paired_efficiency
 from benchmarks.merge_general_reports import merge_reports
@@ -64,6 +65,26 @@ def test_universal_run_exposes_benchmark_checkout_to_external_cwd(tmp_path, monk
     pythonpath = captured["env"]["PYTHONPATH"].split(os.pathsep)
     assert pythonpath[0] == str(UNIVERSAL_PROJECT_ROOT)
     assert pythonpath[1] == "/existing/path"
+
+
+def test_public_environment_uses_one_bounded_tracked_status_check(monkeypatch):
+    calls = []
+
+    def fake_subprocess_run(cmd, **kwargs):
+        calls.append((cmd, kwargs))
+        return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(_universal.subprocess, "run", fake_subprocess_run)
+    monkeypatch.setattr(_universal, "_git_commit", lambda _root: "abc123")
+
+    environment = _universal._public_environment()
+
+    assert environment["benchmark_source_commit"] == "abc123"
+    assert environment["benchmark_source_tracked_clean"] == "true"
+    assert len(calls) == 1
+    command, kwargs = calls[0]
+    assert command == ["git", "status", "--porcelain=v1", "--untracked-files=no"]
+    assert kwargs["timeout"] == 120
 
 
 def _cobra_capacity_receipt(*, elapsed: float = 10.0, chunks: int = 10):
