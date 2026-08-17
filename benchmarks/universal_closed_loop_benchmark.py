@@ -82,19 +82,14 @@ def _public_environment() -> dict[str, str]:
         package_version = importlib.metadata.version("skylakegrep")
     except importlib.metadata.PackageNotFoundError:
         package_version = "source-tree"
-    tracked_clean = all(
-        subprocess.run(
-            command,
-            cwd=str(PROJECT_ROOT),
-            capture_output=True,
-            timeout=10,
-        ).returncode
-        == 0
-        for command in (
-            ["git", "diff", "--quiet", "HEAD", "--"],
-            ["git", "diff", "--cached", "--quiet", "HEAD", "--"],
-        )
+    status = subprocess.run(
+        ["git", "status", "--porcelain=v1", "--untracked-files=no"],
+        cwd=str(PROJECT_ROOT),
+        capture_output=True,
+        text=True,
+        timeout=120,
     )
+    tracked_clean = status.returncode == 0 and not status.stdout.strip()
     return {
         "skylakegrep_version": package_version,
         "benchmark_source_commit": _git_commit(PROJECT_ROOT),
@@ -331,6 +326,10 @@ def _attach_source_gate(
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
     started = time.perf_counter()
+    # Capture source provenance before indexing and task execution so a
+    # transient filesystem stall after a multi-hour run cannot discard the
+    # otherwise complete receipt.
+    environment = _public_environment()
     policies = args.policy or ["skygrep-first", "rg-only"]
     sections: list[dict[str, Any]] = []
     all_rows: list[dict[str, Any]] = []
@@ -421,7 +420,6 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         )
 
     aggregate = _summarize_rows(all_rows, policies, args.tokens_per_second, args.sufficient_threshold)
-    environment = _public_environment()
     generalization = _attach_source_gate(
         paired_efficiency(
             all_rows,
