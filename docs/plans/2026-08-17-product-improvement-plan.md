@@ -60,6 +60,25 @@ The tests had been failing because pytest's `tmp_path` lives under a hidden
 scratch root — the test fixtures were accidentally reproducing a genuine user
 scenario, and the failure was being read as environmental noise.
 
+**Severity confirmed by end-to-end CLI acceptance run (not unit tests).**
+In a docs-only project under a hidden parent, asking for a file by name:
+
+| | pre-fix (`HEAD~2`) | post-fix |
+|---|---|---|
+| Result | **missed the file in the cwd** | correct file, score 1.000 |
+| What the user saw | pointed at an unrelated PDF in `~/Downloads` | `Case42 Contract Scan.md` |
+| Route | `proactive-filename` (wrong-dir recovery) | `filename-lookup` |
+| Latency | 1.08 s | **0.13 s** |
+| Reported quality | `quality=BEST` | `quality=BEST` |
+
+The worst property: **it reported `quality=BEST` while being wrong.** The
+quality contract — the product's main differentiator — was actively lying,
+because the empty filename lane looked like a confident cascade decision
+rather than a suppressed lane. When code files were present the semantic
+cascade sometimes masked the miss (right answer, wrong route, 8× slower); with
+documents whose *content* did not echo the query, there was no fallback and
+the answer was simply lost.
+
 **Lesson to institutionalise: a red suite was hiding a shipped bug for an
 unknown number of releases. The suite must be green, always.**
 
@@ -163,10 +182,19 @@ committing (§B1) so the paper trail is right the first time. Extend
 releases to a bug hiding behind red tests. CI must fail on any failure, and no
 release may proceed on a red suite.
 
-**A3. Fix `doctor` blind spots.** The stale-install check landed. Also detect:
-Ollama reachable but models absent, index stale vs working tree, and the
-`urllib3`/LibreSSL warning that is the literal **first line every macOS user
-sees** — suppress it or pin a compatible `urllib3`.
+**A3. Fix `doctor` blind spots.** The stale-install check landed and was
+verified against a real drifted install (`source 0.7.0` vs `installed 0.6.0`).
+Also detect: Ollama reachable but models absent, index stale vs working tree,
+and the `urllib3`/LibreSSL warning that is the literal **first line every
+macOS user sees** — suppress it or pin a compatible `urllib3`.
+
+**A4. 🔴 A suppressed lane must never report `quality=BEST`.** The acceptance
+run (§0) showed the tool confidently returning a wrong answer because an empty
+filename lane was indistinguishable from a lane that ran and found nothing.
+This is the same class of defect as the `[]`-vs-suppressed ambiguity queued
+under Phase D, and it strikes at the one thing the product claims as its
+differentiator. The quality signal must degrade when a lane is empty or
+suppressed. **Fix this before launch, not as part of the MCP work.**
 
 ### Phase B — Licence + governance (hours) 🔴 highest leverage
 
