@@ -395,7 +395,6 @@ def _skygrep_step(
     detail: str,
     content: bool = True,
     includes: list[str] | None = None,
-    rerank: bool = False,
     name: str,
 ) -> StepResult:
     started = time.perf_counter()
@@ -404,17 +403,24 @@ def _skygrep_step(
         "-m",
         "skylakegrep.src.cli",
         "search",
-        "--json",
+    ]
+    if not content:
+        # Measure the production path-only preset.  A hand-written collection
+        # of JSON flags is not equivalent: agent-fast also selects the bounded
+        # candidate-recall implementation and disables model-routed latency.
+        cmd.append("--agent-fast")
+    elif detail == "full":
+        # Full extraction is only used after the loop has narrowed to known
+        # files.  Keep the deep read deterministic and model-free.
+        cmd.extend(["--agent-mode", "deep", "--no-llm-router", "--no-cascade"])
+    else:
+        # This is the real first-pass evidence path used by coding agents.
+        cmd.append("--agent-context")
+    cmd.extend([
         "--top",
         str(top),
         "--no-auto-index",
-    ]
-    if not rerank:
-        cmd.append("--no-rerank")
-    if not content:
-        cmd.append("--no-content")
-    if content:
-        cmd.extend(["--content", "--detail", detail])
+    ])
     for pattern in includes or []:
         cmd.extend(["--include", pattern])
     cmd.append(query)
@@ -1185,7 +1191,9 @@ def _closed_loop(
                 task["query"],
                 timeout=timeout,
                 top=int(effort["top"]),
-                detail=str(effort["detail"]),
+                # First-pass evidence always uses the bounded agent-context
+                # preset.  Deeper reads happen only after paths are known.
+                detail="standard",
                 content=initial_needs_content,
                 includes=known_scope,
                 name="skygrep:initial",
@@ -1573,7 +1581,7 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
     return {
         "definition": {
             "benchmark": "closed-loop agent retrieval benchmark",
-            "skygrep_first": "depth-adaptive skygrep first: lightweight JSON for locate tasks, JSON/content for evidence tasks, direct candidate-file reads, path-only rg probes for missing anchors, skygrep extraction only for parsed documents, then bounded rg/read fallback if evidence is still insufficient",
+            "skygrep_first": "production agent presets: agent-fast for locate tasks, agent-context for first-pass evidence, direct candidate-file reads, path-only rg probes for missing anchors, deep extraction only after parsed documents are known, then bounded rg/read fallback if evidence is still insufficient",
             "rg_only": "raw rg term search, expanded rg search, then bounded file reads if evidence is still insufficient",
             "stop_rule": f"sufficiency >= {args.sufficient_threshold}, or policy budget exhausted",
             "quality_dimensions": "task-completion quality combines deliverable fit, required path decisions, fact support, noise control, retrieval sufficiency, and hallucination guard",
