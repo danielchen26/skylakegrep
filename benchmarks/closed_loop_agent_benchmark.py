@@ -242,6 +242,12 @@ def _run(
     merged_env = os.environ.copy()
     merged_env.update(
         {
+            "PYTHONPATH": str(PROJECT_ROOT)
+            + (
+                os.pathsep + merged_env["PYTHONPATH"]
+                if merged_env.get("PYTHONPATH")
+                else ""
+            ),
             "SKYGREP_NO_HINTS": "1",
             "SKYGREP_SETUP_AUTO_REFRESH": "0",
             "SKYGREP_UI_ANIMATION": "off",
