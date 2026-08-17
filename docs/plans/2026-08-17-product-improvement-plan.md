@@ -22,7 +22,7 @@ Everything below was verified against the working tree, not inferred.
 |---|---|---|
 | Test suite | **388 passed / 17 failed** at audit start | 🔴 was masking a real bug |
 | Git object DB | `git fsck` broken link; `rev-list HEAD` **fatal** | 🔴 release workflow blocked |
-| Working tree | Rust workspace (`Cargo.toml`, `apps/`, `crates/`) **untracked** | 🔴 26 MB of product unversioned |
+| Working tree | Rust workspace (`Cargo.toml`, `apps/`, `crates/`) was **untracked** | 🟢 destroyed by re-clone, **recovered + committed** — §0.1 |
 | Licence | PolyForm-NC 1.0.0; GitHub reads `NOASSERTION` | 🔴 blocks all adoption |
 | Stars / adoption | **0 stars**, PyPI 0.7.0 published | 🔴 no distribution |
 | Governance files | `NOTICE`, `CONTRIBUTING`, `SECURITY`, `CODE_OF_CONDUCT` **all absent** | 🟡 |
@@ -31,7 +31,7 @@ Everything below was verified against the working tree, not inferred.
 | Benchmarks | v2 **already pins commits** + real tokenizer + `--report` | 🟢 much better than assumed |
 | Committed report artifact | `benchmarks/reports/` **does not exist** | 🔴 headline unbacked |
 | Dead bench scripts | **10 of 28** hard-code unreachable `/tmp` paths | 🟡 reads as abandonment |
-| Repo size | **9.6 GB**, of which `target/` = 8.6 GB | 🟡 (correctly gitignored) |
+| Repo size | was **9.6 GB** (`target/` = 8.6 GB); now ~40 MB after re-clone | 🟡 |
 
 ### The single most important finding
 
@@ -81,6 +81,42 @@ the answer was simply lost.
 
 **Lesson to institutionalise: a red suite was hiding a shipped bug for an
 unknown number of releases. The suite must be green, always.**
+
+---
+
+### 0.1 🔴 Incident: the working tree was destroyed mid-session
+
+**What happened.** At **2026-08-17 16:41 UTC** this directory was deleted and
+re-cloned from origin (`.git/logs/HEAD` first entry: `clone: from
+https://github.com/danielchen26/skylakegrep.git`, timestamp `1786984862`).
+
+**What was lost.** Everything untracked, permanently, with no git history to
+recover from:
+
+| Lost | Size | Recovered? |
+|---|---|---|
+| `Cargo.toml`, `Cargo.lock` | — | ✅ from backup, **now committed** |
+| `apps/desktop` (2,800-line `lib.rs`, 1,977-line `App.tsx`) | 1 MB src | ✅ from backup, **now committed** |
+| `crates/skygrep-{agent,core,protocol}` | 88 KB | ✅ from backup, **now committed** |
+| Three commits made earlier this session | — | ✅ rescued via `format-patch` |
+
+Everything was recovered from a backup directory
+(`skylakegrep-local-backup-20260817-124035`) taken ~30 seconds before the
+re-clone — **by luck, not by process**. The commits were extracted with
+`format-patch` and reapplied; the Rust workspace was copied back (build
+artifacts excluded), secret-scanned, and **committed** so the same accident
+cannot repeat.
+
+**Why this matters more than the immediate loss.** The bug fixed in §1 had
+already regressed — the re-cloned tree shipped the original
+`find <abs-root> -not -path '*/.*'` again. Work that is not committed and
+pushed does not exist.
+
+**This retroactively justifies A1 at the highest priority.** The original plan
+said "commit the Rust workspace" because untracked code is unversioned. Within
+hours, that exact risk materialised and briefly cost the entire Desktop
+application — the one asset Phase F depends on for revenue. It is now
+committed (`bfd545d`).
 
 ---
 
@@ -172,11 +208,15 @@ lead with any of them.**
 
 ### Phase A — Foundation (days) 🔴 blocking
 
-**A1. Commit the Rust workspace.** 26 MB across `Cargo.toml`, `apps/`,
-`crates/` is untracked. Decide the Desktop licence boundary *before*
-committing (§B1) so the paper trail is right the first time. Extend
-`scripts/privacy_release_scan.py:31-41` (`DEFAULT_TARGETS` omits `apps/`,
-`crates/`) — the Rust tree has never been privacy-scanned.
+**A1. ✅ DONE — Rust workspace recovered and committed (`bfd545d`).** 35 source
+files (`Cargo.toml`, `Cargo.lock`, `crates/`, `apps/desktop`), build artifacts
+excluded, secret-scanned clean. Verified against the recovered tree:
+`crates/skygrep-core/src/search.rs` is **711 lines**, the Rust engine is gated
+behind `SKYGREP_DESKTOP_ENGINE` at `apps/desktop/src-tauri/src/lib.rs:336`,
+and `crates/skygrep-core/src/lexical.rs` **does** shell out to `rg` — so the
+Rust path is not dependency-free. Remaining follow-up: extend
+`scripts/privacy_release_scan.py` (`DEFAULT_TARGETS`) to cover the Rust tree,
+which has still never been privacy-scanned in CI.
 
 **A2. Keep the suite green, permanently.** It just cost an unknown number of
 releases to a bug hiding behind red tests. CI must fail on any failure, and no
@@ -202,7 +242,8 @@ Single-author history, 172 commits, no third-party copyright to clear. This is
 mechanical. Full file-by-file map already written in the 08-14 plan §2 — follow
 it exactly.
 
-**B1.** `LICENSE` → Apache-2.0; `Cargo.toml:12` → `Apache-2.0`; add
+**B1.** `LICENSE` → Apache-2.0; `Cargo.toml:12`
+(`PolyForm-Noncommercial-1.0.0`, verified present) → `Apache-2.0`; add
 `classifiers` + `NOTICE`.
 
 **B2. The one line that must stop inheriting:**
