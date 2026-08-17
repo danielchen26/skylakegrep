@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -155,6 +156,23 @@ def test_skygrep_step_uses_real_agent_presets(tmp_path, monkeypatch):
     assert "--no-llm-router" in commands[2]
     assert "--no-cascade" in commands[2]
     assert all("--json" not in command for command in commands)
+
+
+def test_run_exposes_benchmark_checkout_to_external_cwd(tmp_path, monkeypatch):
+    captured = {}
+
+    def fake_subprocess_run(*args, **kwargs):
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(args=args[0], returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(_benchmark.subprocess, "run", fake_subprocess_run)
+    monkeypatch.setenv("PYTHONPATH", "/existing/path")
+
+    _benchmark._run(["python", "-V"], tmp_path, timeout=1)
+
+    pythonpath = captured["env"]["PYTHONPATH"].split(os.pathsep)
+    assert pythonpath[0] == str(_benchmark.PROJECT_ROOT)
+    assert pythonpath[1] == "/existing/path"
 
 
 def test_symbol_read_finds_declarations_beyond_the_file_head(tmp_path):

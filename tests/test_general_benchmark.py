@@ -12,7 +12,11 @@ from benchmarks.general_stats import paired_efficiency
 from benchmarks.merge_general_reports import merge_reports
 from benchmarks.public_fixtures import RepoSpec, load_registry, prepare_repo, validate_repo_fixture
 from benchmarks.token_savings import approximate_tokens, tokenizer_metadata
-from benchmarks.universal_closed_loop_benchmark import _attach_source_gate
+from benchmarks.universal_closed_loop_benchmark import (
+    PROJECT_ROOT as UNIVERSAL_PROJECT_ROOT,
+    _attach_source_gate,
+    _run as _universal_run,
+)
 
 
 def _row(
@@ -43,6 +47,23 @@ def _row(
         "task_completion_quality": quality,
         "work_completed": completed,
     }
+
+
+def test_universal_run_exposes_benchmark_checkout_to_external_cwd(tmp_path, monkeypatch):
+    captured = {}
+
+    def fake_subprocess_run(*args, **kwargs):
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(args=args[0], returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_subprocess_run)
+    monkeypatch.setenv("PYTHONPATH", "/existing/path")
+
+    _universal_run(["python", "-V"], tmp_path, timeout=1)
+
+    pythonpath = captured["env"]["PYTHONPATH"].split(os.pathsep)
+    assert pythonpath[0] == str(UNIVERSAL_PROJECT_ROOT)
+    assert pythonpath[1] == "/existing/path"
 
 
 def _cobra_capacity_receipt(*, elapsed: float = 10.0, chunks: int = 10):
