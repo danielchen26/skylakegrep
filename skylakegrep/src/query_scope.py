@@ -229,8 +229,12 @@ def _find_dirs(root: Path, label: str, *, max_candidates: int) -> list[Path]:
     find = shutil_which_find()
     pattern = f"*{label}*"
     if find:
+        # Prune relative to ``root`` (``find .`` with ``cwd=root``) so the
+        # ``*/.*`` hidden-path prune only applies to directories *inside*
+        # ``root``. With an absolute root, the prune matched ``root``'s own
+        # hidden ancestors and pruned the entire search.
         cmd = [
-            find, str(root),
+            find, ".",
             "-maxdepth", "5",
             "(",
             "-path", "*/.*",
@@ -248,15 +252,19 @@ def _find_dirs(root: Path, label: str, *, max_candidates: int) -> list[Path]:
         try:
             proc = subprocess.run(
                 cmd, capture_output=True, text=True, timeout=0.5,
+                cwd=str(root),
             )
         except (OSError, subprocess.TimeoutExpired):
             proc = None
         if proc is not None and proc.returncode in {0, 1}:
-            return [
-                Path(line.strip())
-                for line in proc.stdout.splitlines()
-                if line.strip()
-            ][:max_candidates]
+            found: list[Path] = []
+            for line in proc.stdout.splitlines():
+                s = line.strip()
+                if not s or s == ".":
+                    continue
+                # Re-absolutise; callers compare against real paths.
+                found.append(root / s[2:] if s.startswith("./") else root / s)
+            return found[:max_candidates]
 
     out: list[Path] = []
     label_cf = label.casefold()

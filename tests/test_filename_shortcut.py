@@ -405,3 +405,55 @@ def test_falls_through_when_priority_token_fails(tmp_path):
     )
     assert out is not None
     assert any("README" in r["path"] for r in out)
+
+
+@pytest.mark.skipif(not _has_find(), reason="find not on PATH")
+def test_project_under_hidden_parent_still_matches(tmp_path):
+    """Regression: a project whose *ancestor* is a hidden directory
+    must still return filename hits.
+
+    ``find <abs-root> -not -path '*/.*'`` evaluates the filter against
+    the full absolute path, so a root like ``~/.config/app`` or a dotted
+    worktree matched ``*/.*`` and every filename lookup silently
+    returned zero results. The filter must only apply to entries
+    *inside* the project.
+    """
+    hidden_root = tmp_path / ".hidden_parent" / "proj"
+    hidden_root.mkdir(parents=True)
+    (hidden_root / "Example Case42 ProjectFile.docx").write_text("real doc")
+
+    out = auto_index.filename_shortcut(
+        "find Case42 Application file", hidden_root, top_k=10
+    )
+
+    assert out is not None, "hidden ancestor must not suppress matches"
+    assert [Path(r["path"]).name for r in out] == [
+        "Example Case42 ProjectFile.docx"
+    ]
+    # Paths must stay absolute for downstream consumers.
+    for r in out:
+        assert Path(r["path"]).is_absolute()
+        assert Path(r["path"]).exists()
+
+
+@pytest.mark.skipif(not _has_find(), reason="find not on PATH")
+def test_hidden_entries_inside_project_still_excluded(tmp_path):
+    """The hidden-path filter must keep working for entries *inside*
+    the project, even though it no longer sees the ancestors."""
+    root = _project(
+        tmp_path,
+        {
+            "Case42 Report.md": "real",
+            ".git/Case42 Report.md": "internal",
+            ".cache/Case42 Report.md": "internal",
+        },
+    )
+    out = auto_index.filename_shortcut(
+        "find Case42 Application file", root, top_k=10
+    )
+    assert out is not None
+    for r in out:
+        parts = Path(r["path"]).relative_to(root).parts
+        assert not any(
+            part.startswith(".") for part in parts
+        ), f"hidden entry leaked: {r['path']}"

@@ -697,8 +697,13 @@ def _find_one_dir(d: Path, token: str, timeout_s: float) -> list[str]:
     ``timeout_s``; returns ``[]`` on timeout / error so the runner
     can compose partial results from the lucky dirs."""
 
+    # Search relative to ``d`` so the ``*/.*`` hidden-path filter applies
+    # only to entries *inside* the searched directory. An absolute root
+    # would test the filter against the directory's own ancestors, so any
+    # project under a hidden parent (``~/.config/app``, a dotted worktree)
+    # silently returned zero hits.
     cmd = [
-        "find", str(d),
+        "find", ".",
         "-maxdepth", "4",
         "-iname", f"*{token}*",
         "-not", "-path", "*/.*",
@@ -714,14 +719,17 @@ def _find_one_dir(d: Path, token: str, timeout_s: float) -> list[str]:
     try:
         r = subprocess.run(
             cmd, capture_output=True, text=True, timeout=timeout_s,
+            cwd=str(d),
         )
     except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
         return []
     out: list[str] = []
     for line in r.stdout.splitlines():
         s = line.strip()
-        if not s:
+        if not s or s == ".":
             continue
+        # Re-absolutise so callers keep receiving full paths.
+        s = str(d / s[2:]) if s.startswith("./") else str(d / s)
         # Token-in-basename check guards against fluke substring
         # matches deep in the path. Same heuristic as
         # ``auto_index.filename_shortcut``.

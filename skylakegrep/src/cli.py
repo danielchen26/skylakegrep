@@ -3946,6 +3946,48 @@ def enrich(max_chunks, batch):
     )
 
 
+def _stale_install_warning() -> dict | None:
+    """Detect a stale installed distribution shadowing the running source.
+
+    A very common footgun: the user upgrades or works from a source
+    checkout, but the ``skygrep`` on ``PATH`` resolves to an older
+    installed copy. Symptoms are confusing — missing flags, absent
+    subcommands, "fixed" bugs that persist. Returns ``None`` when the
+    install looks consistent.
+    """
+    try:
+        from importlib import metadata as _md
+    except Exception:  # pragma: no cover - Python < 3.8 only
+        return None
+    try:
+        dist_version = _md.version("skylakegrep")
+    except Exception:
+        # Not installed as a distribution (e.g. running straight from a
+        # source tree). Nothing to compare against.
+        return None
+    if dist_version == __version__:
+        return None
+    hints = [
+        f"running source {__version__}, but the installed "
+        f"distribution is {dist_version}",
+        "reinstall so both agree: "
+        f"{Path(sys.executable).name} -m pip install --upgrade skylakegrep",
+    ]
+    on_path = shutil.which("skygrep")
+    invoked = str(Path(sys.argv[0]).resolve()) if sys.argv and sys.argv[0] else ""
+    if on_path and invoked and str(Path(on_path).resolve()) != invoked:
+        hints.append(
+            f"note: PATH resolves skygrep to {on_path}, "
+            f"but this process started from {invoked}"
+        )
+    return {
+        "summary": f"stale install: source {__version__} vs installed {dist_version}",
+        "hints": hints,
+        "source_version": __version__,
+        "installed_version": dist_version,
+    }
+
+
 @cli.command()
 def doctor():
     """Health check: probe Ollama, list models, summarise the project index."""
@@ -3960,6 +4002,11 @@ def doctor():
     invoked = str(Path(sys.argv[0]).resolve()) if sys.argv and sys.argv[0] else "(unknown)"
     click.echo(f"{pad('CLI invoked')}{invoked}")
     click.echo(f"{pad('CLI on PATH')}{shutil.which('skygrep') or '(not on PATH)'}")
+    stale = _stale_install_warning()
+    if stale:
+        click.echo(f"{pad('Install')}× {stale['summary']}")
+        for line in stale["hints"]:
+            click.echo(f"  → {line}")
     if report["ollama"]["ok"]:
         click.echo(f"{pad('Ollama runtime')}✓ {report['ollama']['url']}")
     else:

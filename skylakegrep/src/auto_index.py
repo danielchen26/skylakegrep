@@ -895,9 +895,17 @@ def filename_shortcut(
     pattern: str = ""
     for cand in candidates:
         try:
+            # Search relative to the project root (``find .`` with
+            # ``cwd=project_root``) so the ``*/.*`` hidden-path filter
+            # only ever applies to entries *inside* the project. Passing
+            # an absolute root here would test the filter against the
+            # project's own ancestors, so any project living under a
+            # hidden directory (``~/.config/app``, ``~/.local/src``, a
+            # dotted worktree, or a hidden scratch dir) matched
+            # ``*/.*`` and returned zero filename hits.
             r = subprocess.run(
                 [
-                    find_bin, str(project_root),
+                    find_bin, ".",
                     "-maxdepth", str(max_depth),
                     "-iname", f"*{cand}*",
                     "-not", "-path", "*/.*",
@@ -918,11 +926,17 @@ def filename_shortcut(
                 capture_output=True,
                 text=True,
                 timeout=4,
+                cwd=str(project_root),
             )
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
             continue
+        # Re-absolutise: callers and downstream ranking expect full paths.
         cand_paths = [
-            line.strip() for line in r.stdout.splitlines() if line.strip()
+            str(Path(project_root) / line.strip()[2:])
+            if line.strip().startswith("./")
+            else str(Path(project_root) / line.strip())
+            for line in r.stdout.splitlines()
+            if line.strip() and line.strip() != "."
         ]
         if not cand_paths or len(cand_paths) > max_files:
             continue
