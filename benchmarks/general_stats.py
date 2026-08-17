@@ -31,6 +31,7 @@ def _distribution(values: list[float]) -> dict[str, Any]:
         "p25": _rounded(_percentile(values, 0.25)),
         "median": _rounded(_percentile(values, 0.50)),
         "p75": _rounded(_percentile(values, 0.75)),
+        "p95": _rounded(_percentile(values, 0.95)),
         "min": _rounded(min(values) if values else None),
         "max": _rounded(max(values) if values else None),
     }
@@ -145,11 +146,41 @@ def paired_efficiency(
         distributions[output_name] = _distribution(task_values)
         observation_distributions[output_name] = _distribution(observation_values)
 
+    elapsed_delta_by_task: dict[tuple[str, str], list[float]] = defaultdict(list)
+    for (repo, task, _effort, _trial), sky, rg in eligible:
+        elapsed_delta_by_task[(repo, task)].append(
+            float(sky.get("elapsed_seconds", 0.0))
+            - float(rg.get("elapsed_seconds", 0.0))
+        )
+    elapsed_delta_observations = [
+        value for values in elapsed_delta_by_task.values() for value in values
+    ]
+    elapsed_delta_tasks = [
+        statistics.median(values) for values in elapsed_delta_by_task.values()
+    ]
+    distributions["measured_elapsed_delta_seconds"] = _distribution(elapsed_delta_tasks)
+    observation_distributions["measured_elapsed_delta_seconds"] = _distribution(
+        elapsed_delta_observations
+    )
+
     context_by_repo_task: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+    elapsed_ratio_by_repo_task: dict[str, dict[str, list[float]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
+    elapsed_delta_by_repo_task: dict[str, dict[str, list[float]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
     for (repo, task, _effort, _trial), sky, rg in eligible:
         value = _ratio(rg, sky, "context_tokens")
         if value is not None:
             context_by_repo_task[repo][task].append(value)
+        elapsed_ratio = _ratio(rg, sky, "elapsed_seconds")
+        if elapsed_ratio is not None:
+            elapsed_ratio_by_repo_task[repo][task].append(elapsed_ratio)
+        elapsed_delta_by_repo_task[repo][task].append(
+            float(sky.get("elapsed_seconds", 0.0))
+            - float(rg.get("elapsed_seconds", 0.0))
+        )
 
     repo_results = {
         repo: {
@@ -157,6 +188,18 @@ def paired_efficiency(
             "tasks": len(tasks),
             "context_token_reduction_x": _distribution(
                 [statistics.median(values) for values in tasks.values()]
+            ),
+            "measured_elapsed_ratio_x": _distribution(
+                [
+                    statistics.median(values)
+                    for values in elapsed_ratio_by_repo_task[repo].values()
+                ]
+            ),
+            "measured_elapsed_delta_seconds": _distribution(
+                [
+                    statistics.median(values)
+                    for values in elapsed_delta_by_repo_task[repo].values()
+                ]
             ),
         }
         for repo, tasks in sorted(context_by_repo_task.items())
@@ -212,6 +255,7 @@ def paired_efficiency(
         "by_repo": repo_results,
         "interpretation": (
             "Only quality-eligible paired tasks contribute to efficiency headlines. "
-            "A lower-quality treatment cannot earn a reportable multiplier."
+            "A lower-quality treatment cannot earn a reportable multiplier. "
+            "Elapsed ratios are rg/skygrep; positive elapsed deltas mean skygrep is slower."
         ),
     }

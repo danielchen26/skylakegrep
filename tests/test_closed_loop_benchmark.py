@@ -111,6 +111,52 @@ def test_skygrep_paths_feed_candidate_reads_and_relative_globs(tmp_path, monkeyp
     assert "def main" in read.payload
 
 
+def test_skygrep_step_uses_real_agent_presets(tmp_path, monkeypatch):
+    commands = []
+
+    def fake_run(cmd, *args, **kwargs):
+        commands.append(cmd)
+        return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="[]", stderr="")
+
+    monkeypatch.setattr(_benchmark, "_run", fake_run)
+
+    _skygrep_step(
+        tmp_path,
+        "where is main",
+        timeout=1,
+        top=10,
+        detail="standard",
+        content=False,
+        name="test:fast",
+    )
+    _skygrep_step(
+        tmp_path,
+        "what does main do",
+        timeout=1,
+        top=8,
+        detail="standard",
+        content=True,
+        name="test:context",
+    )
+    _skygrep_step(
+        tmp_path,
+        "read the full document",
+        timeout=1,
+        top=5,
+        detail="full",
+        content=True,
+        includes=["docs/design.pdf"],
+        name="test:deep",
+    )
+
+    assert "--agent-fast" in commands[0]
+    assert "--agent-context" in commands[1]
+    assert commands[2][commands[2].index("--agent-mode") + 1] == "deep"
+    assert "--no-llm-router" in commands[2]
+    assert "--no-cascade" in commands[2]
+    assert all("--json" not in command for command in commands)
+
+
 def test_symbol_read_finds_declarations_beyond_the_file_head(tmp_path):
     source = tmp_path / "state_machine.py"
     source.write_text(
