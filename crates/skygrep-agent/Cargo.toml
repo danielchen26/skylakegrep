@@ -1,0 +1,16 @@
+[package]
+name = "skygrep-agent"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+skygrep-core = { path = "../skygrep-core" }
+skygrep-protocol = { path = "../skygrep-protocol" }
+
+[dev-dependencies]
+serde_json.workspace = true
+
