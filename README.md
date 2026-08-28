@@ -244,7 +244,7 @@ $ skygrep -x "find pyproject.toml in this repo"
 Sized against **four named alternatives**, not generic categories.
 
 <p align="center">
-  <img alt="skylakegrep — comparison matrix vs ripgrep, mgrep (predecessor), autodev-codebase, Sourcegraph Cody" src="docs/assets/comparison-matrix.svg" width="100%">
+  <img alt="skylakegrep — comparison matrix vs ripgrep, mgrep (Mixedbread · cloud-backed), autodev-codebase, Sourcegraph Cody" src="docs/assets/comparison-matrix.svg" width="100%">
 </p>
 
 
@@ -409,6 +409,39 @@ That's it. The first query in a fresh project completes in under
 a second via a `ripgrep` fallback while a background process
 builds the semantic index. Every query after that uses the full
 cascade with the local LLM kept warm in memory.
+
+---
+
+## Use it from an agent (MCP)
+
+`skygrep setup` writes markdown into agent rules files, which only reaches
+agents that read those files. `skygrep mcp` serves the same search as a
+structured [Model Context Protocol](https://modelcontextprotocol.io) tool
+over stdio, so any MCP client can call it — Claude Code, Claude Desktop,
+Cursor, Windsurf, Zed, VS Code.
+
+```bash
+claude mcp add skylakegrep -- skygrep mcp     # Claude Code
+skygrep mcp --print-config                    # config block for everyone else
+```
+
+`--print-config` emits an **absolute** path on purpose: MCP clients are
+usually GUI apps that spawn servers without a login shell, so a bare
+`skygrep` is the most common reason a server silently fails to start.
+
+Three tools are exposed:
+
+| tool | what the agent gets |
+|---|---|
+|`search`|`path` + exact line range per hit, ranked. `mode="locate"` for paths only (cheapest), `mode="context"` to also get the matched lines. `include` accepts globs; `path` selects the project.|
+|`index`|Forces a rebuild. Flagged `destructiveHint` when `reset=true`, so clients can gate it.|
+|`stats`|What is indexed: file and chunk counts, model, freshness.|
+
+Results come back as `structuredContent` against a declared output schema,
+mirrored as text for older clients. When retrieval degrades — a missing
+embedding model, for instance — the result carries a `warnings` array
+instead of an empty list, so an agent can tell "no match" apart from
+"retrieval is broken" rather than reporting your code does not exist.
 
 ---
 

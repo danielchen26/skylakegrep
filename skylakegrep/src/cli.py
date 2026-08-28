@@ -44,6 +44,7 @@ from .indexer import (
     embed_file_chunks_batched,
 )
 from .intent import classify_intent, merge_results as merge_tiers
+from . import mcp_server
 from .llm_router import RouterDecision, route_query, simplify_router_query
 from .metadata_search import (
     analyze_metadata_query,
@@ -926,7 +927,7 @@ def render_json_results(results: list[dict], *, include_snippet: bool = True) ->
 
 
 # Subcommand names that take precedence over bare-form query routing.
-_SUBCOMMANDS = {"index", "search", "watch", "serve", "stats", "doctor", "enrich", "setup", "cite"}
+_SUBCOMMANDS = {"index", "search", "watch", "serve", "stats", "doctor", "enrich", "setup", "cite", "mcp"}
 _DETAIL_CHOICES = {"brief", "standard", "full", "summary"}
 _AGENT_MODE_CHOICES = {"off", "fast", "context", "deep", "answer"}
 _DEFAULT_AGENT_DAEMON_URL = "http://127.0.0.1:7878"
@@ -956,7 +957,7 @@ def _normalize_search_cli_args(args: list[str]) -> list[str]:
     return out
 
 
-class MgrepCLI(click.Group):
+class SkygrepCLI(click.Group):
     """Click group that routes unknown first-args to ``search``.
 
     Implements two adjustments to default Click behaviour:
@@ -993,7 +994,7 @@ class MgrepCLI(click.Group):
         return super().parse_args(ctx, ["search", *_normalize_search_cli_args(list(args))])
 
 
-@click.group(cls=MgrepCLI, invoke_without_command=True)
+@click.group(cls=SkygrepCLI, invoke_without_command=True)
 @click.version_option(__version__, prog_name="skygrep")
 @click.pass_context
 def cli(ctx):
@@ -4132,6 +4133,35 @@ def setup(ctx, list_only: bool, check: bool, uninstall: bool, skip: bool, yes: b
     if n_changed:
         click.echo("Restart any open Claude Code / Codex / Gemini / Cursor sessions to pick up the change.")
     click.echo("Run `skygrep setup --uninstall` to remove all snippets later.")
+
+
+@cli.command()
+@click.option(
+    "--print-config",
+    is_flag=True,
+    help="Print the JSON block to paste into an MCP client config, then exit.",
+)
+def mcp(print_config: bool):
+    """Serve skylakegrep to agents over the Model Context Protocol (stdio).
+
+    `skygrep setup` injects markdown instructions into agent rules files,
+    which only reaches agents that read those files. This serves the same
+    search as a structured MCP tool instead, so any MCP client — Claude
+    Desktop, Claude Code, Cursor, Windsurf, Zed, VS Code — can call it:
+
+        \b
+        skygrep mcp --print-config      # config block to paste
+        claude mcp add skylakegrep -- skygrep mcp
+
+    Tools exposed: search (semantic, returns path + line range), index,
+    stats. Reads JSON-RPC on stdin and writes it to stdout, so nothing
+    else may be written to stdout while this runs.
+    """
+
+    if print_config:
+        click.echo(json.dumps(mcp_server.client_config(), indent=2))
+        return
+    sys.exit(mcp_server.serve_stdio())
 
 
 @cli.command()

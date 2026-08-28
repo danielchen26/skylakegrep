@@ -27,7 +27,7 @@ class BareFormRoutingTests(unittest.TestCase):
             self.assertEqual(cli_module.main(), 7)
 
     def test_unknown_first_arg_routes_to_search(self):
-        # Verified by parsing args through MgrepCLI.parse_args directly: any
+        # Verified by parsing args through SkygrepCLI.parse_args directly: any
         # non-flag, non-subcommand first token gets prepended with ``search``.
         ctx = cli_module.cli.make_context(
             "skygrep", [], resilient_parsing=True

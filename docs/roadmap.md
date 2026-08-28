@@ -64,13 +64,16 @@ without any private files or machine-local examples.
    guardrail that prevents agents from treating a plausible path as a
    complete answer.
 
-### Native MCP server
+### Native MCP server — shipped
 
-`skygrep setup` writes a markdown snippet into agent rules files
-telling the agent to prefer `skygrep` over `rg`. A native MCP
-server (Model Context Protocol) would let agents call `skygrep` as
-a structured tool instead of a shell command — better schema,
-fewer parsing failures, cleaner error surfaces.
+`skygrep mcp` serves `search`, `index`, and `stats` as Model Context
+Protocol tools over stdio, with declared input and output schemas,
+`structuredContent` results, and degraded-retrieval reported as
+`warnings` rather than an empty result set. `skygrep setup` (markdown
+snippets in agent rules files) stays for agents that have no MCP client.
+
+Still open here: registry listings, and an HTTP transport for clients
+that cannot spawn a local process.
 
 ### Multi-vector / late-interaction retrieval (ColBERT-style)
 

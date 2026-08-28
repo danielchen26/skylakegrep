@@ -18,6 +18,9 @@ keywords = [
     "retrieval-augmented-generation",
     "ollama",
     "cli",
+    "mcp",
+    "model-context-protocol",
+    "agent-tools",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
