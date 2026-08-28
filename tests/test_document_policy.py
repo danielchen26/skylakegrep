@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 from skylakegrep.src.document_policy import (
     is_living_authority_document,
     is_unnamed_version_snapshot,

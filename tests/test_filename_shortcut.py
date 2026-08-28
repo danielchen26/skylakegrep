@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Unit tests for the v0.13.0 filename-lookup shortcut.
 
 Same conservative philosophy as the v0.12.0 lexical content

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Closed-loop agent benchmark: skygrep-first vs raw-rg-only.
 
 This benchmark models the *loop* an LLM coding agent actually runs:

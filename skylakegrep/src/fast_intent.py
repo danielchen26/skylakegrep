@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Small local intent substrate for cheap routing decisions.
 
 This module is deliberately not a keyword router. It keeps a tiny set of

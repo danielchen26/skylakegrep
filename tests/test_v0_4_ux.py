@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the 0.4.0 UX changes: bare-form routing, doctor, default flips."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Symbol-as-retriever channel for skylakegrep.
 
 Phase 3 of the design doc moves tree-sitter symbols from a post-hoc prior

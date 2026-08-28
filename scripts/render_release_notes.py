@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Render docs/skylakegrep-X.Y.Z.md → docs/skylakegrep-X.Y.Z.html.
 
 Reuses the themed sidebar / topbar layout shared with 0.4.2.html.

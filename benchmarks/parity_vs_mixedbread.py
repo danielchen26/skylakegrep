@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Mixedbread `@mixedbread/skygrep` cloud vs skylakegrep parity harness.
 
 This script measures retrieval parity between the cloud Mixedbread skygrep

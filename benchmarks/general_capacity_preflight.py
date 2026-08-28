@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Gate a full General Benchmark v2 run on measured indexing capacity.
 
 The release-scale benchmark intentionally uses six complete public indexes.

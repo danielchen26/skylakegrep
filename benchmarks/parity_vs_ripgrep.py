@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Real-ripgrep vs skylakegrep agent context benchmark.
 
 This is a tighter version of `agent_context_benchmark.py`: instead of

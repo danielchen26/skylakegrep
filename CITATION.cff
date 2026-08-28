@@ -1,0 +1,47 @@
+cff-version: 1.2.0
+message: "If you use skylakegrep in academic or published work, please cite it as below."
+title: "skylakegrep: fully-offline semantic search over local files"
+abstract: >-
+  skylakegrep is a command-line semantic search tool that runs entirely on
+  the local machine. It builds a local SQLite vector index over code,
+  markdown, PDFs, Word documents, and plain text, and answers
+  natural-language queries in 100+ languages with line-cited snippets. A
+  query router chooses between lexical, location-scoped, and semantic
+  retrieval routes and reports the route it took; a pluggable extractor
+  registry keeps retrieval content-agnostic. Embeddings and optional answer
+  synthesis are served by a local Ollama instance, so no file contents, no
+  queries, and no telemetry leave the machine. Retrieval accuracy and
+  latency are tracked by a committed benchmark harness rather than asserted.
+type: software
+authors:
+  - family-names: "Chen"
+    given-names: "Tianchi"
+version: "0.7.0"
+date-released: "2026-08-14"
+repository-code: "https://github.com/danielchen26/skylakegrep"
+url: "https://danielchen26.github.io/skylakegrep/"
+license: Apache-2.0
+keywords:
+  - semantic-search
+  - information-retrieval
+  - local-first
+  - offline
+  - embeddings
+  - vector-search
+  - command-line-tool
+  - retrieval-augmented-generation
+  - ollama
+  - code-search
+# After the first Zenodo-archived release, add the DOIs here and in the
+# `doi:` key above. The concept DOI always resolves to the latest release;
+# mint it by enabling the repository at https://zenodo.org/account/settings/github/
+# and publishing a GitHub Release.
+#
+# doi: "10.5281/zenodo.XXXXXXXX"
+# identifiers:
+#   - type: doi
+#     value: "10.5281/zenodo.XXXXXXXX"
+#     description: "Concept DOI - always resolves to the latest release"
+#   - type: doi
+#     value: "10.5281/zenodo.YYYYYYYY"
+#     description: "DOI for version X.Y.Z"

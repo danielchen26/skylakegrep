@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Cross-project closed-loop benchmark for agent search workflows.
 
 This runner measures whether a disciplined LLM agent gets enough context to

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Public, pinned benchmark repository and task-fixture contracts."""
 
 from __future__ import annotations

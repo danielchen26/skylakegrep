@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the symbol-as-retriever channel.
 
 Verifies four properties:

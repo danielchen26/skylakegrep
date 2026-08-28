@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the v0.14.0 intent classifier + multi-tier merger."""
 
 from __future__ import annotations

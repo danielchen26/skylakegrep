@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Merge per-repository General Benchmark v2 receipts without rerunning retrieval."""
 
 from __future__ import annotations

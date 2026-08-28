@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Content-agnostic reference-graph builder.
 
 The legacy ``code_graph`` module hard-coded Rust / Python / JS / TS regex

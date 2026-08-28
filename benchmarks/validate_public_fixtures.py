@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Validate public benchmark pins, paths, and evidence without searching."""
 
 from __future__ import annotations

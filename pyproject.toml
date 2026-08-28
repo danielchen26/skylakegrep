@@ -4,7 +4,33 @@ version = "0.7.0"
 description = "Fully-offline semantic search over your local files — powered by Ollama"
 readme = "README.md"
 requires-python = ">=3.9"
-license = {file = "LICENSE"}
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Tianchi Chen", email = "chentianchi@gmail.com" }]
+maintainers = [{ name = "Tianchi Chen", email = "chentianchi@gmail.com" }]
+keywords = [
+    "semantic-search",
+    "code-search",
+    "local-first",
+    "offline",
+    "embeddings",
+    "vector-search",
+    "retrieval-augmented-generation",
+    "ollama",
+    "cli",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Text Processing :: Indexing",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
 dependencies = [
     "click>=8.0",
     "requests>=2.31",
@@ -28,7 +54,10 @@ benchmark = [
 ]
 
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+# setuptools >= 77 is required for the PEP 639 `license` SPDX expression
+# and `license-files`; older versions silently fall back to dumping the
+# whole licence text into the metadata `License:` field.
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
@@ -39,6 +68,8 @@ Homepage = "https://github.com/danielchen26/skylakegrep"
 Repository = "https://github.com/danielchen26/skylakegrep"
 Issues = "https://github.com/danielchen26/skylakegrep/issues"
 Documentation = "https://danielchen26.github.io/skylakegrep/"
+Changelog = "https://danielchen26.github.io/skylakegrep/changelog.html"
+"Commercial use" = "https://github.com/danielchen26/skylakegrep/blob/master/COMMERCIAL.md"
 
 [tool.setuptools.packages.find]
 where = ["."]

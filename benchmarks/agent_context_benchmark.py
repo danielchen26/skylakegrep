@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Deterministic grep-agent vs skylakegrep-agent benchmark.
 
 This benchmark is closer to the original skygrep token-savings claim than

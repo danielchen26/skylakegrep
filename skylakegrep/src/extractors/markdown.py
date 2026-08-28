@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Markdown reference extractor: parse ``[text](target)`` and wikilinks.
 
 This is the proof-of-concept second plugin for the content-agnostic

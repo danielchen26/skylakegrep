@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """LLM-driven query routing — replaces v0.14.0's hand-rolled rules
 as the primary source of truth for routing decisions. Hand-rolled
 rules survive as a fallback when the LLM is unavailable.

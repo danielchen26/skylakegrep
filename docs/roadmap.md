@@ -113,6 +113,7 @@ scheduling remains future work.
 - **Removing the Ollama dependency.** `skygrep` is intentionally
   built on top of Ollama for local LLM access. Other backends
   (e.g. llama.cpp direct) are possible but not prioritised.
-- **MIT relicensing.** This project is PolyForm Noncommercial
-  1.0.0 and stays that way. Commercial users should contact for
-  a commercial license.
+- **Charging for the core.** As of the relicense to Apache-2.0,
+  commercial use of skylakegrep itself is free and stays free. Support
+  with an SLA, a shared on-premises team index, and integration work are
+  the paid things; the search tool is not.

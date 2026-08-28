@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Command-line entry point for ``skygrep``.
 
 Two-mode CLI:
@@ -33,7 +34,7 @@ import click
 logger = logging.getLogger(__name__)
 
 from . import __version__
-from . import auto_index, bootstrap, code_graph, config as cfg_mod, enrich as enrich_mod, integrations as integrations_mod, ui as ui_mod
+from . import auto_index, bootstrap, citation as citation_mod, code_graph, config as cfg_mod, enrich as enrich_mod, integrations as integrations_mod, ui as ui_mod
 from .answerer import get_answerer
 from .config import get_config
 from .document_policy import prefer_living_authority_results
@@ -925,7 +926,7 @@ def render_json_results(results: list[dict], *, include_snippet: bool = True) ->
 
 
 # Subcommand names that take precedence over bare-form query routing.
-_SUBCOMMANDS = {"index", "search", "watch", "serve", "stats", "doctor", "enrich", "setup"}
+_SUBCOMMANDS = {"index", "search", "watch", "serve", "stats", "doctor", "enrich", "setup", "cite"}
 _DETAIL_CHOICES = {"brief", "standard", "full", "summary"}
 _AGENT_MODE_CHOICES = {"off", "fast", "context", "deep", "answer"}
 _DEFAULT_AGENT_DAEMON_URL = "http://127.0.0.1:7878"
@@ -4131,6 +4132,35 @@ def setup(ctx, list_only: bool, check: bool, uninstall: bool, skip: bool, yes: b
     if n_changed:
         click.echo("Restart any open Claude Code / Codex / Gemini / Cursor sessions to pick up the change.")
     click.echo("Run `skygrep setup --uninstall` to remove all snippets later.")
+
+
+@cli.command()
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(list(citation_mod.FORMATS)),
+    default="bibtex",
+    show_default=True,
+    help="Citation format to emit.",
+)
+def cite(fmt: str):
+    """Print how to cite skylakegrep.
+
+    Emits BibTeX by default so the output can be piped straight into a
+    .bib file. Advisory notes go to stderr, keeping stdout clean:
+
+        \b
+        skygrep cite >> refs.bib
+        skygrep cite --format apa
+    """
+
+    click.echo(citation_mod.render(fmt))
+    if citation_mod.doi() is None:
+        click.echo(
+            "note: no DOI archived yet — this citation points at the "
+            "repository. See CITATION.cff for how to mint one.",
+            err=True,
+        )
 
 
 def _collect_search_flag_names() -> list[str]:

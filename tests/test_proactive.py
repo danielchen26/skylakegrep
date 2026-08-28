@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the 0.2.7 proactive enhancement framework.
 
 Coverage spans the four contract guarantees that every enhancer
