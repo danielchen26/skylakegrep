@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import pytest
 import subprocess
 import sys
 from pathlib import Path
@@ -347,3 +348,117 @@ def test_aggregate_rolls_up_mrr_hits_and_never_found_count():
     assert agg["tasks_never_found"] == 1
     # Mean rank is over found tasks only; a miss is not rank zero.
     assert agg["mean_rank_when_found"] == round((1 + 2 + 8) / 3, 2)
+
+
+# --- policy registry -------------------------------------------------
+
+_PolicySpec = _benchmark.PolicySpec
+_register_policy = _benchmark.register_policy
+_get_policy = _benchmark.get_policy
+_policy_names = _benchmark.policy_names
+_compare_totals = _benchmark._compare_totals
+
+
+def _rank_rows(ranks, **extra):
+    return [
+        {
+            "context_tokens": 100, "elapsed_seconds": 1.0, "tool_elapsed_seconds": 1.0,
+            "sufficiency": 1.0, "task_completion_quality": 1.0, "tool_calls": 1,
+            "path_coverage": 1.0, "path_precision": 0.125, "evidence_coverage": 1.0,
+            "rank_first_hit": rank, "reciprocal_rank": (1.0 / rank if rank else 0.0),
+            "hit_at_1": 1 if rank == 1 else 0,
+            "hit_at_3": 1 if rank and rank <= 3 else 0,
+            **extra,
+        }
+        for rank in ranks
+    ]
+
+
+def test_both_published_arms_are_registered_and_dispatchable():
+    assert set(_policy_names()) >= {"skygrep-first", "rg-only"}
+    assert callable(_get_policy("skygrep-first").run)
+    assert _benchmark.DEFAULT_POLICIES == ("skygrep-first", "rg-only")
+
+
+def test_unknown_policy_names_the_registered_arms():
+    """The old code raised a bare 'unknown policy'; a third party needs to be
+    told what is selectable."""
+
+    with pytest.raises(ValueError, match="registered: rg-only, skygrep-first"):
+        _get_policy("ck-hybrid")
+
+
+def test_registering_a_duplicate_arm_is_rejected():
+    with pytest.raises(ValueError, match="already registered"):
+        _register_policy(
+            _PolicySpec(name="rg-only", summary="x", binary="rg", run=lambda ctx: "x")
+        )
+
+
+def test_a_third_party_arm_can_register_without_touching_the_loop():
+    """The point of the registry: an arm the author never wrote is measurable."""
+
+    name = "unit-test-arm"
+    spec = _register_policy(
+        _PolicySpec(
+            name=name, summary="fake", binary="nope", run=lambda ctx: "sufficient_after_fake"
+        )
+    )
+    try:
+        assert _get_policy(name) is spec
+        assert name in _policy_names()
+        # Default arms are pinned, so registering must not change a bare run.
+        assert name not in _benchmark.DEFAULT_POLICIES
+    finally:
+        _benchmark.POLICIES.pop(name)
+
+
+def test_ripgrep_is_declared_unranked():
+    """rg emits matches in traversal order, not relevance order."""
+
+    assert _get_policy("rg-only").ranked is False
+    assert _get_policy("skygrep-first").ranked is True
+
+
+def test_unranked_arms_report_null_rank_axes_instead_of_invented_numbers():
+    """Measured: two runs of an unchanged tree gave rg hit@1 50.0 then 0.0,
+    because rg walks in parallel. A number that unstable must not be
+    published as if it graded ranking."""
+
+    agg = _aggregate(
+        _rank_rows((1, 2, None, 8)),
+        tokens_per_second=30000.0,
+        sufficient_threshold=0.85,
+        ranked=False,
+    )
+
+    assert agg["ranked_arm"] is False
+    assert agg["mrr"] is None
+    assert agg["hit_at_1_pct"] is None
+    assert agg["hit_at_3_pct"] is None
+    assert agg["mean_rank_when_found"] is None
+    assert agg["tasks_never_found"] is None
+    # Everything that does not depend on ordering still reports.
+    assert agg["path_coverage_pct"] == 100.0
+    assert agg["path_precision_pct"] == 12.5
+
+
+def test_rank_delta_is_withheld_when_the_baseline_does_not_rank():
+    ranked = _aggregate(_rank_rows((1, 1)), 30000.0, 0.85, ranked=True)
+    unranked = _aggregate(_rank_rows((1, 1)), 30000.0, 0.85, ranked=False)
+
+    comparison = _compare_totals(ranked, unranked)
+
+    assert "mrr_delta" not in comparison
+    assert "does not rank" in comparison["rank_delta_note"]
+
+
+def test_rank_delta_is_reported_when_both_arms_rank():
+    good = _aggregate(_rank_rows((1, 1)), 30000.0, 0.85, ranked=True)
+    poor = _aggregate(_rank_rows((4, 4)), 30000.0, 0.85, ranked=True)
+
+    comparison = _compare_totals(good, poor)
+
+    assert comparison["mrr_delta"] == round(1.0 - 0.25, 3)
+    assert comparison["hit_at_1_delta_pct"] == 100.0
+    assert "rank_delta_note" not in comparison
