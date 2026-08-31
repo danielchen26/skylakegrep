@@ -34,7 +34,7 @@
           "measured_status": "reachable",
           "http_status": 404,
           "detail": "origin answered HTTP 404 [transport=curl]",
-          "seconds": 0.161
+          "seconds": 0.55
         }
       ],
       "measured_capability": "available",
@@ -58,12 +58,26 @@
           "measured_status": "blocked_by_policy",
           "http_status": 307,
           "detail": "answered by sase.merck.com instead of huggingface.co [transport=curl]",
-          "seconds": 0.213
+          "seconds": 0.284
         }
       ],
       "measured_capability": "unavailable",
       "install": "pip install 'skylakegrep[rerank]'",
       "notes": "The reranking path has the same exposure as ck: its weights come from huggingface.co. Where that domain is blocked, skylakegrep still retrieves but cannot rerank, so any ranking figure measured with reranking on is unobtainable there. Note also that the default cross-encoder is published by Mixedbread, whose mgrep is the closest competing tool."
+    },
+    {
+      "tool": "skylakegrep",
+      "profile": "offline",
+      "label": "skylakegrep[offline]",
+      "optional": false,
+      "declared_egress": "none",
+      "declared_source": "skylakegrep/src/egress.py enforces SKYGREP_OFFLINE=1: the Hugging Face stack is pinned offline before import and any dependency needing a public fetch is a startup error; `skygrep doctor` prints the audit. Requires an Ollama on loopback or an internal host with the embedding model side-loaded, and SKYGREP_RERANK_MODEL pointing at a local directory if reranking is wanted.",
+      "declared_model_urls": [],
+      "measured_binary_present": true,
+      "measured_model_probes": [],
+      "measured_capability": "not_applicable",
+      "install": "pip install skylakegrep  # then SKYGREP_OFFLINE=1",
+      "notes": "Verified locally rather than by probe: run `skygrep doctor` and read the egress posture line. This is the configuration to put in front of a procurement reviewer, because it is checkable on their machine without trusting this table."
     },
     {
       "tool": "ck",
@@ -82,7 +96,7 @@
           "measured_status": "blocked_by_policy",
           "http_status": 307,
           "detail": "answered by sase.merck.com instead of huggingface.co [transport=curl]",
-          "seconds": 0.101
+          "seconds": 0.131
         }
       ],
       "measured_capability": "unavailable",
@@ -106,7 +120,7 @@
           "measured_status": "reachable",
           "http_status": 200,
           "detail": "[transport=curl]",
-          "seconds": 0.161
+          "seconds": 0.656
         }
       ],
       "measured_capability": "available",

@@ -34,7 +34,7 @@ import click
 logger = logging.getLogger(__name__)
 
 from . import __version__
-from . import auto_index, bootstrap, citation as citation_mod, code_graph, config as cfg_mod, enrich as enrich_mod, integrations as integrations_mod, ui as ui_mod
+from . import auto_index, bootstrap, citation as citation_mod, code_graph, config as cfg_mod, egress as egress_mod, enrich as enrich_mod, integrations as integrations_mod, ui as ui_mod
 from .answerer import get_answerer
 from .config import get_config
 from .document_policy import prefer_living_authority_results
@@ -3993,6 +3993,16 @@ def doctor():
     else:
         click.echo(f"{pad('Project index')}× not yet built — run a query to auto-index, or `skygrep index .`")
         click.echo(f"{pad('Would write to')}{db_path}")
+    # Egress posture. Placed before the reranker line because it is the check
+    # that decides whether this install is usable on a network that filters AI
+    # domains — a question no amount of retrieval quality answers.
+    try:
+        lines = egress_mod.render(egress_mod.audit(config))
+        click.echo(f"{pad('Egress')}{lines[0]}")
+        for line in lines[1:]:
+            click.echo(line)
+    except Exception as exc:  # pragma: no cover - diagnostics must not crash
+        click.echo(f"{pad('Egress')}? audit failed: {exc}")
     # Reranker presence is a soft check. Do not import the package here:
     # importing sentence-transformers also imports PyTorch and can turn a
     # lightweight health check into a multi-minute runtime startup.
@@ -4216,6 +4226,26 @@ def _collect_search_flag_names() -> list[str]:
     return unique
 
 
+def _apply_offline_mode() -> None:
+    """Honour SKYGREP_OFFLINE before any model library is imported.
+
+    Order matters and is the whole reason this lives at process entry rather
+    than inside the search path: ``sentence_transformers`` and ``huggingface_hub``
+    read their offline flags at import time, so pinning them after the first
+    import is too late. Enforcement is separate from pinning — pinning always
+    happens, and a configuration that cannot satisfy offline mode fails here
+    with the fix in the message rather than stalling against a filter later.
+    """
+
+    if not egress_mod.offline_requested():
+        return
+    try:
+        egress_mod.enforce(get_config())
+    except egress_mod.OfflineViolation as exc:
+        click.echo(str(exc), err=True)
+        sys.exit(2)
+
+
 def main():
     """CLI entry point.
 
@@ -4228,6 +4258,8 @@ def main():
     too far from any known flag (cutoff 0.6 in
     ``intelligent_cli.closest_match``).
     """
+
+    _apply_offline_mode()
 
     try:
         result = cli(standalone_mode=False)

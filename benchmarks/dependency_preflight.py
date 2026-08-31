@@ -172,6 +172,33 @@ REGISTRY: tuple[ToolDependency, ...] = (
         ),
     ),
     ToolDependency(
+        tool="skylakegrep",
+        profile="offline",
+        binary="skygrep",
+        install="pip install skylakegrep  # then SKYGREP_OFFLINE=1",
+        # Nothing to probe on purpose: this configuration declares that no
+        # public host is consulted, so there is no URL whose reachability could
+        # change the answer. That is the point of the row — it is the only entry
+        # in this registry whose egress class is `none` by construction rather
+        # than by a vendor category list not having caught up yet.
+        declared_model_urls=(),
+        declared_egress="none",
+        declared_source=(
+            "skylakegrep/src/egress.py enforces SKYGREP_OFFLINE=1: the Hugging "
+            "Face stack is pinned offline before import and any dependency "
+            "needing a public fetch is a startup error; `skygrep doctor` prints "
+            "the audit. Requires an Ollama on loopback or an internal host with "
+            "the embedding model side-loaded, and SKYGREP_RERANK_MODEL pointing "
+            "at a local directory if reranking is wanted."
+        ),
+        notes=(
+            "Verified locally rather than by probe: run `skygrep doctor` and "
+            "read the egress posture line. This is the configuration to put in "
+            "front of a procurement reviewer, because it is checkable on their "
+            "machine without trusting this table."
+        ),
+    ),
+    ToolDependency(
         tool="ck",
         binary="ck",
         install="cargo install ck-search",
