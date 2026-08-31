@@ -102,20 +102,36 @@ class ToolDependency:
     tool: str
     binary: str
     install: str
-    #: URLs that must be fetchable for the tool's semantic mode to initialise.
-    #: Empty means the tool has no model dependency at all.
+    #: URLs that must be fetchable for this capability to initialise.
+    #: Empty means the capability has no model dependency at all.
     declared_model_urls: tuple[str, ...]
     declared_egress: str
     declared_source: str
+    #: Which capability of the tool this row describes. A tool can have more
+    #: than one, with different exposure — and the home team is not exempt.
+    #: skylakegrep's retrieval works from a local Ollama, but its optional
+    #: cross-encoder reranking pulls a model from huggingface.co, the same
+    #: domain whose blocking disables ck. An earlier version of this registry
+    #: listed only the Ollama dependency, which made the receipt claim
+    #: skylakegrep was unconditionally installable when only its default
+    #: configuration is.
+    profile: str = "base"
+    #: True when the capability is an extra rather than the default path, so a
+    #: blocked optional profile is not read as the tool failing to install.
+    optional: bool = False
     notes: str = ""
+
+    @property
+    def label(self) -> str:
+        return self.tool if self.profile == "base" else f"{self.tool}[{self.profile}]"
 
     def __post_init__(self) -> None:
         if self.declared_egress not in EGRESS_CLASSES:
             raise ValueError(
-                f"{self.tool}: declared_egress must be one of {EGRESS_CLASSES}"
+                f"{self.label}: declared_egress must be one of {EGRESS_CLASSES}"
             )
         if not self.declared_source.strip():
-            raise ValueError(f"{self.tool}: every declared claim needs a source")
+            raise ValueError(f"{self.label}: every declared claim needs a source")
 
 
 REGISTRY: tuple[ToolDependency, ...] = (
@@ -130,6 +146,30 @@ REGISTRY: tuple[ToolDependency, ...] = (
             "local Ollama; queries hit http://localhost:11434 only"
         ),
         notes="Weights arrive via `ollama pull`; search itself is loopback-only.",
+    ),
+    ToolDependency(
+        tool="skylakegrep",
+        profile="rerank",
+        optional=True,
+        binary="skygrep",
+        install="pip install 'skylakegrep[rerank]'",
+        declared_model_urls=(
+            "https://huggingface.co/mixedbread-ai/mxbai-rerank-large-v2/resolve/main/config.json",
+        ),
+        declared_egress="model-fetch-once",
+        declared_source=(
+            "skylakegrep/src/config.py DEFAULT_RERANK_MODEL="
+            "'mixedbread-ai/mxbai-rerank-large-v2'; cli.py --rerank-model help "
+            "says 'HuggingFace cross-encoder model id'"
+        ),
+        notes=(
+            "The reranking path has the same exposure as ck: its weights come "
+            "from huggingface.co. Where that domain is blocked, skylakegrep "
+            "still retrieves but cannot rerank, so any ranking figure measured "
+            "with reranking on is unobtainable there. Note also that the "
+            "default cross-encoder is published by Mixedbread, whose mgrep is "
+            "the closest competing tool."
+        ),
     ),
     ToolDependency(
         tool="ck",
@@ -367,20 +407,26 @@ def evaluate(deps: tuple[ToolDependency, ...] = REGISTRY, timeout: float = DEFAU
         probes = [asdict(probe(url, timeout)) for url in dep.declared_model_urls]
         blocked = [p for p in probes if p["measured_status"] != "reachable"]
         if not dep.declared_model_urls:
-            semantic = "not_applicable"
+            capability = "not_applicable"
         elif blocked:
-            semantic = "unavailable"
+            capability = "unavailable"
         else:
-            semantic = "available"
+            capability = "available"
         rows.append(
             {
                 "tool": dep.tool,
+                "profile": dep.profile,
+                "label": dep.label,
+                "optional": dep.optional,
                 "declared_egress": dep.declared_egress,
                 "declared_source": dep.declared_source,
                 "declared_model_urls": list(dep.declared_model_urls),
                 "measured_binary_present": _binary_present(dep.binary),
                 "measured_model_probes": probes,
-                "measured_semantic_mode": semantic,
+                # Named for what it measures: whether this capability can
+                # initialise here. It was "measured_semantic_mode" while the
+                # registry only described default retrieval paths.
+                "measured_capability": capability,
                 "install": dep.install,
                 "notes": dep.notes,
             }
@@ -401,20 +447,21 @@ def evaluate(deps: tuple[ToolDependency, ...] = REGISTRY, timeout: float = DEFAU
 
 def render(report: dict[str, Any]) -> str:
     lines = [
-        f"{'tool':<13}{'binary':>8}{'declared egress':>18}{'semantic mode here':>21}",
+        f"{'capability':<24}{'binary':>7}{'declared egress':>19}{'works here':>17}",
     ]
     for row in report["tools"]:
+        label = row["label"] + (" (opt)" if row["optional"] else "")
         lines.append(
-            f"{row['tool']:<13}"
-            f"{'yes' if row['measured_binary_present'] else 'no':>8}"
-            f"{row['declared_egress']:>18}"
-            f"{row['measured_semantic_mode']:>21}"
+            f"{label:<24}"
+            f"{'yes' if row['measured_binary_present'] else 'no':>7}"
+            f"{row['declared_egress']:>19}"
+            f"{row['measured_capability']:>17}"
         )
     for row in report["tools"]:
         for p in row["measured_model_probes"]:
             if p["measured_status"] != "reachable":
                 lines.append(
-                    f"  ! {row['tool']}: {p['measured_status']} <- {p['url']}"
+                    f"  ! {row['label']}: {p['measured_status']} <- {p['url']}"
                     + (f"\n      {p['detail']}" if p["detail"] else "")
                 )
     return "\n".join(lines)

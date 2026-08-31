@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "definition": {
+    "benchmark": "dependency and network-egress preflight",
+    "question": "can this tool initialise semantic search on this network at all",
+    "method": "HEAD each declared model URL with default TLS verification",
+    "integrity": "no proxy, no mirror, no verification bypass is attempted",
+    "privacy": "filter-page evidence is redacted of user identity and tokens"
+  },
+  "network": {
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "python": "3.12.6",
+    "proxy_env_vars_present": [],
+    "custom_ca_env_vars_present": [
+      "NODE_EXTRA_CA_CERTS"
+    ],
+    "note": "reachability below is a property of this network; rerun on yours before treating any status as a property of the tool"
+  },
+  "tools": [
+    {
+      "tool": "skylakegrep",
+      "profile": "base",
+      "label": "skylakegrep",
+      "optional": false,
+      "declared_egress": "model-fetch-once",
+      "declared_source": "skylakegrep/src/config.py DEFAULT_EMBED_MODEL='bge-m3', served by a local Ollama; queries hit http://localhost:11434 only",
+      "declared_model_urls": [
+        "https://registry.ollama.ai/v2/"
+      ],
+      "measured_binary_present": true,
+      "measured_model_probes": [
+        {
+          "url": "https://registry.ollama.ai/v2/",
+          "measured_status": "reachable",
+          "http_status": 404,
+          "detail": "origin answered HTTP 404 [transport=curl]",
+          "seconds": 0.161
+        }
+      ],
+      "measured_capability": "available",
+      "install": "pip install skylakegrep",
+      "notes": "Weights arrive via `ollama pull`; search itself is loopback-only."
+    },
+    {
+      "tool": "skylakegrep",
+      "profile": "rerank",
+      "label": "skylakegrep[rerank]",
+      "optional": true,
+      "declared_egress": "model-fetch-once",
+      "declared_source": "skylakegrep/src/config.py DEFAULT_RERANK_MODEL='mixedbread-ai/mxbai-rerank-large-v2'; cli.py --rerank-model help says 'HuggingFace cross-encoder model id'",
+      "declared_model_urls": [
+        "https://huggingface.co/mixedbread-ai/mxbai-rerank-large-v2/resolve/main/config.json"
+      ],
+      "measured_binary_present": true,
+      "measured_model_probes": [
+        {
+          "url": "https://huggingface.co/mixedbread-ai/mxbai-rerank-large-v2/resolve/main/config.json",
+          "measured_status": "blocked_by_policy",
+          "http_status": 307,
+          "detail": "answered by sase.merck.com instead of huggingface.co [transport=curl]",
+          "seconds": 0.213
+        }
+      ],
+      "measured_capability": "unavailable",
+      "install": "pip install 'skylakegrep[rerank]'",
+      "notes": "The reranking path has the same exposure as ck: its weights come from huggingface.co. Where that domain is blocked, skylakegrep still retrieves but cannot rerank, so any ranking figure measured with reranking on is unobtainable there. Note also that the default cross-encoder is published by Mixedbread, whose mgrep is the closest competing tool."
+    },
+    {
+      "tool": "ck",
+      "profile": "base",
+      "label": "ck",
+      "optional": false,
+      "declared_egress": "model-fetch-once",
+      "declared_source": "ck 0.7.11 --index error names the URL it fetches; `ck --help` states --lex is 'auto-indexed before it runs', so BM25 shares the path",
+      "declared_model_urls": [
+        "https://huggingface.co/Xenova/bge-small-en-v1.5/resolve/main/onnx/model.onnx"
+      ],
+      "measured_binary_present": true,
+      "measured_model_probes": [
+        {
+          "url": "https://huggingface.co/Xenova/bge-small-en-v1.5/resolve/main/onnx/model.onnx",
+          "measured_status": "blocked_by_policy",
+          "http_status": 307,
+          "detail": "answered by sase.merck.com instead of huggingface.co [transport=curl]",
+          "seconds": 0.101
+        }
+      ],
+      "measured_capability": "unavailable",
+      "install": "cargo install ck-search",
+      "notes": "Regex mode needs no index and keeps working when the fetch fails."
+    },
+    {
+      "tool": "mgrep",
+      "profile": "base",
+      "label": "mgrep",
+      "optional": false,
+      "declared_egress": "per-query",
+      "declared_source": "mgrep README documents a device-login flow against Mixedbread's hosted store; mixedbread.com/pricing bills indexing and queries",
+      "declared_model_urls": [
+        "https://api.mixedbread.com/"
+      ],
+      "measured_binary_present": false,
+      "measured_model_probes": [
+        {
+          "url": "https://api.mixedbread.com/",
+          "measured_status": "reachable",
+          "http_status": 200,
+          "detail": "[transport=curl]",
+          "seconds": 0.161
+        }
+      ],
+      "measured_capability": "available",
+      "install": "npm install -g @mixedbread/mgrep",
+      "notes": "Repository content is uploaded to a third-party index."
+    },
+    {
+      "tool": "ripgrep",
+      "profile": "base",
+      "label": "ripgrep",
+      "optional": false,
+      "declared_egress": "none",
+      "declared_source": "No model, no index, no network path in ripgrep",
+      "declared_model_urls": [],
+      "measured_binary_present": true,
+      "measured_model_probes": [],
+      "measured_capability": "not_applicable",
+      "install": "brew install ripgrep",
+      "notes": "Lexical floor. Included because it always survives."
+    }
+  ]
+}

@@ -126,12 +126,12 @@ def test_registry_rejects_an_unsourced_claim():
 
 
 def test_a_tool_with_no_model_dependency_is_not_applicable_not_available():
-    """ripgrep has no semantic mode to be available or unavailable."""
+    """ripgrep has no model-backed capability to be available or unavailable."""
 
     report = dp.evaluate(
         deps=tuple(d for d in dp.REGISTRY if d.tool == "ripgrep"), timeout=1.0
     )
-    assert report["tools"][0]["measured_semantic_mode"] == "not_applicable"
+    assert report["tools"][0]["measured_capability"] == "not_applicable"
 
 
 # --- receipt shape ----------------------------------------------------
@@ -159,7 +159,7 @@ def test_evaluate_marks_semantic_unavailable_when_a_model_url_is_blocked(monkeyp
     report = dp.evaluate(
         deps=tuple(d for d in dp.REGISTRY if d.tool == "ck"), timeout=1.0
     )
-    assert report["tools"][0]["measured_semantic_mode"] == "unavailable"
+    assert report["tools"][0]["measured_capability"] == "unavailable"
 
 
 def test_evaluate_marks_semantic_available_when_reachable(monkeypatch):
@@ -173,4 +173,68 @@ def test_evaluate_marks_semantic_available_when_reachable(monkeypatch):
     report = dp.evaluate(
         deps=tuple(d for d in dp.REGISTRY if d.tool == "skylakegrep"), timeout=1.0
     )
-    assert report["tools"][0]["measured_semantic_mode"] == "available"
+    assert report["tools"][0]["measured_capability"] == "available"
+
+
+# --- the home team is not exempt --------------------------------------
+
+
+def _by_label(label: str) -> dp.ToolDependency:
+    return next(d for d in dp.REGISTRY if d.label == label)
+
+
+def test_registry_declares_skylakegreps_own_huggingface_exposure():
+    """Regression guard against flattering ourselves.
+
+    The first version of this registry listed only skylakegrep's Ollama
+    dependency, so the receipt implied it was unconditionally installable.
+    Its optional cross-encoder reranking pulls
+    mixedbread-ai/mxbai-rerank-large-v2 from huggingface.co — the same domain
+    whose blocking disables ck. If that entry is ever dropped, this fails.
+    """
+
+    rerank = _by_label("skylakegrep[rerank]")
+
+    assert rerank.optional is True
+    assert any("huggingface.co" in url for url in rerank.declared_model_urls)
+    assert "DEFAULT_RERANK_MODEL" in rerank.declared_source
+    # Same host as the competitor's dependency: that is the point.
+    ck_hosts = {dp._host(u) for u in _by_label("ck").declared_model_urls}
+    assert {dp._host(u) for u in rerank.declared_model_urls} == ck_hosts
+
+
+def test_base_profile_is_separate_from_the_optional_one():
+    base = _by_label("skylakegrep")
+
+    assert base.profile == "base"
+    assert base.optional is False
+    assert not any("huggingface.co" in url for url in base.declared_model_urls)
+
+
+def test_a_blocked_optional_profile_does_not_condemn_the_base_profile(monkeypatch):
+    """Blocking reranking must read as "cannot rerank here", not "cannot install"."""
+
+    def fake_probe(url, timeout=0):
+        blocked = "huggingface.co" in url
+        return dp.ProbeResult(
+            url=url,
+            measured_status="blocked_by_policy" if blocked else "reachable",
+            http_status=307 if blocked else 200,
+        )
+
+    monkeypatch.setattr(dp, "probe", fake_probe)
+    report = dp.evaluate(
+        deps=tuple(d for d in dp.REGISTRY if d.tool == "skylakegrep"), timeout=1.0
+    )
+    by_label = {row["label"]: row for row in report["tools"]}
+
+    assert by_label["skylakegrep"]["measured_capability"] == "available"
+    assert by_label["skylakegrep[rerank]"]["measured_capability"] == "unavailable"
+    assert by_label["skylakegrep[rerank]"]["optional"] is True
+
+
+def test_label_disambiguates_profiles_of_the_same_tool():
+    labels = [d.label for d in dp.REGISTRY]
+
+    assert len(labels) == len(set(labels)), "receipt rows must be addressable"
+    assert "skylakegrep[rerank]" in labels
