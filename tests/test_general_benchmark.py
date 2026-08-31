@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Contracts for the public General Benchmark v2."""
 
 from __future__ import annotations
@@ -10,7 +11,14 @@ import pytest
 from benchmarks.general_capacity_preflight import capacity_report
 from benchmarks.general_stats import paired_efficiency
 from benchmarks.merge_general_reports import merge_reports
-from benchmarks.public_fixtures import RepoSpec, load_registry, prepare_repo, validate_repo_fixture
+from benchmarks.public_fixtures import (
+    GENERAL_MIN_QUALITY_ELIGIBLE_TASKS,
+    GENERAL_MIN_REPOS,
+    RepoSpec,
+    load_registry,
+    prepare_repo,
+    validate_repo_fixture,
+)
 from benchmarks.token_savings import approximate_tokens, tokenizer_metadata
 from benchmarks.universal_closed_loop_benchmark import _attach_source_gate
 
@@ -430,3 +438,123 @@ def test_chars_tokenizer_is_explicit_fallback(monkeypatch):
         "exact_tokenizer": False,
         "encoding": None,
     }
+
+
+def _per_repo_reports(*, min_tasks: int, min_repos: int, eligible_per_repo: int | None = None):
+    """Six receipts as the documented parallel workflow actually produces them."""
+
+    reports = []
+    for repo, spec in load_registry().items():
+        specs = spec.tasks
+        rows = []
+        for position, task_spec in enumerate(specs):
+            task = str(task_spec["id"])
+            # The merger pins every receipt to the full public fixture, so a
+            # short sample can only come from the quality gate excluding pairs,
+            # never from running fewer tasks. Model that: quality below the
+            # floor makes a pair ineligible while the task still exists.
+            eligible = eligible_per_repo is None or position < eligible_per_repo
+            quality = 1.0 if eligible else 0.2
+            rows.extend(
+                [
+                    _row(
+                        repo, task, "skygrep-first",
+                        tokens=100, calls=1, elapsed=2.0,
+                        quality=quality, completed=eligible,
+                    ),
+                    _row(
+                        repo, task, "rg-only",
+                        tokens=400, calls=8, elapsed=1.0,
+                        quality=quality, completed=eligible,
+                    ),
+                ]
+            )
+        reports.append(
+            {
+                "schema_version": 2,
+                "definition": {
+                    "policies": ["skygrep-first", "rg-only"],
+                    "mode": "adaptive-only",
+                },
+                "parameters": {
+                    "repos": [repo],
+                    "max_tasks_per_repo": None,
+                    "tokenizer": {"actual": "tiktoken:cl100k_base"},
+                    "trials": 1,
+                    "tokens_per_second": 30_000.0,
+                    "sufficient_threshold": 0.85,
+                    "timeout_seconds": 45.0,
+                    "allow_root_fallback": False,
+                    "quality_floor": 0.85,
+                    "noninferiority_margin_pct": 2.0,
+                    "bootstrap_samples": 20,
+                    "bootstrap_seed": 7,
+                    "min_general_tasks": min_tasks,
+                    "min_general_repos": min_repos,
+                    "benchmark_wall_seconds": 1.0,
+                },
+                "environment": {
+                    "system": "test",
+                    "benchmark_source_commit": "1" * 40,
+                    "benchmark_source_tracked_clean": "true",
+                },
+                "sections": [{"repo": repo, "tasks": len(specs), "commit": spec.commit}],
+                "rows": rows,
+            }
+        )
+    return reports
+
+
+def test_merge_gates_on_the_protocol_not_on_what_the_inputs_relaxed():
+    """A one-repository run cannot clear a three-repository minimum, so the
+    parallel workflow must relax the gate to execute. Reading those relaxed
+    values back out of the first receipt published a six-repository claim
+    gated at one repository — observed in the 2026-08-31 merge, whose
+    sample_gate recorded minimum_repos 1 and minimum_unique_tasks 3."""
+
+    merged = merge_reports(_per_repo_reports(min_tasks=3, min_repos=1))
+    gate = merged["generalization"]["sample_gate"]
+
+    assert gate["minimum_repos"] == GENERAL_MIN_REPOS == 3
+    assert gate["minimum_unique_tasks"] == GENERAL_MIN_QUALITY_ELIGIBLE_TASKS == 30
+    assert gate["passed"] is True
+    assert gate["represented_repos"] == 6
+    # The weaker per-run gate is disclosed, not silently dropped.
+    assert merged["parameters"]["per_receipt_gate_minimums"] == {
+        "min_general_tasks": 3,
+        "min_general_repos": 1,
+    }
+    assert merged["parameters"]["min_general_repos"] == GENERAL_MIN_REPOS
+
+
+def test_merge_refuses_the_general_claim_when_the_protocol_sample_is_short():
+    """Relaxed inputs must not buy a claim the evidence cannot earn.
+
+    The corpus itself is pinned — the merger rejects any receipt whose task
+    count differs from the public fixture — so a short sample can only arise
+    from the quality gate excluding pairs. Four eligible tasks per repository
+    is 24 unique tasks, under the protocol's 30, and the claim must be
+    withheld even though every input receipt was run with min_general_tasks=3.
+    """
+
+    merged = merge_reports(
+        _per_repo_reports(min_tasks=3, min_repos=1, eligible_per_repo=4)
+    )
+
+    assert merged["generalization"]["quality_eligible_tasks"] == 24
+    assert merged["generalization"]["sample_gate"]["minimum_unique_tasks"] == 30
+    assert merged["generalization"]["sample_gate"]["passed"] is False
+    assert merged["generalization"]["claim_status"] != "reportable"
+
+
+def test_protocol_thresholds_have_one_home():
+    """Three copies of 30/3 is how the merge path drifted in the first place."""
+
+    import inspect
+
+    from benchmarks import universal_closed_loop_benchmark as runner
+
+    source = inspect.getsource(runner.parse_args)
+    assert "default=GENERAL_MIN_QUALITY_ELIGIBLE_TASKS" in source
+    assert "default=GENERAL_MIN_REPOS" in source
+

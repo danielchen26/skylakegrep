@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Paired, quality-gated statistics for cross-repository benchmark rows."""
 
 from __future__ import annotations

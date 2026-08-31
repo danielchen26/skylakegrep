@@ -1,9 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for closed-loop benchmark helpers."""
 
 from __future__ import annotations
 
 import importlib.util
 import json
+import pytest
 import subprocess
 import sys
 from pathlib import Path
@@ -231,3 +233,232 @@ def test_architecture_contract_uses_concepts_not_fixture_numbers():
 
     assert "score" in terms
     assert not any(term.replace(".", "", 1).isdigit() for term in terms)
+
+
+
+# --- rank-based axes -------------------------------------------------
+
+_rank_of_first_hit = _benchmark._rank_of_first_hit
+_rank_metrics = _benchmark._rank_metrics
+_aggregate = _benchmark._aggregate
+
+
+def test_rank_of_first_hit_is_ordinal_not_set_membership():
+    groups = [["command.go"]]
+    paths = ["args.go", "flags.go", "command.go", "zsh_completions.go"]
+
+    assert _rank_of_first_hit(groups, paths) == 3
+    # Reordering must change the answer; that is the whole point of the metric.
+    assert _rank_of_first_hit(groups, ["command.go", *paths[:2]]) == 1
+
+
+def test_rank_is_none_when_the_expected_path_never_appears():
+    metrics = _rank_metrics([["command.go"]], ["args.go", "flags.go"])
+
+    assert metrics["rank_first_hit"] is None
+    assert metrics["reciprocal_rank"] == 0.0
+    assert metrics["hit_at_1"] == 0
+    assert metrics["hit_at_3"] == 0
+
+
+def test_hit_at_3_is_inclusive_and_hit_at_1_is_not():
+    at_three = _rank_metrics([["c.go"]], ["a.go", "b.go", "c.go"])
+    at_four = _rank_metrics([["d.go"]], ["a.go", "b.go", "c.go", "d.go"])
+
+    assert (at_three["hit_at_3"], at_three["hit_at_1"]) == (1, 0)
+    assert (at_four["hit_at_3"], at_four["hit_at_1"]) == (0, 0)
+
+
+def test_any_group_alternative_satisfies_the_rank():
+    metrics = _rank_metrics([["command.go", "cobra.go"]], ["args.go", "cobra.go"])
+
+    assert metrics["rank_first_hit"] == 2
+    assert metrics["reciprocal_rank"] == 0.5
+
+
+def test_rank_separates_tools_that_precision_at_k_cannot():
+    """Two retrievers, same 8 paths, one relevant file, opposite ranking.
+
+    precision@8 is identical and pinned at 12.5% for both — the ceiling
+    relevant/k imposes. Only the rank axis shows that one of them makes an
+    agent open seven wrong files first."""
+
+    groups = [["target.go"]]
+    noise = [f"noise{i}.go" for i in range(7)]
+    good = _rank_metrics(groups, ["target.go", *noise])
+    bad = _rank_metrics(groups, [*noise, "target.go"])
+
+    assert _benchmark._path_group_precision(
+        groups, ["target.go", *noise]
+    ) == _benchmark._path_group_precision(groups, [*noise, "target.go"])
+    assert good["reciprocal_rank"] == 1.0
+    assert bad["reciprocal_rank"] == 0.125
+    assert (good["hit_at_1"], bad["hit_at_1"]) == (1, 0)
+
+
+def test_scorer_reports_rank_alongside_the_published_sufficiency_definition():
+    """Rank metrics are additive: sufficiency must keep its old value so
+    receipts recorded before this axis existed stay comparable."""
+
+    task = {
+        "id": "unit-rank",
+        "deliverable": "source_evidence",
+        "expected_path_groups": [["command.go"]],
+        "evidence_terms": ["ExecuteC", "execute"],
+    }
+    score = _score_context_for_task(
+        task, ["func (c *Command) ExecuteC() {} execute"], ["args.go", "command.go"]
+    )
+
+    assert score["rank_first_hit"] == 2
+    assert score["hit_at_3"] == 1
+    assert score["sufficiency"] == round(0.6 * 1.0 + 0.4 * 1.0, 3)
+
+
+def test_legacy_flat_expected_paths_also_get_rank_metrics():
+    task = {
+        "id": "unit-flat",
+        "deliverable": "source_evidence",
+        "expected_paths": ["command.go"],
+        "evidence_terms": ["ExecuteC", "execute"],
+    }
+    score = _score_context_for_task(task, ["ExecuteC execute"], ["command.go"])
+
+    assert score["rank_first_hit"] == 1
+    assert score["reciprocal_rank"] == 1.0
+
+
+def test_aggregate_rolls_up_mrr_hits_and_never_found_count():
+    rows = [
+        {
+            "context_tokens": 100, "elapsed_seconds": 1.0, "tool_elapsed_seconds": 1.0,
+            "sufficiency": 1.0, "task_completion_quality": 1.0, "tool_calls": 1,
+            "path_coverage": 1.0, "path_precision": 0.125, "evidence_coverage": 1.0,
+            "rank_first_hit": rank, "reciprocal_rank": (1.0 / rank if rank else 0.0),
+            "hit_at_1": 1 if rank == 1 else 0,
+            "hit_at_3": 1 if rank and rank <= 3 else 0,
+        }
+        for rank in (1, 2, None, 8)
+    ]
+    agg = _aggregate(rows, tokens_per_second=30000.0, sufficient_threshold=0.85)
+
+    assert agg["hit_at_1_pct"] == 25.0
+    assert agg["hit_at_3_pct"] == 50.0
+    assert agg["mrr"] == round((1.0 + 0.5 + 0.0 + 0.125) / 4, 3)
+    assert agg["tasks_never_found"] == 1
+    # Mean rank is over found tasks only; a miss is not rank zero.
+    assert agg["mean_rank_when_found"] == round((1 + 2 + 8) / 3, 2)
+
+
+# --- policy registry -------------------------------------------------
+
+_PolicySpec = _benchmark.PolicySpec
+_register_policy = _benchmark.register_policy
+_get_policy = _benchmark.get_policy
+_policy_names = _benchmark.policy_names
+_compare_totals = _benchmark._compare_totals
+
+
+def _rank_rows(ranks, **extra):
+    return [
+        {
+            "context_tokens": 100, "elapsed_seconds": 1.0, "tool_elapsed_seconds": 1.0,
+            "sufficiency": 1.0, "task_completion_quality": 1.0, "tool_calls": 1,
+            "path_coverage": 1.0, "path_precision": 0.125, "evidence_coverage": 1.0,
+            "rank_first_hit": rank, "reciprocal_rank": (1.0 / rank if rank else 0.0),
+            "hit_at_1": 1 if rank == 1 else 0,
+            "hit_at_3": 1 if rank and rank <= 3 else 0,
+            **extra,
+        }
+        for rank in ranks
+    ]
+
+
+def test_both_published_arms_are_registered_and_dispatchable():
+    assert set(_policy_names()) >= {"skygrep-first", "rg-only"}
+    assert callable(_get_policy("skygrep-first").run)
+    assert _benchmark.DEFAULT_POLICIES == ("skygrep-first", "rg-only")
+
+
+def test_unknown_policy_names_the_registered_arms():
+    """The old code raised a bare 'unknown policy'; a third party needs to be
+    told what is selectable."""
+
+    with pytest.raises(ValueError, match="registered: rg-only, skygrep-first"):
+        _get_policy("ck-hybrid")
+
+
+def test_registering_a_duplicate_arm_is_rejected():
+    with pytest.raises(ValueError, match="already registered"):
+        _register_policy(
+            _PolicySpec(name="rg-only", summary="x", binary="rg", run=lambda ctx: "x")
+        )
+
+
+def test_a_third_party_arm_can_register_without_touching_the_loop():
+    """The point of the registry: an arm the author never wrote is measurable."""
+
+    name = "unit-test-arm"
+    spec = _register_policy(
+        _PolicySpec(
+            name=name, summary="fake", binary="nope", run=lambda ctx: "sufficient_after_fake"
+        )
+    )
+    try:
+        assert _get_policy(name) is spec
+        assert name in _policy_names()
+        # Default arms are pinned, so registering must not change a bare run.
+        assert name not in _benchmark.DEFAULT_POLICIES
+    finally:
+        _benchmark.POLICIES.pop(name)
+
+
+def test_ripgrep_is_declared_unranked():
+    """rg emits matches in traversal order, not relevance order."""
+
+    assert _get_policy("rg-only").ranked is False
+    assert _get_policy("skygrep-first").ranked is True
+
+
+def test_unranked_arms_report_null_rank_axes_instead_of_invented_numbers():
+    """Measured: two runs of an unchanged tree gave rg hit@1 50.0 then 0.0,
+    because rg walks in parallel. A number that unstable must not be
+    published as if it graded ranking."""
+
+    agg = _aggregate(
+        _rank_rows((1, 2, None, 8)),
+        tokens_per_second=30000.0,
+        sufficient_threshold=0.85,
+        ranked=False,
+    )
+
+    assert agg["ranked_arm"] is False
+    assert agg["mrr"] is None
+    assert agg["hit_at_1_pct"] is None
+    assert agg["hit_at_3_pct"] is None
+    assert agg["mean_rank_when_found"] is None
+    assert agg["tasks_never_found"] is None
+    # Everything that does not depend on ordering still reports.
+    assert agg["path_coverage_pct"] == 100.0
+    assert agg["path_precision_pct"] == 12.5
+
+
+def test_rank_delta_is_withheld_when_the_baseline_does_not_rank():
+    ranked = _aggregate(_rank_rows((1, 1)), 30000.0, 0.85, ranked=True)
+    unranked = _aggregate(_rank_rows((1, 1)), 30000.0, 0.85, ranked=False)
+
+    comparison = _compare_totals(ranked, unranked)
+
+    assert "mrr_delta" not in comparison
+    assert "does not rank" in comparison["rank_delta_note"]
+
+
+def test_rank_delta_is_reported_when_both_arms_rank():
+    good = _aggregate(_rank_rows((1, 1)), 30000.0, 0.85, ranked=True)
+    poor = _aggregate(_rank_rows((4, 4)), 30000.0, 0.85, ranked=True)
+
+    comparison = _compare_totals(good, poor)
+
+    assert comparison["mrr_delta"] == round(1.0 - 0.25, 3)
+    assert comparison["hit_at_1_delta_pct"] == 100.0
+    assert "rank_delta_note" not in comparison

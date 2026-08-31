@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the intelligent-recovery detection logic.
 
 Regression coverage for the pre-0.2.2 index handling that 0.2.4 got

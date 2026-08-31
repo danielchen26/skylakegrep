@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Deterministic grep-agent vs skylakegrep-agent benchmark.
 
 This benchmark is closer to the original skygrep token-savings claim than
@@ -540,7 +541,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             rank_by=getattr(args, "rank_by", "chunk"),
         )
         grep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(grep_result["context_tokens"])
-        mgrep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(skygrep_result["context_tokens"])
+        skygrep_total = args.fixed_prompt_tokens + args.final_answer_tokens + int(skygrep_result["context_tokens"])
         grep_rank = _expected_rank(expected, grep_result["paths"])
         skygrep_rank = _expected_rank(expected, skygrep_result["paths"])
         rows.append(
@@ -560,19 +561,19 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
                     "hit": _expected_hit(expected, skygrep_result["paths"]),
                     "expected_rank": skygrep_rank,
                     "reciprocal_rank": round(1 / skygrep_rank, 4) if skygrep_rank else 0.0,
-                    "estimated_total_tokens": mgrep_total,
+                    "estimated_total_tokens": skygrep_total,
                 },
                 "context_token_reduction_x": safe_ratio(
                     float(grep_result["context_tokens"]), float(skygrep_result["context_tokens"])
                 ),
-                "estimated_total_token_reduction_x": safe_ratio(grep_total, mgrep_total),
+                "estimated_total_token_reduction_x": safe_ratio(grep_total, skygrep_total),
             }
         )
 
     grep_context = sum(int(row["grep"]["context_tokens"]) for row in rows)
-    mgrep_context = sum(int(row["skygrep"]["context_tokens"]) for row in rows)
+    skygrep_ctx = sum(int(row["skygrep"]["context_tokens"]) for row in rows)
     grep_total = sum(int(row["grep"]["estimated_total_tokens"]) for row in rows)
-    mgrep_total = sum(int(row["skygrep"]["estimated_total_tokens"]) for row in rows)
+    skygrep_total = sum(int(row["skygrep"]["estimated_total_tokens"]) for row in rows)
     skygrep_quality_counts = Counter(
         str(row["skygrep"].get("quality") or "unknown") for row in rows
     )
@@ -580,7 +581,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
         "definition": {
             "benchmark_type": "deterministic context-gathering agent simulation",
             "grep_agent": "multiple exact term searches over indexed files, returning matching line windows",
-            "mgrep_agent": "one semantic skylakegrep top-k search per task",
+            "skylakegrep_agent": "one semantic skylakegrep top-k search per task",
             "token_note": "tokens are approximate chars/4; estimated totals add fixed prompt and final-answer overhead",
         },
         "parameters": {
@@ -602,11 +603,11 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
         },
         "summary": {
             "grep_context_tokens": grep_context,
-            "skygrep_context_tokens": mgrep_context,
-            "context_token_reduction_x": safe_ratio(grep_context, mgrep_context),
+            "skygrep_context_tokens": skygrep_ctx,
+            "context_token_reduction_x": safe_ratio(grep_context, skygrep_ctx),
             "grep_estimated_total_tokens": grep_total,
-            "skygrep_estimated_total_tokens": mgrep_total,
-            "estimated_total_token_reduction_x": safe_ratio(grep_total, mgrep_total),
+            "skygrep_estimated_total_tokens": skygrep_total,
+            "estimated_total_token_reduction_x": safe_ratio(grep_total, skygrep_total),
             "grep_hit_rate": f"{sum(1 for row in rows if row['grep']['hit'])}/{len(rows)}",
             "skygrep_hit_rate": f"{sum(1 for row in rows if row['skygrep']['hit'])}/{len(rows)}",
             "grep_avg_latency_seconds": round(

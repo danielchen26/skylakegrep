@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the L4 file-export PageRank tiebreaker (code_graph.py).
 
 Layout: a 4-file synthetic Rust project where ``lib`` is imported by 3

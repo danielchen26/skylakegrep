@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """End-to-end agent tool-context benchmark: skygrep vs raw ripgrep.
 
 This benchmark measures the retrieval context an LLM-style coding agent would

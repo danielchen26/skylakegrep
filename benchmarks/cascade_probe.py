@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Cascade probe: Round B with confidence early-exit, escalate uncertain queries.
 
 Insight: Round B (file-mean cosine on rg-prefiltered candidates) hits 11/16 @

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Lazy / adaptive index — augments (does NOT replace) the existing cascade.
 
 Two use cases for this module, both clarified by the user 2026-05-06:

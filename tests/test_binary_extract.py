@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the v0.15.0 binary content extractor.
 
 Real PDF / docx fixtures are heavy to ship; we use:

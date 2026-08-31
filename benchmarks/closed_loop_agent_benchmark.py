@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Closed-loop agent benchmark: skygrep-first vs raw-rg-only.
 
 This benchmark models the *loop* an LLM coding agent actually runs:
@@ -27,7 +28,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -963,6 +964,46 @@ def _path_group_precision(expected_groups: list[list[str]], paths: list[str]) ->
     return matched / len(unique_paths)
 
 
+def _rank_of_first_hit(
+    expected_groups: list[list[str]], paths: list[str]
+) -> int | None:
+    """1-indexed position of the first returned path that satisfies an
+    expected group, or ``None`` when no returned path ever does.
+
+    This is the axis ``path_precision`` structurally cannot see. Precision@k
+    is bounded by ``relevant / k``: with the usual one relevant file and
+    ``--top 8``, no retriever on earth can exceed 12.5%, so the metric grades
+    the chosen top-k far more than it grades ranking. The cost an agent
+    actually pays is how many wrong files it opens before the right one,
+    which is exactly this rank — and the derived MRR / hit@1 / hit@3 are
+    comparable across tools at a fixed k.
+
+    Order matters here, so unlike :func:`_path_group_precision` the input
+    list must not be sorted or set-deduplicated by the caller.
+    """
+
+    for index, path in enumerate(paths, start=1):
+        if not path:
+            continue
+        if any(
+            candidate and candidate in path
+            for group in expected_groups
+            for candidate in group
+        ):
+            return index
+    return None
+
+
+def _rank_metrics(expected_groups: list[list[str]], paths: list[str]) -> dict[str, Any]:
+    rank = _rank_of_first_hit(expected_groups, _dedupe(paths))
+    return {
+        "rank_first_hit": rank,
+        "reciprocal_rank": round(1.0 / rank, 3) if rank else 0.0,
+        "hit_at_1": 1 if rank == 1 else 0,
+        "hit_at_3": 1 if rank is not None and rank <= 3 else 0,
+    }
+
+
 def _missing_path_groups(expected_groups: list[list[str]], paths: list[str]) -> list[str]:
     missing: list[str] = []
     for group in expected_groups:
@@ -991,18 +1032,20 @@ def _score_context_for_task(task: dict[str, Any], payloads: list[str], paths: li
             "path_coverage": round(path_coverage, 3),
             "path_precision": round(path_precision, 3),
             "evidence_coverage": round(evidence_coverage, 3),
+            # Additive on purpose: sufficiency keeps its published definition so
+            # receipts recorded before rank metrics existed stay comparable.
             "sufficiency": round((0.6 * path_coverage) + (0.4 * evidence_coverage), 3),
+            **_rank_metrics(expected_groups, paths),
             "missing_paths": _missing_path_groups(expected_groups, paths),
             "missing_evidence_terms": [
                 term for term in evidence_terms if term.lower() not in payload
             ],
         }
-    return _score_context(
-        task.get("expected_paths", []),
-        evidence_terms,
-        _dedupe(paths),
-        payload,
-    )
+    expected_paths = task.get("expected_paths", [])
+    return {
+        **_score_context(expected_paths, evidence_terms, _dedupe(paths), payload),
+        **_rank_metrics([[path] for path in expected_paths], paths),
+    }
 
 
 def _completion_quality(
@@ -1137,6 +1180,346 @@ def _needs_skygrep_extraction(paths: list[str]) -> bool:
     return any(Path(path).suffix.lower() in extraction_suffixes for path in paths)
 
 
+@dataclass
+class PolicyContext:
+    """Everything a retrieval policy may touch, and nothing else.
+
+    The closed loop owns accumulation, scoring, and stopping; a policy only
+    decides which retrieval and read steps to take, in what order, and when it
+    is satisfied. Passing that surface explicitly is what lets a third-party
+    tool become an arm without editing the loop — the previous shape was an
+    ``if policy == ...`` chain, so only the two arms the author wrote could
+    ever be measured, which makes a benchmark a product demo.
+
+    ``paths`` is the live accumulator and is read-only for policies: it grows
+    as a side effect of :attr:`add_step`, never by direct mutation.
+    """
+
+    root: Path
+    task: dict[str, Any]
+    effort_name: str
+    effort: dict[str, Any]
+    timeout: float
+    allow_root_fallback: bool
+    known_scope: list[str]
+    read_files: int
+    read_chars: int
+    initial_needs_content: bool
+    paths: list[str]
+    add_step: Callable[[StepResult], dict[str, Any]]
+    enough: Callable[[dict[str, Any]], bool]
+
+
+@dataclass(frozen=True)
+class PolicySpec:
+    """A measurable arm. ``run`` returns the stop reason it settled on."""
+
+    name: str
+    summary: str
+    #: Executable the arm needs, for cross-referencing
+    #: :mod:`benchmarks.dependency_preflight`. Empty when the arm is in-process.
+    binary: str
+    run: Callable[[PolicyContext], str]
+    #: Whether this arm returns results in a relevance order. False for a
+    #: scanner: ripgrep emits matches in traversal order, so MRR and hit@k
+    #: computed over its output are not a worse ranking, they are an invented
+    #: number — and because rg walks in parallel without ``--sort``, that
+    #: number is unstable run to run (measured: hit@1 50.0 then 0.0 on an
+    #: unchanged tree). Rank axes are reported as null for unranked arms
+    #: instead of being stabilised with ``--sort path``, which would disable
+    #: rg's parallelism and inflate the latency comparison in our favour.
+    ranked: bool = True
+
+
+POLICIES: dict[str, PolicySpec] = {}
+
+#: Arms measured when --policy is not given. The published General
+#: Benchmark compares exactly these two, so the default is pinned rather
+#: than "everything registered": adding an arm must not silently change
+#: what a bare invocation reports.
+DEFAULT_POLICIES = ("skygrep-first", "rg-only")
+
+
+def register_policy(spec: PolicySpec) -> PolicySpec:
+    if spec.name in POLICIES:
+        raise ValueError(f"policy {spec.name!r} is already registered")
+    POLICIES[spec.name] = spec
+    return spec
+
+
+def policy_names() -> list[str]:
+    return sorted(POLICIES)
+
+
+def get_policy(name: str) -> PolicySpec:
+    try:
+        return POLICIES[name]
+    except KeyError:
+        raise ValueError(
+            f"unknown policy {name!r}; registered: {', '.join(policy_names()) or 'none'}"
+        ) from None
+
+
+def _policy_skygrep_first(ctx: PolicyContext) -> str:
+    """skygrep first, then read candidates, then probe, then fall back."""
+
+    root, task, effort = ctx.root, ctx.task, ctx.effort
+    effort_name, timeout = ctx.effort_name, ctx.timeout
+    allow_root_fallback = ctx.allow_root_fallback
+    known_scope, read_files, read_chars = ctx.known_scope, ctx.read_files, ctx.read_chars
+    initial_needs_content = ctx.initial_needs_content
+    paths, add_step, enough = ctx.paths, ctx.add_step, ctx.enough
+    stop_reason = "budget_exhausted"
+
+    probe_paths: list[str] = []
+    filename_paths: list[str] = []
+    score = add_step(
+        _skygrep_step(
+            root,
+            task["query"],
+            timeout=timeout,
+            top=int(effort["top"]),
+            detail=str(effort["detail"]),
+            content=initial_needs_content,
+            includes=known_scope,
+            name="skygrep:initial",
+        )
+    )
+    if enough(score):
+        stop_reason = "sufficient_after_skygrep_initial"
+    else:
+        top_paths = paths[: max(1, min(read_files, len(paths)))]
+        if top_paths:
+            score = add_step(
+                _read_paths_step(
+                    root,
+                    top_paths,
+                    max_files=read_files,
+                    max_chars=read_chars,
+                    name="skygrep:read_candidate_files",
+                )
+            )
+        if enough(score):
+            stop_reason = "sufficient_after_candidate_file_reads"
+        if (
+            stop_reason == "budget_exhausted"
+            and top_paths
+            and effort_name == "high"
+            and score["path_coverage"] > 0
+            and _needs_skygrep_extraction(top_paths)
+        ):
+            score = add_step(
+                _skygrep_step(
+                    root,
+                    task["query"],
+                    timeout=timeout,
+                    top=max(3, int(effort["top"])),
+                    detail="full",
+                    includes=top_paths,
+                    name="skygrep:extract_focused_full",
+                )
+            )
+        if enough(score) and stop_reason == "budget_exhausted":
+            stop_reason = "sufficient_after_focused_extraction"
+        if stop_reason == "budget_exhausted" and (
+            float(score["path_coverage"]) < 1.0
+            or float(score["evidence_coverage"]) < 1.0
+        ):
+            probe_scope = known_scope
+            probe = _rg_path_probe_step(
+                root,
+                task["query"],
+                timeout=timeout,
+                terms=max(3, int(effort["rg_terms"])),
+                max_paths=max(15, int(effort["top"]) * 5),
+                includes=probe_scope,
+                name="fallback:rg_path_probe",
+            )
+            probe_paths = probe.paths
+            score = add_step(probe)
+            if probe.paths:
+                score = add_step(
+                    _read_paths_step(
+                        root,
+                        probe.paths,
+                        max_files=read_files,
+                        max_chars=read_chars,
+                        name="fallback:read_probe_paths",
+                    )
+                )
+            if enough(score):
+                stop_reason = "sufficient_after_path_probe"
+        if stop_reason == "budget_exhausted" and initial_needs_content:
+            filename_probe = _filename_probe_step(
+                root,
+                task["query"],
+                max_paths=max(30, int(effort["top"]) * 10),
+                name="fallback:filename_probe",
+            )
+            filename_paths = filename_probe.paths
+            score = add_step(filename_probe)
+            if enough(score):
+                stop_reason = "sufficient_after_filename_probe"
+        if stop_reason == "budget_exhausted" and paths and initial_needs_content:
+            symbol_candidates = _dedupe([*paths, *probe_paths, *filename_paths])
+            score = add_step(
+                _read_symbol_paths_step(
+                    root,
+                    symbol_candidates,
+                    task["query"],
+                    max_files=max(50, int(effort["top"]) * 16),
+                    max_chars_per_file=max(8_000, read_chars * 2),
+                    name="fallback:read_candidate_symbols",
+                )
+            )
+            if enough(score):
+                stop_reason = "sufficient_after_candidate_symbol_reads"
+        if stop_reason == "budget_exhausted" and paths and initial_needs_content:
+            sibling_candidates = _candidate_scope_source_paths(
+                root,
+                [*paths, *probe_paths, *filename_paths],
+                task["query"],
+                max_scopes=5,
+                max_files=80,
+            )
+            score = add_step(
+                _read_symbol_paths_step(
+                    root,
+                    sibling_candidates,
+                    task["query"],
+                    max_files=80,
+                    max_chars_per_file=4_000,
+                    name="fallback:read_scoped_sibling_symbols",
+                )
+            )
+            if enough(score):
+                stop_reason = "sufficient_after_scoped_sibling_symbols"
+        if stop_reason == "budget_exhausted":
+            fallback_scope = known_scope or _candidate_globs(
+                [*paths, *probe_paths, *filename_paths],
+                max_paths=max(5, int(effort["top"]) * 2),
+            )
+            score = add_step(
+                _rg_step(
+                    root,
+                    task["query"],
+                    timeout=timeout,
+                    terms=max(6, int(effort["rg_terms"])),
+                    max_matches=max(10, int(effort["rg_matches"])),
+                    context=max(2, int(effort["rg_context"])),
+                    includes=fallback_scope,
+                    name="fallback:rg_scoped",
+                )
+            )
+            if enough(score):
+                stop_reason = "sufficient_after_scoped_rg_fallback"
+            else:
+                if allow_root_fallback:
+                    score = add_step(
+                        _rg_step(
+                            root,
+                            task["query"],
+                            timeout=timeout,
+                            terms=max(6, int(effort["rg_terms"])),
+                            max_matches=max(10, int(effort["rg_matches"])),
+                            context=max(2, int(effort["rg_context"])),
+                            includes=[],
+                            name="fallback:rg_root_last_chance",
+                        )
+                    )
+                if enough(score):
+                    stop_reason = "sufficient_after_root_rg_fallback"
+                else:
+                    score = add_step(
+                        _read_paths_step(
+                            root,
+                            paths,
+                            max_files=read_files,
+                            max_chars=read_chars,
+                            name="fallback:read_top_paths",
+                        )
+                    )
+                    if enough(score):
+                        stop_reason = "sufficient_after_read_top_paths"
+
+    return stop_reason
+
+
+def _policy_rg_only(ctx: PolicyContext) -> str:
+    """Lexical baseline: rg, widen rg, then read the top paths."""
+
+    root, task, effort = ctx.root, ctx.task, ctx.effort
+    effort_name, timeout = ctx.effort_name, ctx.timeout
+    allow_root_fallback = ctx.allow_root_fallback
+    known_scope, read_files, read_chars = ctx.known_scope, ctx.read_files, ctx.read_chars
+    initial_needs_content = ctx.initial_needs_content
+    paths, add_step, enough = ctx.paths, ctx.add_step, ctx.enough
+    stop_reason = "budget_exhausted"
+
+    score = add_step(
+        _rg_step(
+            root,
+            task["query"],
+            timeout=timeout,
+            terms=int(effort["rg_terms"]),
+            max_matches=int(effort["rg_matches"]),
+            context=int(effort["rg_context"]),
+            includes=known_scope,
+            name="rg:initial",
+        )
+    )
+    if enough(score):
+        stop_reason = "sufficient_after_rg_initial"
+    else:
+        score = add_step(
+            _rg_step(
+                root,
+                task["query"],
+                timeout=timeout,
+                terms=max(10, int(effort["rg_terms"]) * 2),
+                max_matches=max(20, int(effort["rg_matches"]) * 2),
+                context=max(4, int(effort["rg_context"]) * 2),
+                includes=known_scope,
+                name="rg:expanded",
+            )
+        )
+        if enough(score):
+            stop_reason = "sufficient_after_rg_expanded"
+        else:
+            score = add_step(
+                _read_paths_step(
+                    root,
+                    paths,
+                    max_files=read_files,
+                    max_chars=read_chars,
+                    name="rg:read_top_paths",
+                )
+            )
+            if enough(score):
+                stop_reason = "sufficient_after_read_top_paths"
+
+    return stop_reason
+
+
+register_policy(
+    PolicySpec(
+        name="skygrep-first",
+        summary="semantic retrieval first, with lexical probes as fallback",
+        binary="skygrep",
+        run=_policy_skygrep_first,
+    )
+)
+register_policy(
+    PolicySpec(
+        name="rg-only",
+        summary="ripgrep term extraction only; the lexical floor",
+        binary="rg",
+        run=_policy_rg_only,
+        ranked=False,
+    )
+)
+
+
 def _closed_loop(
     root: Path,
     task: dict[str, Any],
@@ -1176,221 +1559,22 @@ def _closed_loop(
     read_files, read_chars = _read_budget(effort_name)
     initial_needs_content = task.get("abstract_level") != "locate"
 
-    if policy == "skygrep-first":
-        probe_paths: list[str] = []
-        filename_paths: list[str] = []
-        score = add_step(
-            _skygrep_step(
-                root,
-                task["query"],
-                timeout=timeout,
-                top=int(effort["top"]),
-                detail=str(effort["detail"]),
-                content=initial_needs_content,
-                includes=known_scope,
-                name="skygrep:initial",
-            )
-        )
-        if enough(score):
-            stop_reason = "sufficient_after_skygrep_initial"
-        else:
-            top_paths = paths[: max(1, min(read_files, len(paths)))]
-            if top_paths:
-                score = add_step(
-                    _read_paths_step(
-                        root,
-                        top_paths,
-                        max_files=read_files,
-                        max_chars=read_chars,
-                        name="skygrep:read_candidate_files",
-                    )
-                )
-            if enough(score):
-                stop_reason = "sufficient_after_candidate_file_reads"
-            if (
-                stop_reason == "budget_exhausted"
-                and top_paths
-                and effort_name == "high"
-                and score["path_coverage"] > 0
-                and _needs_skygrep_extraction(top_paths)
-            ):
-                score = add_step(
-                    _skygrep_step(
-                        root,
-                        task["query"],
-                        timeout=timeout,
-                        top=max(3, int(effort["top"])),
-                        detail="full",
-                        includes=top_paths,
-                        name="skygrep:extract_focused_full",
-                    )
-                )
-            if enough(score) and stop_reason == "budget_exhausted":
-                stop_reason = "sufficient_after_focused_extraction"
-            if stop_reason == "budget_exhausted" and (
-                float(score["path_coverage"]) < 1.0
-                or float(score["evidence_coverage"]) < 1.0
-            ):
-                probe_scope = known_scope
-                probe = _rg_path_probe_step(
-                    root,
-                    task["query"],
-                    timeout=timeout,
-                    terms=max(3, int(effort["rg_terms"])),
-                    max_paths=max(15, int(effort["top"]) * 5),
-                    includes=probe_scope,
-                    name="fallback:rg_path_probe",
-                )
-                probe_paths = probe.paths
-                score = add_step(probe)
-                if probe.paths:
-                    score = add_step(
-                        _read_paths_step(
-                            root,
-                            probe.paths,
-                            max_files=read_files,
-                            max_chars=read_chars,
-                            name="fallback:read_probe_paths",
-                        )
-                    )
-                if enough(score):
-                    stop_reason = "sufficient_after_path_probe"
-            if stop_reason == "budget_exhausted" and initial_needs_content:
-                filename_probe = _filename_probe_step(
-                    root,
-                    task["query"],
-                    max_paths=max(30, int(effort["top"]) * 10),
-                    name="fallback:filename_probe",
-                )
-                filename_paths = filename_probe.paths
-                score = add_step(filename_probe)
-                if enough(score):
-                    stop_reason = "sufficient_after_filename_probe"
-            if stop_reason == "budget_exhausted" and paths and initial_needs_content:
-                symbol_candidates = _dedupe([*paths, *probe_paths, *filename_paths])
-                score = add_step(
-                    _read_symbol_paths_step(
-                        root,
-                        symbol_candidates,
-                        task["query"],
-                        max_files=max(50, int(effort["top"]) * 16),
-                        max_chars_per_file=max(8_000, read_chars * 2),
-                        name="fallback:read_candidate_symbols",
-                    )
-                )
-                if enough(score):
-                    stop_reason = "sufficient_after_candidate_symbol_reads"
-            if stop_reason == "budget_exhausted" and paths and initial_needs_content:
-                sibling_candidates = _candidate_scope_source_paths(
-                    root,
-                    [*paths, *probe_paths, *filename_paths],
-                    task["query"],
-                    max_scopes=5,
-                    max_files=80,
-                )
-                score = add_step(
-                    _read_symbol_paths_step(
-                        root,
-                        sibling_candidates,
-                        task["query"],
-                        max_files=80,
-                        max_chars_per_file=4_000,
-                        name="fallback:read_scoped_sibling_symbols",
-                    )
-                )
-                if enough(score):
-                    stop_reason = "sufficient_after_scoped_sibling_symbols"
-            if stop_reason == "budget_exhausted":
-                fallback_scope = known_scope or _candidate_globs(
-                    [*paths, *probe_paths, *filename_paths],
-                    max_paths=max(5, int(effort["top"]) * 2),
-                )
-                score = add_step(
-                    _rg_step(
-                        root,
-                        task["query"],
-                        timeout=timeout,
-                        terms=max(6, int(effort["rg_terms"])),
-                        max_matches=max(10, int(effort["rg_matches"])),
-                        context=max(2, int(effort["rg_context"])),
-                        includes=fallback_scope,
-                        name="fallback:rg_scoped",
-                    )
-                )
-                if enough(score):
-                    stop_reason = "sufficient_after_scoped_rg_fallback"
-                else:
-                    if allow_root_fallback:
-                        score = add_step(
-                            _rg_step(
-                                root,
-                                task["query"],
-                                timeout=timeout,
-                                terms=max(6, int(effort["rg_terms"])),
-                                max_matches=max(10, int(effort["rg_matches"])),
-                                context=max(2, int(effort["rg_context"])),
-                                includes=[],
-                                name="fallback:rg_root_last_chance",
-                            )
-                        )
-                    if enough(score):
-                        stop_reason = "sufficient_after_root_rg_fallback"
-                    else:
-                        score = add_step(
-                            _read_paths_step(
-                                root,
-                                paths,
-                                max_files=read_files,
-                                max_chars=read_chars,
-                                name="fallback:read_top_paths",
-                            )
-                        )
-                        if enough(score):
-                            stop_reason = "sufficient_after_read_top_paths"
-    elif policy == "rg-only":
-        score = add_step(
-            _rg_step(
-                root,
-                task["query"],
-                timeout=timeout,
-                terms=int(effort["rg_terms"]),
-                max_matches=int(effort["rg_matches"]),
-                context=int(effort["rg_context"]),
-                includes=known_scope,
-                name="rg:initial",
-            )
-        )
-        if enough(score):
-            stop_reason = "sufficient_after_rg_initial"
-        else:
-            score = add_step(
-                _rg_step(
-                    root,
-                    task["query"],
-                    timeout=timeout,
-                    terms=max(10, int(effort["rg_terms"]) * 2),
-                    max_matches=max(20, int(effort["rg_matches"]) * 2),
-                    context=max(4, int(effort["rg_context"]) * 2),
-                    includes=known_scope,
-                    name="rg:expanded",
-                )
-            )
-            if enough(score):
-                stop_reason = "sufficient_after_rg_expanded"
-            else:
-                score = add_step(
-                    _read_paths_step(
-                        root,
-                        paths,
-                        max_files=read_files,
-                        max_chars=read_chars,
-                        name="rg:read_top_paths",
-                    )
-                )
-                if enough(score):
-                    stop_reason = "sufficient_after_read_top_paths"
-    else:
-        raise ValueError(f"unknown policy: {policy}")
+    ctx = PolicyContext(
+        root=root,
+        task=task,
+        effort_name=effort_name,
+        effort=effort,
+        timeout=timeout,
+        allow_root_fallback=allow_root_fallback,
+        known_scope=known_scope,
+        read_files=read_files,
+        read_chars=read_chars,
+        initial_needs_content=initial_needs_content,
+        paths=paths,
+        add_step=add_step,
+        enough=enough,
+    )
+    stop_reason = get_policy(policy).run(ctx)
 
     final_score = _current_score(task, payloads, paths)
     completion = _completion_quality(
@@ -1428,6 +1612,8 @@ def _aggregate(
     rows: list[dict[str, Any]],
     tokens_per_second: float,
     sufficient_threshold: float,
+    *,
+    ranked: bool = True,
 ) -> dict[str, Any]:
     if not rows:
         return {}
@@ -1444,6 +1630,40 @@ def _aggregate(
         "path_coverage_pct": _pct(sum(float(r["path_coverage"]) for r in rows) / n),
         "path_precision_pct": _pct(sum(float(r["path_precision"]) for r in rows) / n),
         "evidence_coverage_pct": _pct(sum(float(r["evidence_coverage"]) for r in rows) / n),
+        # Rank-based axes. Reported next to precision, not folded into it:
+        # precision@k is capped at relevant/k, so it cannot separate a tool
+        # that ranks the answer first from one that ranks it eighth. Null for
+        # arms that do not rank at all; see PolicySpec.ranked.
+        "ranked_arm": ranked,
+        "mrr": (
+            round(sum(float(r.get("reciprocal_rank", 0.0)) for r in rows) / n, 3)
+            if ranked
+            else None
+        ),
+        "hit_at_1_pct": (
+            _pct(sum(int(r.get("hit_at_1", 0)) for r in rows) / n) if ranked else None
+        ),
+        "hit_at_3_pct": (
+            _pct(sum(int(r.get("hit_at_3", 0)) for r in rows) / n) if ranked else None
+        ),
+        "mean_rank_when_found": (
+            None
+            if not ranked
+            else round(
+                sum(
+                    int(r["rank_first_hit"])
+                    for r in rows
+                    if r.get("rank_first_hit")
+                )
+                / max(1, sum(1 for r in rows if r.get("rank_first_hit"))),
+                2,
+            )
+            if any(r.get("rank_first_hit") for r in rows)
+            else None
+        ),
+        "tasks_never_found": (
+            sum(1 for r in rows if not r.get("rank_first_hit")) if ranked else None
+        ),
         "sufficiency_pct": _pct(sufficiency),
         "sufficient_tasks": sum(1 for r in rows if float(r["sufficiency"]) >= sufficient_threshold),
         "work_quality_pct": _pct(work_quality),
@@ -1475,6 +1695,17 @@ def _compare_totals(sky: dict[str, Any], rg: dict[str, Any]) -> dict[str, Any]:
         ),
         "path_coverage_delta_pct": round(sky["path_coverage_pct"] - rg["path_coverage_pct"], 1),
         "evidence_coverage_delta_pct": round(sky["evidence_coverage_pct"] - rg["evidence_coverage_pct"], 1),
+        # A rank delta against an unranked arm would compare a ranking to a
+        # traversal order, so it is withheld rather than fabricated.
+        **(
+            {
+                "mrr_delta": round(sky["mrr"] - rg["mrr"], 3),
+                "hit_at_1_delta_pct": round(sky["hit_at_1_pct"] - rg["hit_at_1_pct"], 1),
+                "hit_at_3_delta_pct": round(sky["hit_at_3_pct"] - rg["hit_at_3_pct"], 1),
+            }
+            if sky.get("mrr") is not None and rg.get("mrr") is not None
+            else {"rank_delta_note": "baseline arm does not rank; no rank delta"}
+        ),
         "sufficiency_delta_pct": round(sky["sufficiency_pct"] - rg["sufficiency_pct"], 1),
         "work_quality_delta_pct": round(sky["work_quality_pct"] - rg["work_quality_pct"], 1),
         "completed_tasks_delta": sky["completed_tasks"] - rg["completed_tasks"],
@@ -1503,7 +1734,7 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
         )
     tasks = json.loads(Path(args.tasks).read_text()) if args.tasks else DEFAULT_TASKS
     efforts = args.effort or list(EFFORTS)
-    policies = args.policy or ["skygrep-first", "rg-only"]
+    policies = args.policy or DEFAULT_POLICIES
     started = time.perf_counter()
     rows: list[dict[str, Any]] = []
     for effort_name in efforts:
@@ -1526,6 +1757,7 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
             [r for r in rows if r["policy"] == policy],
             args.tokens_per_second,
             args.sufficient_threshold,
+            ranked=get_policy(policy).ranked,
         )
         for policy in policies
     }
@@ -1534,6 +1766,7 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
             [r for r in rows if r["policy"] == policy and r["effort"] == effort_name],
             args.tokens_per_second,
             args.sufficient_threshold,
+            ranked=get_policy(policy).ranked,
         )
         for policy in policies
         for effort_name in efforts
@@ -1543,6 +1776,7 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
             [r for r in rows if r["policy"] == policy and r["abstract_level"] == level],
             args.tokens_per_second,
             args.sufficient_threshold,
+            ranked=get_policy(policy).ranked,
         )
         for policy in policies
         for level in sorted({r["abstract_level"] for r in rows})
@@ -1558,6 +1792,7 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
             ],
             args.tokens_per_second,
             args.sufficient_threshold,
+            ranked=get_policy(policy).ranked,
         )
         for policy in policies
     }
@@ -1638,7 +1873,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--root", default=".")
     parser.add_argument("--tasks", help="Optional JSON task fixture")
     parser.add_argument("--effort", choices=sorted(EFFORTS), action="append")
-    parser.add_argument("--policy", choices=["skygrep-first", "rg-only"], action="append")
+    parser.add_argument(
+        "--policy",
+        action="append",
+        choices=policy_names(),
+        help=(
+            "arm to measure; repeatable. Choices come from the policy registry, "
+            "so a newly registered arm is selectable without touching argparse: "
+            + "; ".join(f"{s.name} ({s.summary})" for s in POLICIES.values())
+        ),
+    )
     parser.add_argument("--timeout", type=float, default=45.0)
     parser.add_argument("--sufficient-threshold", type=float, default=0.85)
     parser.add_argument(

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Merge per-repository General Benchmark v2 receipts without rerunning retrieval."""
 
 from __future__ import annotations
@@ -14,6 +15,10 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from benchmarks.general_stats import paired_efficiency
+from benchmarks.public_fixtures import (
+    GENERAL_MIN_QUALITY_ELIGIBLE_TASKS,
+    GENERAL_MIN_REPOS,
+)
 from benchmarks.universal_closed_loop_benchmark import (
     PUBLIC_REPOS,
     _attach_source_gate,
@@ -176,14 +181,27 @@ def merge_reports(reports: list[dict[str, Any]]) -> dict[str, Any]:
     noninferiority_margin = float(first_parameters["noninferiority_margin_pct"])
     bootstrap_samples = int(first_parameters["bootstrap_samples"])
     bootstrap_seed = int(first_parameters["bootstrap_seed"])
-    min_tasks = int(first_parameters["min_general_tasks"])
-    min_repos = int(first_parameters["min_general_repos"])
+    # The gate is the protocol's, never the inputs'. A per-repository receipt
+    # must relax these to run at all — one repository cannot clear a
+    # three-repository minimum — so reading them back out of the first receipt
+    # published a six-repository claim gated at one repository, which is what
+    # the 2026-08-31 merge did. The relaxed values the inputs used are recorded
+    # rather than dropped, so the weaker per-run gate stays auditable.
+    min_tasks = GENERAL_MIN_QUALITY_ELIGIBLE_TASKS
+    min_repos = GENERAL_MIN_REPOS
+    per_receipt_minimums = {
+        "min_general_tasks": int(first_parameters["min_general_tasks"]),
+        "min_general_repos": int(first_parameters["min_general_repos"]),
+    }
 
     merged_parameters = dict(first_parameters)
     merged_parameters.update(
         {
             "repos": sorted(repo_keys),
             "oss_root": "<oss-root>",
+            "min_general_tasks": min_tasks,
+            "min_general_repos": min_repos,
+            "per_receipt_gate_minimums": per_receipt_minimums,
             "benchmark_wall_seconds": None,
             "parallel_repo_wall_seconds": {
                 str(report["sections"][0]["repo"]): report["parameters"].get(

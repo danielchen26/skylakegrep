@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Fast filesystem-metadata answers for queries that are not content search.
 
 Semantic retrieval is the wrong tool for questions such as "latest files I

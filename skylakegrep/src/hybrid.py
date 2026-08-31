@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Lexical (ripgrep) prefilter — the high-recall first stage of search.
 
 Empirically on the 16-task Rust benchmark, ripgrep with simple term extraction

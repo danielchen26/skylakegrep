@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Command-line entry point for ``skygrep``.
 
 Two-mode CLI:
@@ -33,7 +34,7 @@ import click
 logger = logging.getLogger(__name__)
 
 from . import __version__
-from . import auto_index, bootstrap, code_graph, config as cfg_mod, enrich as enrich_mod, integrations as integrations_mod, ui as ui_mod
+from . import auto_index, bootstrap, citation as citation_mod, code_graph, config as cfg_mod, egress as egress_mod, enrich as enrich_mod, integrations as integrations_mod, ui as ui_mod
 from .answerer import get_answerer
 from .config import get_config
 from .document_policy import prefer_living_authority_results
@@ -43,6 +44,7 @@ from .indexer import (
     embed_file_chunks_batched,
 )
 from .intent import classify_intent, merge_results as merge_tiers
+from . import mcp_server
 from .llm_router import RouterDecision, route_query, simplify_router_query
 from .metadata_search import (
     analyze_metadata_query,
@@ -925,7 +927,7 @@ def render_json_results(results: list[dict], *, include_snippet: bool = True) ->
 
 
 # Subcommand names that take precedence over bare-form query routing.
-_SUBCOMMANDS = {"index", "search", "watch", "serve", "stats", "doctor", "enrich", "setup"}
+_SUBCOMMANDS = {"index", "search", "watch", "serve", "stats", "doctor", "enrich", "setup", "cite", "mcp"}
 _DETAIL_CHOICES = {"brief", "standard", "full", "summary"}
 _AGENT_MODE_CHOICES = {"off", "fast", "context", "deep", "answer"}
 _DEFAULT_AGENT_DAEMON_URL = "http://127.0.0.1:7878"
@@ -955,7 +957,7 @@ def _normalize_search_cli_args(args: list[str]) -> list[str]:
     return out
 
 
-class MgrepCLI(click.Group):
+class SkygrepCLI(click.Group):
     """Click group that routes unknown first-args to ``search``.
 
     Implements two adjustments to default Click behaviour:
@@ -992,7 +994,7 @@ class MgrepCLI(click.Group):
         return super().parse_args(ctx, ["search", *_normalize_search_cli_args(list(args))])
 
 
-@click.group(cls=MgrepCLI, invoke_without_command=True)
+@click.group(cls=SkygrepCLI, invoke_without_command=True)
 @click.version_option(__version__, prog_name="skygrep")
 @click.pass_context
 def cli(ctx):
@@ -3991,6 +3993,16 @@ def doctor():
     else:
         click.echo(f"{pad('Project index')}× not yet built — run a query to auto-index, or `skygrep index .`")
         click.echo(f"{pad('Would write to')}{db_path}")
+    # Egress posture. Placed before the reranker line because it is the check
+    # that decides whether this install is usable on a network that filters AI
+    # domains — a question no amount of retrieval quality answers.
+    try:
+        lines = egress_mod.render(egress_mod.audit(config))
+        click.echo(f"{pad('Egress')}{lines[0]}")
+        for line in lines[1:]:
+            click.echo(line)
+    except Exception as exc:  # pragma: no cover - diagnostics must not crash
+        click.echo(f"{pad('Egress')}? audit failed: {exc}")
     # Reranker presence is a soft check. Do not import the package here:
     # importing sentence-transformers also imports PyTorch and can turn a
     # lightweight health check into a multi-minute runtime startup.
@@ -4133,6 +4145,64 @@ def setup(ctx, list_only: bool, check: bool, uninstall: bool, skip: bool, yes: b
     click.echo("Run `skygrep setup --uninstall` to remove all snippets later.")
 
 
+@cli.command()
+@click.option(
+    "--print-config",
+    is_flag=True,
+    help="Print the JSON block to paste into an MCP client config, then exit.",
+)
+def mcp(print_config: bool):
+    """Serve skylakegrep to agents over the Model Context Protocol (stdio).
+
+    `skygrep setup` injects markdown instructions into agent rules files,
+    which only reaches agents that read those files. This serves the same
+    search as a structured MCP tool instead, so any MCP client — Claude
+    Desktop, Claude Code, Cursor, Windsurf, Zed, VS Code — can call it:
+
+        \b
+        skygrep mcp --print-config      # config block to paste
+        claude mcp add skylakegrep -- skygrep mcp
+
+    Tools exposed: search (semantic, returns path + line range), index,
+    stats. Reads JSON-RPC on stdin and writes it to stdout, so nothing
+    else may be written to stdout while this runs.
+    """
+
+    if print_config:
+        click.echo(json.dumps(mcp_server.client_config(), indent=2))
+        return
+    sys.exit(mcp_server.serve_stdio())
+
+
+@cli.command()
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(list(citation_mod.FORMATS)),
+    default="bibtex",
+    show_default=True,
+    help="Citation format to emit.",
+)
+def cite(fmt: str):
+    """Print how to cite skylakegrep.
+
+    Emits BibTeX by default so the output can be piped straight into a
+    .bib file. Advisory notes go to stderr, keeping stdout clean:
+
+        \b
+        skygrep cite >> refs.bib
+        skygrep cite --format apa
+    """
+
+    click.echo(citation_mod.render(fmt))
+    if citation_mod.doi() is None:
+        click.echo(
+            "note: no DOI archived yet — this citation points at the "
+            "repository. See CITATION.cff for how to mint one.",
+            err=True,
+        )
+
+
 def _collect_search_flag_names() -> list[str]:
     """Return the set of long-form flag names registered on the
     ``search`` subcommand. Used by the typo-correction wrapper in
@@ -4156,6 +4226,26 @@ def _collect_search_flag_names() -> list[str]:
     return unique
 
 
+def _apply_offline_mode() -> None:
+    """Honour SKYGREP_OFFLINE before any model library is imported.
+
+    Order matters and is the whole reason this lives at process entry rather
+    than inside the search path: ``sentence_transformers`` and ``huggingface_hub``
+    read their offline flags at import time, so pinning them after the first
+    import is too late. Enforcement is separate from pinning — pinning always
+    happens, and a configuration that cannot satisfy offline mode fails here
+    with the fix in the message rather than stalling against a filter later.
+    """
+
+    if not egress_mod.offline_requested():
+        return
+    try:
+        egress_mod.enforce(get_config())
+    except egress_mod.OfflineViolation as exc:
+        click.echo(str(exc), err=True)
+        sys.exit(2)
+
+
 def main():
     """CLI entry point.
 
@@ -4168,6 +4258,8 @@ def main():
     too far from any known flag (cutoff 0.6 in
     ``intelligent_cli.closest_match``).
     """
+
+    _apply_offline_mode()
 
     try:
         result = cli(standalone_mode=False)

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for L2 symbol-aware indexing.
 
 Covers four layers:

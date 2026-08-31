@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Terminal result rendering — neat, hero-aligned, framed cards.
 
 v0.13.0 redesigned this to match the website hero more closely:

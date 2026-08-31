@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Drive ``multi_channel_search`` against the React benchmark DB.
 
 Opens the pre-built React SQLite index, loads the 10 react tasks from

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="cmp-title cmp-desc" font-family="Inter, ui-sans-serif, -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif">
   <title id="cmp-title">skylakegrep — comparison matrix vs ripgrep, mgrep, autodev-codebase, Sourcegraph Cody</title>
-  <desc id="cmp-desc">Six-axis comparison matrix rendered as a frosted-glass terminal-style card with five tool columns: skylakegrep, ripgrep, mgrep (predecessor), autodev-codebase, Sourcegraph Cody. Axes: concept search, privacy, content types, setup, cost, multilingual.</desc>
+  <desc id="cmp-desc">Six-axis comparison matrix rendered as a frosted-glass terminal-style card with five tool columns: skylakegrep, ripgrep, mgrep (Mixedbread · cloud-backed), autodev-codebase, Sourcegraph Cody. Axes: concept search, privacy, content types, setup, cost, multilingual.</desc>
 
   <defs>
     <linearGradient id="cm-bg" x1="0" y1="0" x2="0" y2="1">

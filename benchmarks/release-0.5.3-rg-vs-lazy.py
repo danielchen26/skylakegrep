@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Hard hit-rate comparison: --no-lazy (rg only) vs default (rg + lazy auto).
 
 Runs the 10 Django oracle queries through the actual `skygrep search`

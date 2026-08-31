@@ -5,7 +5,8 @@
 <p align="center">
   <a href="https://pypi.org/project/skylakegrep/"><img src="https://img.shields.io/pypi/v/skylakegrep?label=pypi&color=22d3ee&labelColor=0a0d12" alt="PyPI"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.9%2B-22d3ee?labelColor=0a0d12" alt="Python 3.9+"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm--NC--1.0.0-f59e0b?labelColor=0a0d12" alt="PolyForm Noncommercial 1.0.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-22d3ee?labelColor=0a0d12" alt="Apache License 2.0"></a>
+  <a href="CITATION.cff"><img src="https://img.shields.io/badge/cite-CITATION.cff-a78bfa?labelColor=0a0d12" alt="Cite this software"></a>
   <a href="https://danielchen26.github.io/skylakegrep/"><img src="https://img.shields.io/badge/docs-published-22d3ee?labelColor=0a0d12" alt="Documentation"></a>
   <a href="https://github.com/danielchen26/skylakegrep/releases/latest"><img src="https://img.shields.io/github/v/release/danielchen26/skylakegrep?label=release&color=22d3ee&labelColor=0a0d12" alt="Latest release"></a>
 </p>
@@ -22,6 +23,10 @@
   <a href="#how-it-works"><b>How it works</b></a>
   &nbsp;·&nbsp;
   <a href="#performance"><b>Benchmarks</b></a>
+  &nbsp;·&nbsp;
+  <a href="#restricted-networks-and-air-gapped-machines"><b>Air-gapped</b></a>
+  &nbsp;·&nbsp;
+  <a href="#how-to-cite"><b>Cite</b></a>
   &nbsp;·&nbsp;
   <a href="https://danielchen26.github.io/skylakegrep/"><b>Docs site</b></a>
 </p>
@@ -241,7 +246,7 @@ $ skygrep -x "find pyproject.toml in this repo"
 Sized against **four named alternatives**, not generic categories.
 
 <p align="center">
-  <img alt="skylakegrep — comparison matrix vs ripgrep, mgrep (predecessor), autodev-codebase, Sourcegraph Cody" src="docs/assets/comparison-matrix.svg" width="100%">
+  <img alt="skylakegrep — comparison matrix vs ripgrep, mgrep (Mixedbread · cloud-backed), autodev-codebase, Sourcegraph Cody" src="docs/assets/comparison-matrix.svg" width="100%">
 </p>
 
 
@@ -406,6 +411,95 @@ That's it. The first query in a fresh project completes in under
 a second via a `ripgrep` fallback while a background process
 builds the semantic index. Every query after that uses the full
 cascade with the local LLM kept warm in memory.
+
+---
+
+## Restricted networks and air-gapped machines
+
+Corporate gateways commonly block `huggingface.co` by category. Measured on
+one pharmaceutical network: the request is answered with a `307` to a block
+page carrying `reasoncode=CATEGORY_DENIED`. Tools whose models come from there
+cannot initialise at all — and that includes **skylakegrep's own optional
+reranker**, whose default cross-encoder is a Hugging Face model.
+
+Retrieval itself does not depend on Hugging Face. It talks to an Ollama on
+loopback, and the whole configuration can be made to require **no public
+egress at all**:
+
+```bash
+# 1. Point at a local or internal Ollama, with weights already side-loaded.
+export OLLAMA_URL=http://ollama.corp.internal:11434
+#    Air-gapped? Import a GGUF you carried in, no registry involved:
+#    printf 'FROM ./bge-m3.gguf' > Modelfile && ollama create bge-m3 -f Modelfile
+
+# 2. If you want reranking, point it at a directory instead of a repo id.
+export SKYGREP_RERANK_MODEL=/opt/models/mxbai-rerank-large-v2
+
+# 3. Demand it. Startup fails with the fix in the message if anything
+#    would still reach the public internet.
+export SKYGREP_OFFLINE=1
+
+skygrep doctor        # prints the egress posture and what backs each claim
+```
+
+`SKYGREP_OFFLINE=1` is enforcement, not documentation: it pins the Hugging
+Face stack offline *before* it can be imported, and refuses to start when a
+dependency would need a fetch — rather than stalling against a filter
+mid-query. `skygrep doctor` shows what it checked:
+
+```console
+  Egress          egress posture: loopback
+  ✓ embedder: ollama://localhost:11434 (bge-m3) [loopback]
+  ✓ router llm: ollama://localhost:11434 (qwen2.5:3b) [loopback]
+  ✓ reranker (optional): file:/opt/models/mxbai-rerank-large-v2 [none]
+```
+
+Four classes are reported, because "no public egress" and "nothing leaves this
+machine" are different questions to sign off on:
+
+|class|meaning|
+|---|---|
+|`none`|no network path at all|
+|`loopback`|stays on this machine|
+|`internal-host`|reaches your network, not the internet|
+|`public-fetch`|reaches a public host|
+
+Run it yourself rather than taking this table's word for it —
+`benchmarks/dependency_preflight.py` probes each tool's declared model source
+from *your* network and writes a receipt.
+
+---
+
+## Use it from an agent (MCP)
+
+`skygrep setup` writes markdown into agent rules files, which only reaches
+agents that read those files. `skygrep mcp` serves the same search as a
+structured [Model Context Protocol](https://modelcontextprotocol.io) tool
+over stdio, so any MCP client can call it — Claude Code, Claude Desktop,
+Cursor, Windsurf, Zed, VS Code.
+
+```bash
+claude mcp add skylakegrep -- skygrep mcp     # Claude Code
+skygrep mcp --print-config                    # config block for everyone else
+```
+
+`--print-config` emits an **absolute** path on purpose: MCP clients are
+usually GUI apps that spawn servers without a login shell, so a bare
+`skygrep` is the most common reason a server silently fails to start.
+
+Three tools are exposed:
+
+| tool | what the agent gets |
+|---|---|
+|`search`|`path` + exact line range per hit, ranked. `mode="locate"` for paths only (cheapest), `mode="context"` to also get the matched lines. `include` accepts globs; `path` selects the project.|
+|`index`|Forces a rebuild. Flagged `destructiveHint` when `reset=true`, so clients can gate it.|
+|`stats`|What is indexed: file and chunk counts, model, freshness.|
+
+Results come back as `structuredContent` against a declared output schema,
+mirrored as text for older clients. When retrieval degrades — a missing
+embedding model, for instance — the result carries a `warnings` array
+instead of an empty list, so an agent can tell "no match" apart from
+"retrieval is broken" rather than reporting your code does not exist.
 
 ---
 
@@ -975,11 +1069,57 @@ specific order.
 
 ---
 
+## How to cite
+
+If skylakegrep shows up in a paper, a thesis, a preprint, a benchmark
+table, or a technical report, cite it. The command prints the entry for
+you, so there is no excuse to paraphrase it:
+
+```bash
+skygrep cite                 # BibTeX, ready to append to refs.bib
+skygrep cite --format apa    # APA
+skygrep cite --format cff    # Citation File Format
+skygrep cite --format json   # machine-readable
+```
+
+```bibtex
+@software{chen_skylakegrep_2026,
+  author  = {Chen, Tianchi},
+  title   = {skylakegrep: fully-offline semantic search over local files},
+  version = {0.7.0},
+  year    = {2026},
+  license = {Apache-2.0},
+  url     = {https://github.com/danielchen26/skylakegrep},
+}
+```
+
+GitHub's "Cite this repository" button reads
+[`CITATION.cff`](CITATION.cff) and produces the same thing.
+
+---
+
 ## License
 
-PolyForm Noncommercial 1.0.0. Personal · academic · research ·
-hobby use is fully permitted. Commercial use requires a separate
-license — contact the maintainers.
+[Apache License 2.0](LICENSE). Use it commercially, ship it inside a
+product, run it across a company — no fee, no seat count, no
+conversation required.
+
+Three things travel with it:
+
+  - **Attribution.** Keep [`NOTICE`](NOTICE) intact when you
+    redistribute or embed skylakegrep — Apache-2.0 §4(d).
+  - **Naming.** Rename your fork if you modify and redistribute it. The
+    license covers the code, not the name — see
+    [`TRADEMARK.md`](TRADEMARK.md).
+  - **Citation.** In published work, cite it (above).
+
+Support with an SLA, a shared on-premises team index, integration work,
+and compliance paperwork are the things that cost money:
+[`COMMERCIAL.md`](COMMERCIAL.md).
+
+Releases up to and including v0.7.0 were published under PolyForm
+Noncommercial 1.0.0. That grant still stands for those versions; every
+version after the relicense is Apache-2.0.
 
 ---
 

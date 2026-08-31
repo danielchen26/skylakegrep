@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Runtime bootstrap: detect Ollama, probe embed/LLM models, optionally pull.
 
 This module is the friendly front door of ``skygrep``. The first time a user

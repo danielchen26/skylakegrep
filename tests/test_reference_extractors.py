@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the content-agnostic reference-extractor registry.
 
 These cover the new architecture in ``skylakegrep.src.reference_graph`` and

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for L3 doc2query chunk enrichment.
 
 The LLM call (``requests.post``) is patched everywhere so the test runs

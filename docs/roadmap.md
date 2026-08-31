@@ -64,13 +64,16 @@ without any private files or machine-local examples.
    guardrail that prevents agents from treating a plausible path as a
    complete answer.
 
-### Native MCP server
+### Native MCP server — shipped
 
-`skygrep setup` writes a markdown snippet into agent rules files
-telling the agent to prefer `skygrep` over `rg`. A native MCP
-server (Model Context Protocol) would let agents call `skygrep` as
-a structured tool instead of a shell command — better schema,
-fewer parsing failures, cleaner error surfaces.
+`skygrep mcp` serves `search`, `index`, and `stats` as Model Context
+Protocol tools over stdio, with declared input and output schemas,
+`structuredContent` results, and degraded-retrieval reported as
+`warnings` rather than an empty result set. `skygrep setup` (markdown
+snippets in agent rules files) stays for agents that have no MCP client.
+
+Still open here: registry listings, and an HTTP transport for clients
+that cannot spawn a local process.
 
 ### Multi-vector / late-interaction retrieval (ColBERT-style)
 
@@ -113,6 +116,7 @@ scheduling remains future work.
 - **Removing the Ollama dependency.** `skygrep` is intentionally
   built on top of Ollama for local LLM access. Other backends
   (e.g. llama.cpp direct) are possible but not prioritised.
-- **MIT relicensing.** This project is PolyForm Noncommercial
-  1.0.0 and stays that way. Commercial users should contact for
-  a commercial license.
+- **Charging for the core.** As of the relicense to Apache-2.0,
+  commercial use of skylakegrep itself is free and stays free. Support
+  with an SLA, a shared on-premises team index, and integration work are
+  the paid things; the search tool is not.

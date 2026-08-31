@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Public, reproducible cross-repo benchmark for skylakegrep.
 
 Runs `benchmarks/parity_vs_ripgrep.py` against six pinned OSS

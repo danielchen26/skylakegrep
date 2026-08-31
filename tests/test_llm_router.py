@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the v0.15.0 LLM-driven query router.
 
 The LLM call itself is mocked — real tests would require a running

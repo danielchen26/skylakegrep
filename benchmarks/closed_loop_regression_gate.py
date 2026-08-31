@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Regression gate for closed-loop agent benchmark reports.
 
 The universal benchmark is intentionally too broad for every CI run, but its
