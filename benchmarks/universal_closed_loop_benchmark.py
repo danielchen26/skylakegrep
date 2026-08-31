@@ -48,6 +48,8 @@ from benchmarks.closed_loop_agent_benchmark import (
 )
 from benchmarks.general_stats import paired_efficiency
 from benchmarks.public_fixtures import (
+    GENERAL_MIN_QUALITY_ELIGIBLE_TASKS,
+    GENERAL_MIN_REPOS,
     RepoSpec,
     git_commit,
     load_registry,
@@ -565,10 +567,10 @@ def parse_args() -> argparse.Namespace:
         "--min-general-pairs",
         dest="min_general_tasks",
         type=int,
-        default=30,
+        default=GENERAL_MIN_QUALITY_ELIGIBLE_TASKS,
         help="Minimum unique quality-eligible tasks; repeated trials do not increase this count.",
     )
-    parser.add_argument("--min-general-repos", type=int, default=3)
+    parser.add_argument("--min-general-repos", type=int, default=GENERAL_MIN_REPOS)
     parser.add_argument("--report", type=Path, help="Write the complete JSON receipt to this path.")
     parser.add_argument(
         "--tokenizer",
