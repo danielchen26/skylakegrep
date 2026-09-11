@@ -454,6 +454,81 @@ def _skygrep_step(
     )
 
 
+
+class CkUnavailable(RuntimeError):
+    """ck could not retrieve, so its rows must not be scored as misses.
+
+    Raised rather than returned because the failure mode this guards against
+    already happened once in this repository: when an embedding model was
+    absent, search printed an empty result list and exited 0, and the harness
+    scored that as "nothing found" instead of "retrieval is broken". ck fails
+    the same way — on a network that blocks huggingface.co it cannot build an
+    index at all — and a benchmark that quietly records 0.0 for a competitor it
+    failed to run is worthless, or worse, dishonest.
+    """
+
+
+def _ck_step(
+    root: Path,
+    query: str,
+    *,
+    timeout: float,
+    top: int,
+    mode: str,
+    name: str,
+) -> StepResult:
+    """One ck retrieval call. ``mode`` is ``sem``, ``hybrid`` or ``lex``.
+
+    ck maintains its own index under the searched tree and builds it on first
+    use, so no separate index step is needed. JSONL is ck's documented
+    agent-facing format.
+    """
+
+    ck = shutil.which("ck")
+    if not ck:
+        raise CkUnavailable("ck is not on PATH; install with `cargo install ck-search`")
+    started = time.perf_counter()
+    cmd = [ck, f"--{mode}", "--jsonl", "--topk", str(top), query, "."]
+    try:
+        proc = _run(cmd, root, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise CkUnavailable(f"ck did not finish within {timeout}s") from None
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip()[-400:]
+        raise CkUnavailable(f"ck exited {proc.returncode}: {detail}")
+
+    paths: list[str] = []
+    sections: list[str] = []
+    for line in (proc.stdout or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            hit = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(hit, dict):
+            continue
+        path = str(hit.get("path") or hit.get("file") or "")
+        if not path:
+            continue
+        paths.append(path)
+        span = hit.get("span") or {}
+        start, end = span.get("line_start"), span.get("line_end")
+        header = f"{path}:{start}-{end}" if start else path
+        sections.append(f"{header}\n{hit.get('snippet') or ''}")
+    payload = "\n\n".join(sections) if sections else "NO_MATCHES"
+    return StepResult(
+        name=name,
+        tool_calls=1,
+        elapsed_seconds=time.perf_counter() - started,
+        context_tokens=approximate_tokens(payload, 4),
+        paths=_dedupe(paths),
+        payload=payload,
+        returncode=proc.returncode,
+    )
+
+
 def _rg_step(
     root: Path,
     query: str,
@@ -1260,8 +1335,18 @@ def get_policy(name: str) -> PolicySpec:
         ) from None
 
 
-def _policy_skygrep_first(ctx: PolicyContext) -> str:
-    """skygrep first, then read candidates, then probe, then fall back."""
+def _run_skygrep_policy(ctx: PolicyContext, *, rerank: bool) -> str:
+    """skygrep first, then read candidates, then probe, then fall back.
+
+    ``rerank`` toggles the cross-encoder on the initial retrieval only. That is
+    the call whose ordering the rank axes measure; the later focused-extraction
+    call operates on paths already chosen, where reranking would change nothing.
+
+    The agent presets pin ``--no-rerank`` for bounded latency, which is why the
+    published hit@1 of 21.7% was measured without it. Whether that number is a
+    scoring-resolution problem or a candidate-generation problem is exactly the
+    difference between these two arms.
+    """
 
     root, task, effort = ctx.root, ctx.task, ctx.effort
     effort_name, timeout = ctx.effort_name, ctx.timeout
@@ -1282,6 +1367,7 @@ def _policy_skygrep_first(ctx: PolicyContext) -> str:
             detail=str(effort["detail"]),
             content=initial_needs_content,
             includes=known_scope,
+            rerank=rerank,
             name="skygrep:initial",
         )
     )
@@ -1501,12 +1587,95 @@ def _policy_rg_only(ctx: PolicyContext) -> str:
     return stop_reason
 
 
+def _policy_skygrep_first(ctx: PolicyContext) -> str:
+    return _run_skygrep_policy(ctx, rerank=False)
+
+
+def _policy_skygrep_rerank(ctx: PolicyContext) -> str:
+    return _run_skygrep_policy(ctx, rerank=True)
+
+
 register_policy(
     PolicySpec(
         name="skygrep-first",
         summary="semantic retrieval first, with lexical probes as fallback",
         binary="skygrep",
         run=_policy_skygrep_first,
+    )
+)
+register_policy(
+    PolicySpec(
+        name="skygrep-rerank",
+        summary=(
+            "same as skygrep-first with the cross-encoder enabled on initial "
+            "retrieval; needs skylakegrep[rerank] and a reachable rerank model"
+        ),
+        binary="skygrep",
+        run=_policy_skygrep_rerank,
+    )
+)
+def _run_ck_policy(ctx: PolicyContext, *, mode: str) -> str:
+    """ck retrieval, then read the top paths — the shape of its own README.
+
+    Kept deliberately close to the rg arm's structure so the comparison is
+    between retrievers rather than between agent strategies. ck ranks, so this
+    arm reports the rank axes; unlike the rg arm there is no second widened
+    query, because ck's topk already governs recall.
+    """
+
+    root, task = ctx.root, ctx.task
+    read_files, read_chars = ctx.read_files, ctx.read_chars
+    add_step, enough = ctx.add_step, ctx.enough
+    stop_reason = "budget_exhausted"
+
+    score = add_step(
+        _ck_step(
+            root,
+            task["query"],
+            timeout=ctx.timeout,
+            top=int(ctx.effort["top"]),
+            mode=mode,
+            name=f"ck:{mode}",
+        )
+    )
+    if enough(score):
+        return f"sufficient_after_ck_{mode}"
+    score = add_step(
+        _read_paths_step(
+            root,
+            ctx.paths,
+            max_files=read_files,
+            max_chars=read_chars,
+            name=f"ck:{mode}:read_top_paths",
+        )
+    )
+    if enough(score):
+        stop_reason = "sufficient_after_read_top_paths"
+    return stop_reason
+
+
+def _policy_ck_semantic(ctx: PolicyContext) -> str:
+    return _run_ck_policy(ctx, mode="sem")
+
+
+def _policy_ck_hybrid(ctx: PolicyContext) -> str:
+    return _run_ck_policy(ctx, mode="hybrid")
+
+
+register_policy(
+    PolicySpec(
+        name="ck-sem",
+        summary="BeaconBay/ck semantic search; needs a reachable ONNX model",
+        binary="ck",
+        run=_policy_ck_semantic,
+    )
+)
+register_policy(
+    PolicySpec(
+        name="ck-hybrid",
+        summary="BeaconBay/ck hybrid regex+semantic; needs a reachable ONNX model",
+        binary="ck",
+        run=_policy_ck_hybrid,
     )
 )
 register_policy(

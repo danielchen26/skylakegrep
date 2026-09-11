@@ -382,10 +382,20 @@ def test_both_published_arms_are_registered_and_dispatchable():
 
 def test_unknown_policy_names_the_registered_arms():
     """The old code raised a bare 'unknown policy'; a third party needs to be
-    told what is selectable."""
+    told what is selectable.
 
-    with pytest.raises(ValueError, match="registered: rg-only, skygrep-first"):
-        _get_policy("ck-hybrid")
+    Uses a name that will never be an arm: an earlier version of this test used
+    "ck-hybrid" as the unknown example and started failing the moment that arm
+    was actually registered, which is the right kind of failure.
+    """
+
+    with pytest.raises(ValueError) as exc:
+        _get_policy("no-such-retriever")
+
+    message = str(exc.value)
+    assert "no-such-retriever" in message
+    for name in ("skygrep-first", "rg-only", "ck-sem"):
+        assert name in message
 
 
 def test_registering_a_duplicate_arm_is_rejected():
@@ -462,3 +472,134 @@ def test_rank_delta_is_reported_when_both_arms_rank():
     assert comparison["mrr_delta"] == round(1.0 - 0.25, 3)
     assert comparison["hit_at_1_delta_pct"] == 100.0
     assert "rank_delta_note" not in comparison
+
+# --- the arms that need an unblocked network --------------------------
+
+_ck_step = _benchmark._ck_step
+CkUnavailable = _benchmark.CkUnavailable
+
+
+def test_ck_missing_from_path_raises_instead_of_scoring_zero(monkeypatch):
+    """A competitor we failed to run must not be recorded as a competitor that
+    found nothing. That conflation already produced one wrong receipt in this
+    repository when an embedding model was absent."""
+
+    monkeypatch.setattr(_benchmark.shutil, "which", lambda name: None)
+
+    with pytest.raises(CkUnavailable, match="not on PATH"):
+        _ck_step(Path("/tmp"), "q", timeout=5.0, top=8, mode="sem", name="ck:sem")
+
+
+def test_ck_nonzero_exit_surfaces_stderr(monkeypatch, tmp_path):
+    """The blocked-model case: ck exits non-zero complaining about the fetch.
+    The message has to reach the operator, not become an empty result."""
+
+    monkeypatch.setattr(_benchmark.shutil, "which", lambda name: "/usr/bin/ck")
+    monkeypatch.setattr(
+        _benchmark,
+        "_run",
+        lambda cmd, cwd, timeout: subprocess.CompletedProcess(
+            cmd, 1, "", "Failed to retrieve onnx/model.onnx: UnknownIssuer"
+        ),
+    )
+
+    with pytest.raises(CkUnavailable, match="UnknownIssuer"):
+        _ck_step(tmp_path, "q", timeout=5.0, top=8, mode="sem", name="ck:sem")
+
+
+def test_ck_parses_jsonl_hits_in_order(monkeypatch, tmp_path):
+    """Order is the payload here: the rank axes read it directly."""
+
+    stdout = "\n".join(
+        [
+            '{"path":"/r/args.go","span":{"line_start":86,"line_end":86},"snippet":"MinimumNArgs"}',
+            "",
+            "not json",
+            '{"path":"/r/command.go","span":{"line_start":10,"line_end":12},"snippet":"ExecuteC"}',
+        ]
+    )
+    monkeypatch.setattr(_benchmark.shutil, "which", lambda name: "/usr/bin/ck")
+    monkeypatch.setattr(
+        _benchmark,
+        "_run",
+        lambda cmd, cwd, timeout: subprocess.CompletedProcess(cmd, 0, stdout, ""),
+    )
+
+    step = _ck_step(tmp_path, "q", timeout=5.0, top=8, mode="sem", name="ck:sem")
+
+    assert step.paths == ["/r/args.go", "/r/command.go"]
+    assert "MinimumNArgs" in step.payload and "ExecuteC" in step.payload
+    assert step.tool_calls == 1
+    assert step.context_tokens > 0
+
+
+def test_ck_mode_reaches_the_command_line(monkeypatch, tmp_path):
+    seen = {}
+
+    monkeypatch.setattr(_benchmark.shutil, "which", lambda name: "/usr/bin/ck")
+
+    def fake_run(cmd, cwd, timeout):
+        seen["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(_benchmark, "_run", fake_run)
+    _ck_step(tmp_path, "q", timeout=5.0, top=3, mode="hybrid", name="ck:hybrid")
+
+    assert "--hybrid" in seen["cmd"]
+    assert "--jsonl" in seen["cmd"]
+    assert seen["cmd"][seen["cmd"].index("--topk") + 1] == "3"
+
+
+def test_empty_ck_output_is_a_real_miss_not_an_error(monkeypatch, tmp_path):
+    """Exit 0 with no hits genuinely means no match, and must score as one."""
+
+    monkeypatch.setattr(_benchmark.shutil, "which", lambda name: "/usr/bin/ck")
+    monkeypatch.setattr(
+        _benchmark,
+        "_run",
+        lambda cmd, cwd, timeout: subprocess.CompletedProcess(cmd, 0, "", ""),
+    )
+
+    step = _ck_step(tmp_path, "q", timeout=5.0, top=8, mode="sem", name="ck:sem")
+
+    assert step.paths == []
+    assert step.payload == "NO_MATCHES"
+
+
+def test_five_arms_are_registered_and_all_but_rg_rank():
+    names = set(_policy_names())
+
+    assert {"skygrep-first", "skygrep-rerank", "ck-sem", "ck-hybrid", "rg-only"} <= names
+    assert _get_policy("ck-sem").ranked is True
+    assert _get_policy("skygrep-rerank").ranked is True
+    assert _get_policy("rg-only").ranked is False
+    # Defaults stay pinned: a new arm must not change what a bare run reports.
+    assert _benchmark.DEFAULT_POLICIES == ("skygrep-first", "rg-only")
+
+
+def test_rerank_arm_differs_from_the_default_arm_only_in_the_rerank_flag(monkeypatch):
+    """The two arms must share one body, or they measure two strategies rather
+    than one strategy with and without a cross-encoder."""
+
+    calls = []
+
+    def fake_step(root, query, **kwargs):
+        calls.append(kwargs.get("rerank"))
+        return _benchmark.StepResult(
+            name=kwargs["name"], tool_calls=1, elapsed_seconds=0.0,
+            context_tokens=1, paths=["x.py"], payload="x", returncode=0,
+        )
+
+    monkeypatch.setattr(_benchmark, "_skygrep_step", fake_step)
+    ctx_kwargs = dict(
+        root=Path("/tmp"), task={"query": "q", "abstract_level": "locate", "id": "t"},
+        effort_name="low", effort=_benchmark.EFFORTS["low"], timeout=1.0,
+        allow_root_fallback=False, known_scope=[], read_files=1, read_chars=100,
+        initial_needs_content=False, paths=["x.py"],
+        add_step=lambda step: {"sufficiency": 1.0},
+        enough=lambda score: True,
+    )
+    _benchmark._policy_skygrep_first(_benchmark.PolicyContext(**ctx_kwargs))
+    _benchmark._policy_skygrep_rerank(_benchmark.PolicyContext(**ctx_kwargs))
+
+    assert calls == [False, True]

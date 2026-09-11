@@ -59,8 +59,17 @@ def merge_reports(reports: list[dict[str, Any]]) -> dict[str, Any]:
     policies = reports[0]["definition"]["policies"]
     mode = reports[0]["definition"]["mode"]
     trials = int(first_parameters["trials"])
-    if policies != ["skygrep-first", "rg-only"]:
-        raise ValueError("general receipts require skygrep-first and rg-only policies")
+    # The published pair must be present so the headline comparison and the
+    # noninferiority gate still have their two arms. Extra arms are allowed:
+    # refusing them would mean a run that also measured ck or a reranked
+    # variant could not be merged at all, which is the opposite of what the
+    # policy registry exists for.
+    missing_required = [p for p in ("skygrep-first", "rg-only") if p not in policies]
+    if missing_required:
+        raise ValueError(
+            "general receipts require skygrep-first and rg-only policies; "
+            f"missing {missing_required}"
+        )
     if mode not in {"adaptive-only", "full-matrix low/medium/high"}:
         raise ValueError(f"unsupported general benchmark mode: {mode}")
     if trials < 1:
