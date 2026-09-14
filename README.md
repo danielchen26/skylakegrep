@@ -729,6 +729,12 @@ explicitly requested.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.7.1`** — Bug-fix release. The zero-vector fallback width now follows
+    the configured embed model instead of a hard-coded 768, so a fresh
+    `bge-m3` index can no longer pick up wrong-width zero vectors (observed
+    20/1304 chunks silently unsearchable). Three spurious BLAS
+    `RuntimeWarning`s per query on numpy 2.0 + Apple Accelerate are silenced;
+    scores are unchanged. Existing indexes remain compatible.
   - **`0.7.0`** — Fail-closed `--strict` verification for high-risk local
     claims, a shared direct/daemon agent-context implementation, daemon
     project-boundary validation, macOS path-alias coalescing, and a continuous

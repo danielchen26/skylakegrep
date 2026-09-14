@@ -66,6 +66,19 @@
  </p>
  <div class="release-grid">
  <article class="release-card">
+ <div class="release-tag">0.7.1 · zero-vector width fix · quiet cosine matmul</div>
+ <h3>Fresh indexes no longer pick up wrong-width zero vectors</h3>
+ <p>
+ When an embedding request failed before any request had succeeded, the
+ fallback zero vector was hard-coded to 768 dimensions regardless of the
+ configured model. With the default <code>bge-m3</code> (1024-d) a clean index run
+ was observed to store 20 of 1304 chunks as unsearchable 768-d zeros. The
+ width now follows the model name. Three spurious BLAS warnings per query on
+ numpy 2.0 + Apple Accelerate are also silenced; scores are unchanged.
+ </p>
+ <a class="release-link" href="skylakegrep-0.7.1.html">Full notes →</a>
+ </article>
+ <article class="release-card">
  <div class="release-tag">0.7.0 · strict evidence · direct/daemon parity · continuous regression gate</div>
  <h3>High-risk local claims now have a fail-closed verification contract</h3>
  <p>
