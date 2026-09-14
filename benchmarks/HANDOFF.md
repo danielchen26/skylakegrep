@@ -48,25 +48,102 @@ registered arms; `ck`'s ONNX model is on Hugging Face, so they cannot run here
 either. Until one of them runs, "our ranking is good/bad relative to the field"
 is not a claim this project can make.
 
+## Before you start
+
+Budget, measured on the blocked machine rather than guessed:
+
+|resource|smoke (`cobra`)|full six|
+|---|---|---|
+|wall clock|~10 min|**~5.5 h** (19,470 s observed; indexing dominates, `react` is 8,717 s of it)|
+|disk, repositories|~30 MB|~540 MB (partial clones, `--filter=blob:none`)|
+|disk, indexes|4 MB|~1.1 GB across six project databases|
+|extra for reranking|—|a few GB: `[rerank]` pulls PyTorch, plus the cross-encoder weights|
+
+Required on PATH before the script runs. It installs `ck` for you and pulls the
+Ollama models, but it cannot install these:
+
+```bash
+ollama --version      # and `ollama serve` running
+cargo --version       # needed to build ck
+rg --version          # the baseline arm
+python3 --version      # >= 3.9
+```
+
 ## Run it
 
 ```bash
-git clone -b agent/relicense-apache-2.0-citation \
+git clone -b agent/handoff-unblocked-experiments \
     https://github.com/danielchen26/skylakegrep.git
 cd skylakegrep
 python3 -m venv .venv && ./.venv/bin/pip install -e '.[rerank,benchmark]'
 
-# Ten-minute smoke check on the smallest repository first.
+# 0. Prove this machine is actually unblocked before spending hours on it.
+./.venv/bin/python -m benchmarks.dependency_preflight
+```
+
+Both of these lines must read `available`. If either says `unavailable`, this
+machine is no better than the one the work came from and nothing below is worth
+running:
+
+```
+skylakegrep[rerank] (opt)    yes   model-fetch-once        available
+ck                          yes   model-fetch-once        available
+```
+
+```bash
+# 1. Smoke check: smallest repository, four arms, about ten minutes.
 bash benchmarks/handoff_unblocked.sh /tmp/oss-root cobra
 
-# Then the full six (hours; indexing dominates, react is the long pole).
+# 2. Full run: the six pinned repositories.
 bash benchmarks/handoff_unblocked.sh /tmp/oss-root
 ```
 
-The script refuses to start if anything is still blocked, on purpose: an arm
-that cannot fetch its model produces a **miss**, not an honest zero, and a
-benchmark that records that as a competitor's score is worse than no benchmark.
-It prints the four-arm table and how to read it at the end.
+The script refuses to start if the preflight still reports anything blocked, on
+purpose: an arm that cannot fetch its model produces a **miss**, not an honest
+zero, and a benchmark that records that as a competitor's score is worse than
+no benchmark. It prints the four-arm table and how to read it at the end.
+
+## If the ck arms fail
+
+They are the unverified half (see the caveat below), and Question 1 does not
+depend on them. Do not let a broken adapter cost you the experiment that
+matters more — drop ck and run the three arms that are known to work:
+
+```bash
+./.venv/bin/python -m benchmarks.universal_closed_loop_benchmark \
+    --repo cobra --oss-root /tmp/oss-root --prepare \
+    --policy skygrep-first --policy skygrep-rerank --policy rg-only \
+    --trials 3 --tokenizer tiktoken --refresh-index --reset-index \
+    --min-general-tasks 3 --min-general-repos 1 \
+    --report /tmp/q1-cobra.json
+```
+
+Then send the `ck:sem` stderr from `benchmarks/reports/unblocked-*/` along with
+the results and the adapter can be fixed against a real failure instead of a
+guess.
+
+## Send the results back
+
+The receipts are the deliverable; the console table is just a preview.
+
+```bash
+tar czf unblocked-results.tgz benchmarks/reports/unblocked-*/
+```
+
+Or push them, which is better because it keeps the pinned source commit
+attached to the numbers:
+
+```bash
+git checkout -b agent/unblocked-results
+git add benchmarks/reports/unblocked-*
+git commit -m "bench: four-arm results from an unblocked network"
+git push origin agent/unblocked-results
+```
+
+Each receipt records the commit it was produced at, so a result pushed from a
+dirty tree is detectable and will fail the source gate. Commit before running,
+not after.
+
 
 ## How to read the result
 

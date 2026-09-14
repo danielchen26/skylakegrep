@@ -63,28 +63,36 @@ for repo in "${REPOS[@]}"; do
   fi
 done
 
-say "=== four arms, sequential (concurrency poisons every latency figure) ==="
-for repo in "${REPOS[@]}"; do
-  receipt="$OUT/gv2-$repo.json"
-  [ -s "$receipt" ] && { say "$repo done already, skipping"; continue; }
-  say "$repo START"
-  start=$(date +%s)
+# Two phases, and the order is the point. Phase 1 is the experiment that does
+# not depend on any unverified code, so its numbers are on disk before anything
+# risky runs. Phase 2 exercises the ck adapter, which has never completed an
+# end-to-end run; a failure there must cost ck's row and nothing else.
+#
+# Sequential throughout: concurrent indexing on one machine poisons every
+# latency figure in the receipt.
+run_phase() {
+  local repo="$1" tag="$2" receipt="$3"; shift 3
+  if [ -s "$receipt" ]; then say "  $tag/$repo already done, skipping"; return 0; fi
+  local start; start=$(date +%s)
   $PY -m benchmarks.universal_closed_loop_benchmark \
       --repo "$repo" \
       --oss-root "$OSS_ROOT" \
       --prepare \
-      --policy skygrep-first \
-      --policy skygrep-rerank \
-      --policy ck-sem \
-      --policy rg-only \
+      "$@" \
       --trials 3 \
       --tokenizer tiktoken \
       --refresh-index --reset-index \
       --index-timeout 18000 \
       --min-general-tasks 3 --min-general-repos 1 \
-      --report "$receipt" > "$OUT/$repo.stdout" 2> "$OUT/$repo.stderr"
-  say "$repo DONE in $(( $(date +%s) - start ))s"
-  $PY - "$receipt" <<'PYEOF' | tee -a "$LOG"
+      --report "$receipt" \
+      > "$OUT/$tag-$repo.stdout" 2> "$OUT/$tag-$repo.stderr"
+  local rc=$?
+  say "  $tag/$repo rc=$rc in $(( $(date +%s) - start ))s"
+  return $rc
+}
+
+summarise() {
+  $PY - "$1" <<'PYEOF' | tee -a "$LOG"
 import json, sys
 totals = json.load(open(sys.argv[1]))["aggregate"]["totals"]
 for arm, v in totals.items():
@@ -92,9 +100,30 @@ for arm, v in totals.items():
           f" hit@1={str(v['hit_at_1_pct']):<6} hit@3={str(v['hit_at_3_pct']):<6}"
           f" quality={v['work_quality_pct']:<6} tokens={v['context_tokens']}")
 PYEOF
+}
+
+for repo in "${REPOS[@]}"; do
+  say "$repo: phase 1 — rerank A/B (no unverified code on this path)"
+  if run_phase "$repo" q1 "$OUT/gv2-$repo.json" \
+       --policy skygrep-first --policy skygrep-rerank --policy rg-only; then
+    summarise "$OUT/gv2-$repo.json"
+  else
+    say "  !! phase 1 failed for $repo — see $OUT/q1-$repo.stderr"
+    continue
+  fi
+
+  say "$repo: phase 2 — ck comparison (unverified adapter; failure is contained)"
+  if run_phase "$repo" q2 "$OUT/ck-$repo.json" \
+       --policy skygrep-first --policy ck-sem; then
+    summarise "$OUT/ck-$repo.json"
+  else
+    say "  !! ck arm failed for $repo. Phase 1 results are safe."
+    say "  !! send $OUT/q2-$repo.stderr so the adapter can be fixed against a"
+    say "  !! real failure instead of a guess."
+  fi
 done
 
-say "=== merge ==="
+say "=== merge (phase 1 receipts; the published pair must be present) ==="
 $PY -m benchmarks.merge_general_reports "$OUT"/gv2-*.json --output "$OUT/merged.json" \
   && say "merged -> $OUT/merged.json" \
   || say "merge skipped (needs all six pinned repos); per-repo receipts remain in $OUT"
