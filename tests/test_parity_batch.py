@@ -303,11 +303,9 @@ class ParityBatchTests(unittest.TestCase):
             embedder = BatchOnlyEmbedder()
             runner = CliRunner()
 
-            with patch.object(
-                cli_module,
-                "get_config",
-                return_value={"db_path": db_path},
-            ):
+            # ``watch`` derives its DB from the path argument, so inject the
+            # test DB through the documented ``SKYGREP_DB_PATH`` override.
+            with patch.dict(os.environ, {"SKYGREP_DB_PATH": str(db_path)}):
                 with patch.object(cli_module, "get_embedder", return_value=embedder):
                     with patch.object(
                         cli_module.time,
