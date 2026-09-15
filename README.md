@@ -344,14 +344,14 @@ ollama pull qwen2.5:3b
 skygrep doctor
 
 # 4. (one time) register skygrep with your LLM CLI of choice
-skygrep setup     # Claude Code · Codex · OpenCode · Gemini CLI · Cursor
+skygrep setup     # Claude Code · Codex · OpenCode · Gemini CLI · Pi · Cursor
 
 # 5. ask anything, anywhere
 skygrep "your question here"
 ```
 
 `skygrep setup` writes a short agent rule into Claude Code, Codex,
-OpenCode, Gemini CLI, and Cursor when detected. The rule tells the
+OpenCode, Gemini CLI, Pi, and Cursor when detected. The rule tells the
 agent which depth to request: path-only `--no-content --top 10 --no-rerank` for implementation
 anchors, first-pass `--content --detail standard --top 8 --no-rerank` for source snippets,
 `--detail full` only after narrowing, `--answer` for local synthesis,
