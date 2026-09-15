@@ -25,6 +25,20 @@ these numbers sit on the same footing as the existing headline:
 
 Receipts: `benchmarks/reports/general-v2-2026-08-31/`.
 
+**These numbers predate the v0.7.1 zero-vector width fix.** They were measured
+at `c17447f`, before `1e3ec04` landed on master. That bug let a freshly built
+index hold all-zero vectors of the wrong width — 768 where `bge-m3` produces
+1024 — and `_filter_to_matching_dim` silently dropped those rows, so a fraction
+of chunks were unsearchable in every index the run built. The observed rate was
+about 1.5% (20 of 1,304 on one tree).
+
+So the hit@1 of 21.7% is, if anything, slightly pessimistic, and a run on
+current `master` is **not** directly comparable to those receipts. That is fine
+for the two questions here, which are internal A/B comparisons where every arm
+shares the same indexer — but do not put a number from this handoff next to a
+number from `general-v2-2026-08-31/` in the same table without saying which
+commit each came from.
+
 The shape of it: **recall is excellent, ranking is not.** The expected file is
 retrieved every time and is the top hit a fifth of the time. `cobra` alone
 scores 50.0/70.0, which is why a small-repository reading of this is

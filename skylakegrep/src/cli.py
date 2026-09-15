@@ -4032,7 +4032,7 @@ def doctor():
 def setup(ctx, list_only: bool, check: bool, uninstall: bool, skip: bool, yes: bool):
     """Register skylakegrep as preferred semantic search with installed LLM CLIs.
 
-    Detects Claude Code, Codex, OpenCode, Gemini CLI, and Cursor on
+    Detects Claude Code, Codex, OpenCode, Gemini CLI, Pi, and Cursor on
     your machine and offers to write a tiny markdown snippet into each
     one's user-level instructions file. The snippet hints to the agent
     that it should prefer ``skygrep`` for natural-language code search and

@@ -16,6 +16,27 @@ logger = logging.getLogger(__name__)
 # indexing a large repository never fails on a single oversized chunk.
 MAX_INPUT_CHARS = 7500
 
+# Known embedding widths, keyed by bare model name (no Ollama tag).
+# Used only for the zero-vector fallback *before* any request has
+# succeeded; an observed width from a real response always wins.
+# Keep in sync with the models documented in ``config.py``.
+_MODEL_DIMS = {
+    "bge-m3": 1024,
+    "bge-large-en-v1.5": 1024,
+    "mxbai-embed-large": 1024,
+    "nomic-embed-text": 768,
+    "nomic-embed-text-v1.5": 768,
+}
+
+
+def embedding_dim_for_model(model: str) -> int | None:
+    """Return the embedding width for ``model`` or ``None`` if unknown.
+
+    Accepts Ollama-tagged names (``bge-m3:latest`` → ``bge-m3``).
+    """
+    bare = (model or "").split(":", 1)[0]
+    return _MODEL_DIMS.get(bare)
+
 
 def get_embedder(role: str = "document"):
     """Return an embedder configured for query or document side.
@@ -91,7 +112,11 @@ class OllamaEmbedder:
 
     def _zero_vector(self) -> list[float]:
         if self._zero_dim is None:
-            self._zero_dim = 768  # nomic-embed-text default; corrected on first success
+            # No response has taught us the width yet. Derive it from the
+            # configured model so a first-batch failure cannot inject
+            # wrong-width zeros into a fresh index. Unknown models keep
+            # the historical 768 fallback; a real response corrects it.
+            self._zero_dim = embedding_dim_for_model(self.model) or 768
         return [0.0] * self._zero_dim
 
     def _maybe_keep_alive(self, payload: dict) -> dict:
@@ -214,7 +239,9 @@ class SentenceTransformersEmbedder:
 
     def _zero_vector(self) -> list[float]:
         if self._zero_dim is None:
-            self._zero_dim = 1024  # bge-m3 / bge-large default; corrected on success
+            # See OllamaEmbedder._zero_vector. Unknown models keep the
+            # historical 1024 fallback; a real response corrects it.
+            self._zero_dim = embedding_dim_for_model(self.model_name) or 1024
         return [0.0] * self._zero_dim
 
     def embed(self, text: str) -> list[float]:

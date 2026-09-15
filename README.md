@@ -349,14 +349,14 @@ ollama pull qwen2.5:3b
 skygrep doctor
 
 # 4. (one time) register skygrep with your LLM CLI of choice
-skygrep setup     # Claude Code · Codex · OpenCode · Gemini CLI · Cursor
+skygrep setup     # Claude Code · Codex · OpenCode · Gemini CLI · Pi · Cursor
 
 # 5. ask anything, anywhere
 skygrep "your question here"
 ```
 
 `skygrep setup` writes a short agent rule into Claude Code, Codex,
-OpenCode, Gemini CLI, and Cursor when detected. The rule tells the
+OpenCode, Gemini CLI, Pi, and Cursor when detected. The rule tells the
 agent which depth to request: path-only `--no-content --top 10 --no-rerank` for implementation
 anchors, first-pass `--content --detail standard --top 8 --no-rerank` for source snippets,
 `--detail full` only after narrowing, `--answer` for local synthesis,
@@ -823,6 +823,16 @@ explicitly requested.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.7.2`** — `skygrep setup` now detects and registers with Pi
+    (pi-coding-agent) via `~/.pi/agent/AGENTS.md`, alongside Claude Code,
+    Codex, OpenCode, Gemini CLI, and Cursor. Additive only; existing indexes
+    and the other agents' files are untouched.
+  - **`0.7.1`** — Bug-fix release. The zero-vector fallback width now follows
+    the configured embed model instead of a hard-coded 768, so a fresh
+    `bge-m3` index can no longer pick up wrong-width zero vectors (observed
+    20/1304 chunks silently unsearchable). Three spurious BLAS
+    `RuntimeWarning`s per query on numpy 2.0 + Apple Accelerate are silenced;
+    scores are unchanged. Existing indexes remain compatible.
   - **`0.7.0`** — Fail-closed `--strict` verification for high-risk local
     claims, a shared direct/daemon agent-context implementation, daemon
     project-boundary validation, macOS path-alias coalescing, and a continuous
@@ -1117,7 +1127,7 @@ Support with an SLA, a shared on-premises team index, integration work,
 and compliance paperwork are the things that cost money:
 [`COMMERCIAL.md`](COMMERCIAL.md).
 
-Releases up to and including v0.7.0 were published under PolyForm
+Releases up to and including v0.7.2 were published under PolyForm
 Noncommercial 1.0.0. That grant still stands for those versions; every
 version after the relicense is Apache-2.0.
 

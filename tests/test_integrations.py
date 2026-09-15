@@ -234,5 +234,41 @@ class SetupCliTests(unittest.TestCase):
             self.assertNotIn("old setup guidance", content)
 
 
+class SupportedIntegrationsTests(unittest.TestCase):
+    """Guard the catalogue of agents `skygrep setup` knows about."""
+
+    def test_catalogue_names_in_order(self):
+        names = [i.name for i in integ.all_integrations()]
+        self.assertEqual(
+            names,
+            ["Claude Code", "Codex", "OpenCode", "Gemini CLI", "Pi", "Cursor"],
+        )
+
+    def test_pi_targets_global_agents_md(self):
+        """Pi loads ``~/.pi/agent/AGENTS.md`` as its global instructions file
+        (pi-coding-agent README, "Context files"). Detection follows the same
+        convention as the other CLIs: config dir or binary on PATH."""
+        pi = next(i for i in integ.all_integrations() if i.name == "Pi")
+        self.assertEqual(pi.config_path, integ._HOME / ".pi" / "agent" / "AGENTS.md")
+        self.assertIn(integ._HOME / ".pi", pi.detection_paths)
+        self.assertIn("pi", pi.detection_binaries)
+
+    def test_pi_register_writes_managed_block_under_pi_agent_dir(self):
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td)
+            with patch.object(integ, "_HOME", home):
+                pi = next(i for i in integ.all_integrations() if i.name == "Pi")
+                self.assertFalse(pi.is_registered())
+                self.assertTrue(pi.register())
+                self.assertEqual(pi.config_path, home / ".pi" / "agent" / "AGENTS.md")
+                self.assertTrue(pi.is_registered())
+                content = pi.config_path.read_text()
+                self.assertIn("skylakegrep integration", content)
+                self.assertIn("skygrep", content)
+                # unregister removes only the managed block and reports success
+                self.assertTrue(pi.unregister())
+                self.assertFalse(pi.is_registered())
+
+
 if __name__ == "__main__":
     unittest.main()

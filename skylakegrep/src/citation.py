@@ -17,7 +17,7 @@ from . import __version__
 
 TITLE = "skylakegrep: fully-offline semantic search over local files"
 AUTHORS: tuple[tuple[str, str], ...] = (("Chen", "Tianchi"),)
-RELEASE_DATE = "2026-08-14"
+RELEASE_DATE = "2026-09-15"
 REPOSITORY = "https://github.com/danielchen26/skylakegrep"
 HOMEPAGE = "https://danielchen26.github.io/skylakegrep/"
 LICENSE = "Apache-2.0"
