@@ -729,6 +729,10 @@ explicitly requested.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.7.2`** — `skygrep setup` now detects and registers with Pi
+    (pi-coding-agent) via `~/.pi/agent/AGENTS.md`, alongside Claude Code,
+    Codex, OpenCode, Gemini CLI, and Cursor. Additive only; existing indexes
+    and the other agents' files are untouched.
   - **`0.7.1`** — Bug-fix release. The zero-vector fallback width now follows
     the configured embed model instead of a hard-coded 768, so a fresh
     `bge-m3` index can no longer pick up wrong-width zero vectors (observed
