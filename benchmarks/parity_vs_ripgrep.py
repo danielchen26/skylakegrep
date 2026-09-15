@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Real-ripgrep vs skylakegrep agent context benchmark.
 
 This is a tighter version of `agent_context_benchmark.py`: instead of
@@ -243,7 +244,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
             + args.final_answer_tokens
             + int(rg_result["context_tokens"])
         )
-        mgrep_total = (
+        skygrep_total = (
             args.fixed_prompt_tokens
             + args.final_answer_tokens
             + int(skygrep_result["context_tokens"])
@@ -268,20 +269,20 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
                     "hit": expected_hit(expected, skygrep_result["paths"], alternatives),
                     "expected_rank": skygrep_rank,
                     "reciprocal_rank": round(1 / skygrep_rank, 4) if skygrep_rank else 0.0,
-                    "estimated_total_tokens": mgrep_total,
+                    "estimated_total_tokens": skygrep_total,
                 },
                 "context_token_reduction_x": safe_ratio(
                     float(rg_result["context_tokens"]),
                     float(skygrep_result["context_tokens"]),
                 ),
-                "estimated_total_token_reduction_x": safe_ratio(rg_total, mgrep_total),
+                "estimated_total_token_reduction_x": safe_ratio(rg_total, skygrep_total),
             }
         )
 
     rg_context = sum(int(row["rg"]["context_tokens"]) for row in rows)
-    mgrep_context = sum(int(row["skygrep"]["context_tokens"]) for row in rows)
+    skygrep_ctx = sum(int(row["skygrep"]["context_tokens"]) for row in rows)
     rg_total = sum(int(row["rg"]["estimated_total_tokens"]) for row in rows)
-    mgrep_total = sum(int(row["skygrep"]["estimated_total_tokens"]) for row in rows)
+    skygrep_total = sum(int(row["skygrep"]["estimated_total_tokens"]) for row in rows)
     skygrep_quality_counts = Counter(
         str(row["skygrep"].get("quality") or "unknown") for row in rows
     )
@@ -290,7 +291,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
         "definition": {
             "benchmark_type": "real-ripgrep agent context vs skylakegrep top-k",
             "rg_agent": "one `rg --json -F -i -C 2 TERM ROOT` invocation per extracted query term",
-            "mgrep_agent": "one semantic skylakegrep top-k search per task",
+            "skylakegrep_agent": "one semantic skylakegrep top-k search per task",
             "token_note": "context uses the recorded tokenizer; estimated totals still add fixed prompt and final-answer overhead",
         },
         "tooling": {
@@ -321,11 +322,11 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
         },
         "summary": {
             "rg_context_tokens": rg_context,
-            "skygrep_context_tokens": mgrep_context,
-            "context_token_reduction_x": safe_ratio(rg_context, mgrep_context),
+            "skygrep_context_tokens": skygrep_ctx,
+            "context_token_reduction_x": safe_ratio(rg_context, skygrep_ctx),
             "rg_estimated_total_tokens": rg_total,
-            "skygrep_estimated_total_tokens": mgrep_total,
-            "estimated_total_token_reduction_x": safe_ratio(rg_total, mgrep_total),
+            "skygrep_estimated_total_tokens": skygrep_total,
+            "estimated_total_token_reduction_x": safe_ratio(rg_total, skygrep_total),
             "rg_hit_rate": f"{sum(1 for r in rows if r['rg']['hit'])}/{len(rows)}",
             "skygrep_hit_rate": f"{sum(1 for r in rows if r['skygrep']['hit'])}/{len(rows)}",
             "rg_avg_latency_seconds": round(

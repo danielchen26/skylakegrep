@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Just-in-time project indexing.
 
 The bare-form ``skygrep "<query>"`` UX needs the user to never type ``skygrep

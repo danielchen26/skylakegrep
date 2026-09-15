@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Enrich only the chunks under crates/ai/ and app/src/billing/ in the Rust workspace
 index — the two paths the 16-task Rust benchmark currently misses with
 14/16 recall.

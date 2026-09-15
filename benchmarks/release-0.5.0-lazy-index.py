@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Real-corpus end-to-end test of 0.5.0 lazy index on a FRESH project.
 
 The user's vision (from `memory/feedback_users_actual_vision.md`):

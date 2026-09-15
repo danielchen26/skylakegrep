@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """LLM filename arbitration probe.
 
 Insight: a human searching with `rg` localizes mostly via filename judgment,

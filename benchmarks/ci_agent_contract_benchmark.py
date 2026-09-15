@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Fast, deterministic agent-retrieval contract benchmark for CI.
 
 The release-scale benchmark uses real repositories and a local Ollama model,

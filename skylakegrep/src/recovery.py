@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Intelligent background recovery for embedder upgrades.
 
 When the user upgrades the default embedder (e.g. ``mxbai-embed-large``

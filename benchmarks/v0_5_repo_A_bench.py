@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """v0.5.0 16-task Rust layered benchmark.
 
 Measures the recall + latency contribution of each retrieval layer added

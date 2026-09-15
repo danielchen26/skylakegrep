@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Cross-project closed-loop benchmark for agent search workflows.
 
 This runner measures whether a disciplined LLM agent gets enough context to
@@ -36,6 +37,10 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from benchmarks.agent_tool_depth_benchmark import DEFAULT_TASKS
 from benchmarks.closed_loop_agent_benchmark import (
+    DEFAULT_POLICIES,
+    POLICIES,
+    get_policy,
+    policy_names,
     _adaptive_effort_for_task,
     _aggregate,
     _closed_loop,
@@ -43,6 +48,8 @@ from benchmarks.closed_loop_agent_benchmark import (
 )
 from benchmarks.general_stats import paired_efficiency
 from benchmarks.public_fixtures import (
+    GENERAL_MIN_QUALITY_ELIGIBLE_TASKS,
+    GENERAL_MIN_REPOS,
     RepoSpec,
     git_commit,
     load_registry,
@@ -255,7 +262,12 @@ def _summarize_rows(
     threshold: float,
 ) -> dict[str, Any]:
     totals = {
-        policy: _aggregate([row for row in rows if row["policy"] == policy], tokens_per_second, threshold)
+        policy: _aggregate(
+            [row for row in rows if row["policy"] == policy],
+            tokens_per_second,
+            threshold,
+            ranked=get_policy(policy).ranked,
+        )
         for policy in policies
     }
     comparison: dict[str, Any] = {}
@@ -280,6 +292,10 @@ def _compact_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         "returned_paths",
         "path_coverage",
         "path_precision",
+        "rank_first_hit",
+        "reciprocal_rank",
+        "hit_at_1",
+        "hit_at_3",
         "evidence_coverage",
         "sufficiency",
         "task_completion_quality",
@@ -319,7 +335,7 @@ def _attach_source_gate(
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
     started = time.perf_counter()
-    policies = args.policy or ["skygrep-first", "rg-only"]
+    policies = args.policy or list(DEFAULT_POLICIES)
     sections: list[dict[str, Any]] = []
     all_rows: list[dict[str, Any]] = []
 
@@ -451,6 +467,22 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 "literal source facts, noise, sufficiency, and stopping; it is not a graded "
                 "model-generated final answer"
             ),
+            "rank_axis_note": (
+                "mrr, hit_at_1_pct, hit_at_3_pct and mean_rank_when_found are null "
+                "for arms whose ranked_arm is false. ripgrep emits matches in "
+                "traversal order rather than relevance order, so a rank statistic "
+                "over its output is invented rather than measured, and it is "
+                "unstable run to run because rg walks in parallel. It is not "
+                "stabilised with --sort path because that would disable rg's "
+                "parallelism and inflate the latency comparison"
+            ),
+            "precision_note": (
+                "path_precision is precision@k and is bounded by relevant/k: with one "
+                "relevant file and --top 8 no retriever can exceed 12.5%, so it grades "
+                "the chosen top-k more than it grades ranking. Compare tools on mrr, "
+                "hit_at_1_pct, hit_at_3_pct and mean_rank_when_found instead — those "
+                "measure how many wrong files an agent opens before the right one"
+            ),
             "elapsed_note": (
                 "elapsed_seconds is measured harness wall time including scoring/token counting; "
                 "tool_elapsed_seconds measures retrieval subprocess/file-read time before token "
@@ -514,7 +546,16 @@ def parse_args() -> argparse.Namespace:
         help="Per-repository indexing timeout in seconds (default: 7200 for large public repos).",
     )
     parser.add_argument("--full-matrix", action="store_true")
-    parser.add_argument("--policy", choices=["skygrep-first", "rg-only"], action="append")
+    parser.add_argument(
+        "--policy",
+        action="append",
+        choices=policy_names(),
+        help=(
+            "arm to measure; repeatable. Choices come from the policy registry, "
+            "so a newly registered arm is selectable without touching argparse: "
+            + "; ".join(f"{s.name} ({s.summary})" for s in POLICIES.values())
+        ),
+    )
     parser.add_argument("--summary-only", action="store_true")
     parser.add_argument("--trials", type=int, default=1, help="Repeat each policy/task/effort combination N times.")
     parser.add_argument("--quality-floor", type=float, default=0.85)
@@ -526,10 +567,10 @@ def parse_args() -> argparse.Namespace:
         "--min-general-pairs",
         dest="min_general_tasks",
         type=int,
-        default=30,
+        default=GENERAL_MIN_QUALITY_ELIGIBLE_TASKS,
         help="Minimum unique quality-eligible tasks; repeated trials do not increase this count.",
     )
-    parser.add_argument("--min-general-repos", type=int, default=3)
+    parser.add_argument("--min-general-repos", type=int, default=GENERAL_MIN_REPOS)
     parser.add_argument("--report", type=Path, help="Write the complete JSON receipt to this path.")
     parser.add_argument(
         "--tokenizer",

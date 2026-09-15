@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Public, pinned benchmark repository and task-fixture contracts."""
 
 from __future__ import annotations
@@ -13,6 +14,19 @@ from typing import Any, Optional
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REGISTRY = PROJECT_ROOT / "benchmarks" / "public_repos.json"
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+
+#: Canonical General Benchmark v2 release gate: the merged claim needs this
+#: many distinct quality-eligible tasks across this many repositories.
+#:
+#: These live here, next to the pinned corpus, because they are part of the
+#: protocol rather than a per-invocation knob — and because they must not be
+#: inherited from whatever a single run happened to pass. A per-repository run
+#: is forced to relax them (one repository cannot satisfy a three-repository
+#: minimum), so a merger that reads the thresholds out of its inputs will
+#: publish a six-repository claim gated at one repository. Both the runner's
+#: argparse defaults and the merge-time gate read from here.
+GENERAL_MIN_QUALITY_ELIGIBLE_TASKS = 30
+GENERAL_MIN_REPOS = 3
 
 
 @dataclass(frozen=True)

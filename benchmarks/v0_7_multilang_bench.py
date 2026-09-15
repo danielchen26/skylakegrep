@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """v0.7.0 multi-language layered benchmark.
 
 Generalizes the v0.5 16-task Rust benchmark to three languages:

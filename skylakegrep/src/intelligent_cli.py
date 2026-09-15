@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Intelligent CLI assistance — proactive guidance for the user.
 
 Four kinds of help, all non-blocking and disable-able via

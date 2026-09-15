@@ -1,0 +1,340 @@
+{
+  "schema_version": 2,
+  "definition": {
+    "benchmark": "General Benchmark v2: universal closed-loop retrieval workflow",
+    "scope": "multi-repo adaptive workflow benchmark; strong generalization signal, not a proof over all future projects",
+    "task_mix": "self repo has locate/snippet/deep/abstract tasks; public OSS repos require path and literal source evidence across Python, JavaScript/Flow, Rust, Go, Java, and TypeScript",
+    "trust_model": "credible when the fixture repos, commits, task count, trials, and failure rows are reported; the benchmark is designed to expose misses rather than force a win",
+    "policies": [
+      "skygrep-first",
+      "rg-only"
+    ],
+    "mode": "adaptive-only",
+    "privacy": "public OSS tasks use public repository paths only; absolute roots are redacted",
+    "headline_rule": "efficiency is reportable only on paired tasks where both policies pass the quality floor and the skygrep policy passes the aggregate noninferiority gate",
+    "quality_note": "task_completion_quality is a deterministic retrieved-context proxy over paths, literal source facts, noise, sufficiency, and stopping; it is not a graded model-generated final answer",
+    "rank_axis_note": "mrr, hit_at_1_pct, hit_at_3_pct and mean_rank_when_found are null for arms whose ranked_arm is false. ripgrep emits matches in traversal order rather than relevance order, so a rank statistic over its output is invented rather than measured, and it is unstable run to run because rg walks in parallel. It is not stabilised with --sort path because that would disable rg's parallelism and inflate the latency comparison",
+    "precision_note": "path_precision is precision@k and is bounded by relevant/k: with one relevant file and --top 8 no retriever can exceed 12.5%, so it grades the chosen top-k more than it grades ranking. Compare tools on mrr, hit_at_1_pct, hit_at_3_pct and mean_rank_when_found instead — those measure how many wrong files an agent opens before the right one",
+    "elapsed_note": "elapsed_seconds is measured harness wall time including scoring/token counting; tool_elapsed_seconds measures retrieval subprocess/file-read time before token counting; estimated_agent_elapsed_seconds is modelled and never used for the General Benchmark headline",
+    "token_note": "context tokens cover retrieval tool payloads, not model reasoning or provider billing tokens"
+  },
+  "parameters": {
+    "repos": [
+      "react"
+    ],
+    "oss_root": "<oss-root>",
+    "max_tasks_per_repo": null,
+    "timeout_seconds": 45.0,
+    "sufficient_threshold": 0.85,
+    "tokens_per_second": 30000.0,
+    "allow_root_fallback": false,
+    "trials": 3,
+    "tokenizer": {
+      "requested": "tiktoken",
+      "actual": "tiktoken:cl100k_base",
+      "exact_tokenizer": true,
+      "encoding": "cl100k_base"
+    },
+    "quality_floor": 0.85,
+    "noninferiority_margin_pct": 2.0,
+    "bootstrap_samples": 2000,
+    "bootstrap_seed": 20260814,
+    "min_general_tasks": 3,
+    "min_general_repos": 1,
+    "benchmark_wall_seconds": 5569.18
+  },
+  "environment": {
+    "skylakegrep_version": "0.7.0",
+    "benchmark_source_commit": "c17447f995e5e40b2e935b9a58ef548795395618",
+    "benchmark_source_tracked_clean": "true",
+    "python_version": "3.12.6",
+    "system": "Darwin",
+    "machine": "arm64",
+    "embedding_model": "bge-m3",
+    "index_batch_size": "64"
+  },
+  "aggregate": {
+    "totals": {
+      "skygrep-first": {
+        "tasks": 30,
+        "path_coverage_pct": 100.0,
+        "path_precision_pct": 4.4,
+        "evidence_coverage_pct": 100.0,
+        "ranked_arm": true,
+        "mrr": 0.289,
+        "hit_at_1_pct": 10.0,
+        "hit_at_3_pct": 30.0,
+        "mean_rank_when_found": 9.03,
+        "tasks_never_found": 0,
+        "sufficiency_pct": 100.0,
+        "sufficient_tasks": 30,
+        "work_quality_pct": 92.1,
+        "completed_tasks": 30,
+        "tool_calls": 372,
+        "elapsed_seconds": 413.568,
+        "tool_elapsed_seconds": 412.359,
+        "avg_elapsed_seconds": 13.786,
+        "context_tokens": 2149357,
+        "avg_context_tokens": 71645.2,
+        "estimated_context_processing_seconds": 71.645,
+        "estimated_agent_elapsed_seconds": 485.213,
+        "sufficiency_per_1k_tokens": 0.014,
+        "work_quality_per_1k_tokens": 0.013,
+        "work_quality_per_minute": 3.417
+      },
+      "rg-only": {
+        "tasks": 30,
+        "path_coverage_pct": 100.0,
+        "path_precision_pct": 0.1,
+        "evidence_coverage_pct": 80.0,
+        "ranked_arm": false,
+        "mrr": null,
+        "hit_at_1_pct": null,
+        "hit_at_3_pct": null,
+        "mean_rank_when_found": null,
+        "tasks_never_found": null,
+        "sufficiency_pct": 92.0,
+        "sufficient_tasks": 21,
+        "work_quality_pct": 81.4,
+        "completed_tasks": 21,
+        "tool_calls": 303,
+        "elapsed_seconds": 431.296,
+        "tool_elapsed_seconds": 397.118,
+        "avg_elapsed_seconds": 14.377,
+        "context_tokens": 87026836,
+        "avg_context_tokens": 2900894.5,
+        "estimated_context_processing_seconds": 2900.895,
+        "estimated_agent_elapsed_seconds": 3332.191,
+        "sufficiency_per_1k_tokens": 0.0,
+        "work_quality_per_1k_tokens": 0.0,
+        "work_quality_per_minute": 0.44
+      }
+    },
+    "comparison": {
+      "tool_call_reduction_x": 0.81,
+      "context_token_reduction_x": 40.49,
+      "elapsed_ratio_rg_over_skygrep": 1.04,
+      "estimated_agent_elapsed_ratio_rg_over_skygrep": 6.87,
+      "path_coverage_delta_pct": 0.0,
+      "evidence_coverage_delta_pct": 20.0,
+      "rank_delta_note": "baseline arm does not rank; no rank delta",
+      "sufficiency_delta_pct": 8.0,
+      "work_quality_delta_pct": 10.7,
+      "completed_tasks_delta": 9,
+      "sufficiency_density_ratio_skygrep_over_rg": 14.0,
+      "work_quality_density_ratio_skygrep_over_rg": 13.0,
+      "work_quality_per_minute_ratio_skygrep_over_rg": 7.77
+    }
+  },
+  "generalization": {
+    "claim_status": "insufficient",
+    "claim_scope": "paired retrieval-workflow context; excludes model reasoning and provider billing tokens",
+    "paired_rows": 30,
+    "quality_eligible_pairs": 21,
+    "quality_eligible_tasks": 7,
+    "quality_eligible_fraction": 0.7,
+    "excluded_pairs": 9,
+    "sample_gate": {
+      "passed": true,
+      "represented_repos": 1,
+      "minimum_repos": 1,
+      "minimum_unique_tasks": 3
+    },
+    "quality_gate": {
+      "passed": true,
+      "quality_floor": 0.85,
+      "noninferiority_margin_pct": 2.0,
+      "treatment_work_quality_pct": 92.1,
+      "baseline_work_quality_pct": 81.4,
+      "work_quality_delta_pct": 10.7,
+      "treatment_completion_pct": 100.0,
+      "baseline_completion_pct": 70.0
+    },
+    "paired_distributions": {
+      "context_token_reduction_x": {
+        "n": 7,
+        "p25": 17.05,
+        "median": 46.719,
+        "p75": 80.705,
+        "min": 11.984,
+        "max": 1702.869
+      },
+      "tool_call_reduction_x": {
+        "n": 7,
+        "p25": 0.392,
+        "median": 0.417,
+        "p75": 0.802,
+        "min": 0.357,
+        "max": 5.0
+      },
+      "measured_elapsed_ratio_x": {
+        "n": 7,
+        "p25": 0.481,
+        "median": 0.602,
+        "p75": 0.686,
+        "min": 0.251,
+        "max": 1.804
+      },
+      "measured_tool_elapsed_ratio_x": {
+        "n": 7,
+        "p25": 0.453,
+        "median": 0.563,
+        "p75": 0.636,
+        "min": 0.243,
+        "max": 1.681
+      }
+    },
+    "paired_observation_distributions": {
+      "context_token_reduction_x": {
+        "n": 21,
+        "p25": 16.609,
+        "median": 46.719,
+        "p75": 84.105,
+        "min": 11.984,
+        "max": 1702.871
+      },
+      "tool_call_reduction_x": {
+        "n": 21,
+        "p25": 0.385,
+        "median": 0.417,
+        "p75": 1.143,
+        "min": 0.357,
+        "max": 5.0
+      },
+      "measured_elapsed_ratio_x": {
+        "n": 21,
+        "p25": 0.463,
+        "median": 0.589,
+        "p75": 0.679,
+        "min": 0.24,
+        "max": 1.84
+      },
+      "measured_tool_elapsed_ratio_x": {
+        "n": 21,
+        "p25": 0.433,
+        "median": 0.55,
+        "p75": 0.638,
+        "min": 0.233,
+        "max": 1.721
+      }
+    },
+    "context_token_ratio_of_sums": 34.297,
+    "context_token_median_95pct_ci": {
+      "samples": 2000,
+      "low": 16.609,
+      "high": 84.105,
+      "method": "hierarchical bootstrap over repos then unique tasks; task medians combine trials",
+      "seed": 20260814
+    },
+    "by_repo": {
+      "react": {
+        "paired_observations": 21,
+        "tasks": 7,
+        "context_token_reduction_x": {
+          "n": 7,
+          "p25": 17.05,
+          "median": 46.719,
+          "p75": 80.705,
+          "min": 11.984,
+          "max": 1702.869
+        }
+      }
+    },
+    "interpretation": "Only quality-eligible paired tasks contribute to efficiency headlines. A lower-quality treatment cannot earn a reportable multiplier.",
+    "source_gate": {
+      "passed": true,
+      "benchmark_source_commit": "c17447f995e5e40b2e935b9a58ef548795395618",
+      "tracked_worktree_clean": true
+    }
+  },
+  "sections": [
+    {
+      "repo": "react",
+      "label": "React (JavaScript/Flow)",
+      "root": "<oss-root>/react",
+      "commit": "eb8feb71096eec5c885b2a4c7d8d030d3622f265",
+      "index": {
+        "refreshed": true,
+        "reset": true,
+        "elapsed_seconds": 4715.678,
+        "database_scope": "project-derived",
+        "integrity": "ok",
+        "chunks": 59100,
+        "files": 6522
+      },
+      "tasks": 10,
+      "totals": {
+        "skygrep-first": {
+          "tasks": 30,
+          "path_coverage_pct": 100.0,
+          "path_precision_pct": 4.4,
+          "evidence_coverage_pct": 100.0,
+          "ranked_arm": true,
+          "mrr": 0.289,
+          "hit_at_1_pct": 10.0,
+          "hit_at_3_pct": 30.0,
+          "mean_rank_when_found": 9.03,
+          "tasks_never_found": 0,
+          "sufficiency_pct": 100.0,
+          "sufficient_tasks": 30,
+          "work_quality_pct": 92.1,
+          "completed_tasks": 30,
+          "tool_calls": 372,
+          "elapsed_seconds": 413.568,
+          "tool_elapsed_seconds": 412.359,
+          "avg_elapsed_seconds": 13.786,
+          "context_tokens": 2149357,
+          "avg_context_tokens": 71645.2,
+          "estimated_context_processing_seconds": 71.645,
+          "estimated_agent_elapsed_seconds": 485.213,
+          "sufficiency_per_1k_tokens": 0.014,
+          "work_quality_per_1k_tokens": 0.013,
+          "work_quality_per_minute": 3.417
+        },
+        "rg-only": {
+          "tasks": 30,
+          "path_coverage_pct": 100.0,
+          "path_precision_pct": 0.1,
+          "evidence_coverage_pct": 80.0,
+          "ranked_arm": false,
+          "mrr": null,
+          "hit_at_1_pct": null,
+          "hit_at_3_pct": null,
+          "mean_rank_when_found": null,
+          "tasks_never_found": null,
+          "sufficiency_pct": 92.0,
+          "sufficient_tasks": 21,
+          "work_quality_pct": 81.4,
+          "completed_tasks": 21,
+          "tool_calls": 303,
+          "elapsed_seconds": 431.296,
+          "tool_elapsed_seconds": 397.118,
+          "avg_elapsed_seconds": 14.377,
+          "context_tokens": 87026836,
+          "avg_context_tokens": 2900894.5,
+          "estimated_context_processing_seconds": 2900.895,
+          "estimated_agent_elapsed_seconds": 3332.191,
+          "sufficiency_per_1k_tokens": 0.0,
+          "work_quality_per_1k_tokens": 0.0,
+          "work_quality_per_minute": 0.44
+        }
+      },
+      "comparison": {
+        "tool_call_reduction_x": 0.81,
+        "context_token_reduction_x": 40.49,
+        "elapsed_ratio_rg_over_skygrep": 1.04,
+        "estimated_agent_elapsed_ratio_rg_over_skygrep": 6.87,
+        "path_coverage_delta_pct": 0.0,
+        "evidence_coverage_delta_pct": 20.0,
+        "rank_delta_note": "baseline arm does not rank; no rank delta",
+        "sufficiency_delta_pct": 8.0,
+        "work_quality_delta_pct": 10.7,
+        "completed_tasks_delta": 9,
+        "sufficiency_density_ratio_skygrep_over_rg": 14.0,
+        "work_quality_density_ratio_skygrep_over_rg": 13.0,
+        "work_quality_per_minute_ratio_skygrep_over_rg": 7.77
+      }
+    }
+  ],
+  "rows": []
+}

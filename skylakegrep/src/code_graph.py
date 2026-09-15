@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Backward-compatible facade over ``reference_graph``.
 
 This module used to host the Rust / Python / TS-JS edge extractors directly.

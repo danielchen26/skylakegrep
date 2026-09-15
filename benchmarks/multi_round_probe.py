@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Quick empirical probe: how does recall saturate as we add cheap retrieval rounds?
 
 Each round queries the existing index with a different strategy and we union the

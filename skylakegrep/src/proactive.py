@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Proactive enhancement framework — Principle 6 in action.
 
 The motivating case: a user issues a clear filename-lookup query

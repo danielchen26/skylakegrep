@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Multi-HyDE query expansion probe.
 
 Insight: HyDE generates one hypothetical answer per query. If the LLM picks

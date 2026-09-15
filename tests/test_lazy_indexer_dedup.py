@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for the 0.5.3 lazy_indexer dedup + import-diffusion helpers.
 
 These cover the deterministic, non-LLM, non-Ollama parts of the lazy

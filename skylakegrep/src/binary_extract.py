@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Lazy text extraction from binary files (PDF / docx / scanned PDF
 via OCR). Used by the v0.15.0 render layer to surface CONTENT preview
 on filename-lookup matches — so a query like ``where is task-001 file?``

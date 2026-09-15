@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Tests for skylakegrep.src.integrations and the `skygrep setup` CLI."""
 
 from __future__ import annotations

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Measure skylakegrep retrieval context compression.
 
 This benchmark answers a narrower question than a full agent benchmark:

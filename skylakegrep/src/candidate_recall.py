@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Recall-safe candidate path substrate.
 
 The router should understand intent, but it should not be the only gate that

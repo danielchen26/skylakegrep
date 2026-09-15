@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Intent classification + multi-tier result merging.
 
 v0.14.0 changes the routing model from *mutually-exclusive tiers*

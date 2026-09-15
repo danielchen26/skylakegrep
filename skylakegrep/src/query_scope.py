@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Query-derived filesystem scope constraints.
 
 This module handles query-plan facets such as "in PROJECT folder" or

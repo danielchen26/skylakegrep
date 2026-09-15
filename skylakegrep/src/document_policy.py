@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Generic document-authority rules shared by retrieval and synthesis."""
 
 from __future__ import annotations

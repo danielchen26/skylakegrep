@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Code reference extractor: Rust + Python + TS/JS regex-driven edges.
 
 This module hosts the original ``code_graph`` extractors (formerly

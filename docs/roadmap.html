@@ -147,12 +147,15 @@ without any private files or machine-local examples.</p>
    guardrail that prevents agents from treating a plausible path as a
    complete answer.</p></li>
 </ol>
-<h3>Native MCP server</h3>
-<p><code>skygrep setup</code> writes a markdown snippet into agent rules files
-telling the agent to prefer <code>skygrep</code> over <code>rg</code>. A native MCP
-server (Model Context Protocol) would let agents call <code>skygrep</code> as
-a structured tool instead of a shell command — better schema,
-fewer parsing failures, cleaner error surfaces.</p>
+<h3>Native MCP server — shipped</h3>
+<p><code>skygrep mcp</code> serves <code>search</code>, <code>index</code>, and
+<code>stats</code> as Model Context Protocol tools over stdio, with declared
+input and output schemas, <code>structuredContent</code> results, and
+degraded retrieval reported as <code>warnings</code> rather than an empty
+result set. <code>skygrep setup</code> (markdown snippets in agent rules
+files) stays for agents that have no MCP client.</p>
+<p>Still open here: registry listings, and an HTTP transport for clients
+that cannot spawn a local process.</p>
 <h3>Multi-vector / late-interaction retrieval (ColBERT-style)</h3>
 <p>The current cascade uses single-vector cosine + cross-encoder
 rerank. Token-level late interaction (ColBERT-style) over a larger
@@ -183,9 +186,10 @@ host.</p>
 <li><strong>Removing the Ollama dependency.</strong> <code>skygrep</code> is intentionally
   built on top of Ollama for local LLM access. Other backends
   (e.g. llama.cpp direct) are possible but not prioritised.</li>
-<li><strong>MIT relicensing.</strong> This project is PolyForm Noncommercial
-  1.0.0 and stays that way. Commercial users should contact for
-  a commercial license.</li>
+<li><strong>Charging for the core.</strong> As of the relicense to
+  Apache-2.0, commercial use of skylakegrep itself is free and stays
+  free. Support with an SLA, a shared on-premises team index, and
+  integration work are the paid things; the search tool is not.</li>
 </ul>
  </article>
  </main>

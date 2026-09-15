@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Reference-edge extractors keyed by content-type.
 
 Each module in this package exposes a single ``extract_edges(files, root)``

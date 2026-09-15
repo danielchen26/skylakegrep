@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Cross-encoder reranker as a second-stage scorer.
 
 A retrieval pipeline with cosine similarity alone is good at separating

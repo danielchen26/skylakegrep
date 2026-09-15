@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Long-running daemon that holds the reranker + embedder warm.
 
 The biggest single per-query cost in our pipeline is the cross-encoder

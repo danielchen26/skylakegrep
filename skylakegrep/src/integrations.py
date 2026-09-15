@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Auto-registration of skylakegrep with popular LLM CLIs.
 
 When a user runs ``skygrep setup`` we detect installed coding agents

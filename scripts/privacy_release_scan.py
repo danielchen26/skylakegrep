@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Fail a release if tracked/public artifacts contain private material.
 
 The default checks intentionally cover structural leaks only: real home

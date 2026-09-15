@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Production cascade benchmark — calls the real ``storage.cascade_search``
 through the same code path that ``skygrep search --cascade`` uses, and verifies
 Rust workspace recall matches the probe (14/16 @ ~1.9 s/q at tau=0.015).

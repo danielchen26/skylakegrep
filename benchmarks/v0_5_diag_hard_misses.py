@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Diagnostic: for the two hard-miss queries, show what cascade_search
 actually returns top-10 and how the enriched crates/ai/ + app/src/billing/
 chunks rank.

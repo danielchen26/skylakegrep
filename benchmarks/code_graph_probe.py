@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Code-graph centrality probe.
 
 Insight: when multiple semantically similar files compete (`crates/websocket/

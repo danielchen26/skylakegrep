@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Terminal UI helpers for human search progress output."""
 
 from __future__ import annotations
