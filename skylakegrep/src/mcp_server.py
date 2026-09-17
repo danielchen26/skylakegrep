@@ -529,51 +529,59 @@ class McpServer:
         }
 
 
-def _read_message(stdin: TextIO) -> dict[str, Any] | None:
-    """Read one MCP message (Content-Length framing or a single JSON line)."""
+def _read_message(stdin_buf) -> dict[str, Any] | None:
+    """Read one MCP message from a *binary* buffer (Content-Length or NDJSON).
 
-    # Peek-style: read until we know the framing.
-    # For Content-Length: headers then body. For NDJSON: one line of JSON.
-    header_buf = ""
+    Cursor / Claude Code spawn stdio MCP over raw pipes. Using text-mode
+    ``sys.stdin`` can mis-count ``Content-Length`` bodies and abort the
+    handshake (clients then show 0 tools / CONNECTION_CLOSED). Always read
+    bytes from ``stdin.buffer`` (or an explicit binary stream).
+    """
+
+    header_buf = b""
     while True:
-        ch = stdin.read(1)
-        if ch == "":
+        ch = stdin_buf.read(1)
+        if ch == b"":
             if not header_buf.strip():
                 return None
-            # Incomplete stream
             line = header_buf.strip()
             if line:
-                return json.loads(line)
+                return json.loads(line.decode("utf-8"))
             return None
         header_buf += ch
-        if header_buf.endswith("\r\n\r\n") or header_buf.endswith("\n\n"):
+        if header_buf.endswith(b"\r\n\r\n") or header_buf.endswith(b"\n\n"):
             break
-        # NDJSON: a full line that looks like JSON without headers.
-        if ch == "\n" and "Content-Length" not in header_buf and ":" not in header_buf.split("\n")[0]:
-            line = header_buf.strip()
-            if not line:
-                header_buf = ""
-                continue
-            return json.loads(line)
+        # NDJSON: a full line of JSON without LSP headers.
+        if ch == b"\n" and b"Content-Length" not in header_buf:
+            first = header_buf.split(b"\n", 1)[0]
+            if b":" not in first:
+                line = header_buf.strip()
+                if not line:
+                    header_buf = b""
+                    continue
+                return json.loads(line.decode("utf-8"))
 
-    headers = {}
+    headers: dict[str, str] = {}
     for raw_line in header_buf.splitlines():
-        if ":" in raw_line:
-            key, value = raw_line.split(":", 1)
-            headers[key.strip().lower()] = value.strip()
+        if b":" in raw_line:
+            key, value = raw_line.split(b":", 1)
+            headers[key.decode("ascii", "replace").strip().lower()] = (
+                value.decode("ascii", "replace").strip()
+            )
     length = int(headers.get("content-length", "0"))
-    body = stdin.read(length)
+    body = stdin_buf.read(length) if length else b""
+    if length and len(body) < length:
+        return None
     if not body:
         return None
-    return json.loads(body)
+    return json.loads(body.decode("utf-8"))
 
 
-def _write_message(stdout: TextIO, message: dict[str, Any]) -> None:
-    payload = json.dumps(message, ensure_ascii=False)
-    encoded = payload.encode("utf-8")
-    stdout.write(f"Content-Length: {len(encoded)}\r\n\r\n")
-    stdout.write(payload)
-    stdout.flush()
+def _write_message(stdout_buf, message: dict[str, Any]) -> None:
+    payload = json.dumps(message, ensure_ascii=False).encode("utf-8")
+    stdout_buf.write(f"Content-Length: {len(payload)}\r\n\r\n".encode("ascii"))
+    stdout_buf.write(payload)
+    stdout_buf.flush()
 
 
 def serve_stdio(
@@ -585,9 +593,19 @@ def serve_stdio(
     """Run the MCP server on stdio until EOF."""
 
     server = McpServer(default_path=default_path)
-    inn = stdin or sys.stdin
-    out = stdout or sys.stdout
-    # Ensure binary-safe line discipline for framing when possible.
+    # Prefer binary buffers so Content-Length framing matches pipe clients.
+    if stdin is None:
+        inn = sys.stdin.buffer
+    elif hasattr(stdin, "buffer"):
+        inn = stdin.buffer
+    else:
+        inn = stdin
+    if stdout is None:
+        out = sys.stdout.buffer
+    elif hasattr(stdout, "buffer"):
+        out = stdout.buffer
+    else:
+        out = stdout
     while True:
         try:
             message = _read_message(inn)
