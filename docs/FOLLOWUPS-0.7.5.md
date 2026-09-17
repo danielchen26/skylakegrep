@@ -1,23 +1,25 @@
-# 0.7.5 之后未穷尽项（跟进清单）
+# Follow-ups after 0.7.5
 
-产品 **0.7.5 已发布**（PyPI + Cursor MCP 第 4 条已过）。下列项用于 **扩大 claim**，不是安装阻塞。
+Product **0.7.5 is shipped** (PyPI + Cursor MCP gate passed). The items below expand **claims**; they are not install blockers.
 
-| # | 任务 | 服务哪类 claim | 状态 |
+| # | Task | Claim it supports | Status |
 | --- | --- | --- | --- |
-| 1 | 合入草稿 [#10](https://github.com/danielchen26/skylakegrep/pull/10)，按真实 `--agent-fast` / `--agent-context` 路径重跑六仓 General Benchmark，产出新 receipt | **latency / 测速路径** 类对外数字 | 未穷尽 |
-| 2 | 真机大仓 smoke（不止 Cursor 小仓） | 「**大项目也好用**」 | 未穷尽 |
-| 3 | Claude Desktop / Claude Code 等其它 MCP 客户端各自 Reload + 成功调用一次 | 「**不止 Cursor**」 | 未穷尽（协议已通用） |
-| 4 | scale / noise 压力场景 | 更大规模、更吵环境下的 **稳性加码** | 可选 |
-| 5 | 首页其余观感打磨（若仍发现旧版本叙事） | **对外观感一致** | 随本 docs PR 大部分已刷 |
+| 1 | Land draft [#10](https://github.com/danielchen26/skylakegrep/pull/10), re-run the six-repo General Benchmark on real `--agent-fast` / `--agent-context` paths, publish a new receipt | **Latency / measured speed-path** numbers | Open |
+| 2 | Large-repo real-machine smoke (beyond the small Cursor smoke repo) | “Works on **big projects**” | Open |
+| 3 | Verify other MCP clients once each (Claude Desktop / Claude Code, …) | “**Not only Cursor**” | Open (protocol is shared) |
+| 4 | scale / noise stress | Optional **robustness** at larger/noisier scale | Optional |
+| 5 | Leftover homepage polish if any stale narrative remains | Public **docs consistency** | Mostly done in docs #25 |
 
-## 已可对外说的（不要加码）
+## Safe to say now (do not inflate)
 
-- Apache-2.0 · offline · CLI / `agent_context` harness · MCP MVP（`search` / `agent_context`；Cursor 已验）
+- Apache-2.0 · offline · CLI / `agent_context` harness · MCP MVP (`search` / `agent_context`; Cursor verified)
 - `pip install skylakegrep==0.7.5`
-- 检索零件，不是全能 agent
+- A retrieval component for existing agents — not a do-everything agent
 
-## 明确不要说的（直到对应项关闭）
+## Do not say until the matching row closes
 
-- 「延迟路径也全面验完 / 全面更快」（等 #10 + 新 receipt）
-- 「所有 MCP 客户端开箱即用」
-- 「comprehensive benchmark 全部做完」
+- “Latency path fully verified / comprehensively faster” (needs #10 + new receipt)
+- “Every MCP client works out of the box”
+- “Comprehensive benchmark is finished”
+
+Owner: @youseihuayu-wonderful (tracking [#26](https://github.com/danielchen26/skylakegrep/issues/26)).
