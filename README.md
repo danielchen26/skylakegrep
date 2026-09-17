@@ -729,6 +729,8 @@ explicitly requested.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.7.4`** — Patch: restore Python 3.9 import compatibility after #15
+    (`from __future__ import annotations` in `storage.py`, #20). No feature changes.
   - **`0.7.3`** — Open-source distribution release. Relicenses the project to
     Apache-2.0 (#14), fixes `index`/`watch`/`--reset` so the DB follows the
     target path instead of CWD (#15), and aligns live docs + packaging so

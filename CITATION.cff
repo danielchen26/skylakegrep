@@ -16,7 +16,7 @@ type: software
 authors:
   - family-names: "Chen"
     given-names: "Tianchi"
-version: "0.7.3"
+version: "0.7.4"
 date-released: 2026-09-16
 repository-code: "https://github.com/danielchen26/skylakegrep"
 url: "https://danielchen26.github.io/skylakegrep/"
