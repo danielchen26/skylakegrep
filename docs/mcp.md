@@ -6,6 +6,12 @@ can call skygrep as structured tools instead of scraping shell output.
 This is an **MVP**: two tools that **delegate** to the existing retrieval
 pipelines. It is not marketed as a production-hardened MCP product yet.
 
+**Client status:** protocol is generic stdio MCP. **Cursor** has been
+verified end-to-end (Connected + 2 tools + live `agent_context` call).
+Claude Desktop / Claude Code / other hosts use the same tools but need
+their own config + a successful call — do not treat Cursor success as
+universal out-of-the-box.
+
 ## Why a minimal JSON-RPC server (not the official `mcp` package)
 
 The official PyPI [`mcp`](https://pypi.org/project/mcp/) SDK currently
@@ -35,7 +41,7 @@ already speaks MCP; prefer the CLI flag for shell / scripts.
 
 ## Prerequisites
 
-1. Install skylakegrep (`pip install -e .` from a checkout, or a release).
+1. Install skylakegrep (`pip install skylakegrep` ≥0.7.5, or `pip install -e .` from a checkout).
 2. Index the project: `skygrep index /path/to/repo`
 3. Have a local embedder available for `search` (Ollama by default).
    Protocol tests mock the embedder and never call live Ollama.

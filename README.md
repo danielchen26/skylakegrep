@@ -729,7 +729,11 @@ explicitly requested.
 
 **Recent releases** (in reverse chronological order):
 
-  - **`0.7.4`** — Patch: restore Python 3.9 import compatibility after #15
+  - **`0.7.5`** — Native MCP MVP (`search` / `agent_context`) + binary stdio
+    framing for Cursor/Claude pipes (#22/#23). Positioned as MCP MVP usable,
+    not a do-everything production agent. Other MCP hosts: same protocol,
+    verify per client.
+- **`0.7.4`** — Patch: restore Python 3.9 import compatibility after #15
     (`from __future__ import annotations` in `storage.py`, #20). No feature changes.
   - **`0.7.3`** — Open-source distribution release. Relicenses the project to
     Apache-2.0 (#14), fixes `index`/`watch`/`--reset` so the DB follows the
