@@ -375,28 +375,38 @@
  <div class="sidebar-title">Documentation</div>
  <nav>
  <div class="nav-section">
- <p>Get started</p>
+ <p>Product</p>
  <a href="#overview" class="active">Overview</a>
  <a href="#scenarios">Scenarios</a>
  <a href="#depth-examples">Depth examples</a>
- <a href="#new-in-075">New in 0.7.5</a>
- <a href="#new-in-070">Earlier: 0.7.0</a>
+ <a href="#mcp">MCP</a>
+ <a href="#whats-current">What's current</a>
  <a href="#why-skylakegrep">Why skylakegrep?</a>
  <a href="#vs-elasticsearch">vs Elasticsearch</a>
  <a href="#how-it-works">How it works</a>
  <a href="#install">Install</a>
  <a href="#quickstart">Quickstart</a>
- <a href="#bench">Benchmarks</a>
+ <a href="#limitations">Limitations</a>
  </div>
  <div class="nav-section">
- <p>Deep dive</p>
+ <p>Docs</p>
+ <a href="mcp.html">MCP server</a>
+ <a href="cli.html">CLI reference</a>
  <a href="concepts.html">Concepts</a>
  <a href="architecture.html">Architecture</a>
- <a href="cli.html">CLI reference</a>
- <a href="mcp.html">MCP server</a>
  <a href="reference.html">JSON schema</a>
+ <a href="pages-ia.html">Site map</a>
+ </div>
+ <div class="nav-section">
+ <p>Evidence</p>
+ <a href="#bench">Bench teaser</a>
  <a href="benchmarks.html">Full benchmarks</a>
- <a href="changelog.html">Release notes</a>
+ <a href="general-performance.html">General performance</a>
+ </div>
+ <div class="nav-section">
+ <p>Releases</p>
+ <a href="changelog.html">Changelog</a>
+ <a href="skylakegrep-0.7.5.html">0.7.5 notes</a>
  </div>
  <div class="nav-section">
  <p>Project</p>
@@ -848,156 +858,41 @@ Throughput projections under sustained 5k QPS load...</pre>
 
 
 
-<!-- ============== New in 0.7.5 ============== -->
-<section id="new-in-075" class="doc-section scenarios-section">
- <p class="eyebrow">New in 0.7.5</p>
- <h2 class="overview-h2">Native MCP MVP on PyPI — Cursor verified.</h2>
+<!-- ============== MCP (short card) ============== -->
+<section id="mcp" class="doc-section scenarios-section">
+ <p class="eyebrow">MCP</p>
+ <h2 class="overview-h2">Native MCP MVP — Cursor verified.</h2>
  <p class="lead">
- <strong>0.7.5</strong> ships the offline retrieval component with a native
- stdio MCP server (<code>search</code> / <code>agent_context</code>), binary
- Content-Length framing for Cursor/Claude pipes, and Apache-2.0 packaging.
+ <code>skygrep mcp</code> exposes two stdio tools — <code>search</code> and
+ <code>agent_context</code> — over the same retrieval pipelines as the CLI.
  Verified in Cursor end-to-end (Connected + 2 tools + live tool call).
- Other MCP clients use the same protocol but need their own config check.
- This is a <strong>retrieval part</strong> for existing agents — not a
- do-everything coding agent.
+ This is a <strong>retrieval component</strong> for existing agents, not a
+ do-everything coding agent. Ops (<code>index</code> / <code>watch</code> /
+ <code>setup</code>) stay on the CLI.
  </p>
-
- <div class="scenario-grid">
- <article class="scenario-card">
- <div class="scenario-tag">🔌 MCP MVP</div>
- <h3>Two tools. Same pipelines as the CLI.</h3>
- <p>
- <code>skygrep mcp</code> exposes <code>search</code> and
- <code>agent_context</code> over JSON-RPC stdio. Ops commands
- (<code>index</code> / <code>watch</code> / <code>setup</code>) stay on the CLI
- by design.
- </p>
- <div class="scenario-demo">
- <div class="sd-prompt"><span class="term-prompt">$</span>pip install skylakegrep==0.7.5</div>
- <div class="sd-prompt"><span class="term-prompt">$</span>skygrep mcp --path /absolute/path/to/your/repo</div>
- <div class="sd-result">→ tools: search · agent_context</div>
- <div class="sd-takeaway">See <a href="mcp.html">MCP docs</a> for Cursor / Claude config.</div>
- </div>
- </article>
-
- <article class="scenario-card">
- <div class="scenario-tag">✅ CURSOR VERIFIED</div>
- <h3>Handshake + real tool call.</h3>
- <p>
- Cursor showed Connected with both tools enabled, and Agent chat successfully
- called <code>agent_context</code> returning path + snippet evidence.
- </p>
- <div class="scenario-demo">
- <div class="sd-result">→ Connected · 2 tools enabled</div>
- <div class="sd-result">→ agent_context("auth login") → auth.py + snippet</div>
- <div class="sd-takeaway">Claude Desktop / Claude Code: same protocol, verify per client.</div>
- </div>
- </article>
-
- <article class="scenario-card">
- <div class="scenario-tag">🛡 FRAMING FIX</div>
- <h3>Binary stdio for pipe clients.</h3>
- <p>
- Content-Length framing reads/writes via binary buffers so Cursor and Claude
- Code pipes no longer stall at 0 tools / CONNECTION_CLOSED class failures.
- Still Python 3.9+; official <code>mcp</code> SDK is not a package dependency.
- </p>
- <div class="scenario-demo">
- <div class="sd-result">→ #22 MCP MVP · #23 binary framing · #24 release</div>
- <div class="sd-takeaway">Install: <code>pip install skylakegrep==0.7.5</code></div>
- </div>
- </article>
-
- <article class="scenario-card">
- <div class="scenario-tag">📎 POSITIONING</div>
- <h3>Retrieval component, not a full agent.</h3>
- <p>
- Apache-2.0 · offline · CLI / <code>agent_context</code> harness · MCP MVP usable.
- General Benchmark latency-path correction (draft #10) is still open — do not
- claim comprehensive latency verification yet.
- </p>
- <div class="scenario-demo">
- <div class="sd-takeaway">Follow-ups: <a href="FOLLOWUPS-0.7.5.html">docs/FOLLOWUPS-0.7.5</a></div>
- </div>
- </article>
+ <div class="button-row">
+ <a class="button primary" href="mcp.html">MCP docs &amp; client config →</a>
  </div>
 </section>
 
 
-<!-- ============== New in 0.7.0 ============== -->
-<section id="new-in-070" class="doc-section scenarios-section">
- <p class="eyebrow">New in 0.7.0</p>
- <h2 class="overview-h2">Fail-closed evidence, direct/daemon parity, continuous quality gates.</h2>
+<!-- ============== What's current (0.7.5 short card) ============== -->
+<section id="whats-current" class="doc-section scenarios-section">
+ <p class="eyebrow">What's current · 0.7.5</p>
+ <h2 class="overview-h2">Shipped on PyPI.</h2>
  <p class="lead">
- <code>--strict</code> verifies high-risk local claims through independent
- retrieval paths and indexed-source freshness. Direct and daemon agent calls
- now share one evidence implementation, and pull-request CI rejects accuracy,
- sufficiency, or efficiency regressions. Existing indexes remain compatible.
+ Latest release highlights — full essay on the release page, not here.
  </p>
-
- <div class="scenario-grid">
- <article class="scenario-card">
- <div class="scenario-tag">🛡 STRICT EVIDENCE</div>
- <h3>High-risk local claims fail closed.</h3>
- <p>
- <code>--strict</code> requires hybrid candidate recall, an independent
- corpus-wide semantic pass, supporting evidence, and a fresh indexed source.
- A confident first pass is not enough by itself.
- </p>
- <div class="scenario-demo">
- <div class="sd-prompt"><span class="term-prompt">$</span>skygrep --strict "where is authorization enforced?"</div>
- <div class="sd-result">→ <code>src/auth/policy.py:42</code> · quality=best</div>
- <div class="sd-result">→ <code>strict_verification.status=passed</code></div>
- <div class="sd-takeaway">Exit <code>2</code> or <code>status=inconclusive</code> means the claim is not verified.</div>
- </div>
- </article>
-
- <article class="scenario-card">
- <div class="scenario-tag">⚡ DIRECT = DAEMON</div>
- <h3>Warm reuse no longer changes the evidence contract.</h3>
- <p>
- Direct and daemon agent-context requests execute the same search helper,
- including semantic escalation, provenance lanes, evidence bundles, source
- priors, and strict verification.
- </p>
- <div class="scenario-demo">
- <div class="sd-prompt"><span class="term-prompt">$</span>skygrep serve --port 7878</div>
- <div class="sd-prompt"><span class="term-prompt">$</span>skygrep --agent-daemon --strict "where is authorization enforced?"</div>
- <div class="sd-result">→ same Top-K paths · same lanes · same quality · same strict status</div>
- <div class="sd-takeaway">Daemon requests are constrained to the configured project and index.</div>
- </div>
- </article>
-
- <article class="scenario-card">
- <div class="scenario-tag">📏 CONTINUOUS QUALITY GATE</div>
- <h3>Efficiency cannot silently trade away accuracy.</h3>
- <p>
- Pull-request CI runs a deterministic six-task fixture through the existing
- closed-loop regression gate and fails on path, evidence, sufficiency,
- context, elapsed, or work-quality regressions.
- </p>
- <div class="scenario-demo">
- <div class="sd-result">6 / 6 completed · path 100% · evidence 100% · sufficiency 100%</div>
- <div class="sd-result">14,689 vs 59,551 context tokens · 6 vs 99 tool calls</div>
- <div class="sd-takeaway">Fixed CI receipt: about <strong>4.05×</strong> less context with equal checked coverage; not a general multiplier.</div>
- </div>
- </article>
-
- <article class="scenario-card">
- <div class="scenario-tag">🔍 CLEAN PROVENANCE · GUIDANCE V5</div>
- <h3>Agents see every contributing lane without duplicate aliases.</h3>
- <p>
- Equivalent macOS <code>/var</code> and <code>/private/var</code> paths are
- coalesced without double-counting lexical scores. Duplicate results preserve
- the union of their recall lanes, and managed agent guidance requires strict
- receipts for high-risk local claims.
- </p>
- <div class="scenario-demo">
- <div class="sd-result">→ hybrid · rg · semantic-escalation · source prior</div>
- <div class="sd-result">→ one canonical path · one auditable receipt</div>
- <div class="sd-takeaway"><strong>0.7.0:</strong> faster agent workflows stay bounded by explicit accuracy and freshness checks.</div>
- </div>
- </article>
+ <ul class="limits-list">
+ <li><strong>Apache-2.0</strong> packaging · fully <strong>offline</strong> retrieval.</li>
+ <li>Native MCP MVP: <code>search</code> / <code>agent_context</code> over stdio.</li>
+ <li>Cursor verified: Connected + 2 tools + live <code>agent_context</code> call.</li>
+ <li>Binary Content-Length framing for Cursor / Claude pipes.</li>
+ <li>CLI <code>agent_context</code> harness; not a full agent platform.</li>
+ </ul>
+ <div class="button-row">
+ <a class="button primary" href="skylakegrep-0.7.5.html">Full 0.7.5 notes →</a>
+ <a class="button secondary" href="changelog.html">All releases</a>
  </div>
 </section>
 
@@ -1090,58 +985,11 @@ Throughput projections under sustained 5k QPS load...</pre>
  <p class="eyebrow">How it works</p>
  <h2 class="overview-h2">Router → two retrieval lanes race in parallel.</h2>
  <p class="lead">
- After the router classifies your intent, a σ-adaptive cosine
- cascade and a parallel proactive umbrella search at the same
- time — not one after the other. The first confident answer
- streams to your terminal; ranked refinements arrive as later
- lanes finish. All against your local Ollama + SQLite. Zero
- network.
- </p>
- <div class="how-flow">
- <div class="how-step">
- <div class="how-step-num">1</div>
- <div class="how-step-title">LLM router</div>
- <div class="how-step-tech"><code>qwen2.5:3b</code> · ~50 ms</div>
- <div class="how-step-body">
- Classifies <strong>intent</strong> (filename / lexical /
- semantic / mixed), <strong>scope</strong> (content / recency /
- size), and <strong>primary token</strong>. Persistent SQLite
- cache; same query never pays the LLM cost twice.
- </div>
- </div>
- <div class="how-arrow">→</div>
- <div class="how-step">
- <div class="how-step-num">2</div>
- <div class="how-step-title">Cosine cascade</div>
- <div class="how-step-tech"><code>bge-m3</code> · 0.5 – 2 s</div>
- <div class="how-step-body">
- σ-adaptive cascade: high-confidence queries early-exit on
- cheap file-mean cosine; uncertain ones escalate to HyDE +
- cross-encoder rerank. Bayesian-evidence framing
- (<code>τ_eff = max(τ_floor, k · σ_topK)</code>).
- </div>
- </div>
- <div class="how-arrow">→</div>
- <div class="how-step">
- <div class="how-step-num">3</div>
- <div class="how-step-title">Proactive umbrella</div>
- <div class="how-step-tech">filename_extend · lazy_cwd · lazy_cross_folder · streaming dispatcher</div>
- <div class="how-step-body">
- Runs <strong>concurrent with the cascade</strong>, not after.
- Four tiers race at the same time: <code>filename_extend</code>
- for fast filename matching, <code>lazy_cwd</code> for
- auto-indexing the current folder, <code>lazy_cross_folder</code>
- for sibling roots in <code>SKYGREP_PROACTIVE_DIRS</code>, and a
- streaming dispatcher that posts the first confident answer.
- Hard caps: 30 s cascade, 8 s cross-folder. Wrong-path queries
- answer in ~1 s.
- </div>
- </div>
- </div>
- <p class="how-footer">
- <strong>Local Ollama + SQLite. Zero network. Zero subscription.</strong>
- The same pipeline handles every content type — code · PDFs ·
- notes · markdown · any file you register an extractor for.
+ After the router classifies your intent, a σ-adaptive cosine cascade and a
+ parallel proactive umbrella search at the same time — not one after the
+ other. The first confident answer streams to your terminal; ranked
+ refinements arrive as later lanes finish. All against your local Ollama +
+ SQLite. Zero network.
  </p>
  <div class="button-row">
  <a class="button secondary" href="architecture.html">Architecture deep-dive →</a>
@@ -1155,10 +1003,9 @@ Throughput projections under sustained 5k QPS load...</pre>
  <p class="eyebrow">vs Elasticsearch</p>
  <h2 class="overview-h2">Different niche, different design.</h2>
  <p class="lead">
- Elasticsearch is a multi-tenant, TB-scale, distributed search engine
- for data centers. skylakegrep is a single-user, single-machine,
- zero-ops CLI for a developer asking their own laptop a question.
- Both can be called "search engines"; they answer different problems.
+ Elasticsearch is a multi-tenant, TB-scale, distributed search engine for
+ data centers. skylakegrep is a single-user, single-machine, zero-ops CLI
+ for a developer asking their own laptop a question.
  </p>
  <div class="themed-card why-card">
  <div class="themed-card-chrome">
@@ -1171,32 +1018,20 @@ Throughput projections under sustained 5k QPS load...</pre>
  <tr><th></th><th>skylakegrep 0.7.5</th><th>Elasticsearch</th></tr>
  </thead>
  <tbody>
- <tr><td><strong>Setup</strong></td><td><code>python3 -m pip install --user skylakegrep</code>; cold-start lazy auto-trigger</td><td>JVM, cluster, mappings, ingest pipeline, dense-vector plugin, reindex</td></tr>
- <tr><td><strong>Semantic retrieval</strong></td><td>bge-m3 (1024-d, 100+ languages) via local Ollama, out of the box</td><td>Manual: pick embedder, pipeline, dimension, reindex</td></tr>
- <tr><td><strong>Intent understanding</strong></td><td>qwen2.5:3b LLM router classifies intent / scope / primary_token per query</td><td>None natively; you write query DSL by hand</td></tr>
- <tr><td><strong>Code AST awareness</strong></td><td>tree-sitter symbol channel, RRF-fused with cosine</td><td>None; code is plain text</td></tr>
- <tr><td><strong>Cold-start / wrong-folder</strong></td><td>lazy_cwd + lazy_cross_folder 4-lane parallel umbrella, ~1.1 s</td><td>Empty index = 0 results</td></tr>
- <tr><td><strong>Why-this-matched explainability</strong></td><td><code>--explain</code> shows router rationale + channel breakdown + lane evidence</td><td>BM25 highlight only</td></tr>
- <tr><td><strong>High-risk local verification</strong></td><td><code>--strict</code> requires independent hybrid/semantic agreement plus indexed-source freshness; inconclusive evidence exits <code>2</code></td><td>application-specific validation required</td></tr>
- <tr><td><strong>Cross-file context</strong></td><td>reference-graph PageRank tiebreak</td><td>None</td></tr>
- <tr><td><strong>Privacy / offline</strong></td><td>100 % local by design</td><td>Index can be local, but most embeddings are external API calls</td></tr>
- <tr><td><strong>Latency p95</strong> (50k-file repo)</td><td>0.3 – 1.1 s including LLM router</td><td>ms-level <em>after</em> you've paid the operational cost</td></tr>
+ <tr><td><strong>Setup</strong></td><td><code>pip install skylakegrep</code>; cold-start lazy auto-trigger</td><td>JVM, cluster, mappings, ingest pipeline</td></tr>
+ <tr><td><strong>Semantic retrieval</strong></td><td>bge-m3 via local Ollama, out of the box</td><td>Manual embedder / pipeline / reindex</td></tr>
+ <tr><td><strong>Privacy / offline</strong></td><td>100 % local by design</td><td>Index can be local; embeddings often external</td></tr>
  <tr><td><strong>Scale</strong></td><td>single-machine, single-repo sweet spot</td><td>billions of docs, multi-shard, distributed</td></tr>
  <tr><td><strong>Multi-tenant / ACL</strong></td><td>not designed for this</td><td>first-class</td></tr>
- <tr><td><strong>Aggregations / facets</strong></td><td>not designed for this</td><td>first-class</td></tr>
- <tr><td><strong>Operational cost</strong></td><td>zero (no daemon, no GC, no shard rebalance)</td><td>non-trivial (GC, heap, shard rebalance, monitoring)</td></tr>
  </tbody>
  </table>
  </div>
  </div>
  <p class="how-footer">
- <strong>Where skylakegrep wins:</strong> "I just opened my terminal
- and want to find something on my own machine." Easier, more semantic,
- more code-aware, more private — and now (0.5.8) it can also tell you
- <em>why</em> it picked each result.<br>
- <strong>Where Elasticsearch wins:</strong> anything that needs scale,
- multi-tenant isolation, faceted aggregations, or production-grade
- replication. We don't try to compete in those rooms.
+ <strong>Where skylakegrep wins:</strong> find something on your own machine —
+ semantic, code-aware, private, zero ops.
+ <strong>Where Elasticsearch wins:</strong> scale, multi-tenant isolation,
+ faceted aggregations, production replication.
  </p>
 </section>
 
@@ -1205,76 +1040,20 @@ Throughput projections under sustained 5k QPS load...</pre>
  <section id="install" class="doc-section">
  <p class="eyebrow">Installation</p>
  <h2>Install the CLI and a local embedding model.</h2>
-
- <h3>Package install</h3>
-<pre><code>python3 --version
-python3 -m pip install --user skylakegrep
-skygrep doctor</code></pre>
+<pre><code>pip install skylakegrep</code></pre>
  <p>
- macOS often ships without a <code>python</code> command. Use
- <code>python3 -m pip</code> so the package, script, and diagnostics all
- refer to the same Python installation. If <code>skygrep</code> is not
- on <code>PATH</code> after install, inspect <code>python3 -m site --user-base</code>,
- <code>which -a skygrep</code>, and <code>python3 -m pip show skylakegrep</code>.
+ Prefer <code>python3 -m pip install --user skylakegrep</code> when your shell
+ has no bare <code>python</code> / <code>pip</code>. Then pull a local embedding
+ model via <a href="https://ollama.com">Ollama</a>:
  </p>
-<pre><code>export PATH="$(python3 -m site --user-base)/bin:$PATH"</code></pre>
-
- <h3>From source</h3>
-<pre><code>git clone https://github.com/danielchen26/skylakegrep.git
-cd skylakegrep
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .</code></pre>
-
- <h3>Ollama runtime</h3>
+<pre><code>ollama pull bge-m3
+ollama pull qwen2.5:3b</code></pre>
  <p>
- Install Ollama from
- <a href="https://ollama.com">ollama.com</a>
- and pull at least one embedding model:
+ Full install, PATH fixes, clean reinstall, and agent setup live in the
+ <a href="cli.html">CLI reference</a>.
  </p>
-<pre><code>ollama pull bge-m3 # default; 1024-dim, multilingual, symmetric
-# alternatives:
-ollama pull mxbai-embed-large # 1024-dim, English/code only
-ollama pull nomic-embed-text # 768-dim, smaller</code></pre>
- <p>
- Pull the default generation/router model separately. Ollama expects one
- model per <code>ollama pull</code> command:
- </p>
-<pre><code>ollama pull qwen2.5:3b</code></pre>
-
- <h3>Clean reinstall</h3>
-<pre><code>skygrep setup --uninstall || true
-python3 -m pip uninstall -y skylakegrep
-rm -rf ~/.skylakegrep        # optional: deletes only skygrep indexes/config
-ollama rm bge-m3             # optional
-ollama rm qwen2.5:3b         # optional
-python3 -m pip install --user --no-cache-dir skylakegrep
-ollama pull bge-m3
-ollama pull qwen2.5:3b
-skygrep doctor</code></pre>
- <p>
- Register agent instructions once after install. The managed snippet
- teaches Claude Code, Codex, OpenCode, Gemini CLI, Pi, and Cursor to choose
- the right depth: path-only <code>--no-content --top 10 --no-rerank --no-llm-router --no-cascade</code> for fast
- implementation anchors, first-pass
- <code>--content --detail standard --top 8 --no-rerank --no-llm-router --no-cascade</code> for source snippets,
- <code>--detail full</code> only after narrowing,
- <code>--answer</code> for local synthesis, and <code>--json</code> plus
- <code>--include</code> for machine-readable agent calls when the scope is
- known. Agent presets default to rule-based routing, no cascade, and automatic
- hybrid recall for bounded latency. <code>--agent-context</code> fuses path
- tokens, symbols, bounded ripgrep recall, source-type priors, compact evidence,
- and confidence summaries before an LLM consumes the result; add
- <code>--llm-router</code> or <code>--cascade</code> only when ambiguity is worth the local
- model call or deeper semantic refinement. Re-running
- <code>skygrep setup</code> refreshes the managed block when these
- instructions improve. After an upgrade, normal <code>skygrep</code>
- searches and <code>skygrep doctor</code> also refresh already-registered
- managed blocks automatically; new integrations still require explicit
- setup. The full option playbook lives in the
- <a href="cli.html#option-playbook">CLI reference</a>.
- </p>
-<pre><code>skygrep setup</code></pre>
+<pre><code>skygrep doctor
+skygrep setup</code></pre>
  </section>
 
  <!-- ============== Quickstart ============== -->
@@ -1302,16 +1081,12 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
  <p class="eyebrow">Performance</p>
  <h2 class="overview-h2">60 pinned public tasks · source-evidence quality gates · paired efficiency statistics.</h2>
  <p class="lead">
- General Benchmark v2 is reproducible against six exact public commits:
- <strong>Cobra</strong>, <strong>Django</strong>, <strong>React</strong>,
- <strong>Spring Framework</strong>, <strong>Tokio</strong>, and
- <strong>Vite</strong>. Its 60 hand-validated tasks require both the accepted
- source path and literal source evidence. Efficiency is reported only for
- paired tasks where both policies pass the same quality floor; repository-level
- distributions and a hierarchical-bootstrap confidence interval prevent one
- favorable project from becoming a universal claim. The 2026-08-15
- clean-source receipt passed those gates, while also showing that tool calls and the
- median eligible-task latency did not improve.
+ General Benchmark v2: 60 hand-validated tasks across six pinned public
+ commits (Cobra, Django, React, Spring Framework, Tokio, Vite). Efficiency
+ stats only for paired tasks that pass the same quality floor. The 2026-08-15
+ clean-source receipt passed those gates; tool calls and median eligible-task
+ latency did not improve. Numbers below are unchanged from that receipt —
+ full protocol on the linked pages.
  </p>
  <div class="bench-stats">
  <div class="bench-stat">
@@ -1378,6 +1153,7 @@ skygrep search "where is token refresh implemented?" -m 10</code></pre>
 </section>
 
 
+ </main>
  </div>
  </body>
 </html>
