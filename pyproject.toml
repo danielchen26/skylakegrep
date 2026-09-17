@@ -4,7 +4,17 @@ version = "0.7.2"
 description = "Fully-offline semantic search over your local files — powered by Ollama"
 readme = "README.md"
 requires-python = ">=3.9"
-license = {file = "LICENSE"}
+authors = [{name = "Tianchi Chen"}]
+keywords = ["semantic-search", "offline", "mcp", "embeddings", "cli", "rag"]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Environment :: Console",
+    "Topic :: Software Development :: Libraries",
+    "Intended Audience :: Developers",
+]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 dependencies = [
     "click>=8.0",
     "requests>=2.31",
@@ -28,7 +38,7 @@ benchmark = [
 ]
 
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
