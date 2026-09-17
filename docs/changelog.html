@@ -40,6 +40,7 @@
  <a href="concepts.html">Concepts</a>
  <a href="architecture.html">Architecture</a>
  <a href="cli.html">CLI reference</a>
+<a href="mcp.html">MCP server</a>
  <a href="reference.html">JSON schema</a>
  <a href="benchmarks.html">Benchmarks</a>
  <a href="changelog.html" class="active">Release notes</a>
@@ -65,6 +66,58 @@
  versions, in chronological order:
  </p>
  <div class="release-grid">
+ <article class="release-card">
+ <div class="release-tag">0.7.5 · Native MCP MVP + stdio framing</div>
+ <h3>MCP tools on PyPI; Cursor pipe framing fix</h3>
+ <p>
+ Ships <code>skygrep mcp</code> with tools <code>search</code> /
+ <code>agent_context</code>, and binary stdio framing for Cursor/Claude
+ pipes. MCP MVP usable (verified in Cursor); other clients same protocol,
+ verify per host. Not a do-everything production agent.
+ </p>
+ <a class="release-link" href="skylakegrep-0.7.5.html">Full notes →</a>
+ </article>
+ <article class="release-card">
+ <div class="release-tag">0.7.4 · Python 3.9 import fix</div>
+ <h3>Restore 3.9 after the path-scope annotation</h3>
+ <p>One-line patch: <code>from __future__ import annotations</code> in <code>storage.py</code>. No feature changes.</p>
+ <a class="release-link" href="skylakegrep-0.7.4.html">Full notes →</a>
+ </article>
+ <article class="release-card">
+ <div class="release-tag">0.7.3 · Apache-2.0 · index path fix · docs sync</div>
+ <h3>Open-source distribution under Apache-2.0</h3>
+ <p>
+ Relicenses to Apache-2.0, fixes <code>index</code>/<code>watch</code>/<code>--reset</code>
+ so the DB follows the target path (not CWD), and aligns live docs so the
+ packaging surface no longer advertises the old noncommercial license.
+ Existing indexes remain compatible.
+ </p>
+ <a class="release-link" href="skylakegrep-0.7.3.html">Full notes →</a>
+ </article>
+ <article class="release-card">
+ <div class="release-tag">0.7.2 · Pi coding agent · setup catalogue</div>
+ <h3><code>skygrep setup</code> now reaches Pi</h3>
+ <p>
+ Pi (pi-coding-agent) loads <code>~/.pi/agent/AGENTS.md</code> as its global
+ instructions file. <code>skygrep setup</code> now detects Pi and writes the same
+ managed guidance block there that Claude Code, Codex, OpenCode, Gemini CLI,
+ and Cursor already receive. Additive only; nothing else changes.
+ </p>
+ <a class="release-link" href="skylakegrep-0.7.2.html">Full notes →</a>
+ </article>
+ <article class="release-card">
+ <div class="release-tag">0.7.1 · zero-vector width fix · quiet cosine matmul</div>
+ <h3>Fresh indexes no longer pick up wrong-width zero vectors</h3>
+ <p>
+ When an embedding request failed before any request had succeeded, the
+ fallback zero vector was hard-coded to 768 dimensions regardless of the
+ configured model. With the default <code>bge-m3</code> (1024-d) a clean index run
+ was observed to store 20 of 1304 chunks as unsearchable 768-d zeros. The
+ width now follows the model name. Three spurious BLAS warnings per query on
+ numpy 2.0 + Apple Accelerate are also silenced; scores are unchanged.
+ </p>
+ <a class="release-link" href="skylakegrep-0.7.1.html">Full notes →</a>
+ </article>
  <article class="release-card">
  <div class="release-tag">0.7.0 · strict evidence · direct/daemon parity · continuous regression gate</div>
  <h3>High-risk local claims now have a fail-closed verification contract</h3>

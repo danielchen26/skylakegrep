@@ -77,6 +77,7 @@
  <a href="concepts.html">Concepts</a>
  <a href="architecture.html">Architecture</a>
  <a href="cli.html">CLI reference</a>
+<a href="mcp.html">MCP server</a>
  <a href="reference.html">JSON schema</a>
  <a href="benchmarks.html">Benchmarks</a>
  <a href="changelog.html" class="active">Release notes</a>
@@ -177,15 +178,18 @@ richer <code>.gitignore</code> / <code>.skygrepignore</code> precedence rules.</
 instances optimally for concurrent requests. A production-grade
 daemon would amortise model warm-load across all queries on the
 host.</p>
+<h2>Recently done</h2>
+<ul>
+<li><strong>Apache-2.0 relicense (#14).</strong> Live code and packaging are Apache-2.0;
+  see <code>LICENSE</code> / <code>NOTICE</code> / <code>TRADEMARK.md</code>. Historical <code>docs/skylakegrep-0.*</code>
+  pages remain archival snapshots.</li>
+</ul>
 <h2>Not on the roadmap</h2>
 <ul>
 <li><strong>Cloud-hosted index.</strong> This project is local-first by design.</li>
 <li><strong>Removing the Ollama dependency.</strong> <code>skygrep</code> is intentionally
   built on top of Ollama for local LLM access. Other backends
   (e.g. llama.cpp direct) are possible but not prioritised.</li>
-<li><strong>MIT relicensing.</strong> This project is PolyForm Noncommercial
-  1.0.0 and stays that way. Commercial users should contact for
-  a commercial license.</li>
 </ul>
  </article>
  </main>

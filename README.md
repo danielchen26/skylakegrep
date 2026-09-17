@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://pypi.org/project/skylakegrep/"><img src="https://img.shields.io/pypi/v/skylakegrep?label=pypi&color=22d3ee&labelColor=0a0d12" alt="PyPI"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.9%2B-22d3ee?labelColor=0a0d12" alt="Python 3.9+"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm--NC--1.0.0-f59e0b?labelColor=0a0d12" alt="PolyForm Noncommercial 1.0.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-22d3ee?labelColor=0a0d12" alt="Apache-2.0"></a>
   <a href="https://danielchen26.github.io/skylakegrep/"><img src="https://img.shields.io/badge/docs-published-22d3ee?labelColor=0a0d12" alt="Documentation"></a>
   <a href="https://github.com/danielchen26/skylakegrep/releases/latest"><img src="https://img.shields.io/github/v/release/danielchen26/skylakegrep?label=release&color=22d3ee&labelColor=0a0d12" alt="Latest release"></a>
 </p>
@@ -344,14 +344,14 @@ ollama pull qwen2.5:3b
 skygrep doctor
 
 # 4. (one time) register skygrep with your LLM CLI of choice
-skygrep setup     # Claude Code · Codex · OpenCode · Gemini CLI · Cursor
+skygrep setup     # Claude Code · Codex · OpenCode · Gemini CLI · Pi · Cursor
 
 # 5. ask anything, anywhere
 skygrep "your question here"
 ```
 
 `skygrep setup` writes a short agent rule into Claude Code, Codex,
-OpenCode, Gemini CLI, and Cursor when detected. The rule tells the
+OpenCode, Gemini CLI, Pi, and Cursor when detected. The rule tells the
 agent which depth to request: path-only `--no-content --top 10 --no-rerank` for implementation
 anchors, first-pass `--content --detail standard --top 8 --no-rerank` for source snippets,
 `--detail full` only after narrowing, `--answer` for local synthesis,
@@ -729,6 +729,27 @@ explicitly requested.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.7.5`** — Native MCP MVP (`search` / `agent_context`) + binary stdio
+    framing for Cursor/Claude pipes (#22/#23). Positioned as MCP MVP usable,
+    not a do-everything production agent. Other MCP hosts: same protocol,
+    verify per client.
+- **`0.7.4`** — Patch: restore Python 3.9 import compatibility after #15
+    (`from __future__ import annotations` in `storage.py`, #20). No feature changes.
+  - **`0.7.3`** — Open-source distribution release. Relicenses the project to
+    Apache-2.0 (#14), fixes `index`/`watch`/`--reset` so the DB follows the
+    target path instead of CWD (#15), and aligns live docs + packaging so
+    `pip install skylakegrep` no longer advertises the old noncommercial
+    license. Existing indexes remain compatible.
+  - **`0.7.2`** — `skygrep setup` now detects and registers with Pi
+    (pi-coding-agent) via `~/.pi/agent/AGENTS.md`, alongside Claude Code,
+    Codex, OpenCode, Gemini CLI, and Cursor. Additive only; existing indexes
+    and the other agents' files are untouched.
+  - **`0.7.1`** — Bug-fix release. The zero-vector fallback width now follows
+    the configured embed model instead of a hard-coded 768, so a fresh
+    `bge-m3` index can no longer pick up wrong-width zero vectors (observed
+    20/1304 chunks silently unsearchable). Three spurious BLAS
+    `RuntimeWarning`s per query on numpy 2.0 + Apple Accelerate are silenced;
+    scores are unchanged. Existing indexes remain compatible.
   - **`0.7.0`** — Fail-closed `--strict` verification for high-risk local
     claims, a shared direct/daemon agent-context implementation, daemon
     project-boundary validation, macOS path-alias coalescing, and a continuous
@@ -977,9 +998,11 @@ specific order.
 
 ## License
 
-PolyForm Noncommercial 1.0.0. Personal · academic · research ·
-hobby use is fully permitted. Commercial use requires a separate
-license — contact the maintainers.
+Apache License 2.0 — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+Commercial use, modification, and redistribution are permitted under
+those terms. The names *skylakegrep* / *skygrep* are trademarks; see
+[`TRADEMARK.md`](TRADEMARK.md) for naming policy (Apache does not grant
+trademark rights).
 
 ---
 

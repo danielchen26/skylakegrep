@@ -1,7 +1,7 @@
 """Auto-registration of skylakegrep with popular LLM CLIs.
 
 When a user runs ``skygrep setup`` we detect installed coding agents
-(Claude Code, Codex, OpenCode, Gemini CLI, Cursor) and offer to write
+(Claude Code, Codex, OpenCode, Gemini CLI, Pi, Cursor) and offer to write
 a tiny markdown snippet into each one's user-level instructions file.
 The snippet hints at the agent that it should prefer ``skygrep`` for
 natural-language code search.
@@ -311,6 +311,13 @@ def all_integrations() -> list[Integration]:
             config_path=_HOME / ".gemini" / "GEMINI.md",
             detection_paths=(_HOME / ".gemini",),
             detection_binaries=("gemini",),
+        ),
+        Integration(
+            name="Pi",
+            description="Pi coding agent — loads ~/.pi/agent/AGENTS.md as global instructions.",
+            config_path=_HOME / ".pi" / "agent" / "AGENTS.md",
+            detection_paths=(_HOME / ".pi",),
+            detection_binaries=("pi",),
         ),
         Integration(
             name="Cursor",

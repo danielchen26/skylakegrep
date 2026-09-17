@@ -1,3 +1,4 @@
+from __future__ import annotations
 import fnmatch
 import logging
 import os
@@ -17,6 +18,13 @@ logger = logging.getLogger(__name__)
 LEXICAL_WEIGHT = 0.2
 MAX_RESULTS_PER_FILE = 2
 TOKEN_RE = re.compile(r"[a-z0-9]+")
+
+# Some BLAS backends (observed: Apple Accelerate with numpy 2.0) raise
+# spurious divide/overflow/invalid FP flags on float32 matmul even when
+# every output is finite. Results are unaffected; wrap the cosine matmuls
+# in ``np.errstate(**_QUIET_MATMUL)`` so every query does not log three
+# RuntimeWarnings.
+_QUIET_MATMUL = {"divide": "ignore", "over": "ignore", "invalid": "ignore"}
 
 # L2 symbol-aware boost. ``SYMBOL_WEIGHT`` is the maximum additive bump a
 # fully-matched symbol adds to a candidate's score; partial matches scale
@@ -531,7 +539,8 @@ def file_level_search(
         return []
     qn = float(np.linalg.norm(query_embedding))
     denom = np.linalg.norm(matrix, axis=1) * qn + 1e-8
-    scores = matrix @ query_embedding / denom
+    with np.errstate(**_QUIET_MATMUL):
+        scores = matrix @ query_embedding / denom
     order = np.argsort(-scores)[:top_files]
     return [rows[int(i)][0] for i in order]
 
@@ -597,11 +606,21 @@ def delete_file_chunks(conn, file: str):
         conn.execute("DELETE FROM chunks WHERE file = ?", (file,))
         conn.commit()
 
-def delete_missing_files(conn, current_files: set[str], root: Path) -> list[str]:
+def delete_missing_files(
+    conn, current_files: set[str], root: Path, resolve_base: Path | None = None
+) -> list[str]:
     root_path = root.resolve()
+    # Older releases stored ``chunks.file`` relative to the project root;
+    # resolve such rows against the project root (``resolve_base``), never
+    # against the process CWD, or rows written by ``skygrep index .`` become
+    # unreachable when the command later runs from a different directory.
+    base_path = resolve_base.resolve() if resolve_base is not None else root_path
     deleted = []
     for file_path in get_indexed_files(conn):
-        indexed_path = Path(file_path).resolve()
+        indexed_path = Path(file_path)
+        if not indexed_path.is_absolute():
+            indexed_path = base_path / indexed_path
+        indexed_path = indexed_path.resolve()
         try:
             indexed_path.relative_to(root_path)
         except ValueError:
@@ -883,7 +902,8 @@ def search(
     if matrix.shape[0] == 0:
         return []
     denom = np.linalg.norm(matrix, axis=1) * np.linalg.norm(query_vec) + 1e-8
-    semantic_scores = matrix @ query_vec / denom
+    with np.errstate(**_QUIET_MATMUL):
+        semantic_scores = matrix @ query_vec / denom
     lexical_scores = np.zeros(len(rows), dtype=np.float32)
     scores = semantic_scores
     if query_text and not semantic_only:
@@ -1023,7 +1043,8 @@ def _file_level_pairs(
         return []
     qn = float(np.linalg.norm(query_embedding))
     denom = np.linalg.norm(matrix, axis=1) * qn + 1e-8
-    scores = matrix @ query_embedding / denom
+    with np.errstate(**_QUIET_MATMUL):
+        scores = matrix @ query_embedding / denom
     order = np.argsort(-scores)[:top_files]
     return [(rows[int(i)][0], float(scores[int(i)])) for i in order]
 

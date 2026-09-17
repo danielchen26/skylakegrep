@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="skylakegrep native MCP MVP documentation" />
+<meta name="theme-color" content="#13192a" />
+<title>MCP · skylakegrep</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<link rel="stylesheet" href="styles.css?v=4.2.0" />
+<style>
+   .docs-shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) !important;
+                  max-width: 1500px !important; }
+   .content { width: 100% !important; max-width: 100% !important; }
+   .md-body { max-width: 880px; margin: 0 auto; padding: 16px 0 64px; color: var(--text); }
+   .md-body h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 16px;
+                  letter-spacing: -0.02em; color: var(--ink); font-weight: 700; }
+   .md-body h2 { font-size: clamp(22px, 2.5vw, 28px); margin: 40px 0 12px;
+                  color: var(--ink); font-weight: 600; letter-spacing: -0.015em;
+                  padding-top: 8px; border-top: 1px solid var(--rule-faint); }
+   .md-body h3 { font-size: 17px; margin: 28px 0 10px; color: var(--ink); font-weight: 600; }
+   .md-body p, .md-body li { font-size: 15px; line-height: 1.7; color: var(--text); }
+   .md-body a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(165,243,252,0.32); }
+   .md-body code { font-family: var(--mono); font-size: 13px; background: var(--code-bg);
+                    padding: 2px 6px; border-radius: 4px; color: var(--code-text);
+                    border: 1px solid var(--code-border); }
+   .md-body pre { background: var(--code-bg-deep); padding: 16px 18px; border-radius: 10px;
+                   border: 1px solid var(--code-border); overflow-x: auto; margin: 14px 0; }
+   .md-body pre code { background: transparent; padding: 0; border: none; font-size: 12.5px; }
+   .md-body table { border-collapse: collapse; margin: 18px 0; width: 100%; font-size: 13.5px; }
+   .md-body th, .md-body td { padding: 9px 12px; border-bottom: 1px solid var(--rule); text-align: left; }
+   .md-body th { color: var(--ink); font-weight: 600; background: var(--panel); }
+   .md-body blockquote { margin: 14px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+                          background: var(--accent-soft); border-radius: 6px; color: var(--text); }
+   .md-body ul, .md-body ol { padding-left: 22px; }
+   .md-body li { margin: 4px 0; }
+   .md-body hr { border: none; border-top: 1px solid var(--rule-faint); margin: 28px 0; }
+</style>
+</head><body>
+<header class="topbar">
+<a class="topbrand" href="index.html"><span class="brand-mark">∞</span><span class="brand-name">skylakegrep</span></a>
+<nav class="topnav"><a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a class="topnav-cta" href="index.html#install">Install</a></nav>
+</header>
+<div class="docs-shell">
+<aside class="sidebar"><div class="sidebar-title">skylakegrep</div>
+<nav>
+<div class="nav-section"><p>Pages</p>
+<a href="index.html">Home</a>
+<a href="concepts.html">Concepts</a>
+<a href="architecture.html">Architecture</a>
+<a href="cli.html">CLI reference</a>
+<a href="mcp.html" class="active">MCP server</a>
+<a href="reference.html">JSON schema</a>
+<a href="benchmarks.html">Benchmarks</a>
+<a href="changelog.html" class="active">Release notes</a>
+</div>
+<div class="nav-section"><p>Project</p>
+<a href="https://github.com/danielchen26/skylakegrep">GitHub</a>
+<a href="https://pypi.org/project/skylakegrep/">PyPI</a>
+<a href="principles.html">Principles</a>
+</div></nav></aside>
+<main class="content subpage-content">
+<article class="md-body">
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">docs · mcp mvp · v0.7.5</p>
+<h1>Native MCP server (MVP)</h1>
+<p><code>skygrep mcp</code> exposes a <strong>stdio</strong> Model Context Protocol server so agents can call skygrep as structured tools instead of scraping shell output.</p>
+<p>This is an <strong>MVP</strong>: two tools that <strong>delegate</strong> to the existing retrieval pipelines. It is not marketed as a production-hardened MCP product yet.</p>
+<p><strong>Client status:</strong> protocol is generic stdio MCP. <strong>Cursor</strong> has been verified end-to-end (Connected + 2 tools + live <code>agent_context</code> call). Claude Desktop / Claude Code / other hosts use the same tools but need their own config + a successful call — do not treat Cursor success as universal out-of-the-box.</p>
+<h2>Tools</h2>
+<table>
+<thead><tr><th>Tool</th><th>Delegates to</th><th>CLI analogue</th></tr></thead>
+<tbody>
+<tr><td><code>search</code></td><td><code>storage.search</code></td><td><code>skygrep search</code></td></tr>
+<tr><td><code>agent_context</code></td><td><code>run_agent_context_search</code></td><td><code>skygrep --agent-context</code></td></tr>
+</tbody>
+</table>
+<p>Ops commands (<code>index</code> / <code>watch</code> / <code>setup</code> / …) stay on the CLI. Tool parameters live in each tool’s schema — fewer tools, richer arguments.</p>
+<h2>Why not the official <code>mcp</code> SDK by default?</h2>
+<p>The official PyPI <code>mcp</code> package currently needs Python ≥ 3.10 and a heavy dependency stack. skylakegrep stays on <strong>Python 3.9+</strong> with a lean stdlib JSON-RPC + Content-Length framing implementation (binary stdio as of 0.7.5).</p>
+<h2>Install &amp; configure</h2>
+<pre><code>pip install skylakegrep==0.7.5
+skygrep index /absolute/path/to/your/repo
+</code></pre>
+<p>Cursor (<code>~/.cursor/mcp.json</code> or project <code>.cursor/mcp.json</code>):</p>
+<pre><code>{
+  "mcpServers": {
+    "skygrep": {
+      "command": "skygrep",
+      "args": ["mcp", "--path", "/absolute/path/to/your/repo"],
+      "env": {}
+    }
+  }
+}
+</code></pre>
+<p>Starter file: <a href="examples/mcp.json"><code>examples/mcp.json</code></a>. Full notes also in <a href="mcp.md"><code>mcp.md</code></a>.</p>
+<h2>Positioning</h2>
+<p>Apache-2.0 · offline · CLI / <code>agent_context</code> harness · <strong>MCP MVP usable</strong> — a retrieval component for existing agents, not a do-everything agent platform.</p>
+<p>Follow-ups (latency path, large-repo smoke, other MCP clients): <a href="FOLLOWUPS-0.7.5.html">FOLLOWUPS-0.7.5</a>.</p>
+</article>
+</main>
+</div>
+</body></html>

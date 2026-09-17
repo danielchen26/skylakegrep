@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "skygrep": {
+      "command": "skygrep",
+      "args": ["mcp", "--path", "/absolute/path/to/your/repo"],
+      "env": {}
+    }
+  }
+}

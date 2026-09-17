@@ -925,7 +925,7 @@ def render_json_results(results: list[dict], *, include_snippet: bool = True) ->
 
 
 # Subcommand names that take precedence over bare-form query routing.
-_SUBCOMMANDS = {"index", "search", "watch", "serve", "stats", "doctor", "enrich", "setup"}
+_SUBCOMMANDS = {"index", "search", "watch", "serve", "mcp", "stats", "doctor", "enrich", "setup"}
 _DETAIL_CHOICES = {"brief", "standard", "full", "summary"}
 _AGENT_MODE_CHOICES = {"off", "fast", "context", "deep", "answer"}
 _DEFAULT_AGENT_DAEMON_URL = "http://127.0.0.1:7878"
@@ -1025,6 +1025,43 @@ def cli(ctx):
         click.echo(ctx.get_help())
 
 
+def _index_target(path: str, *, full_project: bool) -> tuple[Path, Path, Path]:
+    """Resolve ``(root, project, db_path)`` for an explicit target directory
+    argument.
+
+    ``index <path>`` / ``watch <path>`` must derive the DB from ``<path>`` —
+    not from the current working directory. The DB is normalized through
+    ``project_root`` so a subdirectory target lands in the same per-project DB
+    that searches run inside the project will open.
+
+    ``full_project=True`` (``index``) also widens the indexing root to the
+    resolved project: ``index`` stamps full-index markers that
+    ``auto_index.is_index_ready`` trusts, so a project-root DB must never hold
+    only a subdirectory's chunks. ``watch`` stamps no such markers and keeps
+    the user's scope (``full_project=False``): it polls exactly the directory
+    given, while writing into the project DB.
+
+    ``SKYGREP_DB_PATH`` keeps the highest precedence, matching
+    ``resolve_db_path`` and the env override that
+    ``auto_index.spawn_background_index`` relies on; in that case ``<path>``
+    is used as given, since the caller pinned the DB explicitly.
+
+    ``project`` is the resolved project root — the base legacy relative
+    ``chunks.file`` rows must be resolved against (see
+    ``delete_missing_files``).
+    """
+
+    env = os.environ.get("SKYGREP_DB_PATH")
+    if env:
+        root = Path(path)
+        return root, root, Path(env)
+    project = cfg_mod.project_root(Path(path))
+    # Resolve the narrow root too: chunk paths are stored as-is, so a
+    # relative invocation must not bake the caller's CWD into the DB.
+    root = project if full_project else Path(path).resolve()
+    return root, project, cfg_mod.project_db_path(project)
+
+
 @cli.command()
 @click.argument("path", default=".")
 @click.option("--reset", is_flag=True, help="Reset existing index before reindexing")
@@ -1035,21 +1072,21 @@ def index(path: str, reset: bool, incremental: bool):
     forced full rebuilds, ``--reset`` after switching embedding models, or
     indexing a directory other than the current working tree."""
 
-    config = get_config()
-    db_path = config["db_path"]
+    root, project, db_path = _index_target(path, full_project=True)
     if reset and db_path.exists():
         db_path.unlink()
     conn = init_db(db_path)
     embedder = get_embedder()
 
-    root = Path(path)
     files = collect_indexable_files(root)
 
     click.echo(f"Found {len(files)} files to index")
 
     if incremental and not reset:
         indexed_files = get_indexed_files(conn)
-        deleted_files = delete_missing_files(conn, {str(f) for f in files}, root)
+        deleted_files = delete_missing_files(
+            conn, {str(f) for f in files}, root, resolve_base=project
+        )
         to_index = []
         to_reindex = []
         for f in files:
@@ -3811,18 +3848,18 @@ def search_cmd(
 def watch(path: str, interval: int):
     """Continuously index a directory: poll mtimes, reindex changed files."""
 
-    config = get_config()
-    db_path = config["db_path"]
+    root, project, db_path = _index_target(path, full_project=False)
     conn = init_db(db_path)
     embedder = get_embedder()
     indexed_files = get_indexed_files(conn)
 
-    click.echo(f"Watching {path} for changes (Ctrl+C to stop)")
+    click.echo(f"Watching {root} for changes (Ctrl+C to stop)")
     while True:
         try:
-            root = Path(path)
             files = collect_indexable_files(root)
-            deleted_files = delete_missing_files(conn, {str(f) for f in files}, root)
+            deleted_files = delete_missing_files(
+                conn, {str(f) for f in files}, root, resolve_base=project
+            )
             for deleted_file in deleted_files:
                 indexed_files.pop(deleted_file, None)
                 click.echo(f"  Deleted: {deleted_file}")
@@ -3876,6 +3913,26 @@ def serve(host: str, port: int, warm_reranker: bool):
     from .server import serve as _serve
 
     _serve(host=host, port=port, warm_reranker=warm_reranker)
+
+
+@cli.command("mcp")
+@click.option(
+    "--path",
+    "mcp_path",
+    default=None,
+    help="Default project root for MCP tool calls (also SKYGREP_MCP_PATH).",
+)
+def mcp(mcp_path: str | None):
+    """Run the native MCP stdio server (tools: search, agent_context).
+
+    Speaks Model Context Protocol over stdin/stdout. Configure Cursor or
+    Claude Desktop with `skygrep mcp` — see docs/mcp.md. Delegates to the
+    same retrieval pipelines as `skygrep search` / `--agent-context`.
+    """
+
+    from .mcp_server import serve_stdio
+
+    serve_stdio(default_path=mcp_path)
 
 
 @cli.command()
@@ -4020,7 +4077,7 @@ def doctor():
 def setup(ctx, list_only: bool, check: bool, uninstall: bool, skip: bool, yes: bool):
     """Register skylakegrep as preferred semantic search with installed LLM CLIs.
 
-    Detects Claude Code, Codex, OpenCode, Gemini CLI, and Cursor on
+    Detects Claude Code, Codex, OpenCode, Gemini CLI, Pi, and Cursor on
     your machine and offers to write a tiny markdown snippet into each
     one's user-level instructions file. The snippet hints to the agent
     that it should prefer ``skygrep`` for natural-language code search and

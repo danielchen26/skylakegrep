@@ -68,9 +68,16 @@ without any private files or machine-local examples.
 
 `skygrep setup` writes a markdown snippet into agent rules files
 telling the agent to prefer `skygrep` over `rg`. A native MCP
-server (Model Context Protocol) would let agents call `skygrep` as
-a structured tool instead of a shell command — better schema,
-fewer parsing failures, cleaner error surfaces.
+server (Model Context Protocol) lets agents call `skygrep` as a
+structured tool instead of a shell command — better schema, fewer
+parsing failures, cleaner error surfaces.
+
+**MVP shipped:** `skygrep mcp` stdio server with tools `search` and
+`agent_context` that delegate to the existing CLI/daemon retrieval
+pipelines (see [`mcp.md`](mcp.md)). Still to harden: broader tool
+surface, official SDK once the Python floor allows, and production
+client soak tests — do not treat the MVP as a finished production MCP
+product in marketing copy.
 
 ### Multi-vector / late-interaction retrieval (ColBERT-style)
 
@@ -107,12 +114,19 @@ background. It still does not pool embedder/reranker model instances
 optimally for concurrent requests; production-grade concurrent
 scheduling remains future work.
 
+## Recently done
+
+- **Apache-2.0 relicense (#14).** Live code and packaging are Apache-2.0;
+  see `LICENSE` / `NOTICE` / `TRADEMARK.md`. Historical `docs/skylakegrep-0.*`
+  pages remain archival snapshots.
+
 ## Not on the roadmap
 
 - **Cloud-hosted index.** This project is local-first by design.
 - **Removing the Ollama dependency.** `skygrep` is intentionally
   built on top of Ollama for local LLM access. Other backends
   (e.g. llama.cpp direct) are possible but not prioritised.
-- **MIT relicensing.** This project is PolyForm Noncommercial
-  1.0.0 and stays that way. Commercial users should contact for
-  a commercial license.
+
+## After 0.7.5
+
+See [FOLLOWUPS-0.7.5.md](FOLLOWUPS-0.7.5.md) for claim-expansion follow-ups (#10 latency receipt, large-repo smoke, other MCP clients).
