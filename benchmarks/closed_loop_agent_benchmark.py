@@ -411,13 +411,12 @@ def _skygrep_step(
         "search",
     ]
     if not content:
-        # Measure the production path-only preset.  A hand-written collection
-        # of JSON flags is not equivalent: agent-fast also selects the bounded
-        # candidate-recall implementation and disables model-routed latency.
+        # Measure the production path-only preset, including its routing and
+        # output defaults, rather than approximating it with JSON flags.
         cmd.append("--agent-fast")
     elif detail == "full":
-        # Full extraction is only used after the loop has narrowed to known
-        # files.  Keep the deep read deterministic and model-free.
+        # Deep retrieval is only used after the loop has narrowed to known
+        # files. Disable generative routing/cascade; embeddings may still run.
         cmd.extend(["--agent-mode", "deep", "--no-llm-router", "--no-cascade"])
     else:
         # This is the real first-pass evidence path used by coding agents.
