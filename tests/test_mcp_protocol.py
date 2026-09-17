@@ -215,25 +215,23 @@ class McpProtocolTests(unittest.TestCase):
             "id": 9,
             "method": "tools/list",
         }
-        body = json.dumps(request)
-        framed = f"Content-Length: {len(body.encode('utf-8'))}\r\n\r\n{body}"
-        stdin = io.StringIO(framed)
-        stdout = io.StringIO()
+        body = json.dumps(request).encode("utf-8")
+        framed = f"Content-Length: {len(body)}\r\n\r\n".encode("ascii") + body
+        stdin = io.BytesIO(framed)
+        stdout = io.BytesIO()
 
-        # Drive a single message through serve_stdio then EOF.
         def _handle_once():
             msg = mcp_server._read_message(stdin)
             self.assertIsNotNone(msg)
             resp = server.handle(msg)  # type: ignore[arg-type]
             self.assertIsNotNone(resp)
-            mcp_server._write_message(stdout, resp)  # type: ignore[arg-type]
+            mcp_server._write_message(stdout, resp)
 
         _handle_once()
         out = stdout.getvalue()
-        self.assertIn("Content-Length:", out)
-        # Parse body after headers
-        _, raw_body = out.split("\r\n\r\n", 1)
-        parsed = json.loads(raw_body)
+        self.assertIn(b"Content-Length:", out)
+        _, raw_body = out.split(b"\r\n\r\n", 1)
+        parsed = json.loads(raw_body.decode("utf-8"))
         names = {t["name"] for t in parsed["result"]["tools"]}
         self.assertEqual(names, {"search", "agent_context"})
 
