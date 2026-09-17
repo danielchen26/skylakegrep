@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="skylakegrep v0.7.5 — release notes" />
+<meta name="description" content="skylakegrep native MCP MVP documentation" />
 <meta name="theme-color" content="#13192a" />
-<title>v0.7.5 · skylakegrep</title>
+<title>MCP · skylakegrep</title>
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://rsms.me/" />
 <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
@@ -51,7 +51,7 @@
 <a href="concepts.html">Concepts</a>
 <a href="architecture.html">Architecture</a>
 <a href="cli.html">CLI reference</a>
-<a href="mcp.html">MCP server</a>
+<a href="mcp.html" class="active">MCP server</a>
 <a href="reference.html">JSON schema</a>
 <a href="benchmarks.html">Benchmarks</a>
 <a href="changelog.html" class="active">Release notes</a>
@@ -63,22 +63,41 @@
 </div></nav></aside>
 <main class="content subpage-content">
 <article class="md-body">
-<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.7.5</p>
-<h1>skylakegrep 0.7.5 — Native MCP MVP + stdio framing</h1>
-<p>0.7.5 ships the native MCP server to PyPI and fixes Content-Length framing for Cursor / Claude Code pipes.</p>
-<h2>What changed</h2>
-<ul>
-<li><strong>Native MCP MVP (#22).</strong> <code>skygrep mcp</code> / <code>skygrep-mcp</code> expose tools <code>search</code> and <code>agent_context</code> over JSON-RPC stdio (same retrieval contract as CLI <code>--agent-context</code> for the latter). See <code>docs/mcp.md</code>.</li>
-<li><strong>Binary stdio framing (#23).</strong> Read/write via <code>stdin.buffer</code> / <code>stdout.buffer</code> so Content-Length matches raw pipe clients.</li>
-</ul>
-<h2>Compatibility</h2>
-<ul>
-<li>Still <strong>Python 3.9+</strong>; the official <code>mcp</code> SDK is not a package dependency.</li>
-<li>Apache-2.0, offline-first. Existing indexes untouched.</li>
-<li>Cursor verified end-to-end; other MCP clients: same protocol, configure and verify separately.</li>
-</ul>
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">docs · mcp mvp · v0.7.5</p>
+<h1>Native MCP server (MVP)</h1>
+<p><code>skygrep mcp</code> exposes a <strong>stdio</strong> Model Context Protocol server so agents can call skygrep as structured tools instead of scraping shell output.</p>
+<p>This is an <strong>MVP</strong>: two tools that <strong>delegate</strong> to the existing retrieval pipelines. It is not marketed as a production-hardened MCP product yet.</p>
+<p><strong>Client status:</strong> protocol is generic stdio MCP. <strong>Cursor</strong> has been verified end-to-end (Connected + 2 tools + live <code>agent_context</code> call). Claude Desktop / Claude Code / other hosts use the same tools but need their own config + a successful call — do not treat Cursor success as universal out-of-the-box.</p>
+<h2>Tools</h2>
+<table>
+<thead><tr><th>Tool</th><th>Delegates to</th><th>CLI analogue</th></tr></thead>
+<tbody>
+<tr><td><code>search</code></td><td><code>storage.search</code></td><td><code>skygrep search</code></td></tr>
+<tr><td><code>agent_context</code></td><td><code>run_agent_context_search</code></td><td><code>skygrep --agent-context</code></td></tr>
+</tbody>
+</table>
+<p>Ops commands (<code>index</code> / <code>watch</code> / <code>setup</code> / …) stay on the CLI. Tool parameters live in each tool’s schema — fewer tools, richer arguments.</p>
+<h2>Why not the official <code>mcp</code> SDK by default?</h2>
+<p>The official PyPI <code>mcp</code> package currently needs Python ≥ 3.10 and a heavy dependency stack. skylakegrep stays on <strong>Python 3.9+</strong> with a lean stdlib JSON-RPC + Content-Length framing implementation (binary stdio as of 0.7.5).</p>
+<h2>Install &amp; configure</h2>
+<pre><code>pip install skylakegrep==0.7.5
+skygrep index /absolute/path/to/your/repo
+</code></pre>
+<p>Cursor (<code>~/.cursor/mcp.json</code> or project <code>.cursor/mcp.json</code>):</p>
+<pre><code>{
+  "mcpServers": {
+    "skygrep": {
+      "command": "skygrep",
+      "args": ["mcp", "--path", "/absolute/path/to/your/repo"],
+      "env": {}
+    }
+  }
+}
+</code></pre>
+<p>Starter file: <a href="examples/mcp.json"><code>examples/mcp.json</code></a>. Full notes also in <a href="mcp.md"><code>mcp.md</code></a>.</p>
 <h2>Positioning</h2>
-<p>Apache-2.0 · offline · CLI / <code>agent_context</code> harness · <strong>MCP MVP usable</strong> — not a do-everything production agent platform.</p>
+<p>Apache-2.0 · offline · CLI / <code>agent_context</code> harness · <strong>MCP MVP usable</strong> — a retrieval component for existing agents, not a do-everything agent platform.</p>
+<p>Follow-ups (latency path, large-repo smoke, other MCP clients): <a href="FOLLOWUPS-0.7.5.html">FOLLOWUPS-0.7.5</a>.</p>
 </article>
 </main>
 </div>

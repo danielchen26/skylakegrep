@@ -1,9 +1,9 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="skylakegrep v0.7.5 — release notes" />
+<meta name="description" content="skylakegrep 0.7.5 follow-up checklist" />
 <meta name="theme-color" content="#13192a" />
-<title>v0.7.5 · skylakegrep</title>
+<title>Follow-ups · skylakegrep 0.7.5</title>
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://rsms.me/" />
 <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
@@ -63,22 +63,17 @@
 </div></nav></aside>
 <main class="content subpage-content">
 <article class="md-body">
-<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">release notes · v0.7.5</p>
-<h1>skylakegrep 0.7.5 — Native MCP MVP + stdio framing</h1>
-<p>0.7.5 ships the native MCP server to PyPI and fixes Content-Length framing for Cursor / Claude Code pipes.</p>
-<h2>What changed</h2>
-<ul>
-<li><strong>Native MCP MVP (#22).</strong> <code>skygrep mcp</code> / <code>skygrep-mcp</code> expose tools <code>search</code> and <code>agent_context</code> over JSON-RPC stdio (same retrieval contract as CLI <code>--agent-context</code> for the latter). See <code>docs/mcp.md</code>.</li>
-<li><strong>Binary stdio framing (#23).</strong> Read/write via <code>stdin.buffer</code> / <code>stdout.buffer</code> so Content-Length matches raw pipe clients.</li>
-</ul>
-<h2>Compatibility</h2>
-<ul>
-<li>Still <strong>Python 3.9+</strong>; the official <code>mcp</code> SDK is not a package dependency.</li>
-<li>Apache-2.0, offline-first. Existing indexes untouched.</li>
-<li>Cursor verified end-to-end; other MCP clients: same protocol, configure and verify separately.</li>
-</ul>
-<h2>Positioning</h2>
-<p>Apache-2.0 · offline · CLI / <code>agent_context</code> harness · <strong>MCP MVP usable</strong> — not a do-everything production agent platform.</p>
+<p style="font-size:11px;letter-spacing:0.18em;color:rgba(165,243,252,0.65);font-family:var(--mono);margin-bottom:8px;text-transform:uppercase;">follow-ups · after 0.7.5</p>
+<h1>0.7.5 之后未穷尽项</h1>
+<p>产品 <strong>0.7.5 已发布</strong>。下列项用于扩大 claim，不是安装阻塞。详见 <a href="FOLLOWUPS-0.7.5.md">FOLLOWUPS-0.7.5.md</a>。</p>
+<ol>
+<li><strong>#10 + 六仓重跑新 receipt</strong> — 撑 latency / 测速路径 claim</li>
+<li><strong>真机大仓 smoke</strong> — 撑「大项目也好用」</li>
+<li><strong>其它 MCP 客户端各验</strong> — 撑「不止 Cursor」</li>
+<li><strong>scale / noise</strong> — 可选稳性加码</li>
+<li><strong>首页观感</strong> — 对外一致性（本 docs 更新已覆盖主缺口）</li>
+</ol>
+<p>可说：Apache-2.0 · offline · CLI/`agent_context` · MCP MVP（Cursor 已验）。别说：延迟全面验完 / 处处开箱 / comprehensive 全部做完。</p>
 </article>
 </main>
 </div>
