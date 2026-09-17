@@ -7,7 +7,6 @@ requires-python = ">=3.9"
 authors = [{name = "Tianchi Chen"}]
 keywords = ["semantic-search", "offline", "mcp", "embeddings", "cli", "rag"]
 classifiers = [
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Environment :: Console",
     "Topic :: Software Development :: Libraries",
