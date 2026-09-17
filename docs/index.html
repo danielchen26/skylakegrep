@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta property="og:description" content="Fully-offline semantic search that finds what you mean — code, markdown, PDFs, Word docs, plain text. v0.7.0 adds fail-closed strict evidence, direct/daemon agent parity, and a continuous accuracy/performance regression gate. Content-agnostic retrieval, 100+ languages, Apache-2.0, powered by local Ollama." />
+ <meta property="og:description" content="Fully-offline semantic search for code, PDFs, notes, and docs. v0.7.5 ships Apache-2.0 packaging, a native MCP MVP (search / agent_context; Cursor verified), and CLI agent-context harness. 100% local, powered by Ollama — a retrieval component, not a do-everything agent." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta name="twitter:description" content="Fully-offline semantic search that finds what you mean. v0.7.0 adds fail-closed strict evidence, direct/daemon agent parity, and a continuous accuracy/performance regression gate. 100% local, 100+ languages." />
+ <meta name="twitter:description" content="Fully-offline semantic search. v0.7.5: Apache-2.0, MCP MVP (search/agent_context; Cursor verified), CLI agent-context harness. 100% local — a retrieval component, not a full agent." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -379,7 +379,8 @@
  <a href="#overview" class="active">Overview</a>
  <a href="#scenarios">Scenarios</a>
  <a href="#depth-examples">Depth examples</a>
- <a href="#new-in-070">New in 0.7.0</a>
+ <a href="#new-in-075">New in 0.7.5</a>
+ <a href="#new-in-070">Earlier: 0.7.0</a>
  <a href="#why-skylakegrep">Why skylakegrep?</a>
  <a href="#vs-elasticsearch">vs Elasticsearch</a>
  <a href="#how-it-works">How it works</a>
@@ -392,6 +393,7 @@
  <a href="concepts.html">Concepts</a>
  <a href="architecture.html">Architecture</a>
  <a href="cli.html">CLI reference</a>
+ <a href="mcp.html">MCP server</a>
  <a href="reference.html">JSON schema</a>
  <a href="benchmarks.html">Full benchmarks</a>
  <a href="changelog.html">Release notes</a>
@@ -845,6 +847,83 @@ Throughput projections under sustained 5k QPS load...</pre>
 </section>
 
 
+
+<!-- ============== New in 0.7.5 ============== -->
+<section id="new-in-075" class="doc-section scenarios-section">
+ <p class="eyebrow">New in 0.7.5</p>
+ <h2 class="overview-h2">Native MCP MVP on PyPI — Cursor verified.</h2>
+ <p class="lead">
+ <strong>0.7.5</strong> ships the offline retrieval component with a native
+ stdio MCP server (<code>search</code> / <code>agent_context</code>), binary
+ Content-Length framing for Cursor/Claude pipes, and Apache-2.0 packaging.
+ Verified in Cursor end-to-end (Connected + 2 tools + live tool call).
+ Other MCP clients use the same protocol but need their own config check.
+ This is a <strong>retrieval part</strong> for existing agents — not a
+ do-everything coding agent.
+ </p>
+
+ <div class="scenario-grid">
+ <article class="scenario-card">
+ <div class="scenario-tag">🔌 MCP MVP</div>
+ <h3>Two tools. Same pipelines as the CLI.</h3>
+ <p>
+ <code>skygrep mcp</code> exposes <code>search</code> and
+ <code>agent_context</code> over JSON-RPC stdio. Ops commands
+ (<code>index</code> / <code>watch</code> / <code>setup</code>) stay on the CLI
+ by design.
+ </p>
+ <div class="scenario-demo">
+ <div class="sd-prompt"><span class="term-prompt">$</span>pip install skylakegrep==0.7.5</div>
+ <div class="sd-prompt"><span class="term-prompt">$</span>skygrep mcp --path /absolute/path/to/your/repo</div>
+ <div class="sd-result">→ tools: search · agent_context</div>
+ <div class="sd-takeaway">See <a href="mcp.html">MCP docs</a> for Cursor / Claude config.</div>
+ </div>
+ </article>
+
+ <article class="scenario-card">
+ <div class="scenario-tag">✅ CURSOR VERIFIED</div>
+ <h3>Handshake + real tool call.</h3>
+ <p>
+ Cursor showed Connected with both tools enabled, and Agent chat successfully
+ called <code>agent_context</code> returning path + snippet evidence.
+ </p>
+ <div class="scenario-demo">
+ <div class="sd-result">→ Connected · 2 tools enabled</div>
+ <div class="sd-result">→ agent_context("auth login") → auth.py + snippet</div>
+ <div class="sd-takeaway">Claude Desktop / Claude Code: same protocol, verify per client.</div>
+ </div>
+ </article>
+
+ <article class="scenario-card">
+ <div class="scenario-tag">🛡 FRAMING FIX</div>
+ <h3>Binary stdio for pipe clients.</h3>
+ <p>
+ Content-Length framing reads/writes via binary buffers so Cursor and Claude
+ Code pipes no longer stall at 0 tools / CONNECTION_CLOSED class failures.
+ Still Python 3.9+; official <code>mcp</code> SDK is not a package dependency.
+ </p>
+ <div class="scenario-demo">
+ <div class="sd-result">→ #22 MCP MVP · #23 binary framing · #24 release</div>
+ <div class="sd-takeaway">Install: <code>pip install skylakegrep==0.7.5</code></div>
+ </div>
+ </article>
+
+ <article class="scenario-card">
+ <div class="scenario-tag">📎 POSITIONING</div>
+ <h3>Retrieval component, not a full agent.</h3>
+ <p>
+ Apache-2.0 · offline · CLI / <code>agent_context</code> harness · MCP MVP usable.
+ General Benchmark latency-path correction (draft #10) is still open — do not
+ claim comprehensive latency verification yet.
+ </p>
+ <div class="scenario-demo">
+ <div class="sd-takeaway">Follow-ups: <a href="FOLLOWUPS-0.7.5.html">docs/FOLLOWUPS-0.7.5</a></div>
+ </div>
+ </article>
+ </div>
+</section>
+
+
 <!-- ============== New in 0.7.0 ============== -->
 <section id="new-in-070" class="doc-section scenarios-section">
  <p class="eyebrow">New in 0.7.0</p>
@@ -942,7 +1021,7 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap"></div>
      <div class="why-cell why-self">
        <strong>skylakegrep</strong>
-       <span class="why-sub">v0.7.0</span>
+       <span class="why-sub">v0.7.5</span>
      </div>
      <div class="why-cell"><code>ripgrep</code><span class="why-sub">lexical baseline</span></div>
      <div class="why-cell"><a href="https://www.mgrep.dev/" target="_blank" rel="noopener">mgrep</a><span class="why-sub">Mixedbread · paid</span></div>
@@ -1084,12 +1163,12 @@ Throughput projections under sustained 5k QPS load...</pre>
  <div class="themed-card why-card">
  <div class="themed-card-chrome">
  <span class="tl"></span><span class="tl tl-y"></span><span class="tl tl-g"></span>
- <span class="themed-card-title">capability matrix · skylakegrep 0.7.0 vs Elasticsearch 8.x</span>
+ <span class="themed-card-title">capability matrix · skylakegrep 0.7.5 vs Elasticsearch 8.x</span>
  </div>
  <div class="themed-card-body">
  <table class="vs-table">
  <thead>
- <tr><th></th><th>skylakegrep 0.7.0</th><th>Elasticsearch</th></tr>
+ <tr><th></th><th>skylakegrep 0.7.5</th><th>Elasticsearch</th></tr>
  </thead>
  <tbody>
  <tr><td><strong>Setup</strong></td><td><code>python3 -m pip install --user skylakegrep</code>; cold-start lazy auto-trigger</td><td>JVM, cluster, mappings, ingest pipeline, dense-vector plugin, reindex</td></tr>

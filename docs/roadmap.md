@@ -126,3 +126,7 @@ scheduling remains future work.
 - **Removing the Ollama dependency.** `skygrep` is intentionally
   built on top of Ollama for local LLM access. Other backends
   (e.g. llama.cpp direct) are possible but not prioritised.
+
+## After 0.7.5
+
+See [FOLLOWUPS-0.7.5.md](FOLLOWUPS-0.7.5.md) for claim-expansion follow-ups (#10 latency receipt, large-repo smoke, other MCP clients).
