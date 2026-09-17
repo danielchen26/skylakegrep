@@ -241,7 +241,7 @@ $ skygrep -x "find pyproject.toml in this repo"
 Sized against **four named alternatives**, not generic categories.
 
 <p align="center">
-  <img alt="skylakegrep — comparison matrix vs ripgrep, mgrep (predecessor), autodev-codebase, Sourcegraph Cody" src="docs/assets/comparison-matrix.svg" width="100%">
+  <img alt="skylakegrep — comparison matrix vs ripgrep, Mixedbread mgrep, autodev-codebase, Sourcegraph Cody" src="docs/assets/comparison-matrix.svg" width="100%">
 </p>
 
 
