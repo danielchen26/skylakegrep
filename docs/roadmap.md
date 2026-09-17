@@ -68,9 +68,16 @@ without any private files or machine-local examples.
 
 `skygrep setup` writes a markdown snippet into agent rules files
 telling the agent to prefer `skygrep` over `rg`. A native MCP
-server (Model Context Protocol) would let agents call `skygrep` as
-a structured tool instead of a shell command — better schema,
-fewer parsing failures, cleaner error surfaces.
+server (Model Context Protocol) lets agents call `skygrep` as a
+structured tool instead of a shell command — better schema, fewer
+parsing failures, cleaner error surfaces.
+
+**MVP shipped:** `skygrep mcp` stdio server with tools `search` and
+`agent_context` that delegate to the existing CLI/daemon retrieval
+pipelines (see [`mcp.md`](mcp.md)). Still to harden: broader tool
+surface, official SDK once the Python floor allows, and production
+client soak tests — do not treat the MVP as a finished production MCP
+product in marketing copy.
 
 ### Multi-vector / late-interaction retrieval (ColBERT-style)
 

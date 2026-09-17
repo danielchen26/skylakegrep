@@ -15,6 +15,7 @@ The Markdown files here are reference companions to that site.
 | [`general-performance.md`](general-performance.md) | Published six-repository, 60-task paired result with pinned commits, real tokenization, quality gates, confidence intervals, and claim boundaries. |
 | [`skylakegrep-0.5.14.md`](skylakegrep-0.5.14.md) | Closed-loop agent workflow release notes, daemon-first guidance, and benchmark summary. |
 | [`roadmap.md`](roadmap.md) | What's planned for future versions. |
+| [`mcp.md`](mcp.md) | Native MCP stdio server MVP (`search` / `agent_context`) and sample mcp.json. |
 | [`assets/`](assets) | SVG figures referenced by the site and the project README. |
 
 ## Reading order

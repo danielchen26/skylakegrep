@@ -42,6 +42,7 @@ build-backend = "setuptools.build_meta"
 
 [project.scripts]
 skygrep = "skylakegrep.src.cli:main"
+skygrep-mcp = "skylakegrep.src.mcp_server:main"
 
 [project.urls]
 Homepage = "https://github.com/danielchen26/skylakegrep"
