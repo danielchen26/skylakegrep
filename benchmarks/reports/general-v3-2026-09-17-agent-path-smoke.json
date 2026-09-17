@@ -1,0 +1,85 @@
+{
+  "purpose": "production agent-path smoke; not a six-repository performance claim",
+  "environment": {
+    "skylakegrep_version": "0.7.5",
+    "benchmark_source_commit": "1838da04e6f8e18c82528faf2a19edddbde72ddf",
+    "benchmark_source_tracked_clean": "true",
+    "python_version": "3.12.12",
+    "system": "Darwin",
+    "machine": "arm64",
+    "embedding_model": "bge-m3",
+    "index_batch_size": "64"
+  },
+  "fixture": {
+    "repo": "cobra",
+    "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e"
+  },
+  "checks": [
+    {
+      "mode": "fast",
+      "query": "args.go",
+      "include": null,
+      "requested_top": 8,
+      "returncode": 0,
+      "elapsed_seconds": 0.752,
+      "paths": [
+        "args.go",
+        "args_test.go",
+        "active_help_test.go",
+        "bash_completions.go",
+        "bash_completionsV2.go",
+        "bash_completions_test.go",
+        "cobra_test.go",
+        "command.go"
+      ],
+      "expected_path": "args.go",
+      "evidence_terms": [],
+      "content_visible": false,
+      "passed": true,
+      "stderr": ""
+    },
+    {
+      "mode": "context",
+      "query": "MinimumNArgs ExactArgs",
+      "include": [
+        "args.go"
+      ],
+      "requested_top": 8,
+      "returncode": 0,
+      "elapsed_seconds": 0.23,
+      "paths": [
+        "args.go"
+      ],
+      "expected_path": "args.go",
+      "evidence_terms": [
+        "MinimumNArgs",
+        "ExactArgs"
+      ],
+      "content_visible": true,
+      "passed": true,
+      "stderr": ""
+    },
+    {
+      "mode": "deep",
+      "query": "MinimumNArgs ExactArgs",
+      "include": [
+        "args.go"
+      ],
+      "requested_top": 8,
+      "returncode": 0,
+      "elapsed_seconds": 0.329,
+      "paths": [
+        "args.go"
+      ],
+      "expected_path": "args.go",
+      "evidence_terms": [
+        "MinimumNArgs",
+        "ExactArgs"
+      ],
+      "content_visible": true,
+      "passed": true,
+      "stderr": ""
+    }
+  ],
+  "passed": true
+}
