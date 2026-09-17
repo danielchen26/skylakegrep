@@ -12,6 +12,11 @@ claim**. They were generated from clean source commit
 `1838da04e6f8e18c82528faf2a19edddbde72ddf`, which integrates the latency-path
 correction with the 0.7.5 baseline.
 
+The independent takeover branch carries these receipts forward unchanged from
+PR #10. Their recorded source commit remains authoritative: they are evidence
+from that earlier run, not newly measured results for the takeover branch.
+The original correction commits retain their author and cherry-pick provenance.
+
 - [`general-v3-2026-09-17-agent-path-smoke.json`](general-v3-2026-09-17-agent-path-smoke.json)
   records real CLI subprocesses through the benchmark adapter: fast returns
   paths without snippets; context and focused deep return `MinimumNArgs` and
@@ -46,9 +51,11 @@ Completing the six-repository receipt requires an available runner labeled
 `self-hosted, skygrep-benchmark` with local Ollama, `bge-m3`, and `rg`, passing
 the existing capacity gate. Re-run all repository receipts on that runner
 environment before merging them; the local partial receipt is not a substitute.
-If this dispatch has expired, dispatch `general-benchmark.yml` again from the
-PR branch. Keep PR #10 in draft and follow-up #26 item 1 open until the full
-merged receipt and its quality/latency gate are available.
+If this dispatch has expired, dispatch `general-benchmark.yml` from the
+independent takeover branch, `agent/general-v3-latency-takeover`. Keep the
+takeover PR in draft and follow-up #26 item 1 open until the full merged receipt
+and its quality/latency gate are available. PR #10 remains the author's
+predecessor; this takeover does not close it or rewrite its branch.
 
 ### Reproduce the local capacity decision
 
