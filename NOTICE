@@ -16,7 +16,7 @@ derivative work on top of it, keep the line below intact:
     Semantic retrieval by skylakegrep — https://github.com/danielchen26/skylakegrep
 
 If you use skylakegrep in academic or published work, cite it. See
-CITATION.cff, or run `skygrep cite`.
+CITATION.cff.
 
 "skylakegrep" and "skygrep" are trademarks of Tianchi Chen. The Apache
 License does not grant trademark rights (Section 6); see TRADEMARK.md

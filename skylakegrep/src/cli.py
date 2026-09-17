@@ -955,7 +955,7 @@ def _normalize_search_cli_args(args: list[str]) -> list[str]:
     return out
 
 
-class MgrepCLI(click.Group):
+class SkygrepCLI(click.Group):
     """Click group that routes unknown first-args to ``search``.
 
     Implements two adjustments to default Click behaviour:
@@ -992,7 +992,7 @@ class MgrepCLI(click.Group):
         return super().parse_args(ctx, ["search", *_normalize_search_cli_args(list(args))])
 
 
-@click.group(cls=MgrepCLI, invoke_without_command=True)
+@click.group(cls=SkygrepCLI, invoke_without_command=True)
 @click.version_option(__version__, prog_name="skygrep")
 @click.pass_context
 def cli(ctx):

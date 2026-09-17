@@ -1,57 +1,47 @@
-"""Mixedbread `@mixedbread/skygrep` cloud vs skylakegrep parity harness.
+"""Mixedbread `@mixedbread/mgrep` cloud vs skylakegrep parity harness.
 
-This script measures retrieval parity between the cloud Mixedbread skygrep
-(the original project at <https://github.com/mixedbread-ai/skygrep>) and
-this fork's fully local implementation. It is the only parity benchmark
-in this repository that requires a third-party account and cloud upload.
+This script measures retrieval parity between Mixedbread's cloud-backed
+``mgrep`` CLI (see <https://github.com/mixedbread-ai/mgrep> /
+``@mixedbread/mgrep``) and skylakegrep's fully local implementation. It is
+the only parity benchmark in this repository that requires a third-party
+account and cloud upload.
 
 PREREQUISITES (one-time, manual)
 --------------------------------
-1. Install the Mixedbread CLI somewhere reachable, e.g.
+1. Install Mixedbread's ``mgrep`` CLI somewhere reachable (package:
+   ``@mixedbread/mgrep`` on npm). Prefer a path that does **not** collide
+   with this repo's ``skygrep`` console script.
 
-       npm install -g @mixedbread/skygrep
-       # or (preferred, doesn't conflict with this repo's own /opt/homebrew/bin/skygrep
-       # wrapper) install into a project-local node_modules:
-       mkdir -p ~/.local/share/mixedbread-skygrep && cd $_
-       npm init -y
-       npm install @mixedbread/skygrep
+2. Authenticate with Mixedbread per that CLI's docs (login / API key).
 
-2. Log in. The CLI uses an interactive OAuth flow:
-
-       <path-to>/node_modules/.bin/skygrep login
-
-3. Sync the target repository to a Mixedbread store. The default store
-   name is ``skygrep``; pass ``--store NAME`` to use a separate one:
-
-       cd /path/to/repo
-       <path-to>/node_modules/.bin/skygrep search "test query" . --sync
-
-   This uploads the repository contents to Mixedbread cloud for
-   indexing. Free-tier quotas apply.
+3. Sync the target repository to a Mixedbread store if the CLI requires
+   it for search (store name / ``--sync`` flags vary by CLI version).
 
 4. Confirm authentication is healthy by running a search interactively
-   and seeing results:
+   and seeing results.
 
-       <path-to>/node_modules/.bin/skygrep search "..." . -c
-
-Once these prerequisites are satisfied, point this script at the same
-repository and the same task list used by ``parity_vs_ripgrep.py`` to
-get a side-by-side comparison.
+Once these prerequisites are satisfied, pass ``--mixedbread-bin`` pointing
+at that Mixedbread binary (or ensure ``mgrep`` is on PATH) and point this
+script at the same repository and task list used by
+``parity_vs_ripgrep.py`` for a side-by-side comparison.
 
 USAGE
 -----
     .venv/bin/python benchmarks/parity_vs_mixedbread.py \
         --root /path/to/repo \
         --tasks benchmarks/cross_repo/rust-workspace.json \
-        --mixedbread-bin /path/to/mixedbread-skygrep/node_modules/.bin/skygrep \
+        --mixedbread-bin /path/to/node_modules/.bin/mgrep \
         --top-k 10
+
+The harness never treats PATH ``skygrep`` as the Mixedbread baseline: that
+name is this package's entry point, and using it would silently self-compare.
 
 LIMITATIONS
 -----------
-- Mixedbread skygrep is a cloud service. The repository contents are
-  uploaded to Mixedbread before the first search. This is an explicit
-  privacy trade-off; do not run this benchmark on private code unless
-  the upload is acceptable.
+- Mixedbread ``mgrep`` is a cloud-backed service. Repository contents may be
+  uploaded to Mixedbread before search. This is an explicit privacy
+  trade-off; do not run this benchmark on private code unless the upload
+  is acceptable.
 - The Mixedbread CLI's stdout format is not a stable JSON contract. We
   parse it best-effort by scanning for ``path:line:`` style fences. If
   the format changes, update ``parse_mixedbread_output`` and re-run.
@@ -94,15 +84,147 @@ from benchmarks.token_savings import (
 from skylakegrep.src.indexer import collect_indexable_files
 
 
-# Heuristic for parsing Mixedbread skygrep stdout. The CLI emits something
+# Heuristic for parsing Mixedbread mgrep stdout. The CLI emits something
 # along the lines of ``relative/path.ext:line: surrounding text``; we
 # extract the path token at the start of each line. If you see paths
 # being missed, log the raw stdout and tighten this regex.
 PATH_LINE_RE = re.compile(r"^\s*([^\s:]+\.[A-Za-z0-9]+):(\d+)")
 
 
+# Markers that identify *this* package's console-script / wrapper, not Mixedbread.
+_SKYLAKEGREP_ENTRY_MARKERS = (
+    "from skylakegrep.src.cli import main",
+    "skylakegrep.src.cli:main",
+    "skylakegrep.src.cli",
+)
+
+# Known install path for this repo's Homebrew-style wrapper (historical).
+_KNOWN_LOCAL_SKYGREP_WRAPPERS = (
+    Path("/opt/homebrew/bin/skygrep"),
+)
+
+
+def is_skylakegrep_entry(bin_path: Path) -> bool:
+    """Return True if *bin_path* is this package's ``skygrep`` CLI entry.
+
+    Used to fail-closed when the Mixedbread baseline would otherwise resolve
+    to the local skylakegrep binary (silent self-compare).
+    """
+    try:
+        resolved = bin_path.expanduser().resolve()
+    except OSError:
+        resolved = bin_path.expanduser()
+
+    for known in _KNOWN_LOCAL_SKYGREP_WRAPPERS:
+        try:
+            if known.exists() and resolved == known.resolve():
+                return True
+        except OSError:
+            continue
+
+    if _path_content_is_skylakegrep(resolved):
+        return True
+
+    # Same path as PATH ``skygrep`` and not proven Mixedbread → fail closed.
+    which_skygrep = shutil.which("skygrep")
+    if which_skygrep:
+        try:
+            if resolved == Path(which_skygrep).resolve():
+                return not _path_content_is_mixedbread(resolved)
+        except OSError:
+            return True
+
+    return False
+
+
+def _read_bin_head(bin_path: Path, limit: int = 8192) -> str:
+    try:
+        return bin_path.read_text(encoding="utf-8", errors="ignore")[:limit]
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _path_content_is_skylakegrep(bin_path: Path) -> bool:
+    text = _read_bin_head(bin_path)
+    return any(marker in text for marker in _SKYLAKEGREP_ENTRY_MARKERS)
+
+
+def _path_content_is_mixedbread(bin_path: Path) -> bool:
+    text = _read_bin_head(bin_path).lower()
+    if not text:
+        return False
+    return (
+        "@mixedbread/mgrep" in text
+        or "mixedbread-ai/mgrep" in text
+        or ("mixedbread" in text and "mgrep" in text)
+    )
+
+
+def resolve_mixedbread_bin(explicit: str | None) -> str:
+    """Resolve the Mixedbread baseline binary, fail-closed on self-compare.
+
+    - Prefer an explicit ``--mixedbread-bin``.
+    - Otherwise accept PATH ``mgrep`` only (Mixedbread's real CLI name).
+    - Never fall back to PATH ``skygrep`` (this package's entry point).
+    - If the resolved path is this package's skygrep / skylakegrep entry,
+      raise ``SystemExit`` with a clear error (non-zero).
+    """
+    if explicit:
+        candidate = explicit
+    else:
+        candidate = shutil.which("mgrep")
+        if not candidate:
+            raise SystemExit(
+                "Mixedbread CLI not found. Pass --mixedbread-bin pointing at\n"
+                "the Mixedbread `mgrep` binary (from @mixedbread/mgrep), or put\n"
+                "`mgrep` on PATH. PATH fallback to `skygrep` is refused — that\n"
+                "name is this package's entry point and would silently self-compare.\n"
+                "See module docstring for one-time setup steps."
+            )
+
+    # Allow bare command names via PATH when an explicit value was a name.
+    path = Path(candidate).expanduser()
+    if not path.is_file():
+        found = shutil.which(candidate)
+        if found:
+            path = Path(found)
+    if not path.is_file():
+        raise SystemExit(
+            f"Mixedbread binary not found: {candidate}\n"
+            "Pass --mixedbread-bin /path/to/mgrep (from @mixedbread/mgrep)."
+        )
+
+    resolved = path.resolve()
+
+    # Keep the historical Homebrew wrapper refusal (also covered by
+    # is_skylakegrep_entry, but keep an explicit message for clarity).
+    try:
+        homebrew = Path("/opt/homebrew/bin/skygrep")
+        if homebrew.exists() and resolved == homebrew.resolve():
+            raise SystemExit(
+                f"Refusing to use {resolved}: that path is the skylakegrep\n"
+                "wrapper installed by this repo, not the Mixedbread CLI.\n"
+                "Pass --mixedbread-bin pointing at a Mixedbread `mgrep` install."
+            )
+    except SystemExit:
+        raise
+    except OSError:
+        pass
+
+    if is_skylakegrep_entry(resolved):
+        raise SystemExit(
+            f"Refusing to use {resolved}: that path is this package's\n"
+            "skygrep / skylakegrep CLI, not Mixedbread. Using it would\n"
+            "silently compare skylakegrep against itself.\n"
+            "Pass --mixedbread-bin pointing at Mixedbread `mgrep`\n"
+            "(e.g. node_modules/.bin/mgrep from @mixedbread/mgrep)."
+        )
+
+    return str(resolved)
+
+
 def parse_mixedbread_output(stdout: str) -> tuple[list[str], int]:
-    """Best-effort parse of Mixedbread skygrep stdout into (paths, char_count).
+    """Best-effort parse of Mixedbread mgrep stdout into (paths, char_count).
 
     Returns the list of unique paths in encounter order plus the total
     character count of the parsed output (used to estimate context
@@ -172,19 +294,7 @@ def load_tasks(path: Path | None) -> list[dict[str, str]]:
 
 
 def benchmark(args: argparse.Namespace) -> dict[str, object]:
-    mxbread_bin = args.mixedbread_bin or shutil.which("skygrep")
-    if not mxbread_bin:
-        sys.exit(
-            "Mixedbread skygrep CLI not found. Install via npm and pass\n"
-            "--mixedbread-bin /path/to/node_modules/.bin/skygrep, or put it\n"
-            "on PATH. See module docstring for one-time setup steps."
-        )
-    if Path(mxbread_bin).resolve() == Path("/opt/homebrew/bin/skygrep").resolve():
-        sys.exit(
-            f"Refusing to use {mxbread_bin}: that path is the skylakegrep\n"
-            "wrapper installed by this repo, not the Mixedbread CLI.\n"
-            "Pass --mixedbread-bin pointing at a separate Mixedbread install."
-        )
+    mxbread_bin = resolve_mixedbread_bin(args.mixedbread_bin)
 
     root = Path(args.root).resolve()
     db_path = (
@@ -251,8 +361,8 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
 
     return {
         "definition": {
-            "benchmark_type": "Mixedbread cloud skygrep vs skylakegrep retrieval parity",
-            "mixedbread_agent": "one Mixedbread `skygrep search` per task (cloud embeddings, paid quota)",
+            "benchmark_type": "Mixedbread cloud mgrep vs skylakegrep retrieval parity",
+            "mixedbread_agent": "one Mixedbread `mgrep search` per task (cloud embeddings, paid quota)",
             "local_agent": "one skylakegrep semantic top-k search per task (Ollama embeddings)",
             "note": "Both sides use the same task questions and expected files.",
         },
@@ -310,7 +420,7 @@ def benchmark(args: argparse.Namespace) -> dict[str, object]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Benchmark Mixedbread cloud skygrep vs skylakegrep on the same task set."
+        description="Benchmark Mixedbread cloud mgrep vs skylakegrep on the same task set."
     )
     parser.add_argument("--root", default=".")
     parser.add_argument("--db-path")
@@ -320,8 +430,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--chars-per-token", type=int, default=4)
     parser.add_argument(
         "--mixedbread-bin",
-        help="Path to the Mixedbread skygrep binary. If omitted, uses `skygrep` from PATH; "
-        "the harness refuses to run if that resolves to the skylakegrep wrapper.",
+        help="Path to the Mixedbread `mgrep` binary (@mixedbread/mgrep). "
+        "If omitted, uses `mgrep` from PATH when present. "
+        "Never falls back to PATH `skygrep` (this package's entry); "
+        "self-compare paths fail closed.",
     )
     parser.add_argument(
         "--mixedbread-store",

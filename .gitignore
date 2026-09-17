@@ -99,3 +99,12 @@ AGENTS.md
 /<repo-B>
 /<repo-C>
 /<repo-D>
+
+# Editor / local backup copies (never ship these)
+*.bak
+*.bak*
+*.backup
+*.backup*
+*.before_fix
+*~
+
