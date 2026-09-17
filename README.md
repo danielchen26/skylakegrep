@@ -729,6 +729,11 @@ explicitly requested.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.7.3`** — Open-source distribution release. Relicenses the project to
+    Apache-2.0 (#14), fixes `index`/`watch`/`--reset` so the DB follows the
+    target path instead of CWD (#15), and aligns live docs + packaging so
+    `pip install skylakegrep` no longer advertises the old noncommercial
+    license. Existing indexes remain compatible.
   - **`0.7.2`** — `skygrep setup` now detects and registers with Pi
     (pi-coding-agent) via `~/.pi/agent/AGENTS.md`, alongside Claude Code,
     Codex, OpenCode, Gemini CLI, and Cursor. Additive only; existing indexes
