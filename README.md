@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://pypi.org/project/skylakegrep/"><img src="https://img.shields.io/pypi/v/skylakegrep?label=pypi&color=22d3ee&labelColor=0a0d12" alt="PyPI"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.9%2B-22d3ee?labelColor=0a0d12" alt="Python 3.9+"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm--NC--1.0.0-f59e0b?labelColor=0a0d12" alt="PolyForm Noncommercial 1.0.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-22d3ee?labelColor=0a0d12" alt="Apache-2.0"></a>
   <a href="https://danielchen26.github.io/skylakegrep/"><img src="https://img.shields.io/badge/docs-published-22d3ee?labelColor=0a0d12" alt="Documentation"></a>
   <a href="https://github.com/danielchen26/skylakegrep/releases/latest"><img src="https://img.shields.io/github/v/release/danielchen26/skylakegrep?label=release&color=22d3ee&labelColor=0a0d12" alt="Latest release"></a>
 </p>
@@ -987,9 +987,11 @@ specific order.
 
 ## License
 
-PolyForm Noncommercial 1.0.0. Personal · academic · research ·
-hobby use is fully permitted. Commercial use requires a separate
-license — contact the maintainers.
+Apache License 2.0 — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+Commercial use, modification, and redistribution are permitted under
+those terms. The names *skylakegrep* / *skygrep* are trademarks; see
+[`TRADEMARK.md`](TRADEMARK.md) for naming policy (Apache does not grant
+trademark rights).
 
 ---
 
