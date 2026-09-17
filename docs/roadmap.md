@@ -107,12 +107,15 @@ background. It still does not pool embedder/reranker model instances
 optimally for concurrent requests; production-grade concurrent
 scheduling remains future work.
 
+## Recently done
+
+- **Apache-2.0 relicense (#14).** Live code and packaging are Apache-2.0;
+  see `LICENSE` / `NOTICE` / `TRADEMARK.md`. Historical `docs/skylakegrep-0.*`
+  pages remain archival snapshots.
+
 ## Not on the roadmap
 
 - **Cloud-hosted index.** This project is local-first by design.
 - **Removing the Ollama dependency.** `skygrep` is intentionally
   built on top of Ollama for local LLM access. Other backends
   (e.g. llama.cpp direct) are possible but not prioritised.
-- **MIT relicensing.** This project is PolyForm Noncommercial
-  1.0.0 and stays that way. Commercial users should contact for
-  a commercial license.
