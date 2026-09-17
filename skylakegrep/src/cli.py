@@ -925,7 +925,7 @@ def render_json_results(results: list[dict], *, include_snippet: bool = True) ->
 
 
 # Subcommand names that take precedence over bare-form query routing.
-_SUBCOMMANDS = {"index", "search", "watch", "serve", "stats", "doctor", "enrich", "setup"}
+_SUBCOMMANDS = {"index", "search", "watch", "serve", "mcp", "stats", "doctor", "enrich", "setup"}
 _DETAIL_CHOICES = {"brief", "standard", "full", "summary"}
 _AGENT_MODE_CHOICES = {"off", "fast", "context", "deep", "answer"}
 _DEFAULT_AGENT_DAEMON_URL = "http://127.0.0.1:7878"
@@ -3913,6 +3913,26 @@ def serve(host: str, port: int, warm_reranker: bool):
     from .server import serve as _serve
 
     _serve(host=host, port=port, warm_reranker=warm_reranker)
+
+
+@cli.command("mcp")
+@click.option(
+    "--path",
+    "mcp_path",
+    default=None,
+    help="Default project root for MCP tool calls (also SKYGREP_MCP_PATH).",
+)
+def mcp(mcp_path: str | None):
+    """Run the native MCP stdio server (tools: search, agent_context).
+
+    Speaks Model Context Protocol over stdin/stdout. Configure Cursor or
+    Claude Desktop with `skygrep mcp` — see docs/mcp.md. Delegates to the
+    same retrieval pipelines as `skygrep search` / `--agent-context`.
+    """
+
+    from .mcp_server import serve_stdio
+
+    serve_stdio(default_path=mcp_path)
 
 
 @cli.command()
