@@ -10,7 +10,7 @@ on:
       - ".github/dependabot.yml"
   pull_request:
   schedule:
-    # Weekly Monday 12:00 UTC — keeps a recurring green/red signal
+    # Weekly Monday 12:00 UTC
     - cron: "0 12 * * 1"
   workflow_dispatch:
 
