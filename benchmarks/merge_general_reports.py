@@ -39,8 +39,8 @@ CONSISTENT_PARAMETER_KEYS = (
 
 def _load(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
-    if payload.get("schema_version") != 2:
-        raise ValueError(f"{path}: expected schema_version 2")
+    if payload.get("schema_version") != 3:
+        raise ValueError(f"{path}: expected schema_version 3")
     if not payload.get("rows"):
         raise ValueError(f"{path}: per-repository receipt must contain compact rows")
     return payload
@@ -215,7 +215,7 @@ def merge_reports(reports: list[dict[str, Any]]) -> dict[str, Any]:
         merged_environment,
     )
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "definition": {
             **reports[0]["definition"],
             "benchmark": "General Benchmark v2: merged parallel public-repository receipts",

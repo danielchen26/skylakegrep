@@ -7,12 +7,17 @@ import subprocess
 
 import pytest
 
+from benchmarks import universal_closed_loop_benchmark as _universal
 from benchmarks.general_capacity_preflight import capacity_report
 from benchmarks.general_stats import paired_efficiency
 from benchmarks.merge_general_reports import merge_reports
 from benchmarks.public_fixtures import RepoSpec, load_registry, prepare_repo, validate_repo_fixture
 from benchmarks.token_savings import approximate_tokens, tokenizer_metadata
-from benchmarks.universal_closed_loop_benchmark import _attach_source_gate
+from benchmarks.universal_closed_loop_benchmark import (
+    PROJECT_ROOT as UNIVERSAL_PROJECT_ROOT,
+    _attach_source_gate,
+    _run as _universal_run,
+)
 
 
 def _row(
@@ -45,9 +50,46 @@ def _row(
     }
 
 
+def test_universal_run_exposes_benchmark_checkout_to_external_cwd(tmp_path, monkeypatch):
+    captured = {}
+
+    def fake_subprocess_run(*args, **kwargs):
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(args=args[0], returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_subprocess_run)
+    monkeypatch.setenv("PYTHONPATH", "/existing/path")
+
+    _universal_run(["python", "-V"], tmp_path, timeout=1)
+
+    pythonpath = captured["env"]["PYTHONPATH"].split(os.pathsep)
+    assert pythonpath[0] == str(UNIVERSAL_PROJECT_ROOT)
+    assert pythonpath[1] == "/existing/path"
+
+
+def test_public_environment_uses_one_bounded_tracked_status_check(monkeypatch):
+    calls = []
+
+    def fake_subprocess_run(cmd, **kwargs):
+        calls.append((cmd, kwargs))
+        return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(_universal.subprocess, "run", fake_subprocess_run)
+    monkeypatch.setattr(_universal, "_git_commit", lambda _root: "abc123")
+
+    environment = _universal._public_environment()
+
+    assert environment["benchmark_source_commit"] == "abc123"
+    assert environment["benchmark_source_tracked_clean"] == "true"
+    assert len(calls) == 1
+    command, kwargs = calls[0]
+    assert command == ["git", "status", "--porcelain=v1", "--untracked-files=no"]
+    assert kwargs["timeout"] == 120
+
+
 def _cobra_capacity_receipt(*, elapsed: float = 10.0, chunks: int = 10):
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "environment": {
             "benchmark_source_commit": "1" * 40,
             "benchmark_source_tracked_clean": "true",
@@ -243,6 +285,9 @@ def test_paired_efficiency_reports_distribution_only_after_quality_gate():
     assert report["quality_eligible_pairs"] == 2
     assert report["paired_distributions"]["context_token_reduction_x"]["median"] == 4.0
     assert report["paired_distributions"]["tool_call_reduction_x"]["median"] == 8.0
+    assert report["paired_distributions"]["measured_elapsed_ratio_x"]["median"] == 2.0
+    assert report["paired_distributions"]["measured_elapsed_delta_seconds"]["median"] == -2.0
+    assert report["by_repo"]["one"]["measured_elapsed_ratio_x"]["median"] == 2.0
     assert report["context_token_median_95pct_ci"]["low"] == 4.0
     assert report["context_token_median_95pct_ci"]["high"] == 4.0
 
@@ -328,7 +373,7 @@ def test_parallel_repo_receipts_merge_before_general_gate():
             )
         reports.append(
             {
-                "schema_version": 2,
+                "schema_version": 3,
                 "definition": {
                     "policies": ["skygrep-first", "rg-only"],
                     "mode": "adaptive-only",

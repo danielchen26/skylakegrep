@@ -58,7 +58,19 @@ PUBLIC_REPOS = load_registry()
 
 
 def _run(cmd: list[str], cwd: Path, timeout: float) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(cmd, cwd=str(cwd), text=True, capture_output=True, timeout=timeout)
+    env = os.environ.copy()
+    existing_pythonpath = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = str(PROJECT_ROOT) + (
+        os.pathsep + existing_pythonpath if existing_pythonpath else ""
+    )
+    return subprocess.run(
+        cmd,
+        cwd=str(cwd),
+        text=True,
+        capture_output=True,
+        timeout=timeout,
+        env=env,
+    )
 
 
 def _git_commit(repo: Path) -> str:
@@ -70,19 +82,14 @@ def _public_environment() -> dict[str, str]:
         package_version = importlib.metadata.version("skylakegrep")
     except importlib.metadata.PackageNotFoundError:
         package_version = "source-tree"
-    tracked_clean = all(
-        subprocess.run(
-            command,
-            cwd=str(PROJECT_ROOT),
-            capture_output=True,
-            timeout=10,
-        ).returncode
-        == 0
-        for command in (
-            ["git", "diff", "--quiet", "HEAD", "--"],
-            ["git", "diff", "--cached", "--quiet", "HEAD", "--"],
-        )
+    status = subprocess.run(
+        ["git", "status", "--porcelain=v1", "--untracked-files=no"],
+        cwd=str(PROJECT_ROOT),
+        capture_output=True,
+        text=True,
+        timeout=120,
     )
+    tracked_clean = status.returncode == 0 and not status.stdout.strip()
     return {
         "skylakegrep_version": package_version,
         "benchmark_source_commit": _git_commit(PROJECT_ROOT),
@@ -319,6 +326,10 @@ def _attach_source_gate(
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
     started = time.perf_counter()
+    # Capture source provenance before indexing and task execution so a
+    # transient filesystem stall after a multi-hour run cannot discard the
+    # otherwise complete receipt.
+    environment = _public_environment()
     policies = args.policy or ["skygrep-first", "rg-only"]
     sections: list[dict[str, Any]] = []
     all_rows: list[dict[str, Any]] = []
@@ -409,7 +420,6 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         )
 
     aggregate = _summarize_rows(all_rows, policies, args.tokens_per_second, args.sufficient_threshold)
-    environment = _public_environment()
     generalization = _attach_source_gate(
         paired_efficiency(
             all_rows,
@@ -423,7 +433,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         environment,
     )
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "definition": {
             "benchmark": "General Benchmark v2: universal closed-loop retrieval workflow",
             "scope": (
@@ -440,6 +450,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 "are reported; the benchmark is designed to expose misses rather than force a win"
             ),
             "policies": policies,
+            "skygrep_first_path": (
+                "production agent presets: agent-fast for path decisions, agent-context for "
+                "first-pass evidence, and bounded deep extraction only after files are known"
+            ),
             "mode": "full-matrix low/medium/high" if args.full_matrix else "adaptive-only",
             "privacy": "public OSS tasks use public repository paths only; absolute roots are redacted",
             "headline_rule": (
@@ -456,6 +470,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 "tool_elapsed_seconds measures retrieval subprocess/file-read time before token "
                 "counting; estimated_agent_elapsed_seconds is modelled and never used for the "
                 "General Benchmark headline"
+            ),
+            "latency_gate_note": (
+                "release validation requires measured latency fields; it fails only when the "
+                "quality-eligible median is both more than 25 percent slower than rg and more "
+                "than one second slower in absolute wall time"
             ),
             "token_note": (
                 "context tokens cover retrieval tool payloads, not model reasoning or provider "
