@@ -1,0 +1,146 @@
+name: Security
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "pyproject.toml"
+      - "skylakegrep/**"
+      - ".github/workflows/security.yml"
+      - ".github/dependabot.yml"
+  pull_request:
+  schedule:
+    # Weekly Monday 12:00 UTC
+    - cron: "0 12 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pip-audit:
+    name: pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install package (editable) + pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[rerank]"
+          pip install pip-audit
+
+      - name: Run pip-audit
+        run: pip-audit --progress-spinner off
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python"
+
+  sbom:
+    name: CycloneDX SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install package (editable) + cyclonedx-bom
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[rerank]"
+          pip install "cyclonedx-bom==7.4.0"
+
+      - name: Generate CycloneDX SBOM from the installed environment
+        run: |
+          cyclonedx-py environment "$(which python)" \
+            --of JSON \
+            -o sbom.cdx.json \
+            --mc-type library \
+            --pyproject pyproject.toml \
+            --output-reproducible \
+            --validate
+
+      - name: Summarize SBOM
+        run: |
+          python -c "import json; d = json.load(open('sbom.cdx.json')); print('CycloneDX specVersion:', d['specVersion']); print('components:', len(d.get('components', [])))"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+          if-no-files-found: error
+
+  trivy:
+    name: Trivy filesystem scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Trivy fs scan (vuln, secret, misconfig) -> SARIF
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          format: sarif
+          output: trivy-results.sarif
+          # Findings are recorded in the Security tab; the hard gate below is what fails the build.
+          exit-code: "0"
+          cache: "true"
+
+      - name: Upload Trivy SARIF to code scanning
+        # Forked pull requests cannot write security events; skip instead of failing.
+        if: >-
+          always() &&
+          (github.event_name != 'pull_request' ||
+           github.event.pull_request.head.repo.full_name == github.repository)
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-fs
+
+      - name: Trivy secret gate (committed credentials fail the build)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret
+          format: table
+          exit-code: "1"
+          cache: "true"
