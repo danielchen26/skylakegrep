@@ -1,4 +1,4 @@
-# Dependabot — weekly dependency + Actions bumps (DevSecOps evidence)
+# Dependabot — weekly pip and GitHub Actions updates
 version: 2
 updates:
   - package-ecosystem: "pip"
