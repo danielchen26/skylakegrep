@@ -925,6 +925,11 @@ def _rg_path_recall(
                 rg_terms.append(variant)
     for term in rg_terms[: max(len(terms), 16)]:
         cmd.extend(["-e", term])
+    # ``--`` terminates option parsing. Every caller-derived value above is passed
+    # as the argument of an explicit flag (``-e`` for terms, ``-g`` for globs) and
+    # the call below uses an argv list with no shell, so a value beginning with
+    # ``-`` can never be re-read as a flag and no value reaches a shell.
+    cmd.append("--")
     cmd.append(str(root))
     try:
         proc = subprocess.run(

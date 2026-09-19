@@ -6,8 +6,15 @@ import re
 from pathlib import Path
 
 
+# Quantifiers are bounded on purpose. The unbounded form
+# ``\d+\.\d+(?:\.\d+)?(?:[-+][A-Za-z0-9.-]+)?`` is ambiguous between ``\d+`` and
+# the optional groups that follow it, which gives quadratic backtracking on
+# adversarial input such as a long run of digits and dots. This regex runs over
+# queries and paths that arrive from callers, so the bound is a DoS guard, not
+# style. No real version token exceeds 9 digits per component or a 64-character
+# pre-release suffix, so matching behaviour is unchanged in practice.
 _VERSION_TOKEN_RE = re.compile(
-    r"(?<![A-Za-z0-9])v?(\d+\.\d+(?:\.\d+)?(?:[-+][A-Za-z0-9.-]+)?)",
+    r"(?<![A-Za-z0-9])v?(\d{1,9}\.\d{1,9}(?:\.\d{1,9})?(?:[-+][A-Za-z0-9.-]{1,64})?)",
     re.IGNORECASE,
 )
 _DOCUMENT_SUFFIXES = {".html", ".md", ".rst", ".txt"}
