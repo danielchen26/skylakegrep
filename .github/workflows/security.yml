@@ -22,7 +22,7 @@ jobs:
     name: pip-audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Setup Python 3.12
         uses: actions/setup-python@v6
@@ -48,7 +48,7 @@ jobs:
       contents: read
       actions: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
@@ -67,7 +67,7 @@ jobs:
     name: CycloneDX SBOM
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Setup Python 3.12
         uses: actions/setup-python@v6
@@ -110,7 +110,7 @@ jobs:
       security-events: write
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Trivy fs scan (vuln, secret, misconfig) -> SARIF
         uses: aquasecurity/trivy-action@v0.36.0
