@@ -37,6 +37,54 @@ DEFAULT_DAEMON_PORT = 7878
 _lock = threading.Lock()
 
 
+def _accepted_spellings(raw: object, resolved: Path) -> frozenset[str]:
+    """Every spelling of a configured path that a client may legitimately send.
+
+    Built only from values the daemon already trusts -- its own config entry and
+    the resolved form of it. Nothing here derives from a request, which is what
+    lets the check below be a pure membership test.
+    """
+    out = {str(resolved), resolved.as_posix()}
+    if isinstance(raw, (str, Path)):
+        out.add(str(raw))
+    return frozenset(out)
+
+
+def _names_configured_path(candidate: object, accepted: frozenset[str]) -> bool:
+    """True when a client names the path this daemon is actually serving.
+
+    Deliberately a string membership test against spellings derived from trusted
+    config. Resolving the candidate instead would mean building a filesystem path
+    out of request data, which is the thing being avoided: here a crafted value
+    can only ever fail to match and earn a 409. The CLI sends
+    ``str(config["db_path"])`` and ``str(project_root)`` verbatim, so the honest
+    spellings are covered; anything else fails closed, which is the right
+    direction for this check.
+    """
+    if candidate is None:
+        return True
+    if not isinstance(candidate, str):
+        return False
+    return candidate in accepted
+
+
+def _contained_path(candidate: object, root: Path) -> Path | None:
+    """Resolve a client-supplied path, returning it only if it stays inside root.
+
+    Containment is checked after resolution, so ``..`` traversal and symlink
+    escapes are both rejected. Returns ``None`` when the value is unusable, which
+    the caller turns into a 400 rather than falling back to something permissive.
+    """
+    if candidate is None:
+        return root
+    if not isinstance(candidate, str):
+        return None
+    resolved = Path(candidate).expanduser().resolve()
+    if resolved != root and root not in resolved.parents:
+        return None
+    return resolved
+
+
 class _SearchHandler(BaseHTTPRequestHandler):
     """Single endpoint: ``POST /search``.
 
@@ -74,23 +122,24 @@ class _SearchHandler(BaseHTTPRequestHandler):
         cfg = get_config()
         snippet_chars = int(body.get("snippet_chars", 500))
         configured_db = Path(cfg["db_path"]).expanduser().resolve()
-        requested_db = Path(body.get("db_path") or configured_db).expanduser().resolve()
-        configured_root = resolve_project_root().expanduser().resolve()
-        requested_root = Path(
-            body.get("project_root") or configured_root
-        ).expanduser().resolve()
-        lexical_root = Path(
-            body.get("lexical_root") or requested_root
-        ).expanduser().resolve()
-        try:
-            lexical_root.relative_to(configured_root)
-            lexical_root_allowed = True
-        except ValueError:
-            lexical_root_allowed = False
-        if requested_db != configured_db or requested_root != configured_root:
+        raw_root = resolve_project_root()
+        configured_root = raw_root.expanduser().resolve()
+        # This daemon serves exactly one project. A client may state which db and
+        # project root it believes it is talking to; those statements are matched
+        # against spellings derived from trusted config, so no request value is
+        # ever turned into a filesystem path. ``lexical_root`` may legitimately
+        # narrow the search, so it is the one client path that gets resolved, and
+        # it is refused unless it stays inside the configured root.
+        names_our_project = _names_configured_path(
+            body.get("db_path"), _accepted_spellings(cfg["db_path"], configured_db)
+        ) and _names_configured_path(
+            body.get("project_root"), _accepted_spellings(raw_root, configured_root)
+        )
+        if not names_our_project:
             self.send_error(409, "daemon project/index does not match the client request")
             return
-        if not lexical_root_allowed:
+        lexical_root = _contained_path(body.get("lexical_root"), configured_root)
+        if lexical_root is None:
             self.send_error(400, "lexical_root must stay inside the daemon project root")
             return
         # Optional HyDE expansion runs in-thread because it's just an HTTP
