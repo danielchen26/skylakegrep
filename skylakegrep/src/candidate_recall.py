@@ -923,17 +923,25 @@ def _rg_path_recall(
         for variant in _surface_variants(term):
             if variant not in rg_terms:
                 rg_terms.append(variant)
-    for term in rg_terms[: max(len(terms), 16)]:
-        cmd.extend(["-e", term])
-    # ``--`` terminates option parsing. Every caller-derived value above is passed
-    # as the argument of an explicit flag (``-e`` for terms, ``-g`` for globs) and
-    # the call below uses an argv list with no shell, so a value beginning with
-    # ``-`` can never be re-read as a flag and no value reaches a shell.
+    # Patterns go to ripgrep on stdin via ``-f -``, not on argv. Search terms are
+    # the one genuinely caller-controlled value in this call, and keeping them out
+    # of the argument vector removes the last path by which a query could be read
+    # as an option -- it also sidesteps ARG_MAX on very wide term sets. A term
+    # containing a newline would otherwise split into two patterns, so newlines are
+    # dropped; ``-F`` already means every pattern is a literal, never a regex.
+    selected = rg_terms[: max(len(terms), 16)]
+    stdin_patterns = "\n".join(t.replace("\n", " ").replace("\r", " ") for t in selected)
+    if not stdin_patterns.strip():
+        return 0
+    cmd.extend(["-f", "-"])
+    # ``--`` terminates option parsing so the positional root cannot be re-read as
+    # a flag. The call uses an argv list with no shell.
     cmd.append("--")
     cmd.append(str(root))
     try:
         proc = subprocess.run(
             cmd,
+            input=stdin_patterns,
             capture_output=True,
             text=True,
             timeout=timeout,
