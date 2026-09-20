@@ -37,18 +37,35 @@ DEFAULT_DAEMON_PORT = 7878
 _lock = threading.Lock()
 
 
-def _names_configured_path(candidate: object, configured: Path) -> bool:
+def _accepted_spellings(raw: object, resolved: Path) -> frozenset[str]:
+    """Every spelling of a configured path that a client may legitimately send.
+
+    Built only from values the daemon already trusts -- its own config entry and
+    the resolved form of it. Nothing here derives from a request, which is what
+    lets the check below be a pure membership test.
+    """
+    out = {str(resolved), resolved.as_posix()}
+    if isinstance(raw, (str, Path)):
+        out.add(str(raw))
+    return frozenset(out)
+
+
+def _names_configured_path(candidate: object, accepted: frozenset[str]) -> bool:
     """True when a client names the path this daemon is actually serving.
 
-    The candidate is only ever compared against ``configured``. It is never
-    returned and never reaches a filesystem call, so a crafted value cannot
-    redirect the daemon -- the worst it can do is earn a 409.
+    Deliberately a string membership test against spellings derived from trusted
+    config. Resolving the candidate instead would mean building a filesystem path
+    out of request data, which is the thing being avoided: here a crafted value
+    can only ever fail to match and earn a 409. The CLI sends
+    ``str(config["db_path"])`` and ``str(project_root)`` verbatim, so the honest
+    spellings are covered; anything else fails closed, which is the right
+    direction for this check.
     """
     if candidate is None:
         return True
     if not isinstance(candidate, str):
         return False
-    return Path(candidate).expanduser().resolve() == configured
+    return candidate in accepted
 
 
 def _contained_path(candidate: object, root: Path) -> Path | None:
@@ -105,16 +122,19 @@ class _SearchHandler(BaseHTTPRequestHandler):
         cfg = get_config()
         snippet_chars = int(body.get("snippet_chars", 500))
         configured_db = Path(cfg["db_path"]).expanduser().resolve()
-        configured_root = resolve_project_root().expanduser().resolve()
+        raw_root = resolve_project_root()
+        configured_root = raw_root.expanduser().resolve()
         # This daemon serves exactly one project. A client may state which db and
-        # project root it believes it is talking to, but those values are only
-        # compared -- never used to build a path -- so only the configured paths
-        # ever reach the filesystem. ``lexical_root`` may legitimately narrow the
-        # search, so it is the one client-supplied path that gets resolved, and it
-        # is refused unless it stays inside the configured root.
+        # project root it believes it is talking to; those statements are matched
+        # against spellings derived from trusted config, so no request value is
+        # ever turned into a filesystem path. ``lexical_root`` may legitimately
+        # narrow the search, so it is the one client path that gets resolved, and
+        # it is refused unless it stays inside the configured root.
         names_our_project = _names_configured_path(
-            body.get("db_path"), configured_db
-        ) and _names_configured_path(body.get("project_root"), configured_root)
+            body.get("db_path"), _accepted_spellings(cfg["db_path"], configured_db)
+        ) and _names_configured_path(
+            body.get("project_root"), _accepted_spellings(raw_root, configured_root)
+        )
         if not names_our_project:
             self.send_error(409, "daemon project/index does not match the client request")
             return
