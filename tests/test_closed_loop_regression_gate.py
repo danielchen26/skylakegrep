@@ -32,6 +32,8 @@ def _args(**overrides):
         "min_general_eligible_fraction": 0.8,
         "min_general_median_context_reduction": 1.0,
         "min_general_context_ci_low": 1.0,
+        "min_general_median_measured_elapsed_ratio": 0.8,
+        "max_general_median_elapsed_delta_seconds": 1.0,
     }
     values.update(overrides)
     return Namespace(**values)
@@ -100,7 +102,11 @@ def test_closed_loop_gate_accepts_quality_gated_general_report():
         "quality_gate": {"passed": True},
         "sample_gate": {"passed": True},
         "source_gate": {"passed": True},
-        "paired_distributions": {"context_token_reduction_x": {"median": 2.5}},
+        "paired_distributions": {
+            "context_token_reduction_x": {"median": 2.5},
+            "measured_elapsed_ratio_x": {"median": 1.1},
+            "measured_elapsed_delta_seconds": {"median": -0.2},
+        },
         "context_token_median_95pct_ci": {"low": 1.8, "high": 3.1},
     }
     result = _gate.evaluate(report, _args(require_general_reportable=True))
@@ -124,6 +130,64 @@ def test_closed_loop_gate_rejects_general_multiplier_without_quality():
     assert any("quality noninferiority" in failure for failure in result["failures"])
 
 
+def test_closed_loop_gate_rejects_general_measured_latency_regression():
+    report = _report()
+    report["generalization"] = {
+        "claim_status": "reportable",
+        "quality_eligible_fraction": 0.9,
+        "quality_gate": {"passed": True},
+        "sample_gate": {"passed": True},
+        "source_gate": {"passed": True},
+        "paired_distributions": {
+            "context_token_reduction_x": {"median": 2.5},
+            "measured_elapsed_ratio_x": {"median": 0.6},
+            "measured_elapsed_delta_seconds": {"median": 1.4},
+        },
+        "context_token_median_95pct_ci": {"low": 1.8, "high": 3.1},
+    }
+    result = _gate.evaluate(report, _args(require_general_reportable=True))
+    assert not result["ok"]
+    assert any("elapsed ratio" in failure for failure in result["failures"])
+
+
+def test_closed_loop_gate_accepts_small_absolute_latency_gap():
+    report = _report()
+    report["generalization"] = {
+        "claim_status": "reportable",
+        "quality_eligible_fraction": 0.9,
+        "quality_gate": {"passed": True},
+        "sample_gate": {"passed": True},
+        "source_gate": {"passed": True},
+        "paired_distributions": {
+            "context_token_reduction_x": {"median": 2.5},
+            "measured_elapsed_ratio_x": {"median": 0.6},
+            "measured_elapsed_delta_seconds": {"median": 0.08},
+        },
+        "context_token_median_95pct_ci": {"low": 1.8, "high": 3.1},
+    }
+    result = _gate.evaluate(report, _args(require_general_reportable=True))
+    assert result["ok"], result
+
+
+def test_closed_loop_gate_rejects_missing_measured_latency_metric():
+    report = _report()
+    report["generalization"] = {
+        "claim_status": "reportable",
+        "quality_eligible_fraction": 0.9,
+        "quality_gate": {"passed": True},
+        "sample_gate": {"passed": True},
+        "source_gate": {"passed": True},
+        "paired_distributions": {
+            "context_token_reduction_x": {"median": 2.5},
+            "measured_elapsed_ratio_x": {"median": 0.9},
+        },
+        "context_token_median_95pct_ci": {"low": 1.8, "high": 3.1},
+    }
+    result = _gate.evaluate(report, _args(require_general_reportable=True))
+    assert not result["ok"]
+    assert any("elapsed delta is missing" in failure for failure in result["failures"])
+
+
 def test_closed_loop_gate_rejects_general_report_without_clean_source():
     report = _report()
     report["generalization"] = {
@@ -132,7 +196,11 @@ def test_closed_loop_gate_rejects_general_report_without_clean_source():
         "quality_gate": {"passed": True},
         "sample_gate": {"passed": True},
         "source_gate": {"passed": False},
-        "paired_distributions": {"context_token_reduction_x": {"median": 2.5}},
+        "paired_distributions": {
+            "context_token_reduction_x": {"median": 2.5},
+            "measured_elapsed_ratio_x": {"median": 1.1},
+            "measured_elapsed_delta_seconds": {"median": -0.2},
+        },
         "context_token_median_95pct_ci": {"low": 1.8, "high": 3.1},
     }
     result = _gate.evaluate(report, _args(require_general_reportable=True))

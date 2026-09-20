@@ -42,8 +42,8 @@ def repository_workload(root: Path) -> dict[str, int]:
 
 
 def _cobra_reference(receipt: dict[str, Any], workload: dict[str, int]) -> dict[str, Any]:
-    if receipt.get("schema_version") != 2:
-        raise ValueError("Cobra receipt must use General Benchmark schema_version 2")
+    if receipt.get("schema_version") != 3:
+        raise ValueError("Cobra receipt must use General Benchmark schema_version 3")
     sections = receipt.get("sections", [])
     if len(sections) != 1 or sections[0].get("repo") != "cobra":
         raise ValueError("capacity reference must contain exactly one completed Cobra section")

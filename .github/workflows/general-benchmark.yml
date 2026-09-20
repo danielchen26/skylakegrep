@@ -243,7 +243,9 @@ jobs:
             --max-completed-task-regression 999 \
             --min-general-eligible-fraction 0.80 \
             --min-general-median-context-reduction 1.0 \
-            --min-general-context-ci-low 1.0
+            --min-general-context-ci-low 1.0 \
+            --min-general-median-measured-elapsed-ratio 0.8 \
+            --max-general-median-elapsed-delta-seconds 1.0
 
       - name: Scan merged artifacts for private material
         id: privacy_scan
