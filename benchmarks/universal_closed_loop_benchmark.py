@@ -36,6 +36,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from benchmarks.agent_tool_depth_benchmark import DEFAULT_TASKS
 from benchmarks.closed_loop_agent_benchmark import (
+    policy_ranks,
     _adaptive_effort_for_task,
     _aggregate,
     _closed_loop,
@@ -255,7 +256,12 @@ def _summarize_rows(
     threshold: float,
 ) -> dict[str, Any]:
     totals = {
-        policy: _aggregate([row for row in rows if row["policy"] == policy], tokens_per_second, threshold)
+        policy: _aggregate(
+            [row for row in rows if row["policy"] == policy],
+            tokens_per_second,
+            threshold,
+            ranked=policy_ranks(policy),
+        )
         for policy in policies
     }
     comparison: dict[str, Any] = {}
@@ -280,6 +286,10 @@ def _compact_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         "returned_paths",
         "path_coverage",
         "path_precision",
+        "rank_first_hit",
+        "reciprocal_rank",
+        "hit_at_1",
+        "hit_at_3",
         "evidence_coverage",
         "sufficiency",
         "task_completion_quality",
@@ -450,6 +460,21 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 "task_completion_quality is a deterministic retrieved-context proxy over paths, "
                 "literal source facts, noise, sufficiency, and stopping; it is not a graded "
                 "model-generated final answer"
+            ),
+            "precision_note": (
+                "path_precision is precision@k and is bounded by relevant/k: with one "
+                "relevant file and --top 8 no retriever can exceed 12.5%, so it grades "
+                "the chosen top-k more than it grades ranking. Compare tools on mrr, "
+                "hit_at_1_pct, hit_at_3_pct and mean_rank_when_found instead — those "
+                "measure how many wrong files an agent opens before the right one"
+            ),
+            "rank_axis_note": (
+                "rank axes are null for arms whose ranked_arm is false. ripgrep emits "
+                "matches in traversal order rather than relevance order, so a rank "
+                "statistic over its output is invented rather than measured, and it is "
+                "unstable run to run because rg walks in parallel. It is not stabilised "
+                "with --sort path because that would disable rg's parallelism and "
+                "inflate the latency comparison"
             ),
             "elapsed_note": (
                 "elapsed_seconds is measured harness wall time including scoring/token counting; "

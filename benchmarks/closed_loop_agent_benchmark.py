@@ -963,6 +963,60 @@ def _path_group_precision(expected_groups: list[list[str]], paths: list[str]) ->
     return matched / len(unique_paths)
 
 
+#: Arms whose results come back in a relevance order. ``rg-only`` is excluded on
+#: purpose: ripgrep emits matches in traversal order, so MRR or hit@k over its
+#: output is invented rather than measured — and because it walks in parallel
+#: without ``--sort`` the invented number is unstable, observed swinging hit@1
+#: between 50.0 and 0.0 across two runs of unchanged code on an unchanged tree.
+#: It is deliberately not stabilised with ``--sort path``, which would disable
+#: rg's parallelism and inflate our own latency comparison.
+RANKED_POLICIES = frozenset({"skygrep-first"})
+
+
+def policy_ranks(policy: str) -> bool:
+    return policy in RANKED_POLICIES
+
+
+def _rank_of_first_hit(
+    expected_groups: list[list[str]], paths: list[str]
+) -> int | None:
+    """1-indexed position of the first returned path that satisfies an
+    expected group, or ``None`` when no returned path ever does.
+
+    This is the axis ``path_precision`` structurally cannot see. Precision@k
+    is bounded by ``relevant / k``: with the usual one relevant file and
+    ``--top 8``, no retriever on earth can exceed 12.5%, so the metric grades
+    the chosen top-k far more than it grades ranking. The cost an agent
+    actually pays is how many wrong files it opens before the right one,
+    which is exactly this rank — and the derived MRR / hit@1 / hit@3 are
+    comparable across tools at a fixed k.
+
+    Order matters here, so unlike :func:`_path_group_precision` the input
+    list must not be sorted or set-deduplicated by the caller.
+    """
+
+    for index, path in enumerate(paths, start=1):
+        if not path:
+            continue
+        if any(
+            candidate and candidate in path
+            for group in expected_groups
+            for candidate in group
+        ):
+            return index
+    return None
+
+
+def _rank_metrics(expected_groups: list[list[str]], paths: list[str]) -> dict[str, Any]:
+    rank = _rank_of_first_hit(expected_groups, _dedupe(paths))
+    return {
+        "rank_first_hit": rank,
+        "reciprocal_rank": round(1.0 / rank, 3) if rank else 0.0,
+        "hit_at_1": 1 if rank == 1 else 0,
+        "hit_at_3": 1 if rank is not None and rank <= 3 else 0,
+    }
+
+
 def _missing_path_groups(expected_groups: list[list[str]], paths: list[str]) -> list[str]:
     missing: list[str] = []
     for group in expected_groups:
@@ -991,18 +1045,20 @@ def _score_context_for_task(task: dict[str, Any], payloads: list[str], paths: li
             "path_coverage": round(path_coverage, 3),
             "path_precision": round(path_precision, 3),
             "evidence_coverage": round(evidence_coverage, 3),
+            # Additive on purpose: sufficiency keeps its published definition so
+            # receipts recorded before rank metrics existed stay comparable.
             "sufficiency": round((0.6 * path_coverage) + (0.4 * evidence_coverage), 3),
+            **_rank_metrics(expected_groups, paths),
             "missing_paths": _missing_path_groups(expected_groups, paths),
             "missing_evidence_terms": [
                 term for term in evidence_terms if term.lower() not in payload
             ],
         }
-    return _score_context(
-        task.get("expected_paths", []),
-        evidence_terms,
-        _dedupe(paths),
-        payload,
-    )
+    expected_paths = task.get("expected_paths", [])
+    return {
+        **_score_context(expected_paths, evidence_terms, _dedupe(paths), payload),
+        **_rank_metrics([[path] for path in expected_paths], paths),
+    }
 
 
 def _completion_quality(
@@ -1428,6 +1484,8 @@ def _aggregate(
     rows: list[dict[str, Any]],
     tokens_per_second: float,
     sufficient_threshold: float,
+    *,
+    ranked: bool = True,
 ) -> dict[str, Any]:
     if not rows:
         return {}
@@ -1444,6 +1502,38 @@ def _aggregate(
         "path_coverage_pct": _pct(sum(float(r["path_coverage"]) for r in rows) / n),
         "path_precision_pct": _pct(sum(float(r["path_precision"]) for r in rows) / n),
         "evidence_coverage_pct": _pct(sum(float(r["evidence_coverage"]) for r in rows) / n),
+        # Rank axes, reported beside precision rather than folded into it:
+        # precision@k is capped at relevant/k, so it cannot separate a tool that
+        # ranks the answer first from one that ranks it eighth. Null for arms
+        # that do not rank at all; see RANKED_POLICIES.
+        "ranked_arm": ranked,
+        "mrr": (
+            round(sum(float(r.get("reciprocal_rank", 0.0)) for r in rows) / n, 3)
+            if ranked
+            else None
+        ),
+        "hit_at_1_pct": (
+            _pct(sum(int(r.get("hit_at_1", 0)) for r in rows) / n) if ranked else None
+        ),
+        "hit_at_3_pct": (
+            _pct(sum(int(r.get("hit_at_3", 0)) for r in rows) / n) if ranked else None
+        ),
+        "mean_rank_when_found": (
+            None
+            if not ranked
+            else (
+                round(
+                    sum(int(r["rank_first_hit"]) for r in rows if r.get("rank_first_hit"))
+                    / max(1, sum(1 for r in rows if r.get("rank_first_hit"))),
+                    2,
+                )
+                if any(r.get("rank_first_hit") for r in rows)
+                else None
+            )
+        ),
+        "tasks_never_found": (
+            sum(1 for r in rows if not r.get("rank_first_hit")) if ranked else None
+        ),
         "sufficiency_pct": _pct(sufficiency),
         "sufficient_tasks": sum(1 for r in rows if float(r["sufficiency"]) >= sufficient_threshold),
         "work_quality_pct": _pct(work_quality),
@@ -1475,6 +1565,17 @@ def _compare_totals(sky: dict[str, Any], rg: dict[str, Any]) -> dict[str, Any]:
         ),
         "path_coverage_delta_pct": round(sky["path_coverage_pct"] - rg["path_coverage_pct"], 1),
         "evidence_coverage_delta_pct": round(sky["evidence_coverage_pct"] - rg["evidence_coverage_pct"], 1),
+        # A rank delta against an unranked arm would compare a ranking to a
+        # traversal order, so it is withheld rather than fabricated.
+        **(
+            {
+                "mrr_delta": round(sky["mrr"] - rg["mrr"], 3),
+                "hit_at_1_delta_pct": round(sky["hit_at_1_pct"] - rg["hit_at_1_pct"], 1),
+                "hit_at_3_delta_pct": round(sky["hit_at_3_pct"] - rg["hit_at_3_pct"], 1),
+            }
+            if sky.get("mrr") is not None and rg.get("mrr") is not None
+            else {"rank_delta_note": "baseline arm does not rank; no rank delta"}
+        ),
         "sufficiency_delta_pct": round(sky["sufficiency_pct"] - rg["sufficiency_pct"], 1),
         "work_quality_delta_pct": round(sky["work_quality_pct"] - rg["work_quality_pct"], 1),
         "completed_tasks_delta": sky["completed_tasks"] - rg["completed_tasks"],
@@ -1526,6 +1627,7 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
             [r for r in rows if r["policy"] == policy],
             args.tokens_per_second,
             args.sufficient_threshold,
+            ranked=policy_ranks(policy),
         )
         for policy in policies
     }
@@ -1534,6 +1636,7 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
             [r for r in rows if r["policy"] == policy and r["effort"] == effort_name],
             args.tokens_per_second,
             args.sufficient_threshold,
+            ranked=policy_ranks(policy),
         )
         for policy in policies
         for effort_name in efforts
@@ -1543,6 +1646,7 @@ def run_benchmark(args: argparse.Namespace) -> dict[str, Any]:
             [r for r in rows if r["policy"] == policy and r["abstract_level"] == level],
             args.tokens_per_second,
             args.sufficient_threshold,
+            ranked=policy_ranks(policy),
         )
         for policy in policies
         for level in sorted({r["abstract_level"] for r in rows})
