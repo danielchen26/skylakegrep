@@ -122,7 +122,10 @@ subset:
      fallback after all artifact/privacy gates, then verify PyPI JSON, the
      simple index, and a fresh install. Never call the tag job's build success
      a published release when the upload step failed.
-  7. **GitHub Release**: `gh release create vX.Y.Z --target master
+  7. **GitHub Release** (assets are attached automatically by
+     `.github/workflows/release-assets.yml` when the release is published:
+     it copies the exact PyPI wheel + sdist after checking their sha256; run
+     it with `workflow_dispatch` to backfill a tag): `gh release create vX.Y.Z --target master
      --title "vX.Y.Z — …" --notes-file docs/skylakegrep-X.Y.Z.md
      dist/skylakegrep-X.Y.Z-py3-none-any.whl
      dist/skylakegrep-X.Y.Z.tar.gz`. The artifacts must be
