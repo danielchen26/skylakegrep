@@ -1,0 +1,51 @@
+{
+  "provenance": {
+    "what": "General Benchmark v2 public tasks, paired policies, scripted agent harness",
+    "tasks": "60 pinned tasks in 6 public repositories (benchmarks/public_repos.json)",
+    "gate": "a task counts as solved only when the accepted path is in context and every literal evidence term is present",
+    "trials": 1,
+    "tokens": "chars/4",
+    "embeddings": "deterministic stand-in vectors on the Ollama API (semantic lane effectively off); a bge-m3 receipt is pending",
+    "skygrep_version": "0.8.0",
+    "reproduce": "benchmarks/universal_closed_loop_benchmark.py --policy skygrep-first --policy skygrep-slim --policy rg-agent; benchmarks/compare_policies.py"
+  },
+  "policies": {
+    "skygrep-slim": {"label": "skygrep --agent-slim (0.8.0)", "solved": 60, "median_tokens": 8358, "total_tokens": 1425866, "median_calls": 10},
+    "rg-agent": {"label": "rg agent", "solved": 46, "median_tokens": 14778, "total_tokens": 1587936, "median_calls": 8},
+    "skygrep-first": {"label": "skygrep 0.7 agent loop", "solved": 60, "median_tokens": 52751, "total_tokens": 3474615, "median_calls": 14}
+  },
+  "example": {
+    "repo": "Django",
+    "question": "Where is database-backed username and password authentication implemented, and what class and method anchor the answer?",
+    "answer": "django/contrib/auth/backends.py · ModelBackend.authenticate",
+    "rg-agent": {
+      "solved": false,
+      "calls": 14,
+      "tokens": 64856,
+      "steps": [
+        ["rg -c ×7  →  rank files by 6 query terms", 8841],
+        ["outline  django/core/checks/database.py  +2", 3240],
+        ["outline  tests/test_runner_apps/databases/__init__.py  +2", 3282],
+        ["outline  tests/multiple_database/__init__.py  +2", 2339],
+        ["outline  auth/migrations/0004_alter_user_username_opts.py  +2", 1901],
+        ["read  docs/ref/models/database-functions.txt", 8867],
+        ["read  docs/ref/databases.txt", 20145],
+        ["read  docs/howto/legacy-databases.txt", 16241]
+      ]
+    },
+    "skygrep-slim": {
+      "solved": true,
+      "calls": 2,
+      "tokens": 2722,
+      "steps": [
+        ["skygrep --agent-slim  →  10 anchors + outline", 890],
+        ["skygrep symbols  django/contrib/auth/backends.py  +2", 1832]
+      ],
+      "found": [
+        "django/contrib/auth/backends.py",
+        "59: class ModelBackend(BaseBackend):",
+        "65: def authenticate(self, request, username=None, password=None, …)"
+      ]
+    }
+  }
+}
