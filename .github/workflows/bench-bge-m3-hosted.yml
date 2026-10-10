@@ -1,0 +1,78 @@
+name: bge-m3 hosted-runner check (temporary branch)
+
+# Temporary, branch-only workflow: real bge-m3 embeddings on GitHub-hosted
+# CPU runners for the repositories small enough to index there. It is a
+# partial real-embedding check of skygrep-slim / rg-agent, not the full
+# six-repository receipt (React / Django / Spring need an accelerator).
+
+on:
+  push:
+    branches: [bench/bge-m3-hosted]
+    paths:
+      - ".github/workflows/bench-bge-m3-hosted.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  repo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        repo: [cobra, tokio, vite]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install ripgrep, Ollama and the benchmark
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep
+          curl -fsSL https://ollama.com/install.sh | sh
+          python -m pip install --upgrade pip
+          pip install -e ".[benchmark]"
+      - name: Start Ollama with bge-m3
+        run: |
+          (ollama serve > /tmp/ollama.log 2>&1 &)
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:11434/api/tags >/dev/null && break; sleep 2; done
+          ollama pull bge-m3
+          nproc; free -g
+      - name: Run paired benchmark
+        run: |
+          python benchmarks/universal_closed_loop_benchmark.py \
+            --repo "${{ matrix.repo }}" \
+            --oss-root /tmp/oss \
+            --prepare --refresh-index --reset-index \
+            --index-timeout 18000 \
+            --trials 3 \
+            --tokenizer tiktoken \
+            --policy skygrep-first --policy skygrep-slim --policy rg-agent \
+            --report "/tmp/hosted-${{ matrix.repo }}.json" > /dev/null
+      - name: Privacy scan
+        run: python scripts/privacy_release_scan.py "/tmp/hosted-${{ matrix.repo }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hosted-${{ matrix.repo }}
+          path: /tmp/hosted-${{ matrix.repo }}.json
+
+  collect:
+    needs: repo
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: hosted-*
+          path: bench-results
+          merge-multiple: true
+      - name: Commit results to this branch
+        run: |
+          ls -la bench-results || exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bench-results
+          git commit -m "bench: hosted bge-m3 results" || exit 0
+          git push origin HEAD:bench/bge-m3-hosted
