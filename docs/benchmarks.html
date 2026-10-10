@@ -582,6 +582,14 @@ skygrep "Where does Django turn an incoming URL into the view function that shou
  skygrep versus 88.4% for <code>rg-only</code>; completion was 180 / 180 versus
  159 / 180 observations.
  </p>
+ <p>
+ <code>rg-only</code> lets <code>--max-count</code> act per file, so common terms
+ return most of a large repository (median 13.8M tokens per Spring task). The
+ ratio therefore measures savings against an unbounded dump, not against an
+ agent that truncates tool output. 0.8.0 adds the realistic <code>rg-agent</code>
+ baseline and the token-lean <code>skygrep-slim</code> policy; see
+ <a href="general-performance.html">General performance</a>.
+ </p>
  <div class="table-wrap">
  <table>
  <thead><tr><th>Published metric</th><th>Result</th><th>Claim boundary</th></tr></thead>

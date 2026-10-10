@@ -130,3 +130,12 @@ scheduling remains future work.
 ## After 0.7.5
 
 See [FOLLOWUPS-0.7.5.md](FOLLOWUPS-0.7.5.md) for claim-expansion follow-ups (#10 latency receipt, large-repo smoke, other MCP clients).
+
+## After 0.8.0
+
+From [the 0.8.0 release notes](skylakegrep-0.8.0.md):
+
+- Publish a `bge-m3` receipt (three trials, `--tokenizer tiktoken`) comparing
+  `skygrep-first`, `skygrep-slim`, `rg-agent` and `rg-only`.
+- Make the `skygrep-slim` last-resort fallback progressive end to end; the
+  few tasks that fall back to the full policy dominate total tokens today.
