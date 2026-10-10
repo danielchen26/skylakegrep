@@ -18,6 +18,7 @@ metrics"`` searches; ``skygrep stats`` runs the subcommand.
 
 from __future__ import annotations
 
+import contextvars
 import importlib.util
 import json
 import logging
@@ -33,6 +34,7 @@ import click
 logger = logging.getLogger(__name__)
 
 from . import __version__
+from . import agent_payload
 from . import auto_index, bootstrap, code_graph, config as cfg_mod, enrich as enrich_mod, integrations as integrations_mod, ui as ui_mod
 from .answerer import get_answerer
 from .config import get_config
@@ -883,7 +885,68 @@ def _attach_explain(results: list[dict], decision: "RouterDecision | None") -> N
             r["explain"] = _build_explain_string(r, decision)
 
 
+# Per-invocation agent rendering contract, set by ``search_cmd`` once the
+# project root and preset are known. Every JSON exit in the search pipeline
+# goes through ``render_json_results``, so this is the single switch between
+# the legacy debug shape and the compact agent shapes.
+_AGENT_RENDER: "contextvars.ContextVar[dict | None]" = contextvars.ContextVar(
+    "skygrep_agent_render", default=None
+)
+
+# Source files outlined inline by ``--agent-slim``; later batches are one
+# ``skygrep symbols`` call away.
+SLIM_OUTLINE_FILES = 3
+
+
+def _render_agent_json(results: list[dict], *, include_snippet: bool, ctx: dict) -> str:
+    root = ctx.get("display_root")
+    items = agent_payload.compact_results(
+        results,
+        root=root,
+        include_snippet=include_snippet,
+        query=ctx.get("query", ""),
+        snippet_budget=int(ctx.get("snippet_budget") or agent_payload.DEFAULT_SNIPPET_BUDGET),
+    )
+    if ctx.get("style") != "slim":
+        return agent_payload.dumps(items)
+    ordered: list[str] = []
+    for item in items:
+        if item["path"] not in ordered:
+            ordered.append(item["path"])
+    source_paths = [
+        p for p in ordered if Path(p).suffix.lower() in agent_payload.SOURCE_SUFFIXES
+    ]
+    outlines = agent_payload.outline_files(
+        source_paths,
+        ctx.get("query", ""),
+        root=root,
+        budget_chars=int(ctx.get("outline_budget") or 4000),
+        max_files=SLIM_OUTLINE_FILES,
+    )
+    outlined = {o["path"] for o in outlines}
+    remaining = [p for p in source_paths if p not in outlined]
+    payload: dict = {
+        "results": items,
+        "outline": agent_payload.outline_payload(outlines),
+    }
+    if remaining:
+        quoted = " ".join(_shell_quote(p) for p in remaining[:SLIM_OUTLINE_FILES])
+        payload["next"] = (
+            f"skygrep symbols {quoted} -q {_shell_quote(ctx.get('query', ''))}"
+        )
+    return agent_payload.dumps(payload)
+
+
+def _shell_quote(value: str) -> str:
+    import shlex
+
+    return shlex.quote(value)
+
+
 def render_json_results(results: list[dict], *, include_snippet: bool = True) -> str:
+    ctx = _AGENT_RENDER.get()
+    if ctx and ctx.get("style") in {"compact", "slim"}:
+        return _render_agent_json(results, include_snippet=include_snippet, ctx=ctx)
     payload = []
     optional_keys = (
         "fallback",
@@ -925,7 +988,7 @@ def render_json_results(results: list[dict], *, include_snippet: bool = True) ->
 
 
 # Subcommand names that take precedence over bare-form query routing.
-_SUBCOMMANDS = {"index", "search", "watch", "serve", "mcp", "stats", "doctor", "enrich", "setup"}
+_SUBCOMMANDS = {"index", "search", "watch", "serve", "mcp", "stats", "doctor", "enrich", "setup", "symbols"}
 _DETAIL_CHOICES = {"brief", "standard", "full", "summary"}
 _AGENT_MODE_CHOICES = {"off", "fast", "context", "deep", "answer"}
 _DEFAULT_AGENT_DAEMON_URL = "http://127.0.0.1:7878"
@@ -1156,6 +1219,9 @@ def index(path: str, reset: bool, incremental: bool):
 @click.option("--agent-mode", default="off", type=click.Choice(sorted(_AGENT_MODE_CHOICES)), help="Preset output depth for LLM callers: fast=JSON path anchors, context=JSON snippets, deep=JSON full detail, answer=local synthesized answer.")
 @click.option("--agent-fast", is_flag=True, help="Shortcut for --agent-mode fast: JSON path anchors, --no-content, --top 10, --no-rerank.")
 @click.option("--agent-context", is_flag=True, help="Shortcut for --agent-mode context: JSON snippets, --content, --detail standard, --top 8, --no-rerank.")
+@click.option("--agent-slim", is_flag=True, help="Token-lean agent preset: compact path anchors plus a query-ranked declaration outline of the top 3 source files. Follow with `skygrep symbols` for the next files, then read only the listed line ranges.")
+@click.option("--format", "json_format", default="auto", type=click.Choice(["auto", "compact", "full"]), help="JSON shape. auto = compact for agent presets (--agent-fast/--agent-context/--agent-slim), full for plain --json. full = legacy pretty-printed debug shape.")
+@click.option("--snippet-budget", default=None, type=int, help="Max characters per snippet in compact agent JSON (default 1200). Snippets keep the declaration plus query-matching lines.")
 @click.option("--strict/--no-strict", default=False, help="High-risk agent verification: force hybrid + corpus-wide semantic agreement, validate index freshness, and exit 2 when evidence remains inconclusive. Implies --agent-context.")
 @click.option("--agent-daemon/--no-agent-daemon", default=False, help="Daemon-first agent call: use SKYGREP_DAEMON_URL or http://127.0.0.1:7878, falling back in-process if unavailable.")
 @click.option("--daemon-url", default=None, help="If set, send the search to a running skygrep daemon instead of loading the reranker in-process (eliminates cold-load latency)")
@@ -1194,6 +1260,9 @@ def search_cmd(
     agent_mode: str,
     agent_fast: bool,
     agent_context: bool,
+    agent_slim: bool,
+    json_format: str,
+    snippet_budget: int | None,
     strict: bool,
     agent_daemon: bool,
     daemon_url: str,
@@ -1272,14 +1341,18 @@ def search_cmd(
             ("agent-mode", agent_mode != "off"),
             ("agent-fast", agent_fast),
             ("agent-context", agent_context),
+            ("agent-slim", agent_slim),
         )
         if enabled
     ]
     if len(selected_agent_modes) > 1:
         raise click.UsageError(
-            "Choose only one agent preset: --agent-mode, --agent-fast, or --agent-context."
+            "Choose only one agent preset: --agent-mode, --agent-fast, --agent-context, or --agent-slim."
         )
-    if agent_fast:
+    _AGENT_RENDER.set(None)
+    if agent_fast or agent_slim:
+        # --agent-slim retrieves exactly like --agent-fast; only the
+        # rendered payload differs (outline instead of nothing).
         agent_mode = "fast"
     elif agent_context:
         agent_mode = "context"
@@ -1377,6 +1450,20 @@ def search_cmd(
                 ),
                 err=True,
             )
+    render_style = json_format
+    if render_style == "auto":
+        render_style = "compact" if agent_mode in {"fast", "context"} else "full"
+    if agent_slim:
+        render_style = "slim"
+    if json_output and render_style != "full":
+        _AGENT_RENDER.set(
+            {
+                "style": render_style,
+                "query": query,
+                "display_root": Path.cwd(),
+                "snippet_budget": snippet_budget,
+            }
+        )
     if daemon_url:
         from .server import daemon_search
 
@@ -3923,7 +4010,7 @@ def serve(host: str, port: int, warm_reranker: bool):
     help="Default project root for MCP tool calls (also SKYGREP_MCP_PATH).",
 )
 def mcp(mcp_path: str | None):
-    """Run the native MCP stdio server (tools: search, agent_context).
+    """Run the native MCP stdio server (tools: search, agent_context, symbols).
 
     Speaks Model Context Protocol over stdin/stdout. Configure Cursor or
     Claude Desktop with `skygrep mcp` — see docs/mcp.md. Delegates to the
@@ -3933,6 +4020,54 @@ def mcp(mcp_path: str | None):
     from .mcp_server import serve_stdio
 
     serve_stdio(default_path=mcp_path)
+
+
+@cli.command("symbols")
+@click.argument("paths", nargs=-1, required=True)
+@click.option("-q", "--query", default="", help="Rank declarations that mention these terms first.")
+@click.option("--budget", default=4000, type=int, show_default=True, help="Max characters of outline per file. Raise it (e.g. 16000) for a near-complete inventory of a large module.")
+@click.option("--max-files", default=3, type=int, show_default=True, help="Outline at most this many source files per call.")
+@click.option("--json", "json_output", is_flag=True, help="Emit compact JSON instead of text.")
+def symbols_cmd(paths: tuple[str, ...], query: str, budget: int, max_files: int, json_output: bool):
+    """Query-ranked declaration outline of a few source files.
+
+    The cheap second step of the agent protocol: after `skygrep --agent-slim`
+    or `--agent-fast` names candidate files, outline the next batch here and
+    read only the line ranges that matter. Needs no index or model.
+
+    \b
+      skygrep symbols django/core/paginator.py -q "split a list into pages"
+      skygrep symbols a.py b.py c.py -q "token refresh" --budget 16000
+    """
+
+    cwd = Path.cwd()
+    project = cfg_mod.project_root()
+    resolved: list[str] = []
+    missing: list[str] = []
+    for raw in paths:
+        p = Path(raw)
+        candidates = [p] if p.is_absolute() else [cwd / p, project / p]
+        hit = next((c for c in candidates if c.is_file()), None)
+        if hit is None:
+            missing.append(raw)
+        else:
+            resolved.append(str(hit))
+    outlines = agent_payload.outline_files(
+        resolved, query, root=cwd, budget_chars=budget, max_files=max_files
+    )
+    if json_output:
+        payload: dict = {"outline": agent_payload.outline_payload(outlines)}
+        if missing:
+            payload["missing"] = missing
+        click.echo(agent_payload.dumps(payload))
+        return
+    text = agent_payload.render_outline_text(outlines)
+    if text:
+        click.echo(text)
+    for raw in missing:
+        click.echo(f"## {raw} (not found)")
+    if not outlines and not missing:
+        click.echo("[no source files to outline]")
 
 
 @cli.command()

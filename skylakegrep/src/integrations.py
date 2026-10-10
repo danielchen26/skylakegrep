@@ -21,132 +21,49 @@ from pathlib import Path
 
 BEGIN_MARKER = "<!-- BEGIN skylakegrep integration (managed by `skygrep setup`) -->"
 END_MARKER = "<!-- END skylakegrep integration -->"
-SNIPPET_VERSION = "agent-guidance-v5"
+SNIPPET_VERSION = "agent-guidance-v6"
 
 SNIPPET_BODY = """\
 ## skylakegrep semantic search
 
-For natural-language code or document search, prefer `skygrep` over
-raw `rg`. skygrep is a local smart router: it decides whether a query
-should use filename lookup, scoped metadata, hybrid candidate recall, or
-semantic escalation, then returns compact evidence instead of dumping the
-whole tree.
+For natural-language code or document search, use `skygrep` (local,
+offline) before broad `rg`. Agent presets return compact JSON with paths
+relative to the current directory; everything a later step needs is in
+`results[].path`, `start_line`, `end_line`, `evidence_terms`, and the first
+result's `agent_summary`.
 
-`--agent-context` is the best default when an LLM will consume evidence. It
-automatically fuses path tokens, symbol anchors, bounded ripgrep recall,
-SQLite chunk evidence, source-type priors, and confidence summaries. Do not
-manually fan out to broad `rg` just to recover recall; inspect skygrep's
-`agent_summary`, `why_ranked`, `evidence_terms`, and `suggested_followup_probe`
-first.
+Closed-loop policy (token-lean; aim for final task quality, not raw recall):
 
-Use the smallest command that gives enough depth:
-
-  - **Find where something is** (path / file location):
-
-        skygrep "where is the project brief I edited recently?"
-
-  - **Inspect matched content snippets** (best default for agent context):
-
-        skygrep --content --detail standard "what does the API migration plan say about rollback?"
-
-  - **Read deeper after narrowing to one file or folder**:
-
-        skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"
-
-  - **Ask for a synthesized local answer**:
-
-        skygrep --answer --content "summarize the payment retry policy"
-
-  - **Call from an LLM/agent tool path**:
-
-        skygrep --agent-context --include "src/**" "where is token refresh implemented?"
+  1. `skygrep --agent-slim "<query>"` returns ranked `results` plus an
+     `outline`: query-ranked `line: declaration` rows for the top 3 source
+     files. Add `--include "<scope/**>"` as soon as the scope is known.
+  2. If an outline row looks like the answer, read only that range with your
+     file-read tool (about 40 lines around it). Stop once you have the path
+     and the supporting source text.
+  3. Otherwise run the `next` command it returns
+     (`skygrep symbols <next 3 files> -q "<query>"`) and read the matching
+     range. Repeat at most twice.
+  4. Still missing: run `agent_summary.suggested_followup_probe`, narrow with
+     `--include`, or use `skygrep symbols <file> -q "<query>" --budget 16000`
+     for a fuller inventory of one large file.
+  5. Only then use targeted `rg -n` on identifiers you have already learned.
 
 Option playbook:
 
   - Path/location only: `skygrep --agent-fast "<query>"`.
-    Equivalent explicit form: `skygrep --json --no-content --top 10 --no-rerank --no-llm-router --no-cascade "<query>"`.
-  - Evidence snippets, first agent pass: `skygrep --agent-context "<query>"`.
-    Equivalent explicit form: `skygrep --json --content --detail standard --top 8 --no-rerank --no-llm-router --no-cascade "<query>"`.
-  - High-risk evidence gate: `skygrep --strict "<query>"`.
-    This implies `--agent-context`, adds an independent corpus-wide semantic
-    pass, validates indexed-source freshness, and exits 2 if verification is
-    still inconclusive. Read `strict_verification` before making the claim.
-  - Deep read: `skygrep --json --content --detail full --include "<known-path-or-folder>" "<query>"`.
-  - Synthesized answer: `skygrep --answer --content "<query>"`.
-  - Known scope: add `--include "<scope/**>"` as early as possible.
-  - Agent presets default to rule-based routing, no cascade, and automatic
-    hybrid recall for latency. `--agent-context` returns a compact evidence
-    bundle with optional fields such as `agent_summary`, `why_ranked`,
-    `evidence_bundle`, `candidate_recall_lanes`, `source_type`, and
-    `evidence_terms`.
-  - Let skygrep handle normal uncertainty. It marks results as `quality` =
-    `best`, `degraded`, or `uncertain`; only `uncertain` should trigger a
-    follow-up probe unless the user asked for exhaustive search.
-  - Add `--llm-router`, `--cascade`, or rerank only when ambiguity is worth
-    paying a local model call or deeper semantic refinement.
-  - Repeated tool calls: run `skygrep serve --port 7878`, then use
-    `skygrep --agent-daemon --agent-fast "<query>"` or
-    `skygrep --agent-daemon --agent-context "<query>"`. Rerank only when
-    ambiguity warrants it.
-    Explicit URL form: `skygrep --daemon-url http://127.0.0.1:7878 --agent-context "<query>"`.
-    Direct and daemon agent-context calls share the same hybrid evidence path.
-  - Exact regex/raw grep: use `rg` directly.
-
-Decision rules for agents:
-
-  - Start with bare `skygrep "<query>"` for file-location and concept
-    lookup questions.
-  - For implementation-location questions where several files may be relevant,
-    prefer `skygrep --agent-context "<query>"` if the next step benefits from
-    snippets, or `skygrep --agent-fast "<query>"` only when paths are enough.
-  - For first-pass implementation snippets in an agent loop, prefer
-    `skygrep --agent-context "<query>"`.
-    Re-run without `--no-rerank` only when `agent_summary.quality` is
-    `uncertain` or the returned paths contradict known repo facts.
-  - Add `--content` when the next step depends on text inside files.
-  - Add `--detail full` only after narrowing with `--include`, or when
-    the user explicitly asks to read the document contents.
-  - Add `--answer` only when the user wants a synthesized answer, not
-    just source evidence.
-  - Add `--json` for machine-readable agent context; do not scrape
-    human terminal output.
-  - Add `--include` or `--lexical-root` whenever the caller already
-    knows the relevant repo, folder, or file. Scoped calls are faster
-    and reduce irrelevant cross-folder evidence.
-  - Add `--explain` when routing or provenance matters for human terminal
-    output. For JSON agent calls, read `why_ranked` and `agent_summary`.
-  - For security, release, legal, financial, destructive, or otherwise
-    high-risk local claims, start with `skygrep --strict "<query>"` and do not
-    treat exit 2 or `strict_verification.status=inconclusive` as verified.
-
-Closed-loop policy:
-
-  1. Use one scoped `skygrep --agent-context` call for the first evidence pass
-     when the next LLM step needs context. Add `--include` immediately when
-     the relevant repo/folder/file is known.
-  2. Read `agent_summary.quality`:
-     - `best`: trust the returned anchors; read selected files directly if
-       implementation detail is needed.
-     - `degraded`: usually proceed, but prefer the suggested scoped follow-up
-       if the task is high-risk or the top files disagree.
-     - `uncertain`: run the suggested follow-up probe or a narrower
-       `skygrep --agent-context --include "<scope>"` call.
-     For a high-risk task, use `--strict` regardless of first-pass quality;
-     strict mode requires hybrid/semantic agreement and a fresh indexed source.
-  3. If the result names likely files but lacks enough evidence, read the
-     returned file paths directly when your agent has a file-read tool; use
-     `skygrep --content --detail full --include <that-file-or-folder>` when
-     direct file reads are unavailable or the file needs skygrep extraction
-     such as PDF, docx, or other parsed documents.
-  4. Use bounded `rg -l` / targeted `rg` only for exact lexical/regex needs,
-     raw grep output, or when skygrep is unavailable on PATH.
-  5. Prefer final task quality over raw recall: a useful answer needs the
-     right path, supporting source text, and low context noise.
-
-Use `rg` directly only when:
-  - You are writing a regex.
-  - You need exact raw grep output.
-  - `skygrep` is not on PATH inside the current project.
+  - Term-focused snippets (about 1.2k chars each):
+    `skygrep --agent-context --include "src/**" "<query>"`.
+  - High-risk claims (security, release, legal, financial, destructive):
+    `skygrep --strict "<query>"`. Exit 2 or
+    `strict_verification.status=inconclusive` means not verified.
+  - `agent_summary.quality`: `best` or `degraded` → proceed;
+    `uncertain` → run the suggested follow-up probe.
+  - Parsed documents (PDF, docx): `skygrep --content --detail full --include "<file>" "<query>"`.
+    Inspect snippets for humans: `skygrep --content --detail standard "<query>"`.
+    Synthesized local answer: `skygrep --answer --content "<query>"`.
+  - Repeated calls: `skygrep serve --port 7878`, then add `--agent-daemon`.
+  - Routing provenance for humans: `--explain`. Legacy verbose JSON: `--format full`.
+  - Exact regex/raw grep: use `rg` directly; also when `skygrep` is not on PATH.
 """
 
 

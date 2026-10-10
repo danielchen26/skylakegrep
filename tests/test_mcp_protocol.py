@@ -100,7 +100,7 @@ class McpProtocolTests(unittest.TestCase):
         resp = server.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
         assert resp is not None
         names = {tool["name"] for tool in resp["result"]["tools"]}
-        self.assertEqual(names, {"search", "agent_context"})
+        self.assertEqual(names, {"search", "agent_context", "symbols"})
         schemas = {t["name"]: t["inputSchema"] for t in resp["result"]["tools"]}
         self.assertIn("query", schemas["search"]["required"])
         self.assertEqual(schemas["agent_context"]["properties"]["top_k"]["default"], 8)
@@ -233,7 +233,7 @@ class McpProtocolTests(unittest.TestCase):
         _, raw_body = out.split(b"\r\n\r\n", 1)
         parsed = json.loads(raw_body.decode("utf-8"))
         names = {t["name"] for t in parsed["result"]["tools"]}
-        self.assertEqual(names, {"search", "agent_context"})
+        self.assertEqual(names, {"search", "agent_context", "symbols"})
 
     def test_cli_mcp_help_lists_subcommand(self):
         runner = CliRunner()
