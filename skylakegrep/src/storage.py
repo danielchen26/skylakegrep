@@ -544,6 +544,30 @@ def file_level_search(
     order = np.argsort(-scores)[:top_files]
     return [rows[int(i)][0] for i in order]
 
+# Sentinel mtime for chunks whose embedding failed (Ollama unreachable, model
+# missing, request timeout). The embedder substitutes a zero vector so the
+# chunk stays lexically searchable, but a zero vector is invisible to cosine
+# retrieval. Storing mtime 0 makes every mtime-based refresh (``skygrep
+# index .``, the per-search incremental refresh) treat the file as stale and
+# re-embed it once the model is reachable again, and makes strict freshness
+# checks report it as not current.
+UNEMBEDDED_MTIME = 0.0
+
+
+def _is_zero_vector(embedding) -> bool:
+    try:
+        return not np.any(np.asarray(embedding, dtype=np.float32))
+    except (TypeError, ValueError):
+        return False
+
+
+def count_unembedded_chunks(conn) -> int:
+    row = conn.execute(
+        "SELECT COUNT(*) FROM chunks WHERE file_mtime = ?", (UNEMBEDDED_MTIME,)
+    ).fetchone()
+    return int(row[0] or 0)
+
+
 def store_chunk(
     conn,
     file: str,
@@ -564,7 +588,11 @@ def store_chunk(
             start_line, end_line, start_byte, end_byte
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (file, chunk, language, chunk_index, file_mtime, start_line, end_line, start_byte, end_byte)
+        (
+            file, chunk, language, chunk_index,
+            UNEMBEDDED_MTIME if _is_zero_vector(embedding) else file_mtime,
+            start_line, end_line, start_byte, end_byte,
+        )
     )
     vec = np.array(embedding, dtype=np.float32)
     conn.execute("INSERT INTO vectors (id, embedding) VALUES (?, ?)",
@@ -585,7 +613,7 @@ def store_chunks_batch(conn, chunks_data: list[dict]):
                 data["chunk"],
                 data["language"],
                 data["chunk_index"],
-                data.get("file_mtime"),
+                UNEMBEDDED_MTIME if _is_zero_vector(data["embedding"]) else data.get("file_mtime"),
                 data.get("start_line"),
                 data.get("end_line"),
                 data.get("start_byte"),
@@ -1219,5 +1247,7 @@ def cascade_search(
 
 
 def get_indexed_files(conn) -> dict:
-    cursor = conn.execute("SELECT file, MAX(file_mtime) as mtime FROM chunks GROUP BY file")
+    # MIN, not MAX: one unembedded chunk (mtime sentinel 0) marks the whole
+    # file stale so the next refresh re-embeds it.
+    cursor = conn.execute("SELECT file, MIN(file_mtime) as mtime FROM chunks GROUP BY file")
     return {row[0]: row[1] for row in cursor.fetchall()}

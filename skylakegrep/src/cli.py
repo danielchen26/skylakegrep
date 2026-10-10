@@ -4175,6 +4175,15 @@ def doctor():
             f"{pad('Project index')}✓ {snap['files']} files / {snap['chunks']} chunks"
             + (f" · refreshed {auto_index._human_age(time.time() - snap['last_refresh_at'])}" if snap["last_refresh_at"] else "")
         )
+        from .storage import count_unembedded_chunks
+
+        unembedded = count_unembedded_chunks(conn)
+        if unembedded:
+            click.echo(
+                f"{pad('Unembedded chunks')}× {unembedded} / {snap['chunks']} stored without "
+                "embeddings (model was unreachable)"
+            )
+            click.echo("  → run: skygrep index .   (re-embeds them once Ollama is up)")
         enriched, total = enrich_mod.count_enriched(conn)
         if total:
             pct = 100.0 * enriched / total
