@@ -19,9 +19,11 @@ from __future__ import annotations
 import html
 import os
 import re
+import struct
 import sys
 import tarfile
 import zipfile
+import zlib
 from pathlib import Path
 from typing import Iterator
 
@@ -105,9 +107,106 @@ def _read_text(data: bytes) -> str:
     return data.decode("utf-8", errors="ignore")
 
 
+def _png_text(data: bytes) -> str:
+    """Text a PNG can carry: tEXt / zTXt / iTXt chunks (and nothing from the
+    compressed pixel stream, which only produces false positives)."""
+
+    if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise ValueError("not a PNG")
+    out: list[str] = []
+    pos = 8
+    while pos + 8 <= len(data):
+        (length,) = struct.unpack(">I", data[pos : pos + 4])
+        kind = data[pos + 4 : pos + 8]
+        body = data[pos + 8 : pos + 8 + length]
+        if len(body) != length:
+            raise ValueError("truncated PNG chunk")
+        if kind == b"tEXt":
+            out.append(body.decode("latin-1"))
+        elif kind == b"zTXt":
+            key, _, rest = body.partition(b"\0")
+            out.append(key.decode("latin-1") + " " + zlib.decompress(rest[1:]).decode("latin-1"))
+        elif kind == b"iTXt":
+            key, _, rest = body.partition(b"\0")
+            compressed = rest[:1] == b"\x01"
+            _, _, rest = rest[2:].partition(b"\0")      # language tag
+            translated, _, text = rest.partition(b"\0")
+            if compressed:
+                text = zlib.decompress(text)
+            out.append(" ".join(x.decode("utf-8", "ignore") for x in (key, translated, text)))
+        pos += 12 + length
+        if kind == b"IEND":
+            break
+    return "\n".join(out)
+
+
+def _gif_text(data: bytes) -> str:
+    """Text a GIF can carry: comment, plain-text and application extensions
+    (skipping LZW image data, which only produces false positives)."""
+
+    if data[:6] not in (b"GIF87a", b"GIF89a"):
+        raise ValueError("not a GIF")
+    out: list[str] = []
+    pos = 13
+    flags = data[10]
+    if flags & 0x80:
+        pos += 3 * (2 ** ((flags & 0x07) + 1))
+
+    def sub_blocks(i: int) -> tuple[bytes, int]:
+        chunks = []
+        while True:
+            if i >= len(data):
+                raise ValueError("truncated GIF")
+            size = data[i]
+            i += 1
+            if size == 0:
+                return b"".join(chunks), i
+            chunks.append(data[i : i + size])
+            i += size
+
+    while pos < len(data):
+        marker = data[pos]
+        if marker == 0x3B:                      # trailer
+            break
+        if marker == 0x21:                      # extension
+            label = data[pos + 1]
+            if label == 0x01:                   # plain text: 12-byte header, then text sub-blocks
+                pos += 2 + 1 + data[pos + 2]
+            else:
+                pos += 2
+            payload, pos = sub_blocks(pos)
+            if label in (0x01, 0xFE, 0xFF):
+                out.append(payload.decode("utf-8", "ignore"))
+        elif marker == 0x2C:                    # image descriptor
+            lflags = data[pos + 9]
+            pos += 10
+            if lflags & 0x80:
+                pos += 3 * (2 ** ((lflags & 0x07) + 1))
+            pos += 1                            # LZW minimum code size
+            _, pos = sub_blocks(pos)
+        else:
+            raise ValueError(f"unexpected GIF block 0x{marker:02x}")
+    return "\n".join(out)
+
+
+_METADATA_READERS = {".png": _png_text, ".gif": _gif_text}
+
+
 def _iter_text_blobs(file_path: Path) -> Iterator[tuple[str, str]]:
     display = _display_path(file_path)
     suffixes = file_path.suffixes
+    reader = _METADATA_READERS.get(file_path.suffix.lower())
+    if reader is not None:
+        try:
+            data = file_path.read_bytes()
+        except OSError:
+            return
+        try:
+            yield display, reader(data)
+        except (ValueError, IndexError, struct.error, zlib.error):
+            # Unparseable image: fall back to the conservative raw scan.
+            yield display, _read_text(data)
+        return
     if file_path.suffix in {".whl", ".zip"}:
         try:
             with zipfile.ZipFile(file_path) as archive:

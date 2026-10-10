@@ -55,6 +55,11 @@ async def renew_session(req: Request):
    evidence : σ-gap=0.082 ≥ τ=0.005 (adaptive)
 ```
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/anim/agent_compare_dark.gif">
+  <img alt="Same 60 pinned tasks: skygrep --agent-slim solves 60/60 at a median 8.4k tokens per task; a ripgrep agent solves 46/60 at 14.8k; on the Django example the rg agent reads 64.9k tokens and misses the answer file while skygrep finds django/contrib/auth/backends.py in 2 calls and 2.7k tokens." src="docs/assets/anim/agent_compare_light.gif" width="100%">
+</picture>
+
 [**Install in 30 s →**](#install) &nbsp;·&nbsp;
 [How it works →](#how-it-works) &nbsp;·&nbsp;
 [Benchmarks →](#performance)
