@@ -70,15 +70,19 @@ subset:
      compatibility notes, bench numbers (or "unchanged"), known
      follow-ups list.
   3. **`README.md`**:
-       - "What's new in 0.2.x" table — add one row per
-         user-visible change in this release.
-       - Capability matrix at the bottom — add one row per
-         capability with the version it was introduced in.
+       - "New in X.Y.Z" — replace the previous release's short block
+         (a few bullets + a link to the release notes). Do not keep
+         older "New in" blocks or a release-history list in the README;
+         history lives on `docs/changelog.html` and GitHub Releases.
+       - "Release notes" pointer near the bottom — bump the current
+         version and notes link.
        - Any stale defaults (e.g. `ollama pull <old-model>`,
          `OLLAMA_EMBED_MODEL` default) swept.
-       - Footer link list to release notes — add the new version.
   4. **`docs/index.html`** (the GitHub Pages site):
        - Hero `<p class="eyebrow">vX.Y.Z · …</p>` version bumped.
+       - Sidebar "Releases" link to the latest notes bumped. No
+         release-highlight or release-history cards on the homepage;
+         those belong on `docs/changelog.html`.
        - Hero `<h1>` headline — bumped if the headline number
          changed.
        - "Why skylakegrep?" comparison table — add or update

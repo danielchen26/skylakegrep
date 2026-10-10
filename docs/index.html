@@ -380,7 +380,6 @@
  <a href="#scenarios">Scenarios</a>
  <a href="#depth-examples">Depth examples</a>
  <a href="#mcp">MCP</a>
- <a href="#whats-current">What's current</a>
  <a href="#why-skylakegrep">Why skylakegrep?</a>
  <a href="#vs-elasticsearch">vs Elasticsearch</a>
  <a href="#how-it-works">How it works</a>
@@ -872,27 +871,6 @@ Throughput projections under sustained 5k QPS load...</pre>
  </p>
  <div class="button-row">
  <a class="button primary" href="mcp.html">MCP docs &amp; client config →</a>
- </div>
-</section>
-
-
-<!-- ============== What's current (0.8.0 short card) ============== -->
-<section id="whats-current" class="doc-section scenarios-section">
- <p class="eyebrow">What's current · 0.8.0</p>
- <h2 class="overview-h2">Token-lean agent loop.</h2>
- <p class="lead">
- Latest release highlights — full essay on the release page, not here.
- </p>
- <ul class="limits-list">
- <li>Compact agent JSON: <code>--agent-fast</code> 3,331 → 508 tokens, <code>--agent-context</code> 9,297 → 2,700 on the same query; <code>--format full</code> keeps the 0.7.x shape.</li>
- <li><code>--agent-slim</code>: compact anchors plus a query-ranked declaration outline of the top 3 source files.</li>
- <li><code>skygrep symbols</code> and the MCP <code>symbols</code> tool: outline the next files, no index or model needed.</li>
- <li>Setup guidance v6 teaches the progressive loop in ~560 tokens per agent session (was ~1,660).</li>
- <li>Fix: chunks embedded while Ollama was down are re-embedded by <code>skygrep index .</code> and reported by <code>doctor</code>.</li>
- </ul>
- <div class="button-row">
- <a class="button primary" href="skylakegrep-0.8.0.html">Full 0.8.0 notes →</a>
- <a class="button secondary" href="changelog.html">All releases</a>
  </div>
 </section>
 
