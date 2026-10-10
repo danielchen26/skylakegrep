@@ -553,6 +553,8 @@ task needs it.
 | Read deeper after narrowing to one path | `skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"` |
 | Quick deep-read shorthand | `skygrep --detail "show the deployment steps"` |
 | Synthesize a local answer from retrieved evidence | `skygrep --answer --content "summarize the payment retry policy"` |
+| Token-lean first call for an LLM agent | `skygrep --agent-slim "where is token refresh implemented?"` — compact anchors plus a query-ranked declaration outline of the top 3 source files |
+| Outline the next candidate files | `skygrep symbols auth/session.py auth/jwt.py -q "token refresh"` — `line: declaration` rows, no index or model needed |
 | Fast path anchors for an LLM agent | `skygrep --agent-fast "where is token refresh implemented?"` |
 | Feed compact structured context to an LLM agent | `skygrep --agent-context --include "src/**" "where is token refresh implemented?"` |
 | Verify a high-risk local claim | `skygrep --strict "where is authorization enforced?"` — hybrid recall + an independent corpus-wide semantic pass + indexed-source freshness; exits `2` when still inconclusive. |
@@ -578,14 +580,22 @@ enough evidence.
 | "I need to audit routing" | `skygrep --explain "why is this policy selected?"` | Shows router intent, contributing lanes, and cascade evidence. |
 | "I need exact regex output" | Use `rg` directly | `skygrep` is for natural-language search, not regex authoring. |
 
-Closed-loop agent policy:
+Agent presets (`--agent-fast`, `--agent-context`, `--agent-slim`) emit
+compact JSON: one line, paths relative to the current directory, no
+duplicated anchor blocks, and snippets trimmed to the declaration plus the
+lines that mention the query (`--snippet-budget` to change). The keys agents
+read are unchanged; `--format full` restores the legacy pretty-printed
+shape for debugging.
 
-1. Start with `skygrep --agent-fast "<query>"` for implementation
-   location questions, or `skygrep --agent-context "<query>"`
-   when the next reasoning step needs source text. Agent context now
-   automatically fuses path tokens, symbols, bounded ripgrep recall,
-   source-type priors, and compact chunk evidence; the caller does not
-   need to manually choose a fallback lane.
+Closed-loop agent policy (token-lean):
+
+1. Start with `skygrep --agent-slim "<query>"`. If an outline row looks like
+   the answer, read only that line range. Otherwise run the `next` command
+   it returns (`skygrep symbols <next 3 files> -q "<query>"`), at most
+   twice, then follow `agent_summary.suggested_followup_probe`. Use
+   `skygrep --agent-context "<query>"` when the next step needs snippets
+   rather than an outline; it fuses path tokens, symbols, bounded ripgrep
+   recall, source-type priors, and compact chunk evidence.
 2. If the caller already knows the repo, folder, or file, add
    `--include "<scope/**>"` immediately. Scoped calls are faster and
    reduce false positives.

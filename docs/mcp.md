@@ -27,6 +27,7 @@ still call the same Python APIs as the CLI / HTTP daemon.
 | --- | --- | --- |
 | `search` | `storage.search` (+ query embedder) | `skygrep search` / daemon `POST /search` |
 | `agent_context` | `candidate_recall.run_agent_context_search` | `skygrep --agent-context` / daemon `agent_mode=context` |
+| `symbols` | `agent_payload.outline_files` | `skygrep symbols FILE... -q QUERY` (query-ranked declaration outline; no index or model) |
 
 ### CLI `--agent-context` vs MCP `agent_context`
 
@@ -144,3 +145,13 @@ python -m skylakegrep.src.mcp_server --path /path/to/repo
 
 The process speaks MCP on stdin/stdout; do not type interactively unless
 you are framing JSON-RPC messages correctly.
+
+### Compact tool output
+
+Tool results are emitted as single-line JSON (no indentation) because the
+text block is what the model reads. `agent_context` results use the compact
+agent contract shared with the CLI presets: project-relative paths, no
+duplicated `evidence_bundle` / `why_ranked` blocks, and snippets trimmed to
+the declaration plus query-matching lines. `agent_summary` and
+`strict_verification` keep their keys.
+
