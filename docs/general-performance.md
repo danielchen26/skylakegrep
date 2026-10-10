@@ -183,6 +183,16 @@ indexes unless the index format, embedding model, or pinned source changes.
 
 ## Reproduce
 
+One command on a machine with Ollama + `bge-m3` (Apple-silicon Metal or
+another accelerator) runs all four policies on a fresh clone, privacy-scans
+the receipt, and pushes it to a `bench/receipt-YYYY-MM-DD` branch for review:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/danielchen26/skylakegrep/master/scripts/run_general_receipt.sh | bash
+```
+
+Or step by step:
+
 ```bash
 python -m pip install -e ".[benchmark]"
 

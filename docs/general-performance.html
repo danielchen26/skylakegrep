@@ -83,6 +83,9 @@
   <p>The scheduled GitHub workflow validates the protocol on a standard hosted runner; it does not mint a new performance receipt. The full workflow is a manual dispatch targeting a self-hosted runner labeled <code>skygrep-benchmark</code>. It first fresh-indexes Cobra and projects the other five workloads from exact chunk and capped-model-input counts, stopping before the large indexes if any projection exceeds the index timeout. Local reruns reuse completed indexes unless the index format, embedding model, or pinned source changes.</p>
 
   <h2>Reproduce</h2>
+  <p>One command on a machine with Ollama + <code>bge-m3</code> (Apple-silicon Metal or another accelerator) runs all four policies on a fresh clone, privacy-scans the receipt, and pushes it to a <code>bench/receipt-YYYY-MM-DD</code> branch for review:</p>
+  <pre><code>curl -fsSL https://raw.githubusercontent.com/danielchen26/skylakegrep/master/scripts/run_general_receipt.sh | bash</code></pre>
+  <p>Or step by step:</p>
   <pre><code>python -m pip install -e ".[benchmark]"
 python benchmarks/validate_public_fixtures.py \
   --oss-root /tmp/skygrep-general-v2-repos --prepare
