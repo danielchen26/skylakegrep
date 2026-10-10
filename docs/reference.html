@@ -84,6 +84,35 @@
  <dt>snippet</dt>
  <dd>Verbatim source text of the chunk.</dd>
  </dl>
+ <h3>Compact agent JSON (0.8.0)</h3>
+ <p>
+ <code>--agent-fast</code>, <code>--agent-context</code>, <code>--agent-slim</code>
+ and the MCP <code>agent_context</code> tool emit a compact shape by default
+ (<code>--format full</code> restores the fields below). Each result keeps
+ <code>path</code> (relative to the current directory when inside it),
+ <code>start_line</code>, <code>end_line</code>, <code>score</code> (3 decimals),
+ and, when present, <code>confidence</code>, <code>evidence_terms</code>,
+ <code>strict_verification</code> and the first result's
+ <code>agent_summary</code> (<code>quality</code>, <code>confidence</code>,
+ <code>missing_signal</code>, <code>likely_files</code> not already shown,
+ <code>suggested_followup_probe</code>). Added: <code>lanes</code> (recall
+ lanes), <code>also</code> (supporting line ranges as
+ <code>[start, end]</code>, or <code>[path, start, end]</code> for another
+ file) and <code>source_type</code> only when it is not <code>source</code>.
+ Dropped: <code>language</code>, <code>fallback</code>,
+ <code>candidate_recall</code>, <code>search_intent</code>,
+ <code>why_ranked</code>, <code>evidence_bundle</code> and the
+ <code>supporting_chunks</code> objects. Snippets keep the declaration and
+ query-matching lines with <code>⋯</code> marking elided runs.
+ </p>
+ <p>
+ <code>--agent-slim</code> wraps the results as
+ <code>{"results": [...], "outline": [{"path", "lines": ["12: def f(...)"]}], "next": "skygrep symbols ..."}</code>.
+ <code>skygrep symbols --json</code> returns <code>{"outline": [...]}</code>,
+ with <code>truncated</code> when the budget cut declarations and
+ <code>bodies</code> (<code>start</code>, <code>end</code>, <code>text</code>)
+ when <code>--expand</code> is set.
+ </p>
  <h3>Optional evidence fields</h3>
  <p>
  Semantic-depth filename anchors can include extra evidence fields when

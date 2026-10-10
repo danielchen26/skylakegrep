@@ -171,6 +171,8 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  <table>
  <thead><tr><th>Problem shape</th><th>Use</th><th>Why</th></tr></thead>
  <tbody>
+ <tr><td>An agent needs the answer for the fewest tokens (0.8.0)</td><td><code>skygrep --agent-slim "where is token refresh implemented?"</code></td><td>Compact anchors plus a query-ranked <code>line: declaration</code> outline of the top 3 source files and a <code>next</code> command; read only the matching line range.</td></tr>
+ <tr><td>Outline the next candidate files (0.8.0)</td><td><code>skygrep symbols auth/session.py auth/jwt.py -q "token refresh"</code></td><td>Model-free declaration outline; <code>--budget N</code> per file, <code>--expand K</code> inlines the best-matching bodies, <code>--json</code> for agents.</td></tr>
  <tr><td>Where is X? / Which file handles X?</td><td><code>skygrep --agent-fast "where is token refresh implemented?"</code></td><td>Path-only, high-recall anchors; cheap first pass for agents.</td></tr>
  <tr><td>What does X say about Y?</td><td><code>skygrep --agent-context "what does the migration plan say about rollback?"</code></td><td>Fast first-pass snippets and line ranges without dumping full files. Re-run without the preset only if rerank is needed for ambiguity.</td></tr>
  <tr><td>Read this known file/folder deeply</td><td><code>skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"</code></td><td>Full depth only after scope is known; avoids repo-wide context blowups.</td></tr>
@@ -184,7 +186,15 @@ skygrep "where does the cascade tau threshold get computed"</code></pre>
  </tbody>
  </table>
  <p>
+ Agent presets emit compact JSON as of 0.8.0: one line, paths relative to the
+ current directory, no duplicated anchor blocks, and snippets trimmed to the
+ declaration plus query-matching lines (<code>--snippet-budget</code>, default
+ 1,200 characters). <code>--format full</code> restores the 0.7.x shape.
+ </p>
+ <p>
  Closed-loop agent policy: start with
+ <code>skygrep --agent-slim</code> and follow its <code>next</code> command
+ (<code>skygrep symbols</code>) at most twice, or
  <code>skygrep --agent-fast</code> for
  implementation-location questions, use
  <code>skygrep --agent-context</code> when the next reasoning step

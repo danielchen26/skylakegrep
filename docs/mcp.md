@@ -42,7 +42,7 @@ already speaks MCP; prefer the CLI flag for shell / scripts.
 
 ## Prerequisites
 
-1. Install skylakegrep (`pip install skylakegrep` ≥0.7.5, or `pip install -e .` from a checkout).
+1. Install skylakegrep (`pip install skylakegrep` ≥0.8.0 for the `symbols` tool, or `pip install -e .` from a checkout).
 2. Index the project: `skygrep index /path/to/repo`
 3. Have a local embedder available for `search` (Ollama by default).
    Protocol tests mock the embedder and never call live Ollama.

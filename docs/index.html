@@ -10,14 +10,14 @@
  <meta property="og:type" content="website" />
  <meta property="og:url" content="https://danielchen26.github.io/skylakegrep/" />
  <meta property="og:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta property="og:description" content="Fully-offline semantic search for code, PDFs, notes, and docs. v0.7.5 ships Apache-2.0 packaging, a native MCP MVP (search / agent_context; Cursor verified), and CLI agent-context harness. 100% local, powered by Ollama — a retrieval component, not a do-everything agent." />
+ <meta property="og:description" content="Fully-offline semantic search for code, PDFs, notes, and docs. v0.8.0 ships a token-lean agent loop: compact agent JSON, --agent-slim, and skygrep symbols, plus the native MCP server (search / agent_context / symbols). 100% local, powered by Ollama — a retrieval component, not a do-everything agent." />
  <meta property="og:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
  <meta property="og:image:width" content="1200" />
  <meta property="og:image:height" content="630" />
  <meta property="og:image:alt" content="skylakegrep social card showing the wordmark, three performance highlights (30/30 public-OSS recall, sub-second warm queries, 100% local), and the latest version." />
  <meta name="twitter:card" content="summary_large_image" />
  <meta name="twitter:title" content="skylakegrep — fully-offline semantic search over your local files" />
- <meta name="twitter:description" content="Fully-offline semantic search. v0.7.5: Apache-2.0, MCP MVP (search/agent_context; Cursor verified), CLI agent-context harness. 100% local — a retrieval component, not a full agent." />
+ <meta name="twitter:description" content="Fully-offline semantic search. v0.8.0: token-lean agent loop (compact JSON, --agent-slim, skygrep symbols), MCP search/agent_context/symbols. 100% local — a retrieval component, not a full agent." />
  <meta name="twitter:image" content="https://danielchen26.github.io/skylakegrep/assets/og-image.png" />
 
  <title>skylakegrep · documentation</title>
@@ -406,7 +406,7 @@
  <div class="nav-section">
  <p>Releases</p>
  <a href="changelog.html">Changelog</a>
- <a href="skylakegrep-0.7.5.html">0.7.5 notes</a>
+ <a href="skylakegrep-0.8.0.html">0.8.0 notes</a>
  </div>
  <div class="nav-section">
  <p>Project</p>
@@ -636,7 +636,7 @@
 }
 </style>
 <section id="overview" class="hero hero-redesigned">
- <p class="eyebrow">v0.7.5 · 100% local · Apache-2.0</p>
+ <p class="eyebrow">v0.8.0 · 100% local · Apache-2.0</p>
  <h1>Find <span class="hero-accent">anything</span> on your machine.</h1>
  <p class="lead">
  Semantic search for code, PDFs, notes, and docs.
@@ -876,22 +876,22 @@ Throughput projections under sustained 5k QPS load...</pre>
 </section>
 
 
-<!-- ============== What's current (0.7.5 short card) ============== -->
+<!-- ============== What's current (0.8.0 short card) ============== -->
 <section id="whats-current" class="doc-section scenarios-section">
- <p class="eyebrow">What's current · 0.7.5</p>
- <h2 class="overview-h2">Shipped on PyPI.</h2>
+ <p class="eyebrow">What's current · 0.8.0</p>
+ <h2 class="overview-h2">Token-lean agent loop.</h2>
  <p class="lead">
  Latest release highlights — full essay on the release page, not here.
  </p>
  <ul class="limits-list">
- <li><strong>Apache-2.0</strong> packaging · fully <strong>offline</strong> retrieval.</li>
- <li>Native MCP MVP: <code>search</code> / <code>agent_context</code> over stdio.</li>
- <li>Cursor verified: Connected + 2 tools + live <code>agent_context</code> call.</li>
- <li>Binary Content-Length framing for Cursor / Claude pipes.</li>
- <li>CLI <code>agent_context</code> harness; not a full agent platform.</li>
+ <li>Compact agent JSON: <code>--agent-fast</code> 3,331 → 508 tokens, <code>--agent-context</code> 9,297 → 2,700 on the same query; <code>--format full</code> keeps the 0.7.x shape.</li>
+ <li><code>--agent-slim</code>: compact anchors plus a query-ranked declaration outline of the top 3 source files.</li>
+ <li><code>skygrep symbols</code> and the MCP <code>symbols</code> tool: outline the next files, no index or model needed.</li>
+ <li>Setup guidance v6 teaches the progressive loop in ~560 tokens per agent session (was ~1,660).</li>
+ <li>Fix: chunks embedded while Ollama was down are re-embedded by <code>skygrep index .</code> and reported by <code>doctor</code>.</li>
  </ul>
  <div class="button-row">
- <a class="button primary" href="skylakegrep-0.7.5.html">Full 0.7.5 notes →</a>
+ <a class="button primary" href="skylakegrep-0.8.0.html">Full 0.8.0 notes →</a>
  <a class="button secondary" href="changelog.html">All releases</a>
  </div>
 </section>
@@ -916,7 +916,7 @@ Throughput projections under sustained 5k QPS load...</pre>
      <div class="why-cell why-cap"></div>
      <div class="why-cell why-self">
        <strong>skylakegrep</strong>
-       <span class="why-sub">v0.7.5</span>
+       <span class="why-sub">v0.8.0</span>
      </div>
      <div class="why-cell"><code>ripgrep</code><span class="why-sub">lexical baseline</span></div>
      <div class="why-cell"><a href="https://www.mgrep.dev/" target="_blank" rel="noopener">mgrep</a><span class="why-sub">Mixedbread · paid</span></div>
@@ -1010,12 +1010,12 @@ Throughput projections under sustained 5k QPS load...</pre>
  <div class="themed-card why-card">
  <div class="themed-card-chrome">
  <span class="tl"></span><span class="tl tl-y"></span><span class="tl tl-g"></span>
- <span class="themed-card-title">capability matrix · skylakegrep 0.7.5 vs Elasticsearch 8.x</span>
+ <span class="themed-card-title">capability matrix · skylakegrep 0.8.0 vs Elasticsearch 8.x</span>
  </div>
  <div class="themed-card-body">
  <table class="vs-table">
  <thead>
- <tr><th></th><th>skylakegrep 0.7.5</th><th>Elasticsearch</th></tr>
+ <tr><th></th><th>skylakegrep 0.8.0</th><th>Elasticsearch</th></tr>
  </thead>
  <tbody>
  <tr><td><strong>Setup</strong></td><td><code>pip install skylakegrep</code>; cold-start lazy auto-trigger</td><td>JVM, cluster, mappings, ingest pipeline</td></tr>

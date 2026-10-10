@@ -56,6 +56,17 @@
   <p><strong>No universal speed or tool-call claim:</strong> the paired median <code>rg elapsed / skygrep elapsed</code> ratio was 0.561, so the median eligible skygrep task took longer even though the all-row aggregate elapsed ratio was 2.41 in skygrep's favor. The paired median tool-call ratio was 0.929, and skygrep used more calls overall. Large-repository outliers make aggregate totals useful capacity readings, not typical-task latency claims.</p>
   <p><a href="https://github.com/danielchen26/skylakegrep/blob/master/benchmarks/reports/general-v2-2026-08-15.json">Read the immutable raw receipt</a> · <a href="https://github.com/danielchen26/skylakegrep/tree/master/benchmarks/reports">capacity receipts and provenance</a></p>
 
+  <h2>Token-lean policies · 0.8.0</h2>
+  <p>The <code>rg-only</code> baseline lets <code>--max-count</code> act per file, so common terms return most of a large repository (median 13.8M tokens per Spring task in the receipt above). Its ratios measure savings against an unbounded dump, not against an agent that truncates tool output. 0.8.0 adds two opt-in policies:</p>
+  <ul><li><code>skygrep-slim</code>: one <code>--agent-slim</code> call, <code>skygrep symbols</code> on the next result files three at a time, path/filename probes feeding more outline batches, a progressive version of the symbol sweep, and only then the full <code>skygrep-first</code> policy (paying for both).</li><li><code>rg-agent</code>: per-term <code>rg -c</code> with agent-visible output capped at 250 lines, BM25-style ranking, the same outline reader, then reads capped at 2,000 lines.</li></ul>
+  <p>A 60-task smoke run (1 trial, chars/4, stand-in embeddings so the semantic lane is noise) is a regression check, not a receipt:</p>
+  <table><thead><tr><th>Policy</th><th>Gate passed</th><th>Median tokens</th><th>Total tokens</th><th>Median calls</th></tr></thead><tbody>
+   <tr><td>skygrep-first</td><td>60/60</td><td>52,751</td><td>3,474,615</td><td>14</td></tr>
+   <tr><td>skygrep-slim</td><td>60/60</td><td>8,358</td><td>1,425,866</td><td>10</td></tr>
+   <tr><td>rg-agent</td><td>46/60</td><td>14,778</td><td>1,587,936</td><td>8</td></tr>
+  </tbody></table>
+  <p>On the 46 tasks both complete, <code>skygrep-slim</code> has a 1.31× lower median than <code>rg-agent</code> but a higher total (ratio 0.75×): the 5 tasks that fall back to the full policy dominate the sum. A <code>bge-m3</code> receipt with three trials is a release follow-up. Compare policies with <code>benchmarks/compare_policies.py</code>.</p>
+
   <h2>Public matrix</h2>
   <table><thead><tr><th>Repository</th><th>Ecosystem</th><th>Tasks</th></tr></thead><tbody>
    <tr><td>Cobra</td><td>Go</td><td>10</td></tr><tr><td>Django</td><td>Python</td><td>10</td></tr><tr><td>React</td><td>JavaScript / Flow</td><td>10</td></tr><tr><td>Spring Framework</td><td>Java</td><td>10</td></tr><tr><td>Tokio</td><td>Rust</td><td>10</td></tr><tr><td>Vite</td><td>TypeScript</td><td>10</td></tr>
