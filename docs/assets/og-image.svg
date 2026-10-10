@@ -93,12 +93,12 @@
       <rect width="300" height="38" rx="16" fill="url(#top-gleam)"/>
       <text x="150" y="48" text-anchor="middle" font-size="13" font-weight="600" fill="#a1a1aa" letter-spacing="0.08em">EVERYTHING LOCAL</text>
       <text x="150" y="92" text-anchor="middle" font-size="44" font-weight="700" fill="#ffffff" font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace">100%</text>
-      <text x="150" y="115" text-anchor="middle" font-size="12" fill="#71717a">no remote service · NC license</text>
+      <text x="150" y="115" text-anchor="middle" font-size="12" fill="#71717a">no remote service · Apache-2.0</text>
     </g>
   </g>
 
   <!-- =================== Bottom row: install line + version =================== -->
   <g font-family="ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace" font-size="16" fill="#71717a" text-anchor="middle">
-    <text x="600" y="582" fill="#a5f3fc">pip install skylakegrep  ·  v0.7.0  ·  Python 3.9+  ·  powered by Ollama</text>
+    <text x="600" y="582" fill="#a5f3fc">pip install skylakegrep  ·  v0.8.0  ·  Python 3.9+  ·  powered by Ollama</text>
   </g>
 </svg>

@@ -59,12 +59,11 @@ async def renew_session(req: Request):
 [How it works →](#how-it-works) &nbsp;·&nbsp;
 [Benchmarks →](#performance)
 
-> **30 / 30** public-OSS recall (fully-indexed) &nbsp;·&nbsp;
-> **+30 %** lazy auto-trigger over `rg` cold-start (0.5.3) &nbsp;·&nbsp;
-> **bounded wrong-path discovery** via proactive umbrella &nbsp;·&nbsp;
-> **~1 s** warm queries &nbsp;·&nbsp;
+> **60** pinned public benchmark tasks &nbsp;·&nbsp;
+> **92.5 %** retrieval-context quality &nbsp;·&nbsp;
+> **508-token** compact agent anchors (0.8.0) &nbsp;·&nbsp;
 > **100 %** local &nbsp;·&nbsp;
-> **50** releases shipped
+> **58** releases shipped
 
 ---
 
@@ -417,7 +416,11 @@ returned **17.982× less tool context at the median** (repository-aware 95% CI:
 This is a paired retrieval-context result, not a universal runtime claim:
 skygrep used more tool calls overall, and the quality-eligible median task was
 slower in the measured harness even though all-row aggregate elapsed favored
-skygrep. See the [full result and boundaries](docs/general-performance.md) and
+skygrep. The `rg-only` baseline returns every per-file match (median 13.8M
+tokens per Spring task), so the ratio is against an unbounded dump rather than
+an agent that truncates tool output; 0.8.0 adds a realistic `rg-agent`
+baseline and the token-lean `skygrep-slim` policy for that comparison. See the
+[full result and boundaries](docs/general-performance.md) and
 the [immutable raw receipt](benchmarks/reports/general-v2-2026-08-15.json).
 
 Two older results remain useful for regression history, but are not general
