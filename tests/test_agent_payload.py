@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Compact agent payloads, declaration outlines and the `symbols` command."""
 
 from __future__ import annotations

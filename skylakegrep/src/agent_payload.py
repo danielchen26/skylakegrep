@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Token-budgeted payloads for LLM agents.
 
 Agents pay for every byte a tool returns, and they pay for it again on every

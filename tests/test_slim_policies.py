@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 """Benchmark helpers for the skygrep-slim and rg-agent policies."""
 
 from __future__ import annotations

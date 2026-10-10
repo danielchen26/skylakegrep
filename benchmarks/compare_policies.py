@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
 """Paired policy comparison for a General Benchmark v2 report.
 
 The universal benchmark's built-in comparison is hard-wired to
