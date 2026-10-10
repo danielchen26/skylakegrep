@@ -72,6 +72,11 @@ async def renew_session(req: Request):
 
 ## What it does
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/anim/capabilities_dark.gif">
+  <img alt="skylakegrep capabilities, one terminal vignette each: finds code by meaning, searches code, PDFs, Word and notes together, answers queries in any language, runs 100% offline, gives AI agents token-lean output and MCP tools, explains every hit with -x and --strict, and works from the wrong folder." src="docs/assets/anim/capabilities_light.gif" width="100%">
+</picture>
+
 | Capability | What you get |
 |---|---|
 | 🧠 **Finds code by meaning** | Ask *"where is session refresh?"* and get `renew_session()`, even with no keyword overlap |
