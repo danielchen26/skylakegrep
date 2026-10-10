@@ -70,6 +70,29 @@ async def renew_session(req: Request):
 > **100 %** local &nbsp;·&nbsp;
 > **58** releases shipped
 
+## What it does
+
+| Capability | What you get |
+|---|---|
+| 🧠 **Finds code by meaning** | Ask *"where is session refresh?"* and get `renew_session()`, even with no keyword overlap |
+| 📄 **Code, PDFs, Word, notes** | One query across every text file in the folder, ranked together |
+| 🌐 **100+ languages** | Ask in English, 中文, or a mix (`bge-m3` embeddings) |
+| 🔒 **100 % offline** | Runs on Ollama on your machine: no cloud, no telemetry, Apache-2.0 |
+| 🤖 **Built for AI agents** | MCP server, one-step setup for Claude Code / Codex / Cursor, token-lean output (`--agent-slim`) |
+| ✅ **Verifiable** | `-x` shows why each result matched; `--strict` exits non-zero when the evidence is inconclusive |
+| 🧭 **Works from the wrong folder** | Asking from another directory still searches the right project, within bounded scope |
+
+### Use it with your coding agent
+
+```bash
+pip install skylakegrep
+ollama pull bge-m3
+skygrep setup      # adds skygrep to Claude Code, Codex, OpenCode, Gemini CLI, Pi, Cursor
+```
+
+Prefer MCP? `skygrep mcp` exposes `search`, `agent_context` and `symbols`;
+see [docs/mcp.md](docs/mcp.md).
+
 ---
 
 ## Three ways people use it
@@ -346,12 +369,13 @@ skygrep setup     # Claude Code · Codex · OpenCode · Gemini CLI · Pi · Curs
 skygrep "your question here"
 ```
 
-`skygrep setup` writes a short agent rule into Claude Code, Codex,
-OpenCode, Gemini CLI, Pi, and Cursor when detected. The rule tells the
-agent which depth to request: path-only `--no-content --top 10 --no-rerank` for implementation
-anchors, first-pass `--content --detail standard --top 8 --no-rerank` for source snippets,
-`--detail full` only after narrowing, `--answer` for local synthesis,
-and `--json` plus `--include` for machine-readable scoped tool calls.
+`skygrep setup` writes a short agent rule (about 560 tokens) into Claude
+Code, Codex, OpenCode, Gemini CLI, Pi, and Cursor when detected. The rule
+teaches the token-lean loop: start with `skygrep --agent-slim`, read only the
+outlined line range, run the returned `skygrep symbols` command for the next
+files, and fall back to targeted `rg` only for exact patterns.
+`--agent-context` gives snippets, `--strict` gates high-risk claims, and
+`--include` scopes any call.
 Re-running `skygrep setup` refreshes the
 managed block when these instructions improve. After an upgrade, normal
 `skygrep` searches and `skygrep doctor` also refresh already-registered
