@@ -1,0 +1,108 @@
+name: Attach release assets
+
+# Attaches the exact wheel and sdist that PyPI serves for a release to its
+# GitHub Release page, so every Release is a self-contained record
+# (docs/RELEASING.md, "GitHub Release"). The files are downloaded from PyPI
+# and checked against PyPI's sha256 digests rather than rebuilt, so the
+# Release assets are byte-identical to what `pip install` receives.
+#
+# Triggers:
+#   - release published: attach assets for that release (waits for the
+#     tag-triggered PyPI upload in release.yml to appear).
+#   - workflow_dispatch: attach assets for a given tag, or the latest release.
+#   - a change to this file on master: backfill the latest release.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (vX.Y.Z). Empty = latest release."
+        required: false
+        default: ""
+  push:
+    branches: [master]
+    paths:
+      - ".github/workflows/release-assets.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-assets
+  cancel-in-progress: false
+
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REQUESTED_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          tag="${REQUESTED_TAG}"
+          if [ -z "$tag" ]; then
+            tag="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)"
+          fi
+          if ! printf '%s' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([abrc.0-9]*)?$'; then
+            echo "Refusing unexpected tag: $tag"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Download the PyPI files for this version
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          mkdir -p dist
+          python - <<'PY'
+          import hashlib, json, os, sys, time, urllib.request
+
+          version = os.environ["VERSION"]
+          url = f"https://pypi.org/pypi/skylakegrep/{version}/json"
+          files = []
+          for attempt in range(40):
+              try:
+                  with urllib.request.urlopen(url, timeout=30) as resp:
+                      files = json.load(resp).get("urls", [])
+              except Exception as exc:  # 404 until the upload lands
+                  print(f"waiting for PyPI {version} ({attempt + 1}/40): {exc}")
+              kinds = {f["packagetype"] for f in files}
+              if {"bdist_wheel", "sdist"} <= kinds:
+                  break
+              time.sleep(30)
+          else:
+              sys.exit(f"PyPI has no wheel + sdist for {version}")
+          for f in files:
+              if f["packagetype"] not in {"bdist_wheel", "sdist"}:
+                  continue
+              with urllib.request.urlopen(f["url"], timeout=120) as resp:
+                  data = resp.read()
+              digest = hashlib.sha256(data).hexdigest()
+              if digest != f["digests"]["sha256"]:
+                  sys.exit(f"sha256 mismatch for {f['filename']}")
+              with open(os.path.join("dist", f["filename"]), "wb") as out:
+                  out.write(data)
+              print(f"{f['filename']}  sha256={digest}")
+          PY
+
+      - name: Scan the files for private material
+        run: python scripts/privacy_release_scan.py dist
+
+      - name: Attach to the GitHub Release
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name'
