@@ -1454,15 +1454,27 @@ def _closed_loop(
                         stop_reason = "sufficient_after_slim_probe_outlines"
                         break
         if stop_reason == "budget_exhausted":
-            deep = [p for p in _dedupe([*outlined, *result_paths]) if sp.is_source(p)][:3]
-            if deep:
+            # Progressive version of skygrep-first's symbol sweep: the same
+            # candidate order (skygrep anchors, path probe, filename probe),
+            # the same file cap and per-file budget, read three files at a
+            # time and stopped at the gate instead of all at once. Files
+            # already outlined at the small budget are re-read at the full
+            # budget because their evidence may sit below the first cut.
+            sweep = [
+                p
+                for p in _dedupe([*result_paths, *probe.paths, *filename_probe.paths])
+                if sp.is_source(p)
+            ][: max(50, int(effort["top"]) * 16)]
+            sweep_budget = max(8_000, read_chars * 2)
+            for batch in sp.batches(sweep):
                 step, _ = sp.symbols_step(
-                    root, deep, task["query"], budget=16000, timeout=timeout,
-                    name="slim:symbols_deep", step_cls=StepResult,
+                    root, batch, task["query"], budget=sweep_budget, timeout=timeout,
+                    name="slim:symbols_sweep", step_cls=StepResult,
                 )
                 score = add_step(step)
                 if enough(score):
-                    stop_reason = "sufficient_after_slim_deep_outline"
+                    stop_reason = "sufficient_after_slim_progressive_sweep"
+                    break
         if stop_reason == "budget_exhausted":
             # Completion guarantee: anything the slim loop could not settle
             # gets the full skygrep-first policy, and pays for both.

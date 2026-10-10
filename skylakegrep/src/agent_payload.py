@@ -168,6 +168,11 @@ MAX_OUTLINE_LINE_CHARS = 200
 # this many distinct query concepts, and at most MAX_MENTION_LINES of them.
 MIN_MENTION_CONCEPTS = 2
 MAX_MENTION_LINES = 12
+# ``expand``: how much of a top declaration's body to inline. Reading the
+# best-matching range is the agent's next step anyway; doing it inside the
+# outline call saves a round trip and a whole-file read.
+EXPAND_LINES = 30
+EXPAND_CHARS = 2400
 
 
 def declaration_priority(line: str) -> int:
@@ -197,6 +202,7 @@ def outline_file(
     terms: Iterable[str] | Iterable[list[str]],
     *,
     budget_chars: int = 4000,
+    expand: int = 0,
 ) -> dict[str, Any]:
     """Select the most query-relevant declaration lines of ``path``.
 
@@ -207,6 +213,9 @@ def outline_file(
     the outline reads like the file. Imports are skipped, and plain lines
     get in only when they mention several distinct query concepts, so the
     outline stays an outline rather than a grep dump.
+
+    ``expand`` > 0 also returns the first ``EXPAND_LINES`` lines of that many
+    declarations that hit the most distinct query concepts, as ``bodies``.
     """
 
     groups = [g if isinstance(g, (list, tuple)) else [g] for g in terms]
@@ -250,12 +259,32 @@ def outline_file(
         kept.append((number, rendered))
         used += cost
     kept.sort()
-    return {
+    result: dict[str, Any] = {
         "lines": kept,
         "total_lines": len(lines),
         "declarations": declarations,
         "truncated": len(kept) < len(ranked),
     }
+    if expand > 0:
+        def body_concepts(number: int) -> int:
+            body = "\n".join(lines[number - 1 : number - 1 + EXPAND_LINES]).lower()
+            return sum(1 for g in groups if any(t in body for t in g))
+
+        # Most concepts on the declaration line first; ties go to the
+        # declaration whose body covers more of the query.
+        best = sorted(
+            (item for item in ranked if -item[0] >= 4 and -item[1] > 0),
+            key=lambda item: (item[1], -body_concepts(item[2]), item[0], item[2]),
+        )[:expand]
+        bodies = []
+        for _, _, number, _ in sorted(best, key=lambda item: item[2]):
+            chunk = lines[number - 1 : number - 1 + EXPAND_LINES]
+            text = "\n".join(chunk)
+            if len(text) > EXPAND_CHARS:
+                text = text[: EXPAND_CHARS - 1] + "…"
+            bodies.append((number, number + len(chunk) - 1, text))
+        result["bodies"] = bodies
+    return result
 
 
 def outline_files(
@@ -265,6 +294,7 @@ def outline_files(
     root: Path | str | None = None,
     budget_chars: int = 4000,
     max_files: int = 3,
+    expand: int = 0,
 ) -> list[dict[str, Any]]:
     """Outline up to ``max_files`` source files for ``query``."""
 
@@ -284,7 +314,7 @@ def outline_files(
         seen.add(key)
         if p.suffix.lower() not in SOURCE_SUFFIXES or not p.is_file():
             continue
-        result = outline_file(p, terms, budget_chars=budget_chars)
+        result = outline_file(p, terms, budget_chars=budget_chars, expand=expand)
         result["path"] = display_path(str(p), root_path)
         out.append(result)
     return out
@@ -301,6 +331,8 @@ def render_outline_text(outlines: list[dict[str, Any]]) -> str:
         )
         header += "; raise --budget for more)" if item.get("truncated") else ")"
         rows = [f"{n}: {line}" for n, line in item["lines"]]
+        for start, end, text in item.get("bodies", []):
+            rows.append(f"── lines {start}-{end} ──\n{text}\n──")
         blocks.append("\n".join([header, *rows]))
     return "\n\n".join(blocks)
 
@@ -313,6 +345,11 @@ def outline_payload(outlines: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "path": item["path"],
             "lines": [f"{n}: {line}" for n, line in item["lines"]],
             **({"truncated": True} if item.get("truncated") else {}),
+            **(
+                {"bodies": [{"start": a, "end": b, "text": t} for a, b, t in item["bodies"]]}
+                if item.get("bodies")
+                else {}
+            ),
         }
         for item in outlines
     ]

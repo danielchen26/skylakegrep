@@ -4027,8 +4027,9 @@ def mcp(mcp_path: str | None):
 @click.option("-q", "--query", default="", help="Rank declarations that mention these terms first.")
 @click.option("--budget", default=4000, type=int, show_default=True, help="Max characters of outline per file. Raise it (e.g. 16000) for a near-complete inventory of a large module.")
 @click.option("--max-files", default=3, type=int, show_default=True, help="Outline at most this many source files per call.")
+@click.option("--expand", default=0, type=int, show_default=True, help="Also print the first 30 lines of this many best-matching declarations per file.")
 @click.option("--json", "json_output", is_flag=True, help="Emit compact JSON instead of text.")
-def symbols_cmd(paths: tuple[str, ...], query: str, budget: int, max_files: int, json_output: bool):
+def symbols_cmd(paths: tuple[str, ...], query: str, budget: int, max_files: int, expand: int, json_output: bool):
     """Query-ranked declaration outline of a few source files.
 
     The cheap second step of the agent protocol: after `skygrep --agent-slim`
@@ -4053,7 +4054,7 @@ def symbols_cmd(paths: tuple[str, ...], query: str, budget: int, max_files: int,
         else:
             resolved.append(str(hit))
     outlines = agent_payload.outline_files(
-        resolved, query, root=cwd, budget_chars=budget, max_files=max_files
+        resolved, query, root=cwd, budget_chars=budget, max_files=max_files, expand=max(0, expand)
     )
     if json_output:
         payload: dict = {"outline": agent_payload.outline_payload(outlines)}

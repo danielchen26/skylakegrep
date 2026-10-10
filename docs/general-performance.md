@@ -95,7 +95,9 @@ Two further policies measure the token-lean agent loop (opt in with
 3. `skygrep-slim`: one `--agent-slim` call (compact anchors + declaration
    outline of the top 3 source files), `skygrep symbols` on the next result
    files three at a time, cheap path/filename probes feeding more outline
-   batches, one deep outline, and only then the full `skygrep-first` policy.
+   batches, a progressive version of `skygrep-first`'s symbol sweep (same
+   candidates and per-file budget, three files per call), and only then the
+   full `skygrep-first` policy.
    Each step stops at the sufficiency gate, so the fallback guarantees it
    completes whatever `skygrep-first` completes, paying for both.
 4. `rg-agent`: a realistic ripgrep agent instead of a term-OR dump. Per-term

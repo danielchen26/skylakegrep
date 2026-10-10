@@ -341,6 +341,7 @@ def run_symbols(
     default_path: str | None = None,
     budget: int = 4000,
     max_files: int = 3,
+    expand: int = 0,
 ) -> dict[str, Any]:
     """Query-ranked declaration outline (CLI ``skygrep symbols``)."""
 
@@ -357,7 +358,12 @@ def run_symbols(
         else:
             missing.append(str(raw))
     outlines = outline_files(
-        resolved, str(query or ""), root=base, budget_chars=int(budget), max_files=int(max_files)
+        resolved,
+        str(query or ""),
+        root=base,
+        budget_chars=int(budget),
+        max_files=int(max_files),
+        expand=max(0, int(expand)),
     )
     payload: dict[str, Any] = {
         "outline": outline_payload(outlines),
@@ -458,6 +464,11 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                     "description": "Max outline characters per file; raise for a fuller inventory",
                 },
                 "max_files": {"type": "integer", "default": 3},
+                "expand": {
+                    "type": "integer",
+                    "default": 0,
+                    "description": "Also return the first 30 lines of this many best-matching declarations per file",
+                },
             },
             "required": ["paths"],
         },
@@ -538,6 +549,7 @@ def call_tool(
                 default_path=default_path,
                 budget=int(args.get("budget", 4000)),
                 max_files=int(args.get("max_files", 3)),
+                expand=int(args.get("expand", 0)),
             )
             return _tool_result_ok(payload)
         raise McpToolError("unknown_tool", f"Unknown tool: {name}")

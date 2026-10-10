@@ -5,8 +5,10 @@
     The progressive loop taught by agent-guidance-v6: one ``--agent-slim``
     call (compact anchors + outline of the top 3 source files), then
     ``skygrep symbols`` on the next candidates three at a time, then cheap
-    path/filename probes feeding more outline batches, one deep outline, and
-    only then the full ``skygrep-first`` policy as a fallback. Every step
+    path/filename probes feeding more outline batches, then a progressive
+    version of skygrep-first's symbol sweep (same candidates, same per-file
+    budget, three files per call), and only then the full ``skygrep-first``
+    policy as a fallback. Every step
     stops as soon as the sufficiency gate passes, so the fallback guarantees
     the policy completes whatever ``skygrep-first`` completes.
 
@@ -100,11 +102,16 @@ def skygrep_slim_step(root: Path, query: str, *, timeout: float, top: int, inclu
     return step, result_paths, outlined
 
 
-def symbols_step(root: Path, paths: list[str], query: str, *, budget: int, timeout: float, name: str, step_cls):
+def symbols_step(
+    root: Path, paths: list[str], query: str, *, budget: int, timeout: float, name: str, step_cls, expand: int = 0
+):
     """Run ``skygrep symbols --json`` on a batch; return (step, outlined_paths)."""
 
     stdout, stderr, rc, elapsed = _cli(
-        ["symbols", *paths, "-q", query, "--budget", str(budget), "--max-files", str(len(paths)), "--json"],
+        [
+            "symbols", *paths, "-q", query, "--budget", str(budget),
+            "--max-files", str(len(paths)), "--expand", str(expand), "--json",
+        ],
         root,
         timeout,
     )

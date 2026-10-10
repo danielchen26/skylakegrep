@@ -183,6 +183,28 @@ class OutlineTests(unittest.TestCase):
         root.mkdir()
         self.assertNotIn("django", ap.query_terms("where does django paginate", root=root))
 
+    def test_expand_inlines_body_of_best_matching_declaration(self):
+        groups = ap.term_groups("validate the page number", root=self.root)
+        result = ap.outline_file(self.file, groups, expand=1)
+        [(start, end, text)] = result["bodies"]
+        self.assertTrue(text.lstrip().startswith("def validate_number(self, number):"))
+        self.assertIn('raise InvalidPage("page number below one")', text)
+        self.assertLessEqual(end - start + 1, ap.EXPAND_LINES)
+
+    def test_expand_tie_break_prefers_body_covering_more_of_the_query(self):
+        filler = "".join(f"x{i} = {i}\n" for i in range(ap.EXPAND_LINES + 5))
+        src = (
+            "def report_errors(field):\n    return []\n"
+            + filler
+            + "def clean_fields(field):\n    cleaned = validate(field)\n    errors = []\n    return cleaned, errors\n"
+        )
+        f = self.root / "forms.py"
+        f.write_text(src)
+        groups = ap.term_groups("field cleaning validation errors", root=self.root)
+        [(start, _, text)] = ap.outline_file(f, groups, expand=1)["bodies"]
+        self.assertEqual(start, 3 + ap.EXPAND_LINES + 5)
+        self.assertIn("def clean_fields", text)
+
     def test_outline_files_skips_non_source_and_respects_max_files(self):
         (self.root / "README.md").write_text("# pages\n")
         for name in ("a.py", "b.py", "c.py", "d.py"):
@@ -216,6 +238,10 @@ class SymbolsCommandTests(unittest.TestCase):
             self.assertIn("## pkg/paginator.py", text.output)
             self.assertIn(": class Paginator:", text.output)
             self.assertIn("## missing.py (not found)", text.output)
+            expanded = runner.invoke(cli_module.cli, ["symbols", "pkg/paginator.py", "-q", "validate page number", "--expand", "1"])
+            self.assertEqual(expanded.exit_code, 0, expanded.output)
+            self.assertIn("── lines", expanded.output)
+            self.assertIn("raise InvalidPage", expanded.output)
             raw = runner.invoke(cli_module.cli, ["symbols", "--json", "pkg/paginator.py", "-q", "pages"])
             self.assertEqual(raw.exit_code, 0, raw.output)
             payload = json.loads(raw.output)
