@@ -15,7 +15,7 @@
   &nbsp;·&nbsp;
   <a href="#three-ways-people-use-it"><b>Scenarios</b></a>
   &nbsp;·&nbsp;
-  <a href="#new-in-070-built-on-06x"><b>New in 0.7.0</b></a>
+  <a href="#new-in-080-token-lean-agent-loop"><b>New in 0.8.0</b></a>
   &nbsp;·&nbsp;
   <a href="#why-skylakegrep"><b>Why?</b></a>
   &nbsp;·&nbsp;
@@ -119,6 +119,39 @@ $ skygrep "我昨天写的 cascade 调度代码"
 > Mixed Chinese / English query. Zero network. Audit-friendly.
 
 ---
+
+## New in 0.8.0 (token-lean agent loop)
+
+Agents pay for every byte a tool returns, on every later turn. 0.8.0 cuts
+what the agent path returns without giving up completion:
+
+- Agent presets emit **compact JSON**: one line, paths relative to the
+  current directory, no duplicated anchor blocks, snippets trimmed to the
+  declaration plus the lines that mention the query. Same Django query:
+  `--agent-fast` 3,331 → 508 tokens, `--agent-context` 9,297 → 2,700. The
+  keys agents read are unchanged; `--format full` restores the 0.7.x shape.
+- **`skygrep --agent-slim "<query>"`** returns compact anchors plus a
+  query-ranked `line: declaration` outline of the top 3 source files, and a
+  `next` command for the following batch.
+- **`skygrep symbols FILE... -q "<query>"`** outlines the next files without
+  an index or a model (also the MCP tool `symbols`).
+- `skygrep setup` guidance v6 teaches the progressive loop and costs about
+  560 tokens per agent session instead of about 1,660.
+- Fixed: chunks embedded while Ollama was unreachable are now re-embedded by
+  `skygrep index .`, and `skygrep doctor` reports them.
+
+On a 60-task smoke run (stand-in embeddings, so the semantic lane was noise
+for both skygrep policies) the progressive loop matched the 0.7.x agent
+policy's 60/60 completion with a 4.4× lower median token count. Details and
+caveats: [`docs/skylakegrep-0.8.0.md`](docs/skylakegrep-0.8.0.md).
+
+```console
+$ skygrep --agent-slim "where are page numbers validated?"
+{"results":[{"path":"pkg/paginator.py","start_line":18,"end_line":22,…}],
+ "outline":[{"path":"pkg/paginator.py","lines":["11: class Paginator:",
+   "18: def validate_number(self, number):","23: def page(self, number):"]}],
+ "next":"skygrep symbols pkg/views.py pkg/utils.py -q '…'"}
+```
 
 ## New in 0.7.0 (built on 0.6.x)
 
@@ -553,6 +586,8 @@ task needs it.
 | Read deeper after narrowing to one path | `skygrep --content --detail full --include "docs/migration-plan.md" "show the deployment steps"` |
 | Quick deep-read shorthand | `skygrep --detail "show the deployment steps"` |
 | Synthesize a local answer from retrieved evidence | `skygrep --answer --content "summarize the payment retry policy"` |
+| Token-lean first call for an LLM agent | `skygrep --agent-slim "where is token refresh implemented?"` — compact anchors plus a query-ranked declaration outline of the top 3 source files |
+| Outline the next candidate files | `skygrep symbols auth/session.py auth/jwt.py -q "token refresh"` — `line: declaration` rows, no index or model needed |
 | Fast path anchors for an LLM agent | `skygrep --agent-fast "where is token refresh implemented?"` |
 | Feed compact structured context to an LLM agent | `skygrep --agent-context --include "src/**" "where is token refresh implemented?"` |
 | Verify a high-risk local claim | `skygrep --strict "where is authorization enforced?"` — hybrid recall + an independent corpus-wide semantic pass + indexed-source freshness; exits `2` when still inconclusive. |
@@ -578,14 +613,22 @@ enough evidence.
 | "I need to audit routing" | `skygrep --explain "why is this policy selected?"` | Shows router intent, contributing lanes, and cascade evidence. |
 | "I need exact regex output" | Use `rg` directly | `skygrep` is for natural-language search, not regex authoring. |
 
-Closed-loop agent policy:
+Agent presets (`--agent-fast`, `--agent-context`, `--agent-slim`) emit
+compact JSON: one line, paths relative to the current directory, no
+duplicated anchor blocks, and snippets trimmed to the declaration plus the
+lines that mention the query (`--snippet-budget` to change). The keys agents
+read are unchanged; `--format full` restores the legacy pretty-printed
+shape for debugging.
 
-1. Start with `skygrep --agent-fast "<query>"` for implementation
-   location questions, or `skygrep --agent-context "<query>"`
-   when the next reasoning step needs source text. Agent context now
-   automatically fuses path tokens, symbols, bounded ripgrep recall,
-   source-type priors, and compact chunk evidence; the caller does not
-   need to manually choose a fallback lane.
+Closed-loop agent policy (token-lean):
+
+1. Start with `skygrep --agent-slim "<query>"`. If an outline row looks like
+   the answer, read only that line range. Otherwise run the `next` command
+   it returns (`skygrep symbols <next 3 files> -q "<query>"`), at most
+   twice, then follow `agent_summary.suggested_followup_probe`. Use
+   `skygrep --agent-context "<query>"` when the next step needs snippets
+   rather than an outline; it fuses path tokens, symbols, bounded ripgrep
+   recall, source-type priors, and compact chunk evidence.
 2. If the caller already knows the repo, folder, or file, add
    `--include "<scope/**>"` immediately. Scoped calls are faster and
    reduce false positives.
@@ -729,6 +772,11 @@ explicitly requested.
 
 **Recent releases** (in reverse chronological order):
 
+  - **`0.8.0`** — Token-lean agent loop: compact agent JSON (`--format
+    auto|compact|full`), `--agent-slim`, `skygrep symbols` + MCP `symbols`
+    tool, setup guidance v6 (~560 tokens/session), and re-embedding of chunks
+    stored while the model was unreachable. Agent JSON shape changed; use
+    `--format full` for the 0.7.x shape.
   - **`0.7.5`** — Native MCP MVP (`search` / `agent_context`) + binary stdio
     framing for Cursor/Claude pipes (#22/#23). Positioned as MCP MVP usable,
     not a do-everything production agent. Other MCP hosts: same protocol,

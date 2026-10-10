@@ -514,7 +514,7 @@ def parse_args() -> argparse.Namespace:
         help="Per-repository indexing timeout in seconds (default: 7200 for large public repos).",
     )
     parser.add_argument("--full-matrix", action="store_true")
-    parser.add_argument("--policy", choices=["skygrep-first", "rg-only"], action="append")
+    parser.add_argument("--policy", choices=["skygrep-first", "skygrep-slim", "rg-only", "rg-agent"], action="append")
     parser.add_argument("--summary-only", action="store_true")
     parser.add_argument("--trials", type=int, default=1, help="Repeat each policy/task/effort combination N times.")
     parser.add_argument("--quality-floor", type=float, default=0.85)

@@ -89,6 +89,37 @@ Each task is run in paired conditions against the same repository commit:
    bounded `rg` fallback only when evidence remains insufficient.
 2. `rg-only`: bounded literal-term searches, expansion, then candidate reads.
 
+Two further policies measure the token-lean agent loop (opt in with
+`--policy`; they are not part of the 2026-08-15 receipt):
+
+3. `skygrep-slim`: one `--agent-slim` call (compact anchors + declaration
+   outline of the top 3 source files), `skygrep symbols` on the next result
+   files three at a time, cheap path/filename probes feeding more outline
+   batches, a progressive version of `skygrep-first`'s symbol sweep (same
+   candidates and per-file budget, three files per call), and only then the
+   full `skygrep-first` policy.
+   Each step stops at the sufficiency gate, so the fallback guarantees it
+   completes whatever `skygrep-first` completes, paying for both.
+4. `rg-agent`: a realistic ripgrep agent instead of a term-OR dump. Per-term
+   `rg -c` with agent-visible output capped at 250 lines (the default
+   `head_limit` of common agent Grep tools), BM25-style file ranking, the
+   same outline reader three files at a time, then reads capped at 2,000
+   lines (the default of common agent Read tools). Sharing the reader with
+   `skygrep-slim` isolates the retrieval difference.
+
+`rg-only` lets `--max-count` act per file, so common terms return most of a
+large repository (13.8M tokens per Spring task in the 2026-08-15 receipt);
+its token ratios describe savings against an unbounded dump, not against an
+agent that truncates tool output. Compare any two policies with:
+
+```bash
+.venv/bin/python benchmarks/universal_closed_loop_benchmark.py \
+  --oss-root /tmp/skygrep-general-v2-repos --trials 3 \
+  --policy skygrep-first --policy skygrep-slim --policy rg-agent --policy rg-only \
+  --report /tmp/general-v2-slim.json
+.venv/bin/python benchmarks/compare_policies.py /tmp/general-v2-slim.json
+```
+
 The default full report uses the real `cl100k_base` tokenizer through
 `tiktoken`. `chars/4` remains an explicit compatibility fallback and is always
 identified in report metadata. Index build time is recorded separately from

@@ -37,6 +37,7 @@ from typing import Any, Callable, Optional, TextIO
 from . import __version__
 from . import auto_index as ai
 from . import config as cfg_mod
+from .agent_payload import compact_results, dumps, outline_files, outline_payload
 from .candidate_recall import run_agent_context_search
 from .embeddings import get_embedder
 from .storage import init_db, search as storage_search
@@ -316,7 +317,11 @@ def run_agent_context(
     finally:
         conn.close()
     return {
-        "results": serialize_results(results, include_snippet=True),
+        # Compact agent contract: project-relative paths, no duplicated
+        # anchor blocks, term-focused snippets (see agent_payload).
+        "results": compact_results(
+            results, root=project, include_snippet=True, query=str(query)
+        ),
         "latency_seconds": round(time.perf_counter() - started, 4),
         "project_root": str(project),
         "db_path": str(db_path),
@@ -326,6 +331,48 @@ def run_agent_context(
         },
         "tool": "agent_context",
     }
+
+
+def run_symbols(
+    paths: list[str] | tuple[str, ...],
+    query: str = "",
+    *,
+    path: str | None = None,
+    default_path: str | None = None,
+    budget: int = 4000,
+    max_files: int = 3,
+    expand: int = 0,
+) -> dict[str, Any]:
+    """Query-ranked declaration outline (CLI ``skygrep symbols``)."""
+
+    if not paths:
+        raise McpToolError("invalid_args", "symbols requires 'paths'")
+    base = Path(path or default_path or os.getcwd()).expanduser().resolve()
+    resolved: list[str] = []
+    missing: list[str] = []
+    for raw in paths:
+        p = Path(str(raw)).expanduser()
+        hit = p if p.is_absolute() else base / p
+        if hit.is_file():
+            resolved.append(str(hit))
+        else:
+            missing.append(str(raw))
+    outlines = outline_files(
+        resolved,
+        str(query or ""),
+        root=base,
+        budget_chars=int(budget),
+        max_files=int(max_files),
+        expand=max(0, int(expand)),
+    )
+    payload: dict[str, Any] = {
+        "outline": outline_payload(outlines),
+        "project_root": str(base),
+        "tool": "symbols",
+    }
+    if missing:
+        payload["missing"] = missing
+    return payload
 
 
 TOOL_DEFINITIONS: list[dict[str, Any]] = [
@@ -394,11 +441,44 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "required": ["query"],
         },
     },
+    {
+        "name": "symbols",
+        "description": (
+            "Query-ranked declaration outline (line: declaration) of up to "
+            "max_files source files. Cheap follow-up after search/agent_context: "
+            "outline the next 3 candidates, then read only the listed line ranges."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "paths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Files to outline (relative to path / project root)",
+                },
+                "query": {"type": "string", "description": "Ranks matching declarations first"},
+                "path": {"type": "string"},
+                "budget": {
+                    "type": "integer",
+                    "default": 4000,
+                    "description": "Max outline characters per file; raise for a fuller inventory",
+                },
+                "max_files": {"type": "integer", "default": 3},
+                "expand": {
+                    "type": "integer",
+                    "default": 0,
+                    "description": "Also return the first 30 lines of this many best-matching declarations per file",
+                },
+            },
+            "required": ["paths"],
+        },
+    },
 ]
 
 
 def _tool_result_ok(payload: dict[str, Any]) -> dict[str, Any]:
-    text = json.dumps(payload, indent=2)
+    # Models read this text; indentation is pure token overhead.
+    text = dumps(payload)
     return {
         "content": [{"type": "text", "text": text}],
         "structuredContent": payload,
@@ -456,6 +536,20 @@ def call_tool(
                 exclude=_as_str_tuple(args.get("exclude")),
                 strict=bool(args.get("strict", False)),
                 semantic_only=bool(args.get("semantic_only", False)),
+            )
+            return _tool_result_ok(payload)
+        if name == "symbols":
+            raw_paths = args.get("paths") or []
+            if isinstance(raw_paths, str):
+                raw_paths = [raw_paths]
+            payload = run_symbols(
+                [str(p) for p in raw_paths],
+                str(args.get("query") or ""),
+                path=args.get("path"),
+                default_path=default_path,
+                budget=int(args.get("budget", 4000)),
+                max_files=int(args.get("max_files", 3)),
+                expand=int(args.get("expand", 0)),
             )
             return _tool_result_ok(payload)
         raise McpToolError("unknown_tool", f"Unknown tool: {name}")

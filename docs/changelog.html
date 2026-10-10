@@ -59,10 +59,10 @@
  <p class="eyebrow">Release notes</p>
  <h1>What's new in skylakegrep.</h1>
  <p class="lead">
- <strong>Latest:</strong> <a href="skylakegrep-0.7.5.html">0.7.5</a> —
- native MCP MVP (<code>search</code> / <code>agent_context</code>), Cursor
- verified (Connected + 2 tools + live call), Apache-2.0 packaging, fully
- offline. Earlier releases stay below; this page is the home for release
+ <strong>Latest:</strong> <a href="skylakegrep-0.8.0.html">0.8.0</a> —
+ token-lean agent loop: compact agent JSON, <code>--agent-slim</code>,
+ <code>skygrep symbols</code> and the MCP <code>symbols</code> tool, plus
+ re-embedding of chunks stored while the model was unreachable. Earlier releases stay below; this page is the home for release
  history (not inlined on the homepage).
  </p>
  <p class="lead">
@@ -73,6 +73,19 @@
  versions, in chronological order:
  </p>
  <div class="release-grid">
+ <article class="release-card">
+ <div class="release-tag">0.8.0 · Token-lean agent loop</div>
+ <h3>Compact agent JSON, --agent-slim, skygrep symbols</h3>
+ <p>
+ Agent presets return single-line JSON without duplicated anchor blocks
+ (<code>--agent-fast</code> 3,331 → 508 tokens on the same query).
+ <code>--agent-slim</code> adds a query-ranked declaration outline;
+ <code>skygrep symbols</code> outlines the next files. Agent JSON shape
+ changed — <code>--format full</code> keeps the 0.7.x shape. Fixes
+ indexes left without embeddings when Ollama was down.
+ </p>
+ <a class="release-link" href="skylakegrep-0.8.0.html">Full notes →</a>
+ </article>
  <article class="release-card">
  <div class="release-tag">0.7.5 · Native MCP MVP + stdio framing</div>
  <h3>MCP tools on PyPI; Cursor pipe framing fix</h3>

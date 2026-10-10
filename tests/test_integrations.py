@@ -44,13 +44,6 @@ class IntegrationModelTests(unittest.TestCase):
         self.assertIn("--content --detail standard", content)
         self.assertIn("--content --detail full", content)
         self.assertIn("--answer --content", content)
-        self.assertIn("--json --content --detail standard", content)
-        self.assertIn("--top 10", content)
-        self.assertIn("--no-content", content)
-        self.assertIn("--no-rerank", content)
-        self.assertIn("--no-llm-router", content)
-        self.assertIn("--no-cascade", content)
-        self.assertIn("--daemon-url", content)
         self.assertIn("Option playbook", content)
         self.assertIn("Path/location only", content)
         self.assertIn("Exact regex/raw grep", content)
@@ -58,8 +51,16 @@ class IntegrationModelTests(unittest.TestCase):
         self.assertIn("--explain", content)
         self.assertIn("Closed-loop policy", content)
         self.assertIn("final task quality", content)
-        self.assertIn("project brief", content)
-        self.assertEqual(integ.SNIPPET_VERSION, "agent-guidance-v5")
+        self.assertEqual(integ.SNIPPET_VERSION, "agent-guidance-v6")
+
+    def test_snippet_teaches_progressive_token_lean_loop(self):
+        content = integ.SNIPPET_BODY
+        self.assertIn("--agent-slim", content)
+        self.assertIn("skygrep symbols", content)
+        self.assertIn("--budget 16000", content)
+        self.assertIn("--format full", content)
+        # The snippet ships in every agent session; keep it small.
+        self.assertLess(len(content), 3000)
 
     def test_registration_status_detects_current_stale_and_missing(self):
         with tempfile.TemporaryDirectory() as d:
@@ -104,7 +105,7 @@ class IntegrationModelTests(unittest.TestCase):
             content = i.config_path.read_text()
             self.assertIn("# My instructions", content)
             self.assertIn("Keep this.", content)
-            self.assertIn("--json --content --detail standard", content)
+            self.assertIn("--agent-slim", content)
             self.assertNotIn("old setup guidance", content)
 
     def test_setup_check_reports_stale_snippet_without_modifying(self):
@@ -149,7 +150,7 @@ class IntegrationModelTests(unittest.TestCase):
 
             changed = integ.refresh_registered_snippets([stale, fresh, unregistered])
             self.assertEqual([item.name for item in changed], ["Stale"])
-            self.assertIn("--json --content --detail standard", stale.config_path.read_text())
+            self.assertIn("--agent-slim", stale.config_path.read_text())
             self.assertEqual(unregistered.config_path.read_text(), "user-authored rules only\n")
 
     def test_register_appends_without_clobbering_existing(self):
@@ -229,7 +230,7 @@ class SetupCliTests(unittest.TestCase):
             self.assertEqual(result.exit_code, 0, result.output)
             self.assertIn("updated snippet", result.output)
             content = integration.config_path.read_text()
-            self.assertIn("--json --content --detail standard", content)
+            self.assertIn("--agent-slim", content)
             self.assertNotIn("old setup guidance", content)
 
 

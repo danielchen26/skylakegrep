@@ -90,3 +90,37 @@ class SentenceTransformersZeroVectorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UnembeddedChunkRecoveryTests(unittest.TestCase):
+    """A chunk stored with a zero vector must be re-embedded on the next refresh."""
+
+    def test_zero_vector_chunks_are_marked_stale(self):
+        import tempfile
+        from pathlib import Path
+
+        from skylakegrep.src import storage
+
+        with tempfile.TemporaryDirectory() as d:
+            conn = storage.init_db(Path(d) / "index.db")
+
+            def chunk(file, idx, embedding):
+                return {
+                    "file": file, "chunk": f"def f{idx}(): pass", "language": "python",
+                    "chunk_index": idx, "file_mtime": 1234.5, "embedding": embedding,
+                    "start_line": 1, "end_line": 1, "start_byte": 0, "end_byte": 10,
+                }
+
+            storage.store_chunks_batch(conn, [chunk("/p/ok.py", 0, [0.1] * 8)])
+            storage.store_chunks_batch(
+                conn, [chunk("/p/half.py", 0, [0.2] * 8), chunk("/p/half.py", 1, [0.0] * 8)]
+            )
+            storage.store_chunks_batch(conn, [chunk("/p/down.py", 0, [0.0] * 8)])
+
+            indexed = storage.get_indexed_files(conn)
+            self.assertEqual(indexed["/p/ok.py"], 1234.5)
+            # Any unembedded chunk makes the whole file stale (mtime > 0 on disk).
+            self.assertEqual(indexed["/p/half.py"], storage.UNEMBEDDED_MTIME)
+            self.assertEqual(indexed["/p/down.py"], storage.UNEMBEDDED_MTIME)
+            self.assertEqual(storage.count_unembedded_chunks(conn), 2)
+            conn.close()

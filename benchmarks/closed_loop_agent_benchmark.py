@@ -1389,6 +1389,143 @@ def _closed_loop(
                 )
                 if enough(score):
                     stop_reason = "sufficient_after_read_top_paths"
+    elif policy == "skygrep-slim":
+        from benchmarks import slim_policies as sp
+
+        slim_step, result_paths, outlined = sp.skygrep_slim_step(
+            root,
+            task["query"],
+            timeout=timeout,
+            top=10,
+            includes=known_scope,
+            name="slim:initial",
+            step_cls=StepResult,
+        )
+        score = add_step(slim_step)
+        seen = set(outlined)
+        if enough(score):
+            stop_reason = "sufficient_after_slim_initial"
+        else:
+            queue = [p for p in result_paths if sp.is_source(p) and p not in seen]
+            for batch in sp.batches(queue)[:2]:
+                seen.update(batch)
+                step, _ = sp.symbols_step(
+                    root, batch, task["query"], budget=4000, timeout=timeout,
+                    name="slim:symbols_results", step_cls=StepResult,
+                )
+                score = add_step(step)
+                if enough(score):
+                    stop_reason = "sufficient_after_slim_result_outlines"
+                    break
+        if stop_reason == "budget_exhausted":
+            probe = _rg_path_probe_step(
+                root,
+                task["query"],
+                timeout=timeout,
+                terms=max(3, int(effort["rg_terms"])),
+                max_paths=max(15, int(effort["top"]) * 5),
+                includes=known_scope,
+                name="slim:rg_path_probe",
+            )
+            score = add_step(probe)
+            filename_probe = _filename_probe_step(
+                root,
+                task["query"],
+                max_paths=max(30, int(effort["top"]) * 10),
+                name="slim:filename_probe",
+            )
+            score = add_step(filename_probe)
+            if enough(score):
+                stop_reason = "sufficient_after_slim_probes"
+            else:
+                queue = [
+                    p
+                    for p in _dedupe([*probe.paths, *filename_probe.paths])
+                    if sp.is_source(p) and p not in seen
+                ]
+                for batch in sp.batches(queue)[:4]:
+                    seen.update(batch)
+                    step, _ = sp.symbols_step(
+                        root, batch, task["query"], budget=4000, timeout=timeout,
+                        name="slim:symbols_probes", step_cls=StepResult,
+                    )
+                    score = add_step(step)
+                    if enough(score):
+                        stop_reason = "sufficient_after_slim_probe_outlines"
+                        break
+        if stop_reason == "budget_exhausted":
+            # Progressive version of skygrep-first's symbol sweep: the same
+            # candidate order (skygrep anchors, path probe, filename probe),
+            # the same file cap and per-file budget, read three files at a
+            # time and stopped at the gate instead of all at once. Files
+            # already outlined at the small budget are re-read at the full
+            # budget because their evidence may sit below the first cut.
+            sweep = [
+                p
+                for p in _dedupe([*result_paths, *probe.paths, *filename_probe.paths])
+                if sp.is_source(p)
+            ][: max(50, int(effort["top"]) * 16)]
+            sweep_budget = max(8_000, read_chars * 2)
+            for batch in sp.batches(sweep):
+                step, _ = sp.symbols_step(
+                    root, batch, task["query"], budget=sweep_budget, timeout=timeout,
+                    name="slim:symbols_sweep", step_cls=StepResult,
+                )
+                score = add_step(step)
+                if enough(score):
+                    stop_reason = "sufficient_after_slim_progressive_sweep"
+                    break
+        if stop_reason == "budget_exhausted":
+            # Completion guarantee: anything the slim loop could not settle
+            # gets the full skygrep-first policy, and pays for both.
+            fallback = _closed_loop(
+                root,
+                task,
+                effort_name,
+                policy="skygrep-first",
+                timeout=timeout,
+                sufficient_threshold=sufficient_threshold,
+                allow_root_fallback=allow_root_fallback,
+            )
+            merged = dict(fallback)
+            merged["policy"] = "skygrep-slim"
+            merged["stop_reason"] = f"fallback:{fallback['stop_reason']}"
+            merged["steps"] = [*steps, *fallback["steps"]]
+            merged["tool_calls"] = sum(int(s["tool_calls"]) for s in merged["steps"])
+            merged["context_tokens"] = sum(int(s["context_tokens"]) for s in merged["steps"])
+            merged["tool_elapsed_seconds"] = round(
+                sum(float(s["elapsed_seconds"]) for s in merged["steps"]), 3
+            )
+            merged["elapsed_seconds"] = round(time.perf_counter() - started, 3)
+            return merged
+    elif policy == "rg-agent":
+        from benchmarks import slim_policies as sp
+
+        terms = _selected_probe_terms(root, task["query"], max_terms=max(6, int(effort["rg_terms"])))
+        rank_step, ranked = sp.rg_rank_step(
+            root, terms, includes=known_scope, name="rg-agent:rank", step_cls=StepResult,
+            timeout=timeout,
+        )
+        score = add_step(rank_step)
+        if enough(score):
+            stop_reason = "sufficient_after_rg_rank"
+        else:
+            queue = [p for p in ranked if sp.is_source(p)][:12]
+            for batch in sp.batches(queue)[:4]:
+                step, _ = sp.symbols_step(
+                    root, batch, task["query"], budget=4000, timeout=timeout,
+                    name="rg-agent:outline", step_cls=StepResult,
+                )
+                score = add_step(step)
+                if enough(score):
+                    stop_reason = "sufficient_after_rg_outlines"
+                    break
+        if stop_reason == "budget_exhausted":
+            for path in ranked[:3]:
+                score = add_step(sp.read_lines_step(root, path, name="rg-agent:read", step_cls=StepResult))
+                if enough(score):
+                    stop_reason = "sufficient_after_rg_reads"
+                    break
     else:
         raise ValueError(f"unknown policy: {policy}")
 
@@ -1638,7 +1775,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--root", default=".")
     parser.add_argument("--tasks", help="Optional JSON task fixture")
     parser.add_argument("--effort", choices=sorted(EFFORTS), action="append")
-    parser.add_argument("--policy", choices=["skygrep-first", "rg-only"], action="append")
+    parser.add_argument("--policy", choices=["skygrep-first", "skygrep-slim", "rg-only", "rg-agent"], action="append")
     parser.add_argument("--timeout", type=float, default=45.0)
     parser.add_argument("--sufficient-threshold", type=float, default=0.85)
     parser.add_argument(
